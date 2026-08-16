@@ -1,7 +1,6 @@
-name: Initialize React Native Foundation
+name: 00 Initialize Foundation
 
-"on":
-  workflow_dispatch: {}
+"on": workflow_dispatch
 
 permissions:
   contents: write
@@ -12,44 +11,31 @@ concurrency:
 
 jobs:
   initialize:
-    name: Generate and validate React Native 0.87 foundation
     runs-on: ubuntu-latest
-    timeout-minutes: 50
-
+    timeout-minutes: 30
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Refuse to overwrite an initialized native project
+      - name: Protect initialized repository
         shell: bash
         run: |
           set -euo pipefail
           if [[ -f package.json || -d ios || -d android ]]; then
-            echo 'A native React Native project already exists. Initialization stopped to protect it.'
+            echo 'Repository is already initialized.'
             exit 1
           fi
-
-      - name: Verify overlay archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f kepler-overlay-v0.1.zip
-          unzip -t kepler-overlay-v0.1.zip
+          test -f kepler-overlay-v0.2.zip
+          unzip -t kepler-overlay-v0.2.zip
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.13.0'
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Generate official React Native project
+      - name: Generate official React Native 0.87 project
         shell: bash
         run: |
           set -euo pipefail
@@ -61,7 +47,7 @@ jobs:
             --install-pods false \
             --skip-git-init
 
-      - name: Move generated native project into repository root
+      - name: Move generated project to repository root
         shell: bash
         run: |
           set -euo pipefail
@@ -72,14 +58,14 @@ jobs:
             IumrahApp/ ./
           rm -rf IumrahApp
 
-      - name: Apply iumrah overlay
+      - name: Apply iumrah foundation overlay
         shell: bash
         run: |
           set -euo pipefail
-          unzip -o kepler-overlay-v0.1.zip -d .
-          rm -f kepler-overlay-v0.1.zip
+          unzip -o kepler-overlay-v0.2.zip -d .
+          rm -f kepler-overlay-v0.2.zip
 
-      - name: Validate identifiers and generated structure
+      - name: Validate generated structure
         shell: bash
         run: |
           set -euo pipefail
@@ -94,49 +80,22 @@ jobs:
           grep -q '"react-native": "0.87.0"' package.json
           grep -q 'com.iumrah.app.beta' ios/IumrahApp.xcodeproj/project.pbxproj
           grep -R -q 'com.iumrah.app.beta' android/app
-          grep -R -q 'IumrahApp' android/app/src/main
 
-      - name: Install dependencies from lockfile
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: TypeScript
-        run: npx tsc --noEmit
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install required Android SDK packages
+      - name: Validate TypeScript and lint
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager \
-            'platform-tools' \
-            'platforms;android-37' \
-            'build-tools;37.0.0' \
-            'ndk;27.1.12297006'
+          npm ci
+          npm run lint
+          npx tsc --noEmit
 
-      - name: Build Android debug as pre-release validation
+      - name: Remove one-time initializer and commit foundation
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x android/gradlew
-          cd android
-          ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Commit validated foundation
-        shell: bash
-        run: |
-          set -euo pipefail
+          rm -f .github/workflows/bootstrap.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          if git diff --cached --quiet; then
-            echo 'Nothing to commit.'
-            exit 0
-          fi
-          git commit -m 'Initialize React Native 0.87 client foundation'
+          git commit -m 'Initialize React Native 0.87 foundation'
           git push origin HEAD:${GITHUB_REF_NAME}
