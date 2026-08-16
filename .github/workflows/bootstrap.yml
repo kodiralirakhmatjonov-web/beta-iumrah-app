@@ -1,7 +1,7 @@
 name: Bootstrap React Native
 
-on:
-  workflow_dispatch:
+"on":
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   bootstrap:
+    name: Create React Native foundation
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -21,32 +22,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Stop if React Native is already initialized
+      - name: Verify repository is not already initialized
         shell: bash
         run: |
           set -euo pipefail
           if [[ -f package.json || -d ios || -d android ]]; then
-            echo "React Native foundation already exists. Bootstrap is intentionally one-time only."
+            echo "React Native project already exists; refusing to overwrite it."
             exit 1
           fi
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js 22.13
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.13.0'
 
-      - name: Generate React Native 0.87 project
+      - name: Show toolchain
         shell: bash
         run: |
           set -euo pipefail
           node --version
           npm --version
-          npx --yes @react-native-community/cli@20.2.0 init KeplerMobile \
+
+      - name: Generate React Native 0.87 project
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @react-native-community/cli@latest init IumrahBeta \
             --version 0.87.0 \
+            --title "iumrah Beta" \
             --package-name com.iumrah.app.beta \
             --pm npm \
             --install-pods false \
-            --skip-git-init true
+            --skip-git-init
 
       - name: Move generated project to repository root
         shell: bash
@@ -55,419 +62,24 @@ jobs:
           rsync -a \
             --exclude '.git' \
             --exclude '.github' \
-            KeplerMobile/ ./
-          rm -rf KeplerMobile
+            IumrahBeta/ ./
+          rm -rf IumrahBeta
 
-      - name: Apply iumrah Beta foundation
+      - name: Validate generated project
         shell: bash
         run: |
           set -euo pipefail
-
-          mkdir -p src/app src/screens src/theme
-
-          cat > App.tsx <<'EOF'
-          import React from 'react';
-          import AppRoot from './src/app/AppRoot';
-
-          export default function App() {
-            return <AppRoot />;
-          }
-          EOF
-
-          cat > src/app/AppRoot.tsx <<'EOF'
-          import React from 'react';
-          import {StatusBar} from 'react-native';
-          import FoundationScreen from '../screens/FoundationScreen';
-
-          export default function AppRoot() {
-            return (
-              <>
-                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-                <FoundationScreen />
-              </>
-            );
-          }
-          EOF
-
-          cat > src/theme/tokens.ts <<'EOF'
-          export const tokens = {
-            color: {
-              background: '#FFFFFF',
-              surface: '#F6F6F8',
-              text: '#111114',
-              secondaryText: '#73737A',
-              border: '#E7E7EA',
-            },
-            radius: {
-              card: 28,
-              button: 22,
-            },
-          } as const;
-          EOF
-
-          cat > src/screens/FoundationScreen.tsx <<'EOF'
-          import React from 'react';
-          import {
-            Pressable,
-            SafeAreaView,
-            StyleSheet,
-            Text,
-            View,
-          } from 'react-native';
-          import {tokens} from '../theme/tokens';
-
-          export default function FoundationScreen() {
-            return (
-              <SafeAreaView style={styles.safeArea}>
-                <View style={styles.container}>
-                  <View style={styles.brandRow}>
-                    <Text style={styles.brand}>iumrah</Text>
-                    <View style={styles.betaBadge}>
-                      <Text style={styles.betaText}>BETA</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.hero}>
-                    <Text style={styles.eyebrow}>NEW MOBILE FOUNDATION</Text>
-                    <Text style={styles.title}>Your Umrah, built around you.</Text>
-                    <Text style={styles.subtitle}>
-                      React Native + TypeScript foundation is ready for the Umrah Generator.
-                    </Text>
-                  </View>
-
-                  <View style={styles.card}>
-                    <Text style={styles.cardLabel}>Foundation status</Text>
-                    <Text style={styles.cardTitle}>Kepler Mobile v0.1</Text>
-                    <View style={styles.statusRow}>
-                      <View style={styles.statusDot} />
-                      <Text style={styles.statusText}>React Native 0.87 · TypeScript</Text>
-                    </View>
-                  </View>
-
-                  <Pressable accessibilityRole="button" style={styles.button}>
-                    <Text style={styles.buttonText}>Build my Umrah</Text>
-                  </Pressable>
-                </View>
-              </SafeAreaView>
-            );
-          }
-
-          const styles = StyleSheet.create({
-            safeArea: {
-              flex: 1,
-              backgroundColor: tokens.color.background,
-            },
-            container: {
-              flex: 1,
-              paddingHorizontal: 22,
-              paddingTop: 18,
-              paddingBottom: 24,
-            },
-            brandRow: {
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 10,
-            },
-            brand: {
-              color: tokens.color.text,
-              fontSize: 24,
-              fontWeight: '700',
-              letterSpacing: -0.8,
-            },
-            betaBadge: {
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: tokens.color.border,
-              borderRadius: 999,
-              paddingHorizontal: 9,
-              paddingVertical: 5,
-            },
-            betaText: {
-              color: tokens.color.secondaryText,
-              fontSize: 10,
-              fontWeight: '700',
-              letterSpacing: 1.1,
-            },
-            hero: {
-              marginTop: 64,
-            },
-            eyebrow: {
-              color: tokens.color.secondaryText,
-              fontSize: 11,
-              fontWeight: '700',
-              letterSpacing: 1.4,
-            },
-            title: {
-              marginTop: 13,
-              maxWidth: 330,
-              color: tokens.color.text,
-              fontSize: 43,
-              lineHeight: 47,
-              fontWeight: '700',
-              letterSpacing: -1.8,
-            },
-            subtitle: {
-              marginTop: 18,
-              maxWidth: 340,
-              color: tokens.color.secondaryText,
-              fontSize: 16,
-              lineHeight: 24,
-            },
-            card: {
-              marginTop: 'auto',
-              backgroundColor: tokens.color.surface,
-              borderRadius: tokens.radius.card,
-              padding: 22,
-            },
-            cardLabel: {
-              color: tokens.color.secondaryText,
-              fontSize: 12,
-              fontWeight: '600',
-            },
-            cardTitle: {
-              marginTop: 6,
-              color: tokens.color.text,
-              fontSize: 21,
-              fontWeight: '700',
-              letterSpacing: -0.5,
-            },
-            statusRow: {
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginTop: 14,
-              gap: 8,
-            },
-            statusDot: {
-              width: 8,
-              height: 8,
-              borderRadius: 999,
-              backgroundColor: '#38A169',
-            },
-            statusText: {
-              color: tokens.color.secondaryText,
-              fontSize: 13,
-            },
-            button: {
-              marginTop: 14,
-              minHeight: 58,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: tokens.radius.button,
-              backgroundColor: tokens.color.text,
-            },
-            buttonText: {
-              color: '#FFFFFF',
-              fontSize: 16,
-              fontWeight: '700',
-            },
-          });
-          EOF
-
-          node <<'NODE'
-          const fs = require('fs');
-
-          const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
-          appJson.displayName = 'iumrah Beta';
-          fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2) + '\n');
-
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          pkg.private = true;
-          pkg.scripts = {
-            ...pkg.scripts,
-            typecheck: 'tsc --noEmit',
-          };
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          NODE
-
-          if [[ -f android/app/src/main/res/values/strings.xml ]]; then
-            python3 - <<'PY'
-          from pathlib import Path
-          p = Path('android/app/src/main/res/values/strings.xml')
-          s = p.read_text()
-          s = s.replace('<string name="app_name">KeplerMobile</string>', '<string name="app_name">iumrah Beta</string>')
-          p.write_text(s)
-          PY
-          fi
-
-          if [[ -f ios/KeplerMobile/Info.plist ]]; then
-            python3 - <<'PY'
-          import plistlib
-          from pathlib import Path
-          p = Path('ios/KeplerMobile/Info.plist')
-          with p.open('rb') as f:
-              data = plistlib.load(f)
-          data['CFBundleDisplayName'] = 'iumrah Beta'
-          with p.open('wb') as f:
-              plistlib.dump(data, f, sort_keys=False)
-          PY
-          fi
-
-          mkdir -p .github/workflows
-
-          cat > .github/workflows/check.yml <<'EOF'
-          name: Check
-          
-          on:
-            push:
-              branches: [main]
-            pull_request:
-              branches: [main]
-          
-          permissions:
-            contents: read
-          
-          jobs:
-            quality:
-              runs-on: ubuntu-latest
-              timeout-minutes: 15
-          
-              steps:
-                - name: Checkout repository
-                  uses: actions/checkout@v4
-          
-                - name: Set up Node.js 22
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: '22'
-                    cache: npm
-          
-                - name: Install dependencies
-                  run: npm ci
-          
-                - name: Lint
-                  run: npm run lint
-          
-                - name: TypeScript
-                  run: npm run typecheck
-          EOF
-
-          cat > .github/workflows/android-debug.yml <<'EOF'
-          name: Android Debug
-          
-          on:
-            workflow_dispatch:
-          
-          permissions:
-            contents: read
-          
-          jobs:
-            build:
-              runs-on: ubuntu-latest
-              timeout-minutes: 30
-          
-              steps:
-                - name: Checkout repository
-                  uses: actions/checkout@v4
-          
-                - name: Set up Node.js 22
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: '22'
-                    cache: npm
-          
-                - name: Set up Java 17
-                  uses: actions/setup-java@v4
-                  with:
-                    distribution: temurin
-                    java-version: '17'
-                    cache: gradle
-          
-                - name: Install dependencies
-                  run: npm ci
-          
-                - name: Build debug APK
-                  working-directory: android
-                  run: ./gradlew assembleDebug --no-daemon
-          
-                - name: Upload APK
-                  uses: actions/upload-artifact@v4
-                  with:
-                    name: kepler-mobile-android-debug
-                    path: android/app/build/outputs/apk/debug/app-debug.apk
-                    if-no-files-found: error
-                    retention-days: 7
-          EOF
-
-          cat > .github/workflows/ios-unsigned.yml <<'EOF'
-          name: iOS Unsigned Check
-          
-          on:
-            workflow_dispatch:
-          
-          permissions:
-            contents: read
-          
-          jobs:
-            build:
-              runs-on: macos-26
-              timeout-minutes: 45
-          
-              steps:
-                - name: Checkout repository
-                  uses: actions/checkout@v4
-          
-                - name: Set up Node.js 22
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: '22'
-                    cache: npm
-          
-                - name: Install JavaScript dependencies
-                  run: npm ci
-          
-                - name: Install Ruby dependencies
-                  run: bundle install
-          
-                - name: Install CocoaPods dependencies
-                  working-directory: ios
-                  run: bundle exec pod install
-          
-                - name: Show Xcode version
-                  run: xcodebuild -version
-          
-                - name: Build for iOS Simulator without signing
-                  working-directory: ios
-                  run: |
-                    set -o pipefail
-                    xcodebuild \
-                      -workspace KeplerMobile.xcworkspace \
-                      -scheme KeplerMobile \
-                      -configuration Debug \
-                      -sdk iphonesimulator \
-                      -destination 'generic/platform=iOS Simulator' \
-                      CODE_SIGNING_ALLOWED=NO \
-                      build
-          EOF
-
-          cat > README.md <<'EOF'
-          # Kepler Mobile
-
-          Public codename repository for the new **iumrah client mobile app**.
-
-          ## Foundation
-
-          - React Native 0.87
-          - TypeScript
-          - Bare React Native (no Expo / no EAS)
-          - iOS beta bundle identifier: `com.iumrah.app.beta`
-          - Android beta application ID: `com.iumrah.app.beta`
-          - Production identifier will remain `com.iumrah.app` when release configuration is introduced
-
-          ## CI
-
-          - `Check` — lint + TypeScript validation
-          - `Android Debug` — builds an installable debug APK
-          - `iOS Unsigned Check` — verifies the iOS project on a GitHub macOS runner without Apple signing
-
-          Apple Ad Hoc signing is intentionally added only after the unsigned iOS build is green.
-          EOF
-
-      - name: Install and validate foundation
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm install
+          test -f package.json
+          test -f tsconfig.json
+          test -d ios
+          test -d android
+          test -f ios/IumrahBeta.xcodeproj/project.pbxproj
+          test -f android/gradlew
+          grep -q '"react-native"' package.json
+          grep -q 'com.iumrah.app.beta' ios/IumrahBeta.xcodeproj/project.pbxproj
+          grep -R -q 'com.iumrah.app.beta' android/app
           npm run lint
-          npm run typecheck
+          npx tsc --noEmit
 
       - name: Commit generated foundation
         shell: bash
@@ -476,9 +88,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
+
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "Nothing to commit."
             exit 0
           fi
-          git commit -m "chore: bootstrap React Native 0.87 foundation"
+
+          git commit -m "Bootstrap React Native 0.87 foundation"
           git push origin HEAD:${GITHUB_REF_NAME}
