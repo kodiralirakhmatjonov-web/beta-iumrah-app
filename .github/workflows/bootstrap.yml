@@ -1,6 +1,7 @@
 name: 00 Initialize Foundation
 
-"on": workflow_dispatch
+"on":
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -58,12 +59,16 @@ jobs:
             IumrahApp/ ./
           rm -rf IumrahApp
 
-      - name: Apply iumrah foundation overlay
+      - name: Apply iumrah foundation overlay without workflow files
         shell: bash
         run: |
           set -euo pipefail
-          unzip -o kepler-overlay-v0.2.zip -d .
-          rm -f kepler-overlay-v0.2.zip
+          overlay_dir="$(mktemp -d)"
+          unzip -q kepler-overlay-v0.2.zip -d "$overlay_dir"
+          rsync -a \
+            --exclude '.github' \
+            "$overlay_dir/" ./
+          rm -rf "$overlay_dir"
 
       - name: Validate generated structure
         shell: bash
@@ -89,13 +94,25 @@ jobs:
           npm run lint
           npx tsc --noEmit
 
-      - name: Remove one-time initializer and commit foundation
+      - name: Commit foundation without touching GitHub workflows
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/bootstrap.yml
+          rm -f kepler-overlay-v0.2.zip
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
+
+          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
+            echo 'Safety check failed: a workflow file is staged.'
+            git diff --cached --name-only
+            exit 1
+          fi
+
+          if git diff --cached --quiet; then
+            echo 'No foundation changes to commit.'
+            exit 1
+          fi
+
           git commit -m 'Initialize React Native 0.87 foundation'
           git push origin HEAD:${GITHUB_REF_NAME}
