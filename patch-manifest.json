@@ -1,18 +1,12 @@
 {
-  "patch": "iumrah-beta-technical-009",
+  "patch": "iumrah-beta-technical-010",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
-  "cumulative_from": ["0.06", "0.07", "0.08"],
-  "design_patch_included": false,
   "changes": [
-    "enable strict real Flight Engine mode for TestFlight validation",
-    "remove silent sandbox fallback from officialWebBots mode",
-    "run provider bots in bounded batches with 4 minimum and 6 preferred verified options",
-    "surface CAPTCHA/human verification in a persistent WKWebView and support retry",
-    "show explicit backend/provider/insufficient-results errors in outbound and return flows",
-    "keep raw flight fares private and return only server-side PackageQuote totals to iOS",
-    "tighten Package Engine flight observation validation and 20-minute freshness",
-    "improve Package Engine health contract for real flight option quoting",
-    "preserve existing Primary Hotel fallback and pricing architecture"
+    "replace WebKit navigation delegate/continuation race with main-actor polling",
+    "use native async WKWebView evaluateJavaScript API",
+    "use reloadIgnoringLocalCacheData for broader SDK compatibility",
+    "keep persistent WKWebsiteDataStore for CAPTCHA/session continuation",
+    "no Package Engine or pricing changes"
   ]
 }

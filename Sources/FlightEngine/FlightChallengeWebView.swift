@@ -1,9 +1,8 @@
 import SwiftUI
-import WebKit
+@preconcurrency import WebKit
 
-/// Reusable technical view for a provider's human-verification step.
-/// It uses WKWebsiteDataStore.default(), the same persistent store as FlightBotRunner,
-/// so a CAPTCHA/code completed by the user can be reused when the provider bot retries.
+/// Human-verification surface for a provider. It shares WKWebsiteDataStore.default()
+/// with FlightBotRunner so cookies/session state survive when the search is retried.
 struct FlightChallengeWebView: UIViewRepresentable {
     let challenge: FlightBotChallenge
 
@@ -11,6 +10,7 @@ struct FlightChallengeWebView: UIViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.load(URLRequest(url: challenge.url))
         return webView
