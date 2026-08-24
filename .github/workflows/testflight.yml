@@ -18,7 +18,7 @@ jobs:
     env:
       SCHEME: iumrahBeta
       PROJECT: iumrahBeta.xcodeproj
-      BUNDLE_ID: com.iumrah.app
+      BUNDLE_ID: com.iumrah.beta
       ARCHIVE_PATH: build/iumrahBeta.xcarchive
 
     steps:
@@ -28,9 +28,9 @@ jobs:
       - name: Verify beta bootstrap is applied
         run: |
           set -euo pipefail
-          test -f BETA_BOOTSTRAP_002_APPLIED.txt || {
-            echo "STOP: beta bootstrap 002 has not been applied yet."
-            echo "Upload iumrah-beta-update-002.zip to repository root first."
+          test -f BETA_BOOTSTRAP_003_APPLIED.txt || {
+            echo "STOP: beta bootstrap 003 has not been applied yet."
+            echo "Upload iumrah-beta-update-003.zip to repository root first."
             exit 1
           }
           test -f project.yml
@@ -39,12 +39,12 @@ jobs:
           test -f Sources/App/IumrahBetaApp.swift
           test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
 
-          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
-            echo "STOP: project.yml does not target com.iumrah.app"
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta' project.yml >/dev/null || {
+            echo "STOP: project.yml does not target com.iumrah.beta"
             exit 1
           }
 
-          cat BETA_BOOTSTRAP_002_APPLIED.txt
+          cat BETA_BOOTSTRAP_003_APPLIED.txt
 
       - name: Xcode environment
         run: |
@@ -81,12 +81,19 @@ jobs:
       - name: Check TestFlight requirements
         if: ${{ inputs.upload_to_testflight }}
         env:
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+
+          if [ "${REPOSITORY_PRIVATE:-false}" != "true" ]; then
+            echo "STOP: this repository is public. Do not commit Signing/distribution-private-key.enc to a public repository."
+            echo "Make beta-iumrah-app private before using the file-based signing architecture from lattice-mobile."
+            exit 1
+          fi
 
           for name in APPLE_TEAM_ID APPLE_ID_EMAIL APPLE_APP_SPECIFIC_PASSWORD IOS_SIGNING_KEY_PASSWORD; do
             if [ -z "${!name}" ]; then
@@ -97,7 +104,7 @@ jobs:
 
           test -f Signing/distribution-private-key.enc || {
             echo "Missing Signing/distribution-private-key.enc"
-            echo "The encrypted private key may be reused only if the com.iumrah.app provisioning profile uses the matching Apple Distribution certificate."
+            echo "The encrypted private key may be reused only if the com.iumrah.beta provisioning profile uses the matching Apple Distribution certificate."
             exit 1
           }
 
