@@ -157,7 +157,7 @@ final class AutomaticFlightSearchService: FlightSearchServicing {
         if let remoteReady { return remoteReady }
         do {
             let health = try await packageEngine.health()
-            let ready = health.ok && health.hotelsDbConfigured
+            let ready = health.ok && health.hotelsDbConfigured && (health.pricingReady ?? false)
             remoteReady = ready
             return ready
         } catch {

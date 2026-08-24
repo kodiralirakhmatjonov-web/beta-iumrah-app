@@ -37,7 +37,7 @@ actor APIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("iumrah-ios-beta/0.6", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.7", forHTTPHeaderField: "User-Agent")
         request.httpBody = try encoder.encode(body)
 
         let (data, response) = try await session.data(for: request)
@@ -61,7 +61,7 @@ actor APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("iumrah-ios-beta/0.6", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.7", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }

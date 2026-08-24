@@ -10,7 +10,7 @@ enum AppConfig {
     static let appName = "iumrah Beta"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
-    /// 0.6 technical state. Automatic mode checks the server-side Package Engine
+    /// 0.7 technical state. Automatic mode checks the server-side Package Engine
     /// first. If it is not deployed/configured yet, the existing sandbox remains
     /// available so TestFlight never becomes unusable.
     static let flightEngineMode: FlightEngineMode = .automatic

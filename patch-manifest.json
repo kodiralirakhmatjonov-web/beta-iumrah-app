@@ -1,16 +1,16 @@
 {
-  "patch": "iumrah-beta-tech-006",
+  "patch": "iumrah-beta-tech-007",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
-  "cumulative_from": "0.5",
+  "cumulative_from": "0.6",
   "includes_visual_0_4": false,
   "changes": [
-    "include complete Flight Engine 0.5 provider/adaptor layer",
-    "add automatic real-engine activation with sandbox safety fallback",
-    "add server-side CBU FX normalization for UZS/USD/EUR/RUB/SAR and other CBU currencies",
-    "add batch package quoting for outbound and return flight options",
-    "connect real bot candidates to package-only FlightOffer prices without exposing raw ticket cost",
-    "preserve iumrah Web pricing contract in server-side Package Engine",
-    "carry exact final return quote into the final package result"
+    "include all technical Flight and Package Engine work from 0.6",
+    "make Package Engine deployable on iumrah.app while binding only to the existing iumrah-hotels D1",
+    "avoid conflicts with the existing HotelsWorker D1 migration history by applying an idempotent package schema",
+    "add authenticated admin API for Primary Hotel assignment and internal base price management",
+    "add Package Engine pricingReady health state",
+    "make iOS resolve the server-configured Primary Hotel instead of selecting the first same-star hotel",
+    "keep automatic sandbox fallback until Package Engine and Primary Hotel pricing are ready"
   ]
 }

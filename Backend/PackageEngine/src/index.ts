@@ -1,12 +1,14 @@
 import { calculatePackageQuote } from "./pricing";
 import { quoteFlightOptions } from "./flight-options";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
+import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
 type Env = {
   PRICING_VERSION?: string;
   HOTELS_DB?: D1Like;
   CBU_FX_URL?: string;
+  AUTH_SESSION_URL?: string;
 };
 
 function json(value: unknown, status = 200) {
@@ -75,20 +77,73 @@ async function resolveConsumerQuote(input: ConsumerPackageQuoteRequest, env: Env
     customization: input.customization,
   };
 
-  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.6");
+  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7");
+}
+
+async function publicHealth(env: Env) {
+  if (!env.HOTELS_DB) {
+    return json({
+      ok: true,
+      service: "iumrah-package-engine",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7",
+      hotelsDbConfigured: false,
+      primaryHotelConfigCount: 0,
+      pricingReady: false,
+    });
+  }
+
+  try {
+    const row = await env.HOTELS_DB.prepare(
+      `SELECT COUNT(*) AS count
+       FROM package_primary_hotels p
+       INNER JOIN hotels h ON h.id = p.hotel_id
+       WHERE p.active = 1
+         AND h.status = 'published'
+         AND h.city = p.city
+         AND h.stars = p.stars`,
+    ).first<{ count: number | string }>();
+    const count = Number(row?.count ?? 0);
+    return json({
+      ok: true,
+      service: "iumrah-package-engine",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7",
+      hotelsDbConfigured: true,
+      primaryHotelConfigCount: count,
+      pricingReady: count > 0,
+    });
+  } catch (error) {
+    return json({
+      ok: false,
+      service: "iumrah-package-engine",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7",
+      hotelsDbConfigured: true,
+      primaryHotelConfigCount: 0,
+      pricingReady: false,
+      error: error instanceof Error ? error.message : "D1 health check failed",
+    }, 503);
+  }
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname.startsWith("/api/admin/package")) {
+      const auth = await requirePackageAdmin(request, env);
+      if (!auth.ok) return auth.response;
+
+      if (url.pathname === "/api/admin/package/primary-hotels") {
+        if (request.method === "GET") return listPrimaryHotels(env);
+        if (request.method === "PUT" || request.method === "POST") return upsertPrimaryHotel(request, env);
+        if (request.method === "DELETE") return deletePrimaryHotel(request, env);
+        return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+
+      return json({ ok: false, error: "NOT_FOUND" }, 404);
+    }
+
     if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {
-      return json({
-        ok: true,
-        service: "iumrah-package-engine",
-        pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.6",
-        hotelsDbConfigured: Boolean(env.HOTELS_DB),
-      });
+      return publicHealth(env);
     }
 
     if (request.method === "GET" && url.pathname === "/api/package/primary-hotel") {
@@ -101,8 +156,14 @@ export default {
       }
       try {
         const row = await resolvePrimaryHotel(env.HOTELS_DB, tier, stars, city);
-        // Public response intentionally omits base_price_usd and price_unit.
-        return json({ ok: true, hotelId: row.hotel_id, roomId: row.room_id, tier: row.package_tier, stars: row.stars, city: row.city });
+        return json({
+          ok: true,
+          hotelId: row.hotel_id,
+          roomId: row.room_id,
+          tier: row.package_tier,
+          stars: row.stars,
+          city: row.city,
+        });
       } catch (error) {
         return json({ ok: false, error: error instanceof Error ? error.message : "Primary Hotel not configured" }, 404);
       }
@@ -112,7 +173,6 @@ export default {
       try {
         const input = (await request.json()) as ConsumerPackageQuoteRequest;
         const result = await resolveConsumerQuote(input, env);
-        // Never expose internal component costs or margin to the consumer app.
         return json(publicOnly(result));
       } catch (error) {
         return json({ ok: false, error: error instanceof Error ? error.message : "Invalid quote request" }, 400);
@@ -123,7 +183,6 @@ export default {
       try {
         const input = await request.json();
         const result = await quoteFlightOptions(input as FlightOptionsQuoteRequest, env);
-        // Raw flight fares, FX-normalized costs, hotel costs and margin never leave this worker.
         return json(result);
       } catch (error) {
         return json({ ok: false, error: error instanceof Error ? error.message : "Invalid flight options quote request" }, 400);

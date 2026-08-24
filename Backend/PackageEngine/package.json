@@ -1,9 +1,16 @@
 {
   "name": "iumrah-beta-package-engine",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
+  "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "deploy": "wrangler deploy --config wrangler.generated.jsonc",
+    "migrate": "wrangler d1 execute HOTELS_DB --remote --file migrations/0006_package_primary_hotels.sql --config wrangler.generated.jsonc"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "wrangler": "^4.107.0"
   }
 }

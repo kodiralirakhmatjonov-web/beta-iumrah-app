@@ -7,6 +7,17 @@ struct RemotePackageEngineClient {
         try await api.get(AppConfig.packageHealthPath)
     }
 
+    func primaryHotel(tier: PackageTier, stars: Int, city: String) async throws -> PrimaryHotelResolutionResponse {
+        try await api.get(
+            "/api/package/primary-hotel",
+            query: [
+                URLQueryItem(name: "tier", value: tier.rawValue),
+                URLQueryItem(name: "stars", value: String(stars)),
+                URLQueryItem(name: "city", value: city)
+            ]
+        )
+    }
+
     func quote(
         trip: TripDraft,
         makkahHotelID: String?,

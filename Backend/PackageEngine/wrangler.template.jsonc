@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "iumrah-package-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-24",
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "iumrah.app/api/package*",
+      "zone_id": "__ZONE_ID__"
+    },
+    {
+      "pattern": "iumrah.app/api/admin/package*",
+      "zone_id": "__ZONE_ID__"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "HOTELS_DB",
+      "database_name": "iumrah-hotels",
+      "database_id": "__D1_DATABASE_ID__"
+    }
+  ],
+  "vars": {
+    "PRICING_VERSION": "iumrah-web-v1-beta-0.7",
+    "CBU_FX_URL": "https://cbu.uz/en/arkhiv-kursov-valyut/json/",
+    "AUTH_SESSION_URL": "https://iumrah.app/api/auth/staff/session"
+  }
+}

@@ -17,6 +17,7 @@ final class JourneyStore: ObservableObject {
     let hotelService: HotelCatalogServicing
     let flightService: FlightSearchServicing
     let quoteService: PackageQuoteServicing
+    private let packageEngine = RemotePackageEngineClient()
 
     init(
         hotelService: HotelCatalogServicing = HotelCatalogService(),
@@ -37,10 +38,25 @@ final class JourneyStore: ObservableObject {
             let all = try await hotelService.listHotels(city: "Makkah")
             hotels = all
             if selectedHotel == nil {
-                selectedHotel = primaryHotelCandidate(from: all)
+                selectedHotel = await resolvedPrimaryHotel(from: all) ?? primaryHotelCandidate(from: all)
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+
+    private func resolvedPrimaryHotel(from all: [HotelSummary]) async -> HotelSummary? {
+        guard AppConfig.usesRemotePackagePricing else { return nil }
+        do {
+            let resolved = try await packageEngine.primaryHotel(
+                tier: trip.packageTier,
+                stars: trip.hotelStars,
+                city: "Makkah"
+            )
+            return all.first(where: { $0.id == resolved.hotelId })
+        } catch {
+            return nil
         }
     }
 

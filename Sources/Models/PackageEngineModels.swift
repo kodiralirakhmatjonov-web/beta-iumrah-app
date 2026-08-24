@@ -69,6 +69,17 @@ struct PackageEngineHealthResponse: Decodable {
     let service: String
     let pricingVersion: String
     let hotelsDbConfigured: Bool
+    let primaryHotelConfigCount: Int?
+    let pricingReady: Bool?
+}
+
+struct PrimaryHotelResolutionResponse: Decodable, Hashable {
+    let ok: Bool
+    let hotelId: String
+    let roomId: String?
+    let tier: String
+    let stars: Int
+    let city: String
 }
 
 struct FlightFareObservationRequest: Encodable {
