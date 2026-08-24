@@ -1,13 +1,19 @@
 {
-  "patch": "iumrah-beta-bootstrap-004",
+  "patch": "iumrah-beta-tech-005",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
+  "type": "technical",
   "changes": [
-    "enable production APNs entitlement",
-    "enable background remote notifications",
-    "register iPhone with APNs through native UIApplicationDelegate",
-    "add contextual notification permission UI",
-    "move generated Info.plist to explicit build-safe Info.plist",
-    "keep production com.iumrah.app untouched"
+    "add on-device multi-provider Flight Bot Engine with Uzbekistan-first provider priority",
+    "add official providers: Uzbekistan Airways, Qanot Sharq, Centrum Air, Silk Avia, Air Samarkand and Fly Khiva",
+    "add global discovery providers: Google Flights and Skyscanner",
+    "enforce preferred 6 / minimum 4 verified flight candidates with no mock-result fallback",
+    "add exact, plus-minus-one, plus-minus-two and weekend date expansion",
+    "add WebKit human-verification challenge architecture without CAPTCHA bypass",
+    "add deduplication and ranking of live flight candidates",
+    "port current iumrah Web pricing rules into server-side Package Engine core",
+    "add D1 Primary Hotel mapping schema for package tier x stars x city",
+    "keep internal component costs and margin out of public iOS responses",
+    "prepare Remote Package Engine iOS client without enabling it in the visible beta flow"
   ]
 }

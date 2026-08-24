@@ -19,6 +19,7 @@ actor APIClient {
 
     private let session: URLSession
     private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -27,6 +28,27 @@ actor APIClient {
         configuration.waitsForConnectivity = true
         session = URLSession(configuration: configuration)
         decoder = JSONDecoder()
+        encoder = JSONEncoder()
+    }
+
+    func post<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+        let url = AppConfig.apiBaseURL.appending(path: path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("iumrah-ios-beta/0.5", forHTTPHeaderField: "User-Agent")
+        request.httpBody = try encoder.encode(body)
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        guard (200..<300).contains(http.statusCode) else { throw APIError.status(http.statusCode) }
+
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
     }
 
     func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {

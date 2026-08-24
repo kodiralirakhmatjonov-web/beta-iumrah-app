@@ -1,0 +1,13 @@
+name = "iumrah-beta-package-engine"
+main = "src/index.ts"
+compatibility_date = "2026-08-24"
+
+[vars]
+PRICING_VERSION = "iumrah-web-v1-beta-0.5"
+
+# Bind the EXISTING iumrah-hotels D1 database when this worker is deployed.
+# Do not create a second hotel database.
+# [[d1_databases]]
+# binding = "HOTELS_DB"
+# database_name = "iumrah-hotels"
+# database_id = "<existing Cloudflare D1 database id>"
