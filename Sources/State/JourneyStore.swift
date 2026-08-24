@@ -19,10 +19,16 @@ final class JourneyStore: ObservableObject {
     let quoteService: PackageQuoteServicing
     private let packageEngine = RemotePackageEngineClient()
 
+    init() {
+        self.hotelService = HotelCatalogService()
+        self.flightService = AutomaticFlightSearchService()
+        self.quoteService = BetaPackageQuoteService()
+    }
+
     init(
-        hotelService: HotelCatalogServicing = HotelCatalogService(),
-        flightService: FlightSearchServicing = AutomaticFlightSearchService(),
-        quoteService: PackageQuoteServicing = BetaPackageQuoteService()
+        hotelService: HotelCatalogServicing,
+        flightService: FlightSearchServicing,
+        quoteService: PackageQuoteServicing
     ) {
         self.hotelService = hotelService
         self.flightService = flightService
