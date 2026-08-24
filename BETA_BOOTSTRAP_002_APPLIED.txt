@@ -1,0 +1,6 @@
+iumrah Beta bootstrap 002
+
+This marker confirms the complete native SwiftUI source tree and asset catalog were applied by the ZIP bot.
+Expected XcodeGen project: iumrahBeta.xcodeproj
+Expected scheme: iumrahBeta
+Bundle identifier: com.iumrah.app
