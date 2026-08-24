@@ -1,17 +1,12 @@
 {
-  "patch": "iumrah-beta-bootstrap-001",
+  "patch": "iumrah-beta-bootstrap-003",
   "target": "beta-iumrah-app repository root",
-  "generated_project": "iumrahBeta.xcodeproj via XcodeGen",
-  "bundle_identifier": "com.iumrah.app",
-  "deployment_target": "iOS 17.0",
-  "live_integrations": [
-    "GET https://iumrah.app/api/catalog/hotels?city=Makkah",
-    "GET https://iumrah.app/api/catalog/hotels/{hotelId}",
-    "R2 images via relative public hotel image URLs"
-  ],
-  "beta_adapters": [
-    "FlightSearchServicing -> BetaFlightSearchService",
-    "PackageQuoteServicing -> BetaPackageQuoteService"
-  ],
-  "pricing_ui_rule": "Never show standalone hotel or flight prices; show package total only"
+  "bundle_identifier": "com.iumrah.beta",
+  "display_name": "iumrah Beta",
+  "production_bundle_untouched": "com.iumrah.app",
+  "changes": [
+    "separate TestFlight beta bundle identifier",
+    "separate installed app display name",
+    "updated signing requirements for beta provisioning profile"
+  ]
 }

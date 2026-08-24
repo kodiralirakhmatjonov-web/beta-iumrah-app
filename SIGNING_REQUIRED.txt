@@ -1,8 +1,11 @@
-TestFlight signing is intentionally NOT stored in update ZIPs.
+TestFlight signing for the standalone beta app.
+
+Bundle identifier:
+  com.iumrah.beta
 
 The beta repository needs:
   Signing/distribution-private-key.enc
-  Signing/<profile-for-com.iumrah.app>.mobileprovision
+  Signing/<profile-for-com.iumrah.beta>.mobileprovision
 
 Required repository secrets:
   APPLE_TEAM_ID
@@ -10,5 +13,12 @@ Required repository secrets:
   APPLE_APP_SPECIFIC_PASSWORD
   IOS_SIGNING_KEY_PASSWORD
 
-Important: iumrah-business.mobileprovision is for com.iumrah.business and cannot sign com.iumrah.app.
-The TestFlight workflow checks the provisioning profile bundle ID and private-key/certificate match before archiving.
+The encrypted private key from iumrah Business can be reused ONLY when the new
+com.iumrah.beta App Store provisioning profile is created with the same Apple
+Distribution certificate that matches that private key.
+
+Do not use:
+  iumrah-business.mobileprovision  -> com.iumrah.business
+  any com.iumrah.app profile       -> production client app
+
+The TestFlight workflow verifies the application-identifier before archive/export.

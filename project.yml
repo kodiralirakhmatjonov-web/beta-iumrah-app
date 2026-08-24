@@ -22,14 +22,14 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app
-        PRODUCT_NAME: iumrah
+        PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta
+        PRODUCT_NAME: iumrahBeta
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: "iumrah"
+        INFOPLIST_KEY_CFBundleDisplayName: "iumrah Beta"
         INFOPLIST_KEY_CFBundleIconName: "AppIcon"
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_LSRequiresIPhoneOS: YES

@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppConfig {
-    static let appName = "iumrah"
+    static let appName = "iumrah Beta"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
     /// Temporary beta switch. The UI talks to protocols so this can be replaced

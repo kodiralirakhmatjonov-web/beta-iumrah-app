@@ -1,0 +1,6 @@
+iumrah Beta bootstrap 003
+
+Standalone TestFlight identity enabled.
+Bundle identifier: com.iumrah.beta
+Display name: iumrah Beta
+Production client bundle com.iumrah.app is not used by this beta target.
