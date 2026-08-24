@@ -7,7 +7,7 @@ on:
         description: 'Upload signed build to TestFlight'
         required: true
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -28,9 +28,9 @@ jobs:
       - name: Verify beta bootstrap is applied
         run: |
           set -euo pipefail
-          test -f BETA_BOOTSTRAP_003_APPLIED.txt || {
-            echo "STOP: beta bootstrap 003 has not been applied yet."
-            echo "Upload iumrah-beta-update-003.zip to repository root first."
+          test -f BETA_BOOTSTRAP_004_APPLIED.txt || {
+            echo "STOP: beta bootstrap 004 has not been applied yet."
+            echo "Upload iumrah-beta-update-004.zip to repository root first."
             exit 1
           }
           test -f project.yml
@@ -38,13 +38,25 @@ jobs:
           test -d Resources/Assets.xcassets
           test -f Sources/App/IumrahBetaApp.swift
           test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+          test -f Resources/Info.plist
+          test -f Resources/iumrahBeta.entitlements
+
+          /usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iumrahBeta.entitlements | grep -Fx 'production' >/dev/null || {
+            echo "STOP: beta entitlements do not contain aps-environment=production"
+            exit 1
+          }
+
+          /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes:0' Resources/Info.plist | grep -Fx 'remote-notification' >/dev/null || {
+            echo "STOP: Info.plist does not enable remote-notification background mode"
+            exit 1
+          }
 
           grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta' project.yml >/dev/null || {
             echo "STOP: project.yml does not target com.iumrah.beta"
             exit 1
           }
 
-          cat BETA_BOOTSTRAP_003_APPLIED.txt
+          cat BETA_BOOTSTRAP_004_APPLIED.txt
 
       - name: Xcode environment
         run: |
@@ -129,13 +141,20 @@ jobs:
             APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$decoded" 2>/dev/null || true)
             PROFILE_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$decoded" 2>/dev/null || true)
             PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$decoded" 2>/dev/null || true)
+            APS_ENV=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$decoded" 2>/dev/null || true)
 
             echo "Profile: $candidate"
             echo "  Name: ${PROFILE_NAME:-unknown}"
             echo "  Team: ${PROFILE_TEAM:-unknown}"
             echo "  App ID: ${APP_IDENTIFIER:-unknown}"
+            echo "  APNs: ${APS_ENV:-missing}"
 
             if [ "$APP_IDENTIFIER" = "${APPLE_TEAM_ID}.${BUNDLE_ID}" ]; then
+              if [ "$APS_ENV" != "production" ]; then
+                echo "STOP: matching beta profile does not contain aps-environment=production."
+                echo "Regenerate the App Store provisioning profile after enabling Push Notifications for com.iumrah.beta."
+                exit 1
+              fi
               PROFILE_PATH="$candidate"
               break
             fi
@@ -292,11 +311,18 @@ jobs:
             exit 1
           }
 
+          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null
+          ARCHIVE_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_APS" = "production" || {
+            echo "Archive is missing production APNs entitlement. Found: ${ARCHIVE_APS:-missing}"
+            exit 1
+          }
+
           echo "Archived app: $APP_PATH"
           echo "Info.plist before repair:"
           plutil -p "$INFO_PLIST"
 
-          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/app-entitlements.plist" 2>/dev/null || true
+          cp "$RUNNER_TEMP/archive-entitlements.plist" "$RUNNER_TEMP/app-entitlements.plist"
 
           /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$INFO_PLIST"
@@ -394,6 +420,13 @@ jobs:
           FINAL_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")
           test "$FINAL_BUNDLE" = "$BUNDLE_ID" || {
             echo "FINAL IPA bundle mismatch: expected $BUNDLE_ID, got $FINAL_BUNDLE"
+            exit 1
+          }
+
+          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null
+          FINAL_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_APS" = "production" || {
+            echo "FINAL IPA is missing aps-environment=production. Found: ${FINAL_APS:-missing}"
             exit 1
           }
 
