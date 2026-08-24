@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FinalPackageView: View {
     @EnvironmentObject private var journey: JourneyStore
+    @ObservedObject private var push = PushNotificationManager.shared
 
     var body: some View {
         ScrollView {
@@ -45,6 +46,8 @@ struct FinalPackageView: View {
                     summaryRow(icon: "airplane.arrival", title: "Обратно", value: "\(flight.airline) · \(flight.flightNumber)")
                 }
 
+                notificationCard
+
                 Button {
                     // Booking endpoint will be connected after PackageQuote API is live.
                 } label: {
@@ -68,7 +71,51 @@ struct FinalPackageView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if journey.quote == nil { await journey.buildQuote() }
+            await push.refreshAndRegisterIfAllowed()
         }
+    }
+
+    private var notificationCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: push.isAuthorized ? "bell.badge.fill" : "bell.badge")
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 42, height: 42)
+                    .background(.thinMaterial)
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Уведомления о поездке")
+                        .font(.headline)
+                    Text(push.statusText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            if let error = push.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            if !push.isAuthorized {
+                Button {
+                    Task { await push.requestAuthorization() }
+                } label: {
+                    Text("Включить уведомления")
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+            } else if push.deviceToken != nil {
+                Label("APNs зарегистрировал этот iPhone", systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
     }
 
     private func summaryRow(icon: String, title: String, value: String) -> some View {

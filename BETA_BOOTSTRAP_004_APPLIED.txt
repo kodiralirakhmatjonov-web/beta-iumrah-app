@@ -1,0 +1,7 @@
+iumrah Beta bootstrap 004
+
+Bundle: com.iumrah.beta
+Push Notifications entitlement: enabled (production)
+Background remote notifications: enabled
+Native APNs registration: enabled
+Production com.iumrah.app remains untouched.

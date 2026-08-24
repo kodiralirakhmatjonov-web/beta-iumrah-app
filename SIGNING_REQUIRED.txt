@@ -1,24 +1,23 @@
-TestFlight signing for the standalone beta app.
+TestFlight signing for iumrah Beta.
 
 Bundle identifier:
   com.iumrah.beta
 
-The beta repository needs:
+Required files after repository is PRIVATE:
   Signing/distribution-private-key.enc
-  Signing/<profile-for-com.iumrah.beta>.mobileprovision
+  Signing/iumrah-beta.mobileprovision
 
-Required repository secrets:
+The provisioning profile must contain:
+  application-identifier = 2DQ678JTNG.com.iumrah.beta
+  aps-environment = production
+
+Required GitHub repository secrets:
   APPLE_TEAM_ID
   APPLE_ID_EMAIL
   APPLE_APP_SPECIFIC_PASSWORD
   IOS_SIGNING_KEY_PASSWORD
 
-The encrypted private key from iumrah Business can be reused ONLY when the new
-com.iumrah.beta App Store provisioning profile is created with the same Apple
-Distribution certificate that matches that private key.
+APPLE_TEAM_ID for this Apple Developer team is 2DQ678JTNG.
 
-Do not use:
-  iumrah-business.mobileprovision  -> com.iumrah.business
-  any com.iumrah.app profile       -> production client app
-
-The TestFlight workflow verifies the application-identifier before archive/export.
+Do not commit the APNs .p8 key to GitHub. It belongs in Cloudflare Secrets when
+server-side push delivery is connected.

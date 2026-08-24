@@ -1,12 +1,13 @@
 {
-  "patch": "iumrah-beta-bootstrap-003",
+  "patch": "iumrah-beta-bootstrap-004",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
-  "display_name": "iumrah Beta",
-  "production_bundle_untouched": "com.iumrah.app",
   "changes": [
-    "separate TestFlight beta bundle identifier",
-    "separate installed app display name",
-    "updated signing requirements for beta provisioning profile"
+    "enable production APNs entitlement",
+    "enable background remote notifications",
+    "register iPhone with APNs through native UIApplicationDelegate",
+    "add contextual notification permission UI",
+    "move generated Info.plist to explicit build-safe Info.plist",
+    "keep production com.iumrah.app untouched"
   ]
 }

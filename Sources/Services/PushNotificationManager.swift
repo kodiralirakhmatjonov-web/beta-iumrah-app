@@ -1,0 +1,83 @@
+import Combine
+import Foundation
+import UIKit
+import UserNotifications
+
+@MainActor
+final class PushNotificationManager: ObservableObject {
+    static let shared = PushNotificationManager()
+
+    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    @Published private(set) var deviceToken: String?
+    @Published private(set) var lastError: String?
+
+    private let tokenDefaultsKey = "iumrah.beta.apns.device-token"
+
+    private init() {
+        deviceToken = UserDefaults.standard.string(forKey: tokenDefaultsKey)
+    }
+
+    var isAuthorized: Bool {
+        switch authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
+
+    var statusText: String {
+        switch authorizationStatus {
+        case .notDetermined:
+            return "Уведомления ещё не включены"
+        case .denied:
+            return "Уведомления отключены в настройках iPhone"
+        case .authorized:
+            return deviceToken == nil ? "Разрешено · регистрируем устройство" : "Уведомления подключены"
+        case .provisional:
+            return "Тихие уведомления подключены"
+        case .ephemeral:
+            return "Временное разрешение активно"
+        @unknown default:
+            return "Статус уведомлений неизвестен"
+        }
+    }
+
+    func refreshAndRegisterIfAllowed() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        authorizationStatus = settings.authorizationStatus
+
+        if isAuthorized {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+
+    func requestAuthorization() async {
+        lastError = nil
+
+        do {
+            _ = try await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .badge, .sound]
+            )
+            await refreshAndRegisterIfAllowed()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func didRegister(deviceToken data: Data) {
+        let token = data.map { String(format: "%02x", $0) }.joined()
+        deviceToken = token
+        UserDefaults.standard.set(token, forKey: tokenDefaultsKey)
+        lastError = nil
+
+        // The token is intentionally kept on-device until the Cloudflare
+        // push-registration endpoint is enabled. Do not send it to a guessed URL.
+        print("[iumrah Beta] APNs device token registered: \(token)")
+    }
+
+    func didFailToRegister(error: Error) {
+        lastError = error.localizedDescription
+        print("[iumrah Beta] APNs registration failed: \(error.localizedDescription)")
+    }
+}
