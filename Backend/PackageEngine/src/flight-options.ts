@@ -76,12 +76,35 @@ function adjustedContextForPair(
   };
 }
 
+const ALLOWED_PROVIDER_IDS = new Set([
+  "uzbekistanAirways",
+  "qanotSharq",
+  "centrumAir",
+  "silkAvia",
+  "airSamarkand",
+  "flyKhiva",
+  "googleFlights",
+  "skyscanner",
+]);
+
+function validateObservation(observation: FlightFareObservation) {
+  const amount = Number(observation.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error(`Invalid fare amount for ${observation.candidateId}`);
+  if (!/^[A-Z]{3}$/.test(String(observation.currency).toUpperCase())) throw new Error(`Invalid fare currency for ${observation.candidateId}`);
+  if (observation.fareScope !== "perPassenger" && observation.fareScope !== "totalParty") {
+    throw new Error(`Invalid fare scope for ${observation.candidateId}`);
+  }
+  if (!ALLOWED_PROVIDER_IDS.has(observation.providerId)) throw new Error(`Unknown flight provider: ${observation.providerId}`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(observation.travelDate)) throw new Error(`Invalid travel date for ${observation.candidateId}`);
+  validateFreshness(observation);
+}
+
 function validateFreshness(observation: FlightFareObservation) {
   const observed = Date.parse(observation.observedAt);
   if (!Number.isFinite(observed)) throw new Error(`Invalid observedAt for ${observation.candidateId}`);
   const ageMs = Date.now() - observed;
   if (ageMs < -5 * 60 * 1000) throw new Error(`Fare timestamp is in the future for ${observation.candidateId}`);
-  if (ageMs > 60 * 60 * 1000) throw new Error(`Fare is stale for ${observation.candidateId}`);
+  if (ageMs > 20 * 60 * 1000) throw new Error(`Fare is stale for ${observation.candidateId}`);
 }
 
 async function normalizeObservation(
@@ -89,7 +112,7 @@ async function normalizeObservation(
   travelers: Travelers,
   env: Env,
 ): Promise<NormalizedFare> {
-  validateFreshness(observation);
+  validateObservation(observation);
   const normalized = await normalizeToUsd(observation.amount, observation.currency, env);
   const multiplier = observation.fareScope === "perPassenger" ? partyCount(travelers) : 1;
   return {
@@ -158,7 +181,7 @@ function buildQuote(
       },
       customization: context.customization,
     },
-    env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.6",
+    env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
   );
 }
 
@@ -167,6 +190,9 @@ export async function quoteFlightOptions(
   env: Env,
 ): Promise<PublicFlightOptionsQuoteResponse> {
   const travelers = input.context.travelers;
+  const outboundCount = input.phase === "outbound" ? input.outboundCandidates.length : 1;
+  const returnCount = input.returnCandidates.length;
+  if (outboundCount > 24 || returnCount > 24) throw new Error("Too many flight candidates in one quote request");
   const hotels = await resolveHotelCosts(input.context, env);
 
   if (input.phase === "outbound") {

@@ -37,9 +37,10 @@ final class FlightBotRunner: NSObject, WKNavigationDelegate {
         self.webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         self.webView.navigationDelegate = self
+        self.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 iumrah-beta/0.9"
     }
 
-    func run(timeoutSeconds: Double = 24) async throws -> [LiveFlightCandidate] {
+    func run(timeoutSeconds: Double = AppConfig.flightBotProviderTimeoutSeconds) async throws -> [LiveFlightCandidate] {
         let url = provider.searchURL(for: request)
         webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: timeoutSeconds))
 

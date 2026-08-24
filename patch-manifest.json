@@ -1,16 +1,18 @@
 {
-  "patch": "iumrah-beta-tech-007",
+  "patch": "iumrah-beta-technical-009",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
-  "cumulative_from": "0.6",
-  "includes_visual_0_4": false,
+  "cumulative_from": ["0.06", "0.07", "0.08"],
+  "design_patch_included": false,
   "changes": [
-    "include all technical Flight and Package Engine work from 0.6",
-    "make Package Engine deployable on iumrah.app while binding only to the existing iumrah-hotels D1",
-    "avoid conflicts with the existing HotelsWorker D1 migration history by applying an idempotent package schema",
-    "add authenticated admin API for Primary Hotel assignment and internal base price management",
-    "add Package Engine pricingReady health state",
-    "make iOS resolve the server-configured Primary Hotel instead of selecting the first same-star hotel",
-    "keep automatic sandbox fallback until Package Engine and Primary Hotel pricing are ready"
+    "enable strict real Flight Engine mode for TestFlight validation",
+    "remove silent sandbox fallback from officialWebBots mode",
+    "run provider bots in bounded batches with 4 minimum and 6 preferred verified options",
+    "surface CAPTCHA/human verification in a persistent WKWebView and support retry",
+    "show explicit backend/provider/insufficient-results errors in outbound and return flows",
+    "keep raw flight fares private and return only server-side PackageQuote totals to iOS",
+    "tighten Package Engine flight observation validation and 20-minute freshness",
+    "improve Package Engine health contract for real flight option quoting",
+    "preserve existing Primary Hotel fallback and pricing architecture"
   ]
 }

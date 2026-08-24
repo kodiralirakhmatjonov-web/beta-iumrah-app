@@ -77,7 +77,7 @@ async function resolveConsumerQuote(input: ConsumerPackageQuoteRequest, env: Env
     customization: input.customization,
   };
 
-  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7");
+  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9");
 }
 
 async function publicHealth(env: Env) {
@@ -85,40 +85,50 @@ async function publicHealth(env: Env) {
     return json({
       ok: true,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
       hotelsDbConfigured: false,
       primaryHotelConfigCount: 0,
       pricingReady: false,
+      flightOptionQuotingReady: false,
     });
   }
 
   try {
-    const row = await env.HOTELS_DB.prepare(
-      `SELECT COUNT(*) AS count
+    const result = await env.HOTELS_DB.prepare(
+      `SELECT p.city, COUNT(*) AS count
        FROM package_primary_hotels p
        INNER JOIN hotels h ON h.id = p.hotel_id
        WHERE p.active = 1
          AND h.status = 'published'
          AND h.city = p.city
-         AND h.stars = p.stars`,
-    ).first<{ count: number | string }>();
-    const count = Number(row?.count ?? 0);
+       GROUP BY p.city`,
+    ).all<{ city: string; count: number | string }>();
+    const rows = result.results ?? [];
+    const makkahCount = Number(rows.find((row) => row.city === "Makkah")?.count ?? 0);
+    const madinahCount = Number(rows.find((row) => row.city === "Madinah")?.count ?? 0);
+    const count = makkahCount + madinahCount;
     return json({
       ok: true,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
       hotelsDbConfigured: true,
       primaryHotelConfigCount: count,
-      pricingReady: count > 0,
+      primaryHotelConfigByCity: { Makkah: makkahCount, Madinah: madinahCount },
+      pricingReady: makkahCount > 0,
+      makkahPricingReady: makkahCount > 0,
+      madinahPricingReady: madinahCount > 0,
+      fallbackResolutionEnabled: true,
+      flightOptionQuotingReady: makkahCount > 0,
     });
   } catch (error) {
     return json({
       ok: false,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.7",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
       hotelsDbConfigured: true,
       primaryHotelConfigCount: 0,
       pricingReady: false,
+      flightOptionQuotingReady: false,
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);
   }
@@ -163,6 +173,10 @@ export default {
           tier: row.package_tier,
           stars: row.stars,
           city: row.city,
+          requestedTier: row.requestedTier,
+          requestedStars: row.requestedStars,
+          matchType: row.matchType,
+          isFallback: row.matchType !== "exact",
         });
       } catch (error) {
         return json({ ok: false, error: error instanceof Error ? error.message : "Primary Hotel not configured" }, 404);

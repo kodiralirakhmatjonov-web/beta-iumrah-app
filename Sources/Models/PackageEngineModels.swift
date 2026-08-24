@@ -71,6 +71,10 @@ struct PackageEngineHealthResponse: Decodable {
     let hotelsDbConfigured: Bool
     let primaryHotelConfigCount: Int?
     let pricingReady: Bool?
+    let makkahPricingReady: Bool?
+    let madinahPricingReady: Bool?
+    let fallbackResolutionEnabled: Bool?
+    let flightOptionQuotingReady: Bool?
 }
 
 struct PrimaryHotelResolutionResponse: Decodable, Hashable {

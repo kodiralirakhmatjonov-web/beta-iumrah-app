@@ -3,15 +3,26 @@ import Foundation
 enum APIError: LocalizedError {
     case invalidResponse
     case status(Int)
+    case server(Int, String)
     case decoding(Error)
 
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: return "Сервер вернул некорректный ответ."
-        case .status(let code): return "Сервер временно недоступен (\(code))."
-        case .decoding: return "Не удалось прочитать данные сервера."
+        case .invalidResponse:
+            return "Сервер вернул некорректный ответ."
+        case .status(let code):
+            return "Сервер временно недоступен (\(code))."
+        case .server(_, let message):
+            return message
+        case .decoding:
+            return "Не удалось прочитать данные сервера."
         }
     }
+}
+
+private struct APIErrorEnvelope: Decodable {
+    let error: String?
+    let message: String?
 }
 
 actor APIClient {
@@ -23,8 +34,8 @@ actor APIClient {
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 20
-        configuration.timeoutIntervalForResource = 45
+        configuration.timeoutIntervalForRequest = 25
+        configuration.timeoutIntervalForResource = 60
         configuration.waitsForConnectivity = true
         session = URLSession(configuration: configuration)
         decoder = JSONDecoder()
@@ -37,18 +48,11 @@ actor APIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("iumrah-ios-beta/0.7", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.9", forHTTPHeaderField: "User-Agent")
         request.httpBody = try encoder.encode(body)
 
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-        guard (200..<300).contains(http.statusCode) else { throw APIError.status(http.statusCode) }
-
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw APIError.decoding(error)
-        }
+        return try decodeResponse(data: data, response: response)
     }
 
     func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
@@ -61,11 +65,22 @@ actor APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("iumrah-ios-beta/0.7", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.9", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await session.data(for: request)
+        return try decodeResponse(data: data, response: response)
+    }
+
+    private func decodeResponse<T: Decodable>(data: Data, response: URLResponse) throws -> T {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-        guard (200..<300).contains(http.statusCode) else { throw APIError.status(http.statusCode) }
+        guard (200..<300).contains(http.statusCode) else {
+            if let envelope = try? decoder.decode(APIErrorEnvelope.self, from: data),
+               let message = envelope.error ?? envelope.message,
+               !message.isEmpty {
+                throw APIError.server(http.statusCode, message)
+            }
+            throw APIError.status(http.statusCode)
+        }
 
         do {
             return try decoder.decode(T.self, from: data)

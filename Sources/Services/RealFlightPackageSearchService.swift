@@ -1,13 +1,35 @@
 import Foundation
 
+enum FlightEngineAvailabilityError: LocalizedError {
+    case packageEngineUnavailable(String)
+    case makkahPricingMissing
+    case madinahPricingMissing
+    case realOutboundRequired
+
+    var errorDescription: String? {
+        switch self {
+        case .packageEngineUnavailable(let message):
+            return "Package Engine недоступен: \(message)"
+        case .makkahPricingMissing:
+            return "Для Мекки пока нет ни одного настроенного Primary Hotel с внутренней ценой."
+        case .madinahPricingMissing:
+            return "Для выбранного маршрута Мекка + Медина пока нет настроенной внутренней цены Primary Hotel в Медине."
+        case .realOutboundRequired:
+            return "Обратный поиск требует реальный выбранный рейс туда. Повторите поиск перелёта."
+        }
+    }
+}
+
 @MainActor
 final class RealFlightPackageSearchService: FlightSearchServicing {
     private let botService = OfficialFlightCandidateSearchService()
     private let packageEngine = RemotePackageEngineClient()
     private var session: RoundTripFlightBotSession?
     private var tripSignature: String?
+    private var verifiedSignature: String?
 
     func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer] {
+        try await ensureBackendReady(for: trip)
         let currentSession = try await sessionFor(trip: trip)
         let response = try await packageEngine.quoteOutboundOptions(
             trip: trip,
@@ -26,10 +48,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
     }
 
     func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
+        try await ensureBackendReady(for: trip)
         let currentSession = try await sessionFor(trip: trip)
         guard let sourceID = outbound.sourceCandidateID,
               let selectedCandidate = currentSession.outbound.first(where: { $0.id == sourceID }) else {
-            throw FlightPricingBridgeError.candidateMissing(outbound.id)
+            throw FlightEngineAvailabilityError.realOutboundRequired
         }
 
         let response = try await packageEngine.quoteReturnOptions(
@@ -46,6 +69,37 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         )
         try enforceMinimum(offers)
         return Array(offers.prefix(AppConfig.flightBotPreferredOptions))
+    }
+
+    func invalidateSession() {
+        session = nil
+        tripSignature = nil
+    }
+
+    private func ensureBackendReady(for trip: TripDraft) async throws {
+        let signature = makeSignature(trip)
+        if verifiedSignature == signature { return }
+        do {
+            let health = try await packageEngine.health()
+            guard health.ok, health.hotelsDbConfigured else {
+                throw FlightEngineAvailabilityError.packageEngineUnavailable("D1 hotel binding не готов.")
+            }
+            guard health.flightOptionQuotingReady ?? health.pricingReady ?? false else {
+                throw FlightEngineAvailabilityError.packageEngineUnavailable("Flight option quoting ещё не готов.")
+            }
+            guard health.makkahPricingReady ?? health.pricingReady ?? false else {
+                throw FlightEngineAvailabilityError.makkahPricingMissing
+            }
+            if trip.scope == .makkahAndMadinah,
+               !(health.madinahPricingReady ?? false) {
+                throw FlightEngineAvailabilityError.madinahPricingMissing
+            }
+            verifiedSignature = signature
+        } catch let error as FlightEngineAvailabilityError {
+            throw error
+        } catch {
+            throw FlightEngineAvailabilityError.packageEngineUnavailable(error.localizedDescription)
+        }
     }
 
     private func sessionFor(trip: TripDraft) async throws -> RoundTripFlightBotSession {
@@ -132,25 +186,28 @@ final class AutomaticFlightSearchService: FlightSearchServicing {
         case .officialWebBots:
             return try await real.searchOutbound(trip: trip, hotel: hotel)
         case .automatic:
-            if await canUseRemoteEngine() {
-                do {
-                    return try await real.searchOutbound(trip: trip, hotel: hotel)
-                } catch {
-                    // Technical beta safety: provider/parser failures do not make
-                    // the TestFlight build unusable while adapters are being tuned.
-                    return try await sandbox.searchOutbound(trip: trip, hotel: hotel)
-                }
+            guard await canUseRemoteEngine() else {
+                return try await sandbox.searchOutbound(trip: trip, hotel: hotel)
             }
-            return try await sandbox.searchOutbound(trip: trip, hotel: hotel)
+            return try await real.searchOutbound(trip: trip, hotel: hotel)
         }
     }
 
     func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
-        let isRealOutbound = outbound.sourceCandidateID != nil
-        if isRealOutbound {
+        switch AppConfig.flightEngineMode {
+        case .sandbox:
+            return try await sandbox.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+        case .officialWebBots:
+            guard outbound.sourceCandidateID != nil else {
+                throw FlightEngineAvailabilityError.realOutboundRequired
+            }
             return try await real.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+        case .automatic:
+            if outbound.sourceCandidateID != nil {
+                return try await real.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+            }
+            return try await sandbox.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
         }
-        return try await sandbox.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
     }
 
     private func canUseRemoteEngine() async -> Bool {

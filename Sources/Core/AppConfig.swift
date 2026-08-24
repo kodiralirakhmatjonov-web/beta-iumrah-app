@@ -10,12 +10,14 @@ enum AppConfig {
     static let appName = "iumrah Beta"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
-    /// 0.7 technical state. Automatic mode checks the server-side Package Engine
-    /// first. If it is not deployed/configured yet, the existing sandbox remains
-    /// available so TestFlight never becomes unusable.
-    static let flightEngineMode: FlightEngineMode = .automatic
+    /// 0.9 TestFlight validation mode: real provider bots + server-side package pricing.
+    /// There is deliberately NO silent sandbox fallback in this mode. If a provider,
+    /// CAPTCHA or Package Engine fails, the beta must expose that failure so we can tune it.
+    static let flightEngineMode: FlightEngineMode = .officialWebBots
     static let flightBotMinimumOptions = 4
     static let flightBotPreferredOptions = 6
+    static let flightBotProviderBatchSize = 3
+    static let flightBotProviderTimeoutSeconds: Double = 16
 
     static let packageHealthPath = "/api/package/health"
     static let packageQuotePath = "/api/package/quote"
@@ -28,6 +30,10 @@ enum AppConfig {
 
     static var usesSandboxFlightSearch: Bool {
         flightEngineMode == .sandbox
+    }
+
+    static var isStrictRealFlightTest: Bool {
+        flightEngineMode == .officialWebBots
     }
 
     static func absoluteURL(_ rawValue: String?) -> URL? {

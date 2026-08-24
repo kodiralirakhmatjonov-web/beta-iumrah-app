@@ -14,10 +14,16 @@ final class FlightBotOrchestrator {
         var errorDescription: String? {
             switch self {
             case .insufficientResults(let found, let minimum, let blocked):
-                let blockedText = blocked.isEmpty ? "" : " Verification required: \(blocked.joined(separator: ", "))."
-                return "Flight Engine found \(found) verified options; minimum target is \(minimum).\(blockedText)"
+                let blockedText = blocked.isEmpty ? "" : " Требуется проверка: \(blocked.joined(separator: ", "))."
+                return "Flight Engine нашёл \(found) подтверждённых вариантов; для beta нужно минимум \(minimum).\(blockedText)"
             }
         }
+    }
+
+    private enum ProviderAttempt {
+        case candidates([LiveFlightCandidate])
+        case challenge(FlightBotChallenge)
+        case failed
     }
 
     static let shared = FlightBotOrchestrator()
@@ -28,6 +34,8 @@ final class FlightBotOrchestrator {
     private init() {}
 
     func search(request baseRequest: FlightBotSearchRequest, flexibility: DateFlexibility) async throws -> SearchResult {
+        FlightBotChallengeCenter.shared.clear()
+
         let searchID = UUID().uuidString
         let requestedAt = Date()
         let dates = FlightDatePlanner.dates(anchor: baseRequest.date, flexibility: flexibility)
@@ -50,24 +58,46 @@ final class FlightBotOrchestrator {
                 cabin: baseRequest.cabin
             )
 
-            for provider in providers {
-                started += 1
-                do {
-                    let results = try await FlightBotRunner(provider: provider, request: request).run()
-                    succeeded += 1
-                    collected.append(contentsOf: results)
-                } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
-                    challenges.append(challenge)
-                } catch {
-                    // A single provider is never allowed to kill the whole search.
-                    continue
+            for batchStart in stride(from: 0, to: providers.count, by: AppConfig.flightBotProviderBatchSize) {
+                let batchEnd = min(providers.count, batchStart + AppConfig.flightBotProviderBatchSize)
+                let batch = Array(providers[batchStart..<batchEnd])
+                started += batch.count
+
+                let tasks: [(FlightBotProvider, Task<ProviderAttempt, Never>)] = batch.map { provider in
+                    let task = Task { @MainActor in
+                        do {
+                            let results = try await FlightBotRunner(provider: provider, request: request)
+                                .run(timeoutSeconds: AppConfig.flightBotProviderTimeoutSeconds)
+                            return ProviderAttempt.candidates(results)
+                        } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
+                            return ProviderAttempt.challenge(challenge)
+                        } catch {
+                            return ProviderAttempt.failed
+                        }
+                    }
+                    return (provider, task)
                 }
 
-                let deduped = deduplicateAndRank(collected, anchor: baseRequest.date)
-                if deduped.count >= preferredTarget { break }
+                for (_, task) in tasks {
+                    switch await task.value {
+                    case .candidates(let results):
+                        succeeded += 1
+                        collected.append(contentsOf: results)
+                    case .challenge(let challenge):
+                        challenges.append(challenge)
+                    case .failed:
+                        break
+                    }
+                }
+
+                if deduplicateAndRank(collected, anchor: baseRequest.date).count >= preferredTarget {
+                    break
+                }
             }
 
-            if deduplicateAndRank(collected, anchor: baseRequest.date).count >= preferredTarget { break }
+            if deduplicateAndRank(collected, anchor: baseRequest.date).count >= preferredTarget {
+                break
+            }
         }
 
         let final = Array(deduplicateAndRank(collected, anchor: baseRequest.date).prefix(12))
@@ -84,6 +114,9 @@ final class FlightBotOrchestrator {
         )
 
         guard final.count >= minimumTarget else {
+            if let challenge = challenges.first {
+                FlightBotChallengeCenter.shared.publish(challenge)
+            }
             throw OrchestratorError.insufficientResults(
                 found: final.count,
                 minimum: minimumTarget,
@@ -91,6 +124,7 @@ final class FlightBotOrchestrator {
             )
         }
 
+        FlightBotChallengeCenter.shared.clear()
         return SearchResult(candidates: final, summary: summary, blockedChallenges: challenges)
     }
 
