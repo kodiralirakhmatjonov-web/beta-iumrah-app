@@ -1,0 +1,455 @@
+name: Build iumrah Beta / TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: 'Upload signed build to TestFlight'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    env:
+      SCHEME: iumrahBeta
+      PROJECT: iumrahBeta.xcodeproj
+      BUNDLE_ID: com.iumrah.app
+      ARCHIVE_PATH: build/iumrahBeta.xcarchive
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify beta bootstrap is applied
+        run: |
+          set -euo pipefail
+          test -f BETA_BOOTSTRAP_002_APPLIED.txt || {
+            echo "STOP: beta bootstrap 002 has not been applied yet."
+            echo "Upload iumrah-beta-update-002.zip to repository root first."
+            exit 1
+          }
+          test -f project.yml
+          test -d Sources
+          test -d Resources/Assets.xcassets
+          test -f Sources/App/IumrahBetaApp.swift
+          test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
+            echo "STOP: project.yml does not target com.iumrah.app"
+            exit 1
+          }
+
+          cat BETA_BOOTSTRAP_002_APPLIED.txt
+
+      - name: Xcode environment
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Validate generated scheme
+        run: |
+          set -euo pipefail
+          test -d "$PROJECT"
+          xcodebuild -project "$PROJECT" -list
+
+      - name: Validate simulator build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Check TestFlight requirements
+        if: ${{ inputs.upload_to_testflight }}
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          for name in APPLE_TEAM_ID APPLE_ID_EMAIL APPLE_APP_SPECIFIC_PASSWORD IOS_SIGNING_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "Missing GitHub secret: $name"
+              exit 1
+            fi
+          done
+
+          test -f Signing/distribution-private-key.enc || {
+            echo "Missing Signing/distribution-private-key.enc"
+            echo "The encrypted private key may be reused only if the com.iumrah.app provisioning profile uses the matching Apple Distribution certificate."
+            exit 1
+          }
+
+          test -d Signing || {
+            echo "Missing Signing/ directory"
+            exit 1
+          }
+
+          PROFILE_PATH=""
+          mkdir -p "$RUNNER_TEMP/profile-scan"
+
+          shopt -s nullglob
+          for candidate in Signing/*.mobileprovision; do
+            safe_name=$(basename "$candidate" | tr -c 'A-Za-z0-9._-' '_')
+            decoded="$RUNNER_TEMP/profile-scan/${safe_name}.plist"
+
+            if ! security cms -D -i "$candidate" > "$decoded" 2>/dev/null; then
+              echo "Skipping unreadable provisioning profile: $candidate"
+              continue
+            fi
+
+            APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$decoded" 2>/dev/null || true)
+            PROFILE_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$decoded" 2>/dev/null || true)
+            PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$decoded" 2>/dev/null || true)
+
+            echo "Profile: $candidate"
+            echo "  Name: ${PROFILE_NAME:-unknown}"
+            echo "  Team: ${PROFILE_TEAM:-unknown}"
+            echo "  App ID: ${APP_IDENTIFIER:-unknown}"
+
+            if [ "$APP_IDENTIFIER" = "${APPLE_TEAM_ID}.${BUNDLE_ID}" ]; then
+              PROFILE_PATH="$candidate"
+              break
+            fi
+          done
+
+          test -n "$PROFILE_PATH" || {
+            echo "No App Store provisioning profile matching ${APPLE_TEAM_ID}.${BUNDLE_ID} was found in Signing/."
+            echo "Do NOT use iumrah-business.mobileprovision; it is for com.iumrah.business."
+            exit 1
+          }
+
+          test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png || {
+            echo "Missing AppIcon-1024.png"
+            exit 1
+          }
+
+          echo "PROFILE_PATH=$PROFILE_PATH" >> "$GITHUB_ENV"
+          echo "Using provisioning profile: $PROFILE_PATH"
+
+      - name: Install signing assets
+        if: ${{ inputs.upload_to_testflight }}
+        env:
+          IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          PRIVATE_KEY="$RUNNER_TEMP/distribution-private-key.pem"
+          CERT_PEM="$RUNNER_TEMP/distribution-certificate.pem"
+          P12_PATH="$RUNNER_TEMP/distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/iumrah-beta-signing.keychain-db"
+          P12_PASSWORD="iumrah-beta-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          openssl enc \
+            -d \
+            -aes-256-cbc \
+            -pbkdf2 \
+            -iter 200000 \
+            -in "$GITHUB_WORKSPACE/Signing/distribution-private-key.enc" \
+            -out "$PRIVATE_KEY" \
+            -pass env:IOS_SIGNING_KEY_PASSWORD
+
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist" \
+          CERT_DER="$RUNNER_TEMP/distribution-certificate.der" \
+          python3 - <<'PYCODE'
+          import os
+          import plistlib
+          from pathlib import Path
+
+          profile = Path(os.environ["PROFILE_PLIST"])
+          out = Path(os.environ["CERT_DER"])
+
+          with profile.open("rb") as f:
+              data = plistlib.load(f)
+
+          certs = data.get("DeveloperCertificates") or []
+          if not certs:
+              raise SystemExit("Provisioning profile does not contain DeveloperCertificates")
+
+          out.write_bytes(certs[0])
+          print(f"Extracted signing certificate: {len(certs[0])} bytes")
+          PYCODE
+
+          openssl x509 \
+            -inform DER \
+            -in "$RUNNER_TEMP/distribution-certificate.der" \
+            -out "$CERT_PEM"
+
+          KEY_FP=$(openssl pkey -in "$PRIVATE_KEY" -pubout 2>/dev/null | openssl sha256)
+          CERT_FP=$(openssl x509 -in "$CERT_PEM" -pubkey -noout 2>/dev/null | openssl sha256)
+
+          if [ "$KEY_FP" != "$CERT_FP" ]; then
+            echo "Provisioning profile certificate does not match signing private key."
+            exit 1
+          fi
+
+          openssl pkcs12 \
+            -export \
+            -inkey "$PRIVATE_KEY" \
+            -in "$CERT_PEM" \
+            -out "$P12_PATH" \
+            -name "Apple Distribution" \
+            -passout pass:"$P12_PASSWORD"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$P12_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | sed -n '1s/.*"\(.*\)".*/\1/p')
+
+          test -n "$SIGNING_IDENTITY" || {
+            echo "Apple Distribution signing identity not found."
+            exit 1
+          }
+
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
+          echo "Installed provisioning profile: $PROFILE_NAME"
+          echo "Signing identity: $SIGNING_IDENTITY"
+
+      - name: Archive signed app
+        if: ${{ inputs.upload_to_testflight }}
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          mkdir -p build
+
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/$ARCHIVE_PATH" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            archive
+
+      - name: Repair and verify archived app metadata
+        if: ${{ inputs.upload_to_testflight }}
+        run: |
+          set -euo pipefail
+
+          APP_PATH=$(find "$PWD/$ARCHIVE_PATH/Products/Applications" \
+            -maxdepth 1 -name '*.app' -print -quit)
+
+          test -n "$APP_PATH" || {
+            echo "Archived .app not found."
+            exit 1
+          }
+
+          INFO_PLIST="$APP_PATH/Info.plist"
+          ICON_SOURCE="$PWD/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")
+          test "$BUNDLE" = "$BUNDLE_ID" || {
+            echo "Archive bundle mismatch: expected $BUNDLE_ID, got $BUNDLE"
+            exit 1
+          }
+
+          echo "Archived app: $APP_PATH"
+          echo "Info.plist before repair:"
+          plutil -p "$INFO_PLIST"
+
+          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/app-entitlements.plist" 2>/dev/null || true
+
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$INFO_PLIST"
+
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFiles" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles:0 string AppIcon60x60" "$INFO_PLIST"
+
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60" "$INFO_PLIST"
+
+          sips -z 120 120 "$ICON_SOURCE" --out "$APP_PATH/AppIcon60x60@2x.png" >/dev/null
+          sips -z 180 180 "$ICON_SOURCE" --out "$APP_PATH/AppIcon60x60@3x.png" >/dev/null
+
+          if [ -s "$RUNNER_TEMP/app-entitlements.plist" ]; then
+            codesign \
+              --force \
+              --sign "$SIGNING_IDENTITY" \
+              --entitlements "$RUNNER_TEMP/app-entitlements.plist" \
+              --timestamp=none \
+              "$APP_PATH"
+          else
+            codesign \
+              --force \
+              --sign "$SIGNING_IDENTITY" \
+              --timestamp=none \
+              "$APP_PATH"
+          fi
+
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$INFO_PLIST")" = "AppIcon"
+          test -f "$APP_PATH/AppIcon60x60@2x.png"
+          test -f "$APP_PATH/AppIcon60x60@3x.png"
+          test -f "$APP_PATH/Assets.car"
+
+          WIDTH=$(sips -g pixelWidth "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelWidth/ {print $2}')
+          HEIGHT=$(sips -g pixelHeight "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$WIDTH" = "120"
+          test "$HEIGHT" = "120"
+
+          echo "Archive preflight passed."
+
+      - name: Export IPA
+        if: ${{ inputs.upload_to_testflight }}
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>provisioningProfiles</key><dict>
+              <key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string>
+            </dict>
+            <key>stripSwiftSymbols</key><true/>
+          </dict></plist>
+          PLIST
+
+          rm -rf "$PWD/build/export"
+
+          xcodebuild -exportArchive \
+            -archivePath "$PWD/$ARCHIVE_PATH" \
+            -exportPath "$PWD/build/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+          ls -lah build/export
+
+      - name: Preflight exported IPA
+        if: ${{ inputs.upload_to_testflight }}
+        run: |
+          set -euo pipefail
+
+          IPA=$(find "$PWD/build/export" -maxdepth 1 -name '*.ipa' -print -quit)
+          test -n "$IPA" || {
+            echo "Exported IPA not found."
+            exit 1
+          }
+
+          CHECK_DIR="$RUNNER_TEMP/ipa-check"
+          rm -rf "$CHECK_DIR"
+          mkdir -p "$CHECK_DIR"
+          unzip -q "$IPA" -d "$CHECK_DIR"
+
+          APP_PATH=$(find "$CHECK_DIR/Payload" -maxdepth 1 -name '*.app' -print -quit)
+          INFO_PLIST="$APP_PATH/Info.plist"
+
+          FINAL_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")
+          test "$FINAL_BUNDLE" = "$BUNDLE_ID" || {
+            echo "FINAL IPA bundle mismatch: expected $BUNDLE_ID, got $FINAL_BUNDLE"
+            exit 1
+          }
+
+          ICON_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$INFO_PLIST" 2>/dev/null || true)
+          test "$ICON_NAME" = "AppIcon" || {
+            echo "FINAL IPA is missing CFBundleIconName=AppIcon"
+            exit 1
+          }
+
+          test -f "$APP_PATH/Assets.car" || {
+            echo "FINAL IPA is missing compiled Assets.car"
+            exit 1
+          }
+
+          test -f "$APP_PATH/AppIcon60x60@2x.png" || {
+            echo "FINAL IPA is missing 120x120 fallback icon"
+            exit 1
+          }
+
+          WIDTH=$(sips -g pixelWidth "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelWidth/ {print $2}')
+          HEIGHT=$(sips -g pixelHeight "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelHeight/ {print $2}')
+
+          test "$WIDTH" = "120" && test "$HEIGHT" = "120" || {
+            echo "120x120 fallback icon has wrong size: ${WIDTH}x${HEIGHT}"
+            exit 1
+          }
+
+          echo "FINAL IPA PRECHECK PASSED."
+          echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
+
+      - name: Validate and upload to TestFlight without p8
+        if: ${{ inputs.upload_to_testflight }}
+        env:
+          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          test -n "${IPA_PATH:-}" || {
+            echo "IPA_PATH was not produced by final IPA preflight."
+            exit 1
+          }
+
+          xcrun altool --validate-app \
+            --type ios \
+            -f "$IPA_PATH" \
+            -u "$APPLE_ID_EMAIL" \
+            -p "$APPLE_APP_SPECIFIC_PASSWORD"
+
+          xcrun altool --upload-app \
+            --type ios \
+            -f "$IPA_PATH" \
+            -u "$APPLE_ID_EMAIL" \
+            -p "$APPLE_APP_SPECIFIC_PASSWORD"
+
+      - name: Upload build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iumrah-beta-build-${{ github.run_number }}
+          path: |
+            build/export/*.ipa
+            build/*.xcarchive/Info.plist
+          if-no-files-found: ignore
+          retention-days: 7
