@@ -1,0 +1,5 @@
+iumrah Beta bootstrap 001
+- Native SwiftUI architecture
+- Real iumrah Hotels public API client
+- Trip / Primary Hotel / Change Hotel / outbound / return / final package flow
+- Isolated beta flight + package quote adapters
