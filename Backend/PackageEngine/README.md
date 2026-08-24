@@ -1,39 +1,32 @@
-# iumrah Package Engine — beta 0.5
+# iumrah Package Engine — beta 0.6
 
-Server-side pricing kernel ported from the existing `iumrah-web` pricing architecture.
+Server-side pricing boundary for `com.iumrah.beta`.
 
-## Preserved pricing rules
+The iOS app may send raw observed flight fare/currency to this Worker, but the Worker never returns component prices, normalized flight costs, hotel base cost, markup or profit. Public responses contain package totals only.
 
-- 50% package markup;
-- 2% payment-fee gross-up;
-- public rounding to the nearest $5 per person;
-- visa: $120 per traveller;
-- meals by Economy / Standard / Comfort / Luxury tier;
-- transfer capacity: 3 travellers per sedan;
-- Makkah-only vs Makkah+Madinah transfer/guide rules;
-- Makkah/Madinah ziyarat group costs;
-- rooms: minimum 1 room per 4 adults+children, while respecting the user's selected room count.
+## Required binding
 
-## New mobile architecture
+Bind `HOTELS_DB` to the existing `iumrah-hotels` D1 database and apply `migrations/0001_primary_hotels.sql` to that database.
 
-Outbound and inbound flight costs are separate inputs. Primary Hotel pricing is resolved server-side from the existing `iumrah-hotels` D1 database through `package_primary_hotels`.
+Primary-hotel rows are maintained manually by iumrah Business / admin logic and contain the internal base hotel price used by the Package Engine.
 
-Run `migrations/0001_primary_hotels.sql` against the existing hotel D1 database. Do **not** create a second hotel catalog database.
+## FX
 
-The mapping key is:
+`src/fx.ts` reads the official Central Bank of Uzbekistan JSON exchange-rate feed and converts supported source currencies through UZS to USD. The in-memory rate table is cached for 15 minutes per warm Worker isolate.
 
-`package tier × star class × city -> Primary Hotel + internal base price`
+Override URL with `CBU_FX_URL` if required. Default:
 
-This supports Economy/Standard/Comfort/Luxury across 1–5★ and separate Makkah/Madinah assignments.
+`https://cbu.uz/en/arkhiv-kursov-valyut/json/`
 
-## Privacy boundary
+## Public routes
 
-The public consumer response contains only:
+- `GET /api/package/health`
+- `GET /api/package/primary-hotel?tier=standard&stars=4&city=Makkah`
+- `POST /api/package/quote`
+- `POST /api/package/flight-options/quote`
 
-- final package price per person;
-- final group package price;
-- currency;
-- quote/version identifiers;
-- resolved room/vehicle counts.
+## Flight option quoting
 
-It never exposes hotel cost, flight cost, markup, payment fee or estimated profit. The public Primary Hotel endpoint also omits its internal base price.
+Outbound phase receives multiple outbound and return fare observations. The Worker chooses the lowest normalized return fare as the reference return and quotes each outbound candidate as a complete Umrah package.
+
+Return phase receives the exact selected outbound candidate and quotes every return candidate against it. The iOS client receives only `candidateId`, `quoteId`, `pricePerPerson`, `totalPackagePrice`, currency and operational counts.

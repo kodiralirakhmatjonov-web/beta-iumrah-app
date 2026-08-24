@@ -3,6 +3,10 @@ import Foundation
 struct RemotePackageEngineClient {
     private let api = APIClient.shared
 
+    func health() async throws -> PackageEngineHealthResponse {
+        try await api.get(AppConfig.packageHealthPath)
+    }
+
     func quote(
         trip: TripDraft,
         makkahHotelID: String?,
@@ -22,5 +26,33 @@ struct RemotePackageEngineClient {
             primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID)
         )
         return try await api.post(AppConfig.packageQuotePath, body: request)
+    }
+
+    func quoteOutboundOptions(
+        trip: TripDraft,
+        hotel: HotelSummary,
+        outbound: [LiveFlightCandidate],
+        inbound: [LiveFlightCandidate]
+    ) async throws -> PublicFlightOptionsQuoteResponse {
+        let request = OutboundFlightOptionsQuoteRequest(
+            context: .init(trip: trip, hotel: hotel),
+            outboundCandidates: try outbound.map { try FlightFareObservationRequest(candidate: $0) },
+            returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
+        )
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
+    }
+
+    func quoteReturnOptions(
+        trip: TripDraft,
+        hotel: HotelSummary,
+        selectedOutbound: LiveFlightCandidate,
+        inbound: [LiveFlightCandidate]
+    ) async throws -> PublicFlightOptionsQuoteResponse {
+        let request = ReturnFlightOptionsQuoteRequest(
+            context: .init(trip: trip, hotel: hotel),
+            selectedOutbound: try FlightFareObservationRequest(candidate: selectedOutbound),
+            returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
+        )
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
     }
 }

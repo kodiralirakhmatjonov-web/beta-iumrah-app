@@ -22,8 +22,8 @@ final class FlightBotOrchestrator {
 
     static let shared = FlightBotOrchestrator()
 
-    let minimumTarget = 4
-    let preferredTarget = 6
+    let minimumTarget = AppConfig.flightBotMinimumOptions
+    let preferredTarget = AppConfig.flightBotPreferredOptions
 
     private init() {}
 
@@ -98,7 +98,7 @@ final class FlightBotOrchestrator {
         var unique: [String: LiveFlightCandidate] = [:]
         for candidate in candidates {
             if let existing = unique[candidate.deduplicationKey] {
-                if fareSortValue(candidate) < fareSortValue(existing) { unique[candidate.deduplicationKey] = candidate }
+                unique[candidate.deduplicationKey] = preferredSource(candidate, over: existing) ? candidate : existing
             } else {
                 unique[candidate.deduplicationKey] = candidate
             }
@@ -109,13 +109,21 @@ final class FlightBotOrchestrator {
             let rightDay = abs(rhs.departureAt.timeIntervalSince(anchor))
             if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
             if leftDay != rightDay { return leftDay < rightDay }
-            return fareSortValue(lhs) < fareSortValue(rhs)
+            if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {
+                return lhs.observedFare < rhs.observedFare
+            }
+            return providerPriority(lhs.providerID) < providerPriority(rhs.providerID)
         }
     }
 
-    private func fareSortValue(_ candidate: LiveFlightCandidate) -> Decimal {
-        // Cross-currency sorting is deliberately conservative until the server FX
-        // normalizer is connected. Same-currency candidates still rank correctly.
-        candidate.observedFare
+    private func preferredSource(_ lhs: LiveFlightCandidate, over rhs: LiveFlightCandidate) -> Bool {
+        if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {
+            return lhs.observedFare < rhs.observedFare
+        }
+        return providerPriority(lhs.providerID) < providerPriority(rhs.providerID)
+    }
+
+    private func providerPriority(_ id: FlightBotProviderID) -> Int {
+        FlightBotProviderRegistry.providers.first(where: { $0.id == id })?.priority ?? 999
     }
 }

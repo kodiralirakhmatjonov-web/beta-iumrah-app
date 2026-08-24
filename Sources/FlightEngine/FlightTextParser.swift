@@ -20,7 +20,7 @@ enum FlightTextParser {
         sourceURL: URL,
         observedAt: Date
     ) -> LiveFlightCandidate? {
-        guard let fare = parseFare(block) else { return nil }
+        guard let fare = parseFare(block, provider: provider) else { return nil }
         let times = matches(pattern: #"\b(?:[01]?\d|2[0-3]):[0-5]\d\b"#, in: block)
         guard let departureTime = times.first else { return nil }
         let arrivalTime = times.count > 1 ? times[1] : departureTime
@@ -58,7 +58,7 @@ enum FlightTextParser {
         )
     }
 
-    private static func parseFare(_ text: String) -> (amount: Decimal, currency: String, scope: FlightFareScope)? {
+    private static func parseFare(_ text: String, provider: FlightBotProvider) -> (amount: Decimal, currency: String, scope: FlightFareScope)? {
         let patterns: [(String, String)] = [
             (#"\$\s*([0-9][0-9\s,.]*)"#, "USD"),
             (#"USD\s*([0-9][0-9\s,.]*)"#, "USD"),
@@ -77,7 +77,16 @@ enum FlightTextParser {
             let normalized = capture.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: ",", with: "")
             guard let decimal = Decimal(string: normalized), decimal > 0 else { continue }
             let lower = text.lowercased()
-            let scope: FlightFareScope = lower.contains("total") || lower.contains("итого") || lower.contains("за всех") ? .totalParty : .unknown
+            let totalMarkers = ["total", "итого", "за всех", "total fare", "grand total", "jami"]
+            let passengerMarkers = ["per passenger", "per person", "/ person", "за пассажира", "на пассажира", "1 adult", "from "]
+            let scope: FlightFareScope
+            if totalMarkers.contains(where: { lower.contains($0) }) {
+                scope = .totalParty
+            } else if passengerMarkers.contains(where: { lower.contains($0) }) {
+                scope = .perPassenger
+            } else {
+                scope = provider.defaultFareScope
+            }
             return (decimal, currency, scope)
         }
         return nil

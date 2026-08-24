@@ -1,19 +1,16 @@
 {
-  "patch": "iumrah-beta-tech-005",
+  "patch": "iumrah-beta-tech-006",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
-  "type": "technical",
+  "cumulative_from": "0.5",
+  "includes_visual_0_4": false,
   "changes": [
-    "add on-device multi-provider Flight Bot Engine with Uzbekistan-first provider priority",
-    "add official providers: Uzbekistan Airways, Qanot Sharq, Centrum Air, Silk Avia, Air Samarkand and Fly Khiva",
-    "add global discovery providers: Google Flights and Skyscanner",
-    "enforce preferred 6 / minimum 4 verified flight candidates with no mock-result fallback",
-    "add exact, plus-minus-one, plus-minus-two and weekend date expansion",
-    "add WebKit human-verification challenge architecture without CAPTCHA bypass",
-    "add deduplication and ranking of live flight candidates",
-    "port current iumrah Web pricing rules into server-side Package Engine core",
-    "add D1 Primary Hotel mapping schema for package tier x stars x city",
-    "keep internal component costs and margin out of public iOS responses",
-    "prepare Remote Package Engine iOS client without enabling it in the visible beta flow"
+    "include complete Flight Engine 0.5 provider/adaptor layer",
+    "add automatic real-engine activation with sandbox safety fallback",
+    "add server-side CBU FX normalization for UZS/USD/EUR/RUB/SAR and other CBU currencies",
+    "add batch package quoting for outbound and return flight options",
+    "connect real bot candidates to package-only FlightOffer prices without exposing raw ticket cost",
+    "preserve iumrah Web pricing contract in server-side Package Engine",
+    "carry exact final return quote into the final package result"
   ]
 }

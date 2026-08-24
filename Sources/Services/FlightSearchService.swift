@@ -1,10 +1,12 @@
 import Foundation
 
+@MainActor
 protocol FlightSearchServicing {
     func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer]
     func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer]
 }
 
+@MainActor
 struct BetaFlightSearchService: FlightSearchServicing {
     func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer] {
         try await Task.sleep(for: .milliseconds(1100))
@@ -44,6 +46,7 @@ struct BetaFlightSearchService: FlightSearchServicing {
             let arrival = calendar.date(byAdding: .minute, value: duration, to: departure) ?? departure
             let stops = [0, 1, 1, 1, 1, 1][index]
             let delta = Decimal([0, -45, 95, 70, 140, -15][index])
+            let perPerson = base + delta
 
             return FlightOffer(
                 id: "beta-\(direction.rawValue)-\(index)",
@@ -56,9 +59,10 @@ struct BetaFlightSearchService: FlightSearchServicing {
                 arrivalAt: arrival,
                 stops: stops,
                 durationMinutes: duration,
-                totalPackagePrice: base + delta,
+                totalPackagePrice: perPerson,
                 currency: "USD",
-                sourceLabel: "Flight Engine Sandbox"
+                sourceLabel: "Flight Engine Sandbox",
+                packageTotalPrice: perPerson * Decimal(max(1, trip.travelerCount))
             )
         }
     }

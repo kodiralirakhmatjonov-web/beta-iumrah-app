@@ -24,6 +24,7 @@ struct FlightBotProvider: Identifiable, Hashable {
     let marketScope: MarketScope
     let priority: Int
     let baseURL: URL
+    let defaultFareScope: FlightFareScope
 
     func searchURL(for request: FlightBotSearchRequest) -> URL {
         switch id {
@@ -72,56 +73,64 @@ enum FlightBotProviderRegistry {
             displayName: "Uzbekistan Airways",
             marketScope: .uzbekistanPriority,
             priority: 10,
-            baseURL: URL(string: "https://booking.uzairways.com/en/index.html?optdisable=1")!
+            baseURL: URL(string: "https://booking.uzairways.com/en/index.html?optdisable=1")!,
+            defaultFareScope: .totalParty
         ),
         FlightBotProvider(
             id: .qanotSharq,
             displayName: "Qanot Sharq",
             marketScope: .uzbekistanPriority,
             priority: 20,
-            baseURL: URL(string: "https://booking.qanotsharq.com/websky_grs/")!
+            baseURL: URL(string: "https://booking.qanotsharq.com/websky_grs/")!,
+            defaultFareScope: .totalParty
         ),
         FlightBotProvider(
             id: .centrumAir,
             displayName: "Centrum Air",
             marketScope: .uzbekistanPriority,
             priority: 30,
-            baseURL: URL(string: "https://booking.centrum-air.com/ibe/C6/home/?language=en")!
+            baseURL: URL(string: "https://booking.centrum-air.com/ibe/C6/home/?language=en")!,
+            defaultFareScope: .totalParty
         ),
         FlightBotProvider(
             id: .silkAvia,
             displayName: "Silk Avia",
             marketScope: .uzbekistanPriority,
             priority: 40,
-            baseURL: URL(string: "https://pss.silk-avia.com/ibe/search?lang=en")!
+            baseURL: URL(string: "https://pss.silk-avia.com/ibe/search?lang=en")!,
+            defaultFareScope: .totalParty
         ),
         FlightBotProvider(
             id: .airSamarkand,
             displayName: "Air Samarkand",
             marketScope: .uzbekistanPriority,
             priority: 50,
-            baseURL: URL(string: "https://booking.airsamarkand.com/en/")!
+            baseURL: URL(string: "https://booking.airsamarkand.com/en/")!,
+            defaultFareScope: .totalParty
         ),
         FlightBotProvider(
             id: .flyKhiva,
             displayName: "Fly Khiva",
             marketScope: .uzbekistanPriority,
             priority: 60,
-            baseURL: URL(string: "https://booking.flykhiva.uz/en/")!
+            baseURL: URL(string: "https://booking.flykhiva.uz/en/")!,
+            defaultFareScope: .totalParty
         ),
         FlightBotProvider(
             id: .googleFlights,
             displayName: "Google Flights",
             marketScope: .global,
             priority: 70,
-            baseURL: URL(string: "https://www.google.com/travel/flights")!
+            baseURL: URL(string: "https://www.google.com/travel/flights")!,
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .skyscanner,
             displayName: "Skyscanner",
             marketScope: .global,
             priority: 80,
-            baseURL: URL(string: "https://www.skyscanner.com/transport/flights")!
+            baseURL: URL(string: "https://www.skyscanner.com/transport/flights")!,
+            defaultFareScope: .perPassenger
         )
     ]
 

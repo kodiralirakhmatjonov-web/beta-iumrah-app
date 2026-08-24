@@ -20,7 +20,7 @@ final class JourneyStore: ObservableObject {
 
     init(
         hotelService: HotelCatalogServicing = HotelCatalogService(),
-        flightService: FlightSearchServicing = BetaFlightSearchService(),
+        flightService: FlightSearchServicing = AutomaticFlightSearchService(),
         quoteService: PackageQuoteServicing = BetaPackageQuoteService()
     ) {
         self.hotelService = hotelService

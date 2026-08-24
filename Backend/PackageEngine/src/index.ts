@@ -1,10 +1,12 @@
 import { calculatePackageQuote } from "./pricing";
+import { quoteFlightOptions } from "./flight-options";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
-import type { ConsumerPackageQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
+import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
 type Env = {
   PRICING_VERSION?: string;
   HOTELS_DB?: D1Like;
+  CBU_FX_URL?: string;
 };
 
 function json(value: unknown, status = 200) {
@@ -73,18 +75,18 @@ async function resolveConsumerQuote(input: ConsumerPackageQuoteRequest, env: Env
     customization: input.customization,
   };
 
-  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.5");
+  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.6");
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (request.method === "GET" && url.pathname === "/health") {
+    if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {
       return json({
         ok: true,
         service: "iumrah-package-engine",
-        pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.5",
+        pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.6",
         hotelsDbConfigured: Boolean(env.HOTELS_DB),
       });
     }
@@ -114,6 +116,17 @@ export default {
         return json(publicOnly(result));
       } catch (error) {
         return json({ ok: false, error: error instanceof Error ? error.message : "Invalid quote request" }, 400);
+      }
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/flight-options/quote") {
+      try {
+        const input = await request.json();
+        const result = await quoteFlightOptions(input as FlightOptionsQuoteRequest, env);
+        // Raw flight fares, FX-normalized costs, hotel costs and margin never leave this worker.
+        return json(result);
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : "Invalid flight options quote request" }, 400);
       }
     }
 

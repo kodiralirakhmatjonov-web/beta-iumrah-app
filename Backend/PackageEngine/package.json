@@ -1,9 +1,9 @@
 {
   "name": "iumrah-beta-package-engine",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/pricing.test.mjs"
+    "test": "node --test test/*.test.mjs"
   }
 }

@@ -1,29 +1,29 @@
 import Foundation
 
 enum AppConfig {
-    enum FlightEngineMode {
+    enum FlightEngineMode: Equatable {
         case sandbox
+        case automatic
         case officialWebBots
     }
 
     static let appName = "iumrah Beta"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
-    /// 0.5 technical state: the real bot engine is compiled into the beta app,
-    /// but the current visible flow remains on sandbox until PackageQuote and
-    /// CAPTCHA presentation are wired end-to-end. Flip only after backend deploy.
-    static let flightEngineMode: FlightEngineMode = .sandbox
+    /// 0.6 technical state. Automatic mode checks the server-side Package Engine
+    /// first. If it is not deployed/configured yet, the existing sandbox remains
+    /// available so TestFlight never becomes unusable.
+    static let flightEngineMode: FlightEngineMode = .automatic
     static let flightBotMinimumOptions = 4
     static let flightBotPreferredOptions = 6
 
-    /// Server-side Package Engine endpoint. Internal hotel/flight cost breakdown,
-    /// markup and profit must never be returned to the consumer app.
+    static let packageHealthPath = "/api/package/health"
     static let packageQuotePath = "/api/package/quote"
-    static let usesRemotePackagePricing = false
+    static let packageFlightOptionsQuotePath = "/api/package/flight-options/quote"
+    static let usesRemotePackagePricing = true
 
-    /// Primary hotel assignments will ultimately be delivered by the backend.
-    /// Until that endpoint is deployed, the app prefers the first published hotel
-    /// matching the user's requested star class.
+    /// Primary hotel assignments are resolved server-side from the package tier,
+    /// hotel stars and existing iumrah Hotels D1 catalog.
     static let usesLocalPrimaryHotelFallback = true
 
     static var usesSandboxFlightSearch: Bool {

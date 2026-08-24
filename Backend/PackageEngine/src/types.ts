@@ -106,3 +106,43 @@ export type PrimaryHotelRecord = {
   active: number;
   updated_at: string;
 };
+
+export type FlightFareObservation = {
+  candidateId: string;
+  amount: number;
+  currency: string;
+  fareScope: "perPassenger" | "totalParty";
+  providerId: string;
+  observedAt: string;
+  travelDate: string;
+};
+
+export type FlightQuoteContext = Omit<ConsumerPackageQuoteRequest, "flights">;
+
+export type OutboundFlightOptionsQuoteRequest = {
+  phase: "outbound";
+  context: FlightQuoteContext;
+  outboundCandidates: FlightFareObservation[];
+  returnCandidates: FlightFareObservation[];
+};
+
+export type ReturnFlightOptionsQuoteRequest = {
+  phase: "return";
+  context: FlightQuoteContext;
+  selectedOutbound: FlightFareObservation;
+  returnCandidates: FlightFareObservation[];
+};
+
+export type FlightOptionsQuoteRequest = OutboundFlightOptionsQuoteRequest | ReturnFlightOptionsQuoteRequest;
+
+export type PublicFlightOptionQuote = PublicPackageQuote & {
+  candidateId: string;
+};
+
+export type PublicFlightOptionsQuoteResponse = {
+  ok: true;
+  phase: "outbound" | "return";
+  options: PublicFlightOptionQuote[];
+  referenceReturnCandidateId?: string;
+  fxAsOf?: string | null;
+};
