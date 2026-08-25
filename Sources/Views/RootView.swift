@@ -41,7 +41,7 @@ struct RootView: View {
             .tag(AppTab.care)
 
             tabScreen(.umrah) {
-                UmrahGuidesView()
+                UmrahHomeView()
             }
             .tabItem {
                 Label(L10n.text("tab_umrah", settings.language), systemImage: "moon.stars")

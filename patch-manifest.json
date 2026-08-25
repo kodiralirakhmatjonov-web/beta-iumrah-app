@@ -1,6 +1,5 @@
 {
-  "id": "iumrah-beta-update-018-hotfix",
-  "createdAt": "2026-08-25T12:55:00Z",
-  "base": "iumrah-beta-update-017",
-  "description": "Compile hotfix for Xcode 26.6: explicit Color shape styles, Decimal/Double conversions, and chat bubble background type unification."
+  "id": "iumrah-beta-update-019-hotfix",
+  "createdAt": "2026-08-25T12:58:00Z",
+  "description": "Fix TestFlight compile failure: RootView referenced non-existent UmrahGuidesView; use existing UmrahHomeView and localize its placeholder."
 }
