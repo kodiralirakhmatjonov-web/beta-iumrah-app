@@ -32,19 +32,27 @@ enum FlightBotScripts {
           };
           const text = el => ((el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('placeholder') || '') + ' ' + (el.name || '') + ' ' + (el.id || '')).toLowerCase();
           const setNativeValue = (el, value) => {
+            try { el.focus(); } catch (_) {}
             try {
               const proto = Object.getPrototypeOf(el);
               const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
               if (descriptor && descriptor.set) descriptor.set.call(el, value); else el.value = value;
             } catch (_) { el.value = value; }
             el.dispatchEvent(new Event('input', {bubbles:true}));
+            el.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true, key:'a'}));
             el.dispatchEvent(new Event('change', {bubbles:true}));
+          };
+          const chooseVisibleSuggestion = value => {
+            const options = Array.from(document.querySelectorAll('[role=option], [role=listbox] li, .autocomplete li, .suggestions li, .dropdown-menu li')).filter(visible);
+            const match = options.find(el => (el.innerText || el.textContent || '').toUpperCase().includes(value.toUpperCase()));
+            if (match) { match.click(); return true; }
+            return false;
           };
 
           const controls = Array.from(document.querySelectorAll('input, select, textarea')).filter(visible);
-          const originWords = ['from','origin','departure','откуда','qayerdan','qayerda','город вылета'];
-          const destWords = ['to','destination','arrival','куда','qayerga','город прилета'];
-          const dateWords = ['date','depart','departure date','вылет','дата вылета','borish sanasi'];
+          const originWords = ['from','origin','departure','откуда','qayerdan','qayerda','jo\'nash','город вылета','uchish'];
+          const destWords = ['to','destination','arrival','куда','qayerga','yetib','город прилета','borish'];
+          const dateWords = ['date','depart','departure date','вылет','дата вылета','borish sanasi','jo\'nash sanasi','uchish sanasi'];
 
           const findControl = words => controls.find(el => words.some(w => text(el).includes(w)));
           const setSelect = (el, value) => {
@@ -60,8 +68,8 @@ enum FlightBotScripts {
           const to = findControl(destWords);
           const depart = findControl(dateWords) || controls.find(el => el.type === 'date');
 
-          if (from) { if (!setSelect(from, origin)) setNativeValue(from, origin); }
-          if (to) { if (!setSelect(to, destination)) setNativeValue(to, destination); }
+          if (from) { if (!setSelect(from, origin)) { setNativeValue(from, origin); chooseVisibleSuggestion(origin); } }
+          if (to) { if (!setSelect(to, destination)) { setNativeValue(to, destination); chooseVisibleSuggestion(destination); } }
           if (depart) setNativeValue(depart, date);
 
           const passengerHints = [
@@ -77,7 +85,7 @@ enum FlightBotScripts {
           const buttons = Array.from(document.querySelectorAll('button, input[type=submit], a')).filter(visible);
           const search = buttons.find(el => {
             const t = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().toLowerCase();
-            return ['search','find','поиск','найти','излаш','izlash','search flight','search flights'].some(w => t.includes(w));
+            return ['search','find','поиск','найти','излаш','izlash','qidirish','search flight','search flights','find flights'].some(w => t.includes(w));
           });
           if (search) { search.click(); return {ok:true, clicked:true}; }
           return {ok:false, clicked:false, reason:'search-control-not-found'};
@@ -95,32 +103,53 @@ enum FlightBotScripts {
 
     static let extractCandidateBlocks = """
     (() => {
-      const money = /(?:USD|US\\$|\\$|UZS|EUR|€|RUB|₽|SAR)\\s*[0-9][0-9\\s,.]*|[0-9][0-9\\s,.]*\\s*(?:USD|UZS|EUR|RUB|SAR|€|₽)/i;
+      const money = /(?:USD|US\\$|\\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\\s*[0-9][0-9\\s,.]*|[0-9][0-9\\s,.]*\\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
       const time = /\\b(?:[01]?\\d|2[0-3]):[0-5]\\d\\b/g;
+      const flight = /\\b[A-Z0-9]{2,3}[\\s-]?\\d{1,4}\\b/i;
+      const airport = /\\b[A-Z]{3}\\b/g;
       const visible = el => {
         const r = el.getBoundingClientRect();
         const s = getComputedStyle(el);
         return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
       };
-      const leaves = Array.from(document.querySelectorAll('body *')).filter(el => visible(el) && el.children.length === 0 && money.test((el.innerText || '').trim()));
+      const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
+      const score = text => {
+        const times = text.match(time) || [];
+        const airports = text.match(airport) || [];
+        let value = times.length * 3 + airports.length * 2;
+        if (flight.test(text)) value += 5;
+        if (/terminal|терминал|airbus|boeing|atr|embraer|operated by|выполняется/i.test(text)) value += 3;
+        return value;
+      };
+
+      const moneyNodes = Array.from(document.querySelectorAll('body *')).filter(el => {
+        if (!visible(el) || el.children.length > 2) return false;
+        return money.test(clean(el.innerText));
+      });
       const output = [];
       const seen = new Set();
-      for (const leaf of leaves) {
+
+      for (const leaf of moneyNodes) {
         let node = leaf;
         let chosen = null;
-        for (let depth = 0; depth < 7 && node; depth++, node = node.parentElement) {
-          const t = (node.innerText || '').replace(/\\s+/g, ' ').trim();
-          const times = t.match(time) || [];
-          if (t.length >= 25 && t.length <= 1800 && times.length >= 1 && money.test(t)) {
-            chosen = t;
-            if (times.length >= 2) break;
+        let chosenScore = -1;
+        for (let depth = 0; depth < 9 && node; depth++, node = node.parentElement) {
+          const text = clean(node.innerText);
+          if (text.length < 25 || text.length > 3200 || !money.test(text)) continue;
+          const times = text.match(time) || [];
+          if (times.length < 2) continue;
+          const currentScore = score(text);
+          if (currentScore > chosenScore) {
+            chosen = text;
+            chosenScore = currentScore;
           }
+          if (times.length >= 4 && flight.test(text) && (text.match(airport) || []).length >= 3) break;
         }
         if (chosen && !seen.has(chosen)) {
           seen.add(chosen);
           output.push(chosen);
         }
-        if (output.length >= 24) break;
+        if (output.length >= 36) break;
       }
       return output;
     })()

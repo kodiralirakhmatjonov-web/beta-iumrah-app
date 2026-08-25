@@ -74,7 +74,7 @@ enum BookingDraftBuilder {
             ),
             includedServices: services,
             hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? L10n.text("recommended_madinah_hotel", language) : ""),
-            flight: "\(outbound.airline) \(outbound.flightNumber) · \(inbound.airline) \(inbound.flightNumber)",
+            flight: "\(outbound.airlinesSummary) \(outbound.flightNumbersSummary) · \(inbound.airlinesSummary) \(inbound.flightNumbersSummary)",
             pilgrimProfile: pilgrimProfile
         )
         return BookingCreateEnvelope(lang: language.rawValue, booking: draft)

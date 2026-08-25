@@ -39,7 +39,7 @@ final class FlightBotOrchestrator {
         let searchID = UUID().uuidString
         let requestedAt = Date()
         let dates = FlightDatePlanner.dates(anchor: baseRequest.date, flexibility: flexibility)
-        let providers = FlightBotProviderRegistry.ordered(for: baseRequest.origin)
+        let providers = FlightBotProviderRegistry.ordered(for: baseRequest.origin, destination: baseRequest.destination)
 
         var collected: [LiveFlightCandidate] = []
         var challenges: [FlightBotChallenge] = []
@@ -151,6 +151,13 @@ final class FlightBotOrchestrator {
     }
 
     private func preferredSource(_ lhs: LiveFlightCandidate, over rhs: LiveFlightCandidate) -> Bool {
+        let leftRichness = (lhs.segments ?? []).reduce(0) { score, segment in
+            score + 1 + (segment.aircraft == nil ? 0 : 1) + (segment.origin.terminal == nil ? 0 : 1) + (segment.destination.terminal == nil ? 0 : 1)
+        }
+        let rightRichness = (rhs.segments ?? []).reduce(0) { score, segment in
+            score + 1 + (segment.aircraft == nil ? 0 : 1) + (segment.origin.terminal == nil ? 0 : 1) + (segment.destination.terminal == nil ? 0 : 1)
+        }
+        if leftRichness != rightRichness { return leftRichness > rightRichness }
         if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {
             return lhs.observedFare < rhs.observedFare
         }

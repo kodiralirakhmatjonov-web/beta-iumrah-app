@@ -1,0 +1,11 @@
+iumrah Beta flight update 0.22 applied.
+
+- Structured FlightOffer segments with airline/flight/airport/terminal/aircraft/cabin metadata.
+- Layover, airport-change and duration calculation in iOS.
+- Existing airport API used for presentation enrichment with resilient offline route fallback.
+- Airline logo presentation with code fallback.
+- Detailed flight screen and richer result cards.
+- Uzbekistan-first provider routing, including domestic Uzbekistan search prioritization.
+- Added regional providers for Uzbekistan/Saudi one-stop coverage.
+- Flight page extraction improved without CAPTCHA bypass.
+- Package Engine provider allowlist expanded; pricing rules unchanged.

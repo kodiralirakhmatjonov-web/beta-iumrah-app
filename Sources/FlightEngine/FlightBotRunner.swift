@@ -42,7 +42,7 @@ final class FlightBotRunner {
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
 
         self.webView = WKWebView(frame: .zero, configuration: configuration)
-        self.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 iumrah-beta/0.10"
+        self.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 iumrah-beta/0.22"
     }
 
     func run(timeoutSeconds: Double = AppConfig.flightBotProviderTimeoutSeconds) async throws -> [LiveFlightCandidate] {
@@ -59,7 +59,7 @@ final class FlightBotRunner {
 
         if provider.id != .googleFlights && provider.id != .skyscanner {
             _ = try? await evaluate(FlightBotScripts.submitSearch(provider: provider, request: request))
-            try await Task.sleep(for: .milliseconds(850))
+            try await Task.sleep(for: .milliseconds(1200))
             try await waitForNavigation(timeoutSeconds: min(timeoutSeconds, 8))
             try await detectChallengeIfNeeded()
         } else {
@@ -67,7 +67,7 @@ final class FlightBotRunner {
         }
 
         var best: [LiveFlightCandidate] = []
-        let retryDelays: [Duration] = [.zero, .milliseconds(900), .milliseconds(1400)]
+        let retryDelays: [Duration] = [.zero, .milliseconds(900), .milliseconds(1600), .milliseconds(2400)]
 
         for delay in retryDelays {
             if delay != .zero {

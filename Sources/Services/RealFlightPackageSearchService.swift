@@ -139,7 +139,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
                 sourceLabel: "iumrah Flight Engine · \(candidate.providerName)",
                 packageTotalPrice: quote.totalPackagePrice,
                 quoteId: quote.quoteId,
-                sourceCandidateID: candidate.id
+                sourceCandidateID: candidate.id,
+                airlineCode: candidate.airlineCode,
+                segments: candidate.segments
             )
         }
 

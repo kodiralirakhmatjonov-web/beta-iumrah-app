@@ -87,14 +87,14 @@ struct FinalPackageView: View {
                 .font(.headline)
                 .padding(.bottom, 8)
             if let flight = journey.selectedOutbound {
-                timelineRow(icon: "airplane.departure", title: L10n.text("final_outbound", settings.language), value: "\(flight.airline) · \(flight.flightNumber)")
+                timelineRow(icon: "airplane.departure", title: L10n.text("final_outbound", settings.language), value: "\(flight.airlinesSummary) · \(flight.flightNumbersSummary)")
             }
             if let hotel = journey.selectedHotel {
                 timelineRow(icon: "building.2.fill", title: L10n.text("final_hotel", settings.language), value: hotel.name)
             }
             timelineRow(icon: "car.fill", title: L10n.text("final_transfer", settings.language), value: L10n.text("included", settings.language))
             if let flight = journey.selectedInbound {
-                timelineRow(icon: "airplane.arrival", title: L10n.text("final_return", settings.language), value: "\(flight.airline) · \(flight.flightNumber)")
+                timelineRow(icon: "airplane.arrival", title: L10n.text("final_return", settings.language), value: "\(flight.airlinesSummary) · \(flight.flightNumbersSummary)")
             }
             timelineRow(icon: "heart.fill", title: L10n.text("final_care", settings.language), value: L10n.text("included", settings.language))
             timelineRow(icon: "doc.text.fill", title: L10n.text("final_visa", settings.language), value: L10n.text("included", settings.language))

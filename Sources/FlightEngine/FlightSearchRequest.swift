@@ -59,10 +59,57 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
     let observedAt: Date
     let sourceURL: String
     let rawTextFingerprint: String
+    let airlineCode: String?
+    let segments: [FlightSegment]?
+
+    init(
+        id: String,
+        providerID: FlightBotProviderID,
+        providerName: String,
+        direction: FlightDirection,
+        airline: String,
+        flightNumber: String,
+        origin: String,
+        destination: String,
+        departureAt: Date,
+        arrivalAt: Date,
+        stops: Int,
+        durationMinutes: Int,
+        observedFare: Decimal,
+        observedCurrency: String,
+        fareScope: FlightFareScope,
+        observedAt: Date,
+        sourceURL: String,
+        rawTextFingerprint: String,
+        airlineCode: String? = nil,
+        segments: [FlightSegment]? = nil
+    ) {
+        self.id = id
+        self.providerID = providerID
+        self.providerName = providerName
+        self.direction = direction
+        self.airline = airline
+        self.flightNumber = flightNumber
+        self.origin = origin.uppercased()
+        self.destination = destination.uppercased()
+        self.departureAt = departureAt
+        self.arrivalAt = arrivalAt
+        self.stops = stops
+        self.durationMinutes = durationMinutes
+        self.observedFare = observedFare
+        self.observedCurrency = observedCurrency
+        self.fareScope = fareScope
+        self.observedAt = observedAt
+        self.sourceURL = sourceURL
+        self.rawTextFingerprint = rawTextFingerprint
+        self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: flightNumber)
+        self.segments = segments?.isEmpty == false ? segments : nil
+    }
 
     var deduplicationKey: String {
         let epoch = Int(departureAt.timeIntervalSince1970 / 300)
-        return "\(airline.lowercased())|\(flightNumber.lowercased())|\(origin)|\(destination)|\(epoch)"
+        let segmentKey = (segments ?? []).map { "\($0.flightNumber)-\($0.origin.code)-\($0.destination.code)" }.joined(separator: "+")
+        return "\(airline.lowercased())|\(flightNumber.lowercased())|\(origin)|\(destination)|\(epoch)|\(segmentKey)"
     }
 }
 

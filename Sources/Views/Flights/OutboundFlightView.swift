@@ -57,15 +57,31 @@ struct OutboundFlightView: View {
                     )
                 } else {
                     ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
-                        Button {
+                        VStack(spacing: 10) {
+                            Button {
                             journey.selectedOutbound = offer
                             journey.selectedInbound = nil
                             journey.quote = nil
                             IumrahHaptics.selection()
-                        } label: {
-                            FlightCard(offer: offer, isSelected: journey.selectedOutbound?.id == offer.id, isRecommended: index == 0)
+                            } label: {
+                                FlightCard(offer: offer, isSelected: journey.selectedOutbound?.id == offer.id, isRecommended: index == 0)
+                            }
+                            .buttonStyle(.plain)
+
+                            NavigationLink {
+                                FlightDetailsView(offer: offer)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text(L10n.text("flight_details_cta", settings.language))
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.bold))
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                .padding(.horizontal, 4)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     if journey.selectedOutbound != nil {

@@ -1,0 +1,253 @@
+import SwiftUI
+
+struct FlightDetailsView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+    @State private var enrichedAirports: [String: Airport] = [:]
+    let offer: FlightOffer
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                header
+
+                ForEach(Array(offer.displaySegments.enumerated()), id: \.element.id) { index, segment in
+                    segmentSection(segment, index: index)
+                    if index < offer.layovers.count {
+                        layoverSection(offer.layovers[index])
+                    }
+                }
+
+                packagePriceSection
+            }
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 42)
+        }
+        .background(Color.iumrahPageBackground)
+        .iumrahInternalNavigation(progress: .flight)
+        .task { await enrichAirports() }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(L10n.text("flight_details_title", settings.language))
+                .font(.largeTitle.weight(.bold))
+            Text(L10n.format(
+                "flight_details_route",
+                settings.language,
+                resolvedAirport(offer.displaySegments.first?.origin ?? FlightAirportSnapshot(code: offer.origin)).displayCity,
+                resolvedAirport(offer.displaySegments.last?.destination ?? FlightAirportSnapshot(code: offer.destination)).displayCity
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Label(durationText(offer.durationMinutes), systemImage: "clock")
+                Text("•")
+                Text(stopLabel)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, 3)
+        }
+    }
+
+    private func segmentSection(_ segment: FlightSegment, index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text(L10n.format("flight_segment_count", settings.language, index + 1, offer.displaySegments.count))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 17) {
+                HStack(spacing: 11) {
+                    AirlineLogoView(airlineCode: segment.airlineCode, size: 42)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(FlightReferenceCatalog.airlineName(code: segment.airlineCode, fallback: segment.airline))
+                            .font(.headline.weight(.semibold))
+                        Text(segment.flightNumber)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+
+                routeTimeline(segment)
+
+                Divider()
+
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 13) {
+                    detailValue(titleKey: "flight_detail_duration", value: durationText(segment.durationMinutes))
+                    detailValue(titleKey: "flight_detail_cabin", value: cabinLabel(segment.cabin))
+                    if let aircraft = segment.aircraft {
+                        detailValue(titleKey: "flight_detail_aircraft", value: aircraft)
+                    }
+                    if let carrier = segment.operatingCarrier, !carrier.localizedCaseInsensitiveContains(segment.airline) {
+                        detailValue(titleKey: "flight_detail_operated_by", value: carrier)
+                    }
+                }
+            }
+            .iumrahCard()
+        }
+    }
+
+    private func routeTimeline(_ segment: FlightSegment) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(spacing: 0) {
+                Circle()
+                    .fill(Color.primary)
+                    .frame(width: 8, height: 8)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.16))
+                    .frame(width: 2, height: 74)
+                Circle()
+                    .fill(Color.primary)
+                    .frame(width: 8, height: 8)
+            }
+            .padding(.top, 7)
+
+            VStack(alignment: .leading, spacing: 19) {
+                airportRow(segment.origin, date: segment.departureAt)
+                airportRow(segment.destination, date: segment.arrivalAt)
+            }
+        }
+    }
+
+    private func airportRow(_ airport: FlightAirportSnapshot, date: Date) -> some View {
+        let airport = resolvedAirport(airport)
+        return HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(airport.displayCity)
+                    .font(.title3.weight(.bold))
+                Text("\(airport.displayAirport) (\(airport.code))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                if let terminal = airport.terminal {
+                    Text(L10n.format("flight_terminal", settings.language, terminal))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 12)
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(timeFormatter(airport).string(from: date))
+                    .font(.title3.monospacedDigit().weight(.bold))
+                Text(dateFormatter(airport).string(from: date))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func layoverSection(_ layover: FlightLayover) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath")
+                .font(.body.weight(.semibold))
+                .frame(width: 28, height: 28)
+                .background(Color.primary.opacity(0.06))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(layover.airportChange
+                     ? L10n.format("flight_layover_airport_change", settings.language, resolvedAirport(layover.airport).displayCity)
+                     : L10n.format("flight_layover_title", settings.language, resolvedAirport(layover.airport).displayCity))
+                    .font(.subheadline.weight(.bold))
+                Text(durationText(layover.durationMinutes))
+                    .font(.subheadline)
+                if layover.overnight {
+                    Text(L10n.text("flight_layover_overnight", settings.language))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var packagePriceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L10n.text("flight_whole_package", settings.language))
+                .font(.headline)
+            Text(L10n.text("flight_details_price_note", settings.language))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            PackagePriceView(amount: offer.totalPackagePrice, currency: offer.currency)
+        }
+        .iumrahCard()
+    }
+
+    private func detailValue(titleKey: String, value: String?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(L10n.text(titleKey, settings.language))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value ?? L10n.text("flight_detail_unknown", settings.language))
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private var stopLabel: String {
+        offer.stops == 0 ? L10n.text("flight_direct", settings.language) : L10n.format("flight_stops", settings.language, offer.stops)
+    }
+
+    private func durationText(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours == 0 { return L10n.format("flight_minutes_short", settings.language, mins) }
+        if mins == 0 { return L10n.format("flight_hours_short", settings.language, hours) }
+        return L10n.format("flight_duration_short", settings.language, hours, mins)
+    }
+
+    private func cabinLabel(_ cabin: String?) -> String {
+        switch cabin?.lowercased() {
+        case "business": return L10n.text("flight_cabin_business", settings.language)
+        case "premium_economy": return L10n.text("flight_cabin_premium", settings.language)
+        case "first": return L10n.text("flight_cabin_first", settings.language)
+        default: return L10n.text("flight_cabin_economy", settings.language)
+        }
+    }
+
+    private func resolvedAirport(_ snapshot: FlightAirportSnapshot) -> FlightAirportSnapshot {
+        guard let enriched = enrichedAirports[snapshot.code] else { return snapshot }
+        return FlightAirportSnapshot(
+            code: snapshot.code,
+            city: enriched.city,
+            name: enriched.name,
+            terminal: snapshot.terminal,
+            timeZoneIdentifier: snapshot.timeZoneIdentifier
+        )
+    }
+
+    @MainActor
+    private func enrichAirports() async {
+        let codes = Set(offer.displaySegments.flatMap { [$0.origin.code, $0.destination.code] })
+        let service = AirportSearchService()
+        for code in codes where enrichedAirports[code] == nil {
+            do {
+                let matches = try await service.search(code, limit: 4)
+                if let exact = matches.first(where: { $0.iata.uppercased() == code.uppercased() }) {
+                    enrichedAirports[code] = exact
+                }
+            } catch {
+                // Presentation enrichment is best-effort. A failed airport lookup
+                // must never hide an otherwise valid live flight result.
+            }
+        }
+    }
+
+    private func timeFormatter(_ airport: FlightAirportSnapshot) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        if let identifier = airport.timeZoneIdentifier, let zone = TimeZone(identifier: identifier) { formatter.timeZone = zone }
+        return formatter
+    }
+
+    private func dateFormatter(_ airport: FlightAirportSnapshot) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        formatter.dateFormat = "d MMM, EEE"
+        if let identifier = airport.timeZoneIdentifier, let zone = TimeZone(identifier: identifier) { formatter.timeZone = zone }
+        return formatter
+    }
+}

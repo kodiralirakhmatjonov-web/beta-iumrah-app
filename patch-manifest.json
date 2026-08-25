@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-021-production-quality",
-  "createdAt": "2026-08-25T14:30:00Z",
-  "description": "Production-quality iOS update: complete four-language UI localization, root/internal navigation chrome, immersive flight search, Hotel Space and Care polish, secure booking-session migration, chat API contract fix, pilgrim profile binding, and localized error handling."
+  "id": "iumrah-beta-update-022-flight-details-uzbekistan-search",
+  "createdAt": "2026-08-25T17:10:00Z",
+  "description": "Flight quality update: structured multi-segment flight model, route/layover/timezone enrichment, airline logos, detailed flight screen, richer final booking summaries, stronger Uzbekistan-first provider routing, additional regional official providers, improved web-bot extraction, and Package Engine provider allowlist compatibility."
 }
