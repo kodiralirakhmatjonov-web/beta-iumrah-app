@@ -1,19 +1,7 @@
 {
-  "patch": "iumrah-beta-ui-015",
+  "patch": "iumrah-beta-hotfix-016",
   "target": "beta-iumrah-app repository root",
-  "bundle_identifier": "com.iumrah.beta",
-  "backend_changed": false,
-  "based_on": "0.14",
   "changes": [
-    "replace Home package builder with a marketing-first iumrah journey homepage",
-    "move new Umrah creation into the Booking tab while preserving existing bookings",
-    "add Tripsy-inspired large semantic cards, stronger hierarchy and journey-focused copy",
-    "add persistent iumrah Project header to every tab with profile access",
-    "add dedicated iumrah Care product card and supplied Care logo with first-year-free positioning",
-    "replace iumrah Beta app icon with the supplied iumrah Project mark",
-    "make flight search and ready states fully immersive on a black screen with supplied animations",
-    "localize visible package tier and booking terminology into Russian while preserving iumrah Care as a brand",
-    "redesign final package and booking confirmation flow around confidence and full-package pricing",
-    "preserve Airport, Hotel, Flight, Package, Booking and Chat technical integrations from 0.14"
+    "fix SwiftUI @State name collision in FlightSearchImmersiveView by renaming nested State enum to Phase"
   ]
 }

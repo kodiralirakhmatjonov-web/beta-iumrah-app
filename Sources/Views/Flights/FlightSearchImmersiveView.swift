@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct FlightSearchImmersiveView: View {
-    enum State {
+    enum Phase {
         case searching
         case ready
     }
 
-    let state: State
+    let state: Phase
     @State private var step = 0
 
     private let searchSteps = [
