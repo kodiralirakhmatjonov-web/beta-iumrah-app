@@ -2,6 +2,7 @@ import SwiftUI
 
 enum AppTab: Hashable {
     case home
+    case hotels
     case booking
     case care
     case umrah
@@ -11,6 +12,7 @@ final class AppChromeStore: ObservableObject {
     @Published var isDrawerOpen = false
     @Published var isProfileEditorPresented = false
     @Published var requestedTab: AppTab?
+    @Published var currentTab: AppTab = .home
     @Published var shouldStartTripBuilder = false
     @Published var isImmersiveMode = false
 
@@ -32,13 +34,14 @@ final class AppChromeStore: ObservableObject {
 
     func navigate(to tab: AppTab) {
         requestedTab = tab
+        currentTab = tab
         if isDrawerOpen { closeDrawer() }
         IumrahHaptics.selection()
     }
 
-
     func startNewTrip() {
         shouldStartTripBuilder = true
+        currentTab = .booking
         requestedTab = .booking
         if isDrawerOpen { closeDrawer() }
         IumrahHaptics.selection()

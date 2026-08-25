@@ -1,7 +1,6 @@
 {
-  "patch": "iumrah-beta-hotfix-016",
-  "target": "beta-iumrah-app repository root",
-  "changes": [
-    "fix SwiftUI @State name collision in FlightSearchImmersiveView by renaming nested State enum to Phase"
-  ]
+  "id": "iumrah-beta-update-017",
+  "createdAt": "2026-08-25T11:20:00Z",
+  "base": "beta-iumrah-app-main 2.zip",
+  "description": "Main UX refresh: 4-language support, Aiomra Care branding/colors, Hotels tab, improved booking flow, profile capture before booking, and chat/service fixes."
 }

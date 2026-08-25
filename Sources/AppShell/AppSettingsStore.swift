@@ -7,11 +7,20 @@ final class AppSettingsStore: ObservableObject {
         case dark
 
         var id: String { rawValue }
-        var title: String {
+
+        func title(_ language: AppSettingsStore.Language) -> String {
             switch self {
-            case .system: return "Как на iPhone"
-            case .light: return "Светлая"
-            case .dark: return "Тёмная"
+            case .system: return L10n.text("appearance_system", language)
+            case .light: return L10n.text("appearance_light", language)
+            case .dark: return L10n.text("appearance_dark", language)
+            }
+        }
+
+        var colorScheme: ColorScheme? {
+            switch self {
+            case .system: return nil
+            case .light: return .light
+            case .dark: return .dark
             }
         }
     }
@@ -20,51 +29,62 @@ final class AppSettingsStore: ObservableObject {
         case russian = "ru"
         case english = "en"
         case uzbek = "uz"
+        case uzbekCyrillic = "uz-cyrl"
 
         var id: String { rawValue }
+
         var title: String {
             switch self {
-            case .russian: return "Русский"
-            case .english: return "Английский"
-            case .uzbek: return "Узбекский"
+            case .russian: return L10n.text("language_russian", self)
+            case .english: return L10n.text("language_english", self)
+            case .uzbek: return L10n.text("language_uzbek", self)
+            case .uzbekCyrillic: return L10n.text("language_uzbek_cyr", self)
+            }
+        }
+
+        var localeIdentifier: String {
+            switch self {
+            case .russian: return "ru_RU"
+            case .english: return "en_US"
+            case .uzbek: return "uz_Latn_UZ"
+            case .uzbekCyrillic: return "uz_Cyrl_UZ"
             }
         }
     }
 
-    @Published var appearance: Appearance {
-        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: "iumrah.appearance") }
+    @AppStorage("iumrah.appearance") private var appearanceRaw = Appearance.system.rawValue
+    @AppStorage("iumrah.language") private var languageRaw = Language.russian.rawValue
+    @AppStorage("iumrah.profile.firstName") var firstName = ""
+    @AppStorage("iumrah.profile.lastName") var lastName = ""
+    @AppStorage("iumrah.profile.telegram") var telegram = ""
+    @AppStorage("iumrah.profile.whatsapp") var whatsapp = ""
+
+    @Published var appearance: Appearance = .system {
+        didSet { appearanceRaw = appearance.rawValue }
     }
-    @Published var language: Language {
-        didSet { UserDefaults.standard.set(language.rawValue, forKey: "iumrah.language") }
-    }
-    @Published var firstName: String {
-        didSet { UserDefaults.standard.set(firstName, forKey: "iumrah.firstName") }
-    }
-    @Published var lastName: String {
-        didSet { UserDefaults.standard.set(lastName, forKey: "iumrah.lastName") }
+
+    @Published var language: Language = .russian {
+        didSet { languageRaw = language.rawValue }
     }
 
     init() {
-        let defaults = UserDefaults.standard
-        appearance = Appearance(rawValue: defaults.string(forKey: "iumrah.appearance") ?? "system") ?? .system
-        language = Language(rawValue: defaults.string(forKey: "iumrah.language") ?? "ru") ?? .russian
-        firstName = defaults.string(forKey: "iumrah.firstName") ?? ""
-        lastName = defaults.string(forKey: "iumrah.lastName") ?? ""
-    }
-
-    var preferredColorScheme: ColorScheme? {
-        switch appearance {
-        case .system: return nil
-        case .light: return .light
-        case .dark: return .dark
-        }
+        appearance = Appearance(rawValue: appearanceRaw) ?? .system
+        language = Language(rawValue: languageRaw) ?? .russian
     }
 
     var displayName: String {
-        let value = [firstName, lastName]
+        let joined = [firstName, lastName]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return value.isEmpty ? "Ваш профиль" : value
+        return joined.isEmpty ? L10n.text("profile_placeholder", language) : joined
+    }
+
+    var hasBookingIdentity: Bool {
+        let hasName = !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasContact = !telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !whatsapp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasName && hasContact
     }
 }

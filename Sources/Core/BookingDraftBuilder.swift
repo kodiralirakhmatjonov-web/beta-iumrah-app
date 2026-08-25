@@ -6,7 +6,9 @@ enum BookingDraftBuilder {
         hotel: HotelSummary,
         outbound: FlightOffer,
         inbound: FlightOffer,
-        quote: PackageQuote
+        quote: PackageQuote,
+        language: AppSettingsStore.Language,
+        pilgrimProfile: BookingPilgrimProfile?
     ) -> BookingCreateEnvelope {
         let stay = TripStayPlanner.breakdown(for: trip)
         let dates = stayDates(trip: trip, stay: stay)
@@ -71,10 +73,11 @@ enum BookingDraftBuilder {
                 esim: true
             ),
             includedServices: services,
-            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? "Рекомендуемый отель · Медина" : ""),
-            flight: "\(outbound.airline) \(outbound.flightNumber) · \(inbound.airline) \(inbound.flightNumber)"
+            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? "Recommended hotel · Madinah" : ""),
+            flight: "\(outbound.airline) \(outbound.flightNumber) · \(inbound.airline) \(inbound.flightNumber)",
+            pilgrimProfile: pilgrimProfile
         )
-        return BookingCreateEnvelope(lang: "ru", booking: draft)
+        return BookingCreateEnvelope(lang: language.rawValue, booking: draft)
     }
 
     private struct StayDates {

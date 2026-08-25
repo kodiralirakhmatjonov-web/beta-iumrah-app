@@ -6,139 +6,131 @@ struct BookingCreateEnvelope: Encodable {
 }
 
 struct BookingDraftRequest: Encodable {
-    struct TripInput: Encodable {
-        struct Travelers: Encodable {
-            let adults: Int
-            let children: Int
-            let infants: Int
-            let rooms: Int
-        }
-
-        let from: String
-        let originCode: String
-        let arrivalAirportCode: String
-        let cabinClass: String
-        let preferredPlan: String
-        let startDate: String
-        let endDate: String
-        let flexibleDays: Int
-        let hotelPreference: String
-        let includeMadinah: Bool
-        let travelers: Travelers
-    }
-
-    struct Route: Encodable {
-        let originCode: String
-        let outboundDestination: String
-        let returnOrigin: String
-    }
-
-    struct Stay: Encodable {
-        let totalDays: Int
-        let totalNights: Int
-        let makkahCheckIn: String
-        let makkahCheckOut: String
-        let makkahNights: Int
-        let madinahCheckIn: String?
-        let madinahCheckOut: String?
-        let madinahNights: Int
-    }
-
-    struct Selection: Encodable {
-        let flightId: String
-        let makkahHotelId: String
-        let madinahHotelId: String?
-    }
-
-    struct Customization: Encodable {
-        let accompaniment: Bool
-        let guideMeetingPoint: String
-        let ziyaratMakkah: Bool
-        let ziyaratMadinah: Bool
-        let meals: Bool
-        let esim: Bool
-    }
-
-    struct HotelNames: Encodable {
-        let makkah: String
-        let madinah: String
-    }
-
     let planId: String
-    let totalUsd: Decimal
-    let perPilgrimUsd: Decimal
-    let input: TripInput
-    let route: Route
-    let stay: Stay
-    let selection: Selection
-    let customization: Customization
+    let totalUsd: Double
+    let perPilgrimUsd: Double
+    let input: BookingInput
+    let route: BookingRoute
+    let stay: BookingStay
+    let selection: BookingSelection
+    let customization: BookingCustomization
     let includedServices: [String]
-    let hotelNames: HotelNames
+    let hotelNames: BookingHotelNames
     let flight: String
+    let pilgrimProfile: BookingPilgrimProfile?
 }
 
-struct RemoteBooking: Codable, Identifiable, Hashable {
-    struct Input: Codable, Hashable {
-        struct Travelers: Codable, Hashable {
-            let adults: Int
-            let children: Int
-            let infants: Int
-            let rooms: Int
-        }
+struct BookingPilgrimProfile: Codable, Hashable {
+    let firstName: String
+    let lastName: String
+    let telegram: String
+    let whatsapp: String
 
-        let from: String
-        let originCode: String?
-        let arrivalAirportCode: String?
-        let startDate: String
-        let endDate: String
-        let hotelPreference: String
-        let includeMadinah: Bool
-        let travelers: Travelers
+    var displayName: String {
+        [firstName, lastName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
+}
 
-    struct Route: Codable, Hashable {
-        let originCode: String
-        let outboundDestination: String
-        let returnOrigin: String
-    }
+struct BookingInput: Encodable {
+    let from: String
+    let originCode: String
+    let arrivalAirportCode: String
+    let cabinClass: String
+    let preferredPlan: String
+    let startDate: String
+    let endDate: String
+    let flexibleDays: Int
+    let hotelPreference: String
+    let includeMadinah: Bool
+    let travelers: BookingTravelers
+}
 
-    struct HotelNames: Codable, Hashable {
-        let makkah: String
-        let madinah: String
-    }
+struct BookingTravelers: Codable, Hashable {
+    let adults: Int
+    let children: Int
+    let infants: Int
+    let rooms: Int
 
-    let id: String
-    let status: String
-    let createdAt: String
-    let updatedAt: String?
-    let planId: String
-    let totalUsd: Decimal
-    let perPilgrimUsd: Decimal
-    let input: Input
-    let route: Route
-    let hotelNames: HotelNames
-    let flight: String
+    var totalPeople: Int { adults + children + infants }
+}
+
+struct BookingRoute: Codable, Hashable {
+    let originCode: String
+    let outboundDestination: String
+    let returnOrigin: String
+}
+
+struct BookingStay: Codable, Hashable {
+    let totalDays: Int
+    let totalNights: Int
+    let makkahCheckIn: String
+    let makkahCheckOut: String
+    let makkahNights: Int
+    let madinahCheckIn: String?
+    let madinahCheckOut: String?
+    let madinahNights: Int?
+}
+
+struct BookingSelection: Codable, Hashable {
+    let flightId: String
+    let makkahHotelId: String
+    let madinahHotelId: String?
+}
+
+struct BookingCustomization: Codable, Hashable {
+    let accompaniment: Bool
+    let guideMeetingPoint: String
+    let ziyaratMakkah: Bool
+    let ziyaratMadinah: Bool
+    let meals: Bool
+    let esim: Bool
+}
+
+struct BookingHotelNames: Codable, Hashable {
+    let makkah: String
+    let madinah: String
 }
 
 struct BookingCreateResponse: Decodable {
     let booking: RemoteBooking
-    let accessToken: String
+    let accessToken: String?
 }
 
-struct BookingDetailResponse: Decodable {
-    let booking: RemoteBooking
-}
-
-struct StoredBookingSession: Codable, Identifiable, Hashable {
+struct RemoteBooking: Codable, Identifiable, Hashable {
     let id: String
-    let accessToken: String
-    var booking: RemoteBooking
+    let status: String
+    let planId: String
+    let totalUsd: Double
+    let perPilgrimUsd: Double
+    let input: BookingInputRecord
+    let route: BookingRoute
+    let stay: BookingStay
+    let hotelNames: BookingHotelNames
+    let flight: String
+    let createdAt: String
+    let updatedAt: String
+}
 
-    init(booking: RemoteBooking, accessToken: String) {
-        self.id = booking.id
-        self.accessToken = accessToken
-        self.booking = booking
-    }
+struct BookingInputRecord: Codable, Hashable {
+    let startDate: String
+    let endDate: String
+    let from: String
+    let originCode: String
+    let arrivalAirportCode: String
+    let includeMadinah: Bool
+    let travelers: BookingTravelers
+}
+
+struct ChatListResponse: Decodable {
+    let booking: RemoteBooking?
+    let messages: [ChatMessage]
+}
+
+struct ChatMessagePostResponse: Decodable {
+    let message: ChatMessage
 }
 
 struct ChatMessage: Codable, Identifiable, Hashable {
@@ -150,14 +142,11 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     let createdAt: String
 }
 
-struct ChatReadResponse: Decodable {
-    let messages: [ChatMessage]
-}
-
-struct ChatSendRequest: Encodable {
-    let message: String
-}
-
-struct ChatSendResponse: Decodable {
-    let message: ChatMessage?
+struct StoredBookingSession: Codable, Identifiable, Hashable {
+    let id: String
+    let accessToken: String
+    var booking: RemoteBooking
+    var travelerName: String?
+    var telegram: String?
+    var whatsapp: String?
 }

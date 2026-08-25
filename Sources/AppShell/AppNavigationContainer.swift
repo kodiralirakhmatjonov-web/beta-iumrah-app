@@ -2,53 +2,64 @@ import SwiftUI
 
 struct AppNavigationContainer<Content: View>: View {
     @EnvironmentObject private var chrome: AppChromeStore
-    private let content: Content
+    let showsTabHeader: Bool
+    let brandTab: AppTab
+    let content: Content
 
-    init(@ViewBuilder content: () -> Content) {
+    init(
+        showsTabHeader: Bool = true,
+        brandTab: AppTab = .home,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.showsTabHeader = showsTabHeader
+        self.brandTab = brandTab
         self.content = content()
     }
 
     var body: some View {
         NavigationStack {
             content
-                .toolbarBackground(Color.iumrahPageBackground, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if !chrome.isImmersiveMode {
-                IumrahPersistentHeader()
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
+                .toolbar(.hidden, for: .navigationBar)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if showsTabHeader {
+                        BrandHeader {
+                            chrome.isProfileEditorPresented = true
+                        }
+                    }
+                }
+                .background(Color.iumrahPageBackground.ignoresSafeArea())
         }
     }
 }
 
-private struct IumrahPersistentHeader: View {
-    @EnvironmentObject private var chrome: AppChromeStore
+private struct BrandHeader: View {
+    let profileAction: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            IumrahHeaderLogo(width: 118)
-            Spacer(minLength: 0)
-            Button {
-                chrome.openDrawer()
-            } label: {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 22, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .frame(width: 42, height: 42)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle().strokeBorder(.primary.opacity(0.06), lineWidth: 1)
-                    }
+        ZStack(alignment: .bottom) {
+            LinearGradient(
+                colors: [Color.iumrahPageBackground, Color.iumrahPageBackground.opacity(0.92), Color.iumrahPageBackground.opacity(0.0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 104)
+            HStack(spacing: 12) {
+                IumrahHeaderLogo(width: 142)
+                Spacer()
+                Button(action: profileAction) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 20, weight: .semibold))
+                        .frame(width: 42, height: 42)
+                        .background(Color.iumrahCardBackground)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(.primary.opacity(0.07), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Profile")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Профиль и меню")
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 18)
         }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
-        .background(Color.iumrahPageBackground.opacity(0.94))
     }
 }

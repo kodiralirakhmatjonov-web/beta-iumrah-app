@@ -7,34 +7,39 @@ struct ProfileSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Профиль") {
-                    TextField("Имя", text: $settings.firstName)
+                Section(L10n.text("profile_section", settings.language)) {
+                    TextField(L10n.text("field_first_name", settings.language), text: $settings.firstName)
                         .textContentType(.givenName)
-                    TextField("Фамилия", text: $settings.lastName)
+                    TextField(L10n.text("field_last_name", settings.language), text: $settings.lastName)
                         .textContentType(.familyName)
+                    TextField(L10n.text("field_telegram", settings.language), text: $settings.telegram)
+                        .textContentType(.username)
+                        .autocapitalization(.none)
+                    TextField(L10n.text("field_whatsapp", settings.language), text: $settings.whatsapp)
+                        .keyboardType(.phonePad)
                 }
 
-                Section("Язык") {
-                    Picker("Язык приложения", selection: $settings.language) {
+                Section(L10n.text("language_section", settings.language)) {
+                    Picker(L10n.text("app_language", settings.language), selection: $settings.language) {
                         ForEach(AppSettingsStore.Language.allCases) { language in
                             Text(language.title).tag(language)
                         }
                     }
                 }
 
-                Section("Оформление") {
-                    Picker("Тема", selection: $settings.appearance) {
+                Section(L10n.text("appearance_section", settings.language)) {
+                    Picker(L10n.text("theme_label", settings.language), selection: $settings.appearance) {
                         ForEach(AppSettingsStore.Appearance.allCases) { appearance in
-                            Text(appearance.title).tag(appearance)
+                            Text(appearance.title(settings.language)).tag(appearance)
                         }
                     }
                 }
             }
-            .navigationTitle("Настройки")
+            .navigationTitle(L10n.text("settings_title", settings.language))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Готово") { dismiss() }
+                    Button(L10n.text("settings_done", settings.language)) { dismiss() }
                 }
             }
         }

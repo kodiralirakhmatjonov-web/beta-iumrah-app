@@ -22,9 +22,9 @@ struct SidebarDrawerView: View {
             }
             .padding(.bottom, 28)
 
-            Text("Ассаляму алейкум")
+            Text(settings.language == .english ? "Assalamu alaikum" : settings.language == .uzbek ? "Assalomu alaykum" : settings.language == .uzbekCyrillic ? "Ассалому алайкум" : "Ассаляму алейкум")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
-            Text("Добро пожаловать в iumrah")
+            Text(settings.language == .english ? "Welcome to iumrah" : settings.language == .uzbek ? "iumrah'ga xush kelibsiz" : settings.language == .uzbekCyrillic ? "iumrah'га хуш келибсиз" : "Добро пожаловать в iumrah")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -33,31 +33,31 @@ struct SidebarDrawerView: View {
                 .padding(.top, 22)
 
             VStack(spacing: 6) {
-                drawerRow("Чаты", systemImage: "bubble.left.and.bubble.right") {
+                drawerRow(settings.language == .english ? "Chats" : settings.language == .uzbek ? "Chatlar" : settings.language == .uzbekCyrillic ? "Чатлар" : "Чаты", systemImage: "bubble.left.and.bubble.right") {
                     chrome.navigate(to: .care)
                 }
 
                 Menu {
-                    Picker("Язык", selection: $settings.language) {
+                    Picker(L10n.text("language_section", settings.language), selection: $settings.language) {
                         ForEach(AppSettingsStore.Language.allCases) { language in
                             Text(language.title).tag(language)
                         }
                     }
                 } label: {
-                    drawerLabel("Язык · \(settings.language.title)", systemImage: "globe")
+                    drawerLabel("\(L10n.text("language_section", settings.language)) · \(settings.language.title)", systemImage: "globe")
                 }
 
                 Menu {
-                    Picker("Оформление", selection: $settings.appearance) {
+                    Picker(L10n.text("appearance_section", settings.language), selection: $settings.appearance) {
                         ForEach(AppSettingsStore.Appearance.allCases) { appearance in
-                            Text(appearance.title).tag(appearance)
+                            Text(appearance.title(settings.language)).tag(appearance)
                         }
                     }
                 } label: {
-                    drawerLabel("Тема · \(settings.appearance.title)", systemImage: "circle.lefthalf.filled")
+                    drawerLabel("\(L10n.text("appearance_section", settings.language)) · \(settings.appearance.title(settings.language))", systemImage: "circle.lefthalf.filled")
                 }
 
-                drawerRow("Настройки", systemImage: "gearshape") {
+                drawerRow(L10n.text("settings_title", settings.language), systemImage: "gearshape") {
                     chrome.isProfileEditorPresented = true
                 }
             }
@@ -94,7 +94,7 @@ struct SidebarDrawerView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(settings.displayName)
                         .font(.headline)
-                    Text(settings.displayName == "Ваш профиль" ? "Добавьте имя и фамилию" : "Профиль путешественника")
+                    Text(settings.hasBookingIdentity ? L10n.text("profile_subtitle_ready", settings.language) : L10n.text("profile_subtitle_empty", settings.language))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -110,26 +110,6 @@ struct SidebarDrawerView: View {
         .buttonStyle(.plain)
     }
 
-
-    private func drawerSoonRow(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: 13) {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .semibold))
-                .frame(width: 26)
-            Text(title)
-                .font(.body.weight(.medium))
-            Spacer()
-            Text("Скоро")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.iumrahRaisedBackground)
-                .clipShape(Capsule())
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 50)
-    }
     private func drawerRow(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             drawerLabel(title, systemImage: systemImage)

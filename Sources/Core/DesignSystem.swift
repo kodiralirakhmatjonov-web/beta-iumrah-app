@@ -42,6 +42,9 @@ private extension UIColor {
             ? UIColor(red: 0.07, green: 0.075, blue: 0.085, alpha: 1)
             : UIColor.white
     }
+
+    static let iumrahCareDark = UIColor(red: 14/255, green: 36/255, blue: 34/255, alpha: 1)
+    static let iumrahCareLight = UIColor(red: 116/255, green: 161/255, blue: 135/255, alpha: 1)
 }
 
 extension Color {
@@ -51,6 +54,8 @@ extension Color {
     static let iumrahPrimaryButtonBackground = Color(uiColor: .iumrahPrimaryButton)
     static let iumrahPrimaryButtonText = Color(uiColor: .iumrahPrimaryButtonText)
     static let iumrahGraphite = Color(red: 0.09, green: 0.10, blue: 0.115)
+    static let iumrahCareDark = Color(uiColor: .iumrahCareDark)
+    static let iumrahCareLight = Color(uiColor: .iumrahCareLight)
 }
 
 struct IumrahCardModifier: ViewModifier {
@@ -75,7 +80,11 @@ struct IumrahMarketingCardModifier: ViewModifier {
             .padding(22)
             .background {
                 RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
-                    .fill(dark ? Color.iumrahGraphite : Color.iumrahCardBackground)
+                    .fill(
+                        dark
+                        ? LinearGradient(colors: [.iumrahCareDark, .iumrahGraphite], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [Color.iumrahCardBackground, Color.iumrahCardBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
             }
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)

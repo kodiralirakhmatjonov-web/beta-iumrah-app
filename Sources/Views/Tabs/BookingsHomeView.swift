@@ -4,6 +4,7 @@ struct BookingsHomeView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var chrome: AppChromeStore
+    @EnvironmentObject private var settings: AppSettingsStore
 
     var body: some View {
         ScrollView {
@@ -12,9 +13,9 @@ struct BookingsHomeView: View {
 
                 if !bookings.sessions.isEmpty {
                     SectionHeader(
-                        "Ваши поездки",
-                        eyebrow: "Бронирование",
-                        subtitle: "Все созданные поездки, их статусы и поддержка остаются в одном месте."
+                        L10n.text("tab_booking", settings.language),
+                        eyebrow: L10n.text("booking_hero_kicker", settings.language),
+                        subtitle: settings.language == .english ? "Every created trip, its status and support stay together in one place." : settings.language == .uzbek ? "Har bir yaratilgan safar, uning holati va yordami bitta joyda saqlanadi." : settings.language == .uzbekCyrillic ? "Ҳар бир яратилган сафар, унинг ҳолати ва ёрдами битта жойда сақланади." : "Все созданные поездки, их статусы и поддержка остаются в одном месте."
                     )
 
                     ForEach(bookings.sessions) { session in
@@ -34,8 +35,6 @@ struct BookingsHomeView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await bookings.refreshAll() }
         .task { await bookings.refreshAll() }
         .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
@@ -47,11 +46,11 @@ struct BookingsHomeView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("НОВАЯ ПОЕЗДКА")
+                    Text(L10n.text("booking_hero_kicker", settings.language))
                         .font(.caption.weight(.bold))
                         .tracking(1)
                         .foregroundStyle(.secondary)
-                    Text("Соберите свою Умру")
+                    Text(L10n.text("booking_hero_title", settings.language))
                         .font(.system(size: 31, weight: .bold, design: .rounded))
                         .tracking(-0.6)
                 }
@@ -63,7 +62,7 @@ struct BookingsHomeView: View {
                     .clipShape(Circle())
             }
 
-            Text("Выберите даты, людей и уровень поездки. Затем iumrah предложит отель и найдёт подходящие перелёты с итоговой стоимостью всего пакета.")
+            Text(L10n.text("booking_hero_body", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -72,13 +71,9 @@ struct BookingsHomeView: View {
                 chrome.shouldStartTripBuilder = true
                 IumrahHaptics.selection()
             } label: {
-                Text("Создать мою Умру")
+                Text(L10n.text("booking_hero_cta", settings.language))
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-
-            Label("До бронирования Вы увидите итоговую стоимость", systemImage: "checkmark.seal.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahMarketingCard()
@@ -88,15 +83,19 @@ struct BookingsHomeView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
+                    Text(session.travelerName ?? session.id)
+                        .font(.headline)
                     Text(session.id)
                         .font(.caption.monospaced().weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text(statusTitle(session.booking.status))
-                        .font(.title3.weight(.bold))
+                    Text(L10n.status(session.booking.status, settings.language))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: statusIcon(session.booking.status))
                     .font(.title3)
+                    .foregroundStyle(.iumrahCareDark)
             }
 
             HStack(spacing: 8) {
@@ -139,9 +138,9 @@ struct BookingsHomeView: View {
                 .background(Color.iumrahRaisedBackground)
                 .clipShape(Circle())
             VStack(alignment: .leading, spacing: 4) {
-                Text("Бронирований пока нет")
+                Text(L10n.text("booking_empty_title", settings.language))
                     .font(.headline)
-                Text("После подтверждения первая поездка появится здесь.")
+                Text(L10n.text("booking_empty_body", settings.language))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -152,10 +151,10 @@ struct BookingsHomeView: View {
 
     private func localizedPlan(_ value: String) -> String {
         switch value.lowercased() {
-        case "economy": return "Эконом"
-        case "standard": return "Стандарт"
-        case "comfort": return "Комфорт"
-        case "luxury": return "Люкс"
+        case "economy": return settings.language == .english ? "Economy" : settings.language == .uzbek ? "Ekonom" : settings.language == .uzbekCyrillic ? "Эконом" : "Эконом"
+        case "standard": return settings.language == .english ? "Standard" : settings.language == .uzbek ? "Standart" : settings.language == .uzbekCyrillic ? "Стандарт" : "Стандарт"
+        case "comfort": return settings.language == .english ? "Comfort" : settings.language == .uzbek ? "Komfort" : settings.language == .uzbekCyrillic ? "Комфорт" : "Комфорт"
+        case "luxury": return settings.language == .english ? "Luxury" : settings.language == .uzbek ? "Premium" : settings.language == .uzbekCyrillic ? "Премиум" : "Люкс"
         default: return value
         }
     }

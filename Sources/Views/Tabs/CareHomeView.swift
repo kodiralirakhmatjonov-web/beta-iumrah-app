@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CareHomeView: View {
     @EnvironmentObject private var bookings: BookingStore
+    @EnvironmentObject private var settings: AppSettingsStore
 
     var body: some View {
         ScrollView {
@@ -12,9 +13,9 @@ struct CareHomeView: View {
                     lockedChatCard
                 } else {
                     SectionHeader(
-                        "Ваши чаты",
-                        eyebrow: "Поддержка поездки",
-                        subtitle: "Каждый чат связан с конкретной поездкой, поэтому не нужно заново объяснять маршрут, даты и отель."
+                        L10n.text("care_chats", settings.language),
+                        eyebrow: L10n.text("care_title", settings.language),
+                        subtitle: L10n.text("care_chats_subtitle", settings.language)
                     )
                     ForEach(bookings.sessions) { session in
                         NavigationLink {
@@ -48,7 +49,7 @@ struct CareHomeView: View {
                     .background(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 Spacer()
-                Text("ПЕРВЫЙ ГОД БЕСПЛАТНО")
+                Text("24/7")
                     .font(.caption2.weight(.bold))
                     .tracking(0.45)
                     .padding(.horizontal, 10)
@@ -59,20 +60,20 @@ struct CareHomeView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("iumrah Care")
+                Text(L10n.text("care_title", settings.language))
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                Text("Заботится на каждом этапе вашей поездки")
+                Text(L10n.text("care_subtitle", settings.language))
                     .font(.title3.weight(.semibold))
-                Text("Отвечает на вопросы, помогает решать проблемы поездки и видит контекст вашего бронирования. В течение первого года сервис доступен бесплатно каждому паломнику.")
+                Text(L10n.text("care_promise_body", settings.language))
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.68))
+                    .foregroundStyle(.white.opacity(0.72))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack(spacing: 18) {
-                careMetric(icon: "message.fill", text: "Ответы")
-                careMetric(icon: "bell.fill", text: "События")
-                careMetric(icon: "heart.fill", text: "Забота")
+                careMetric(icon: "message.fill", text: settings.language == .english ? "Answers" : settings.language == .uzbek ? "Javoblar" : settings.language == .uzbekCyrillic ? "Жавоблар" : "Ответы")
+                careMetric(icon: "bell.fill", text: settings.language == .english ? "Updates" : settings.language == .uzbek ? "Holat" : settings.language == .uzbekCyrillic ? "Ҳолат" : "Статус")
+                careMetric(icon: "heart.fill", text: settings.language == .english ? "Care" : settings.language == .uzbek ? "G‘amxo‘rlik" : settings.language == .uzbekCyrillic ? "Ғамхўрлик" : "Забота")
             }
         }
         .foregroundStyle(.white)
@@ -99,14 +100,16 @@ struct CareHomeView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Circle().fill(.green).frame(width: 7, height: 7)
-                    Text("iumrah Care")
+                    Circle().fill(Color.iumrahCareLight).frame(width: 7, height: 7)
+                    Text("Aiomra Care")
                         .font(.headline)
                 }
+                Text(session.travelerName ?? session.id)
+                    .font(.subheadline.weight(.semibold))
                 Text(session.id)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
-                Text(statusTitle(session.booking.status))
+                Text(L10n.status(session.booking.status, settings.language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -121,9 +124,9 @@ struct CareHomeView: View {
 
     private var lockedChatCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Чат откроется после бронирования", systemImage: "lock.fill")
+            Label(L10n.text("care_locked_title", settings.language), systemImage: "lock.fill")
                 .font(.headline)
-            Text("Соберите поездку и отправьте её на проверку доступности. После этого поддержка будет связана с вашим бронированием.")
+            Text(L10n.text("care_locked_body", settings.language))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -134,9 +137,9 @@ struct CareHomeView: View {
 
     private var supportPromise: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Самостоятельно — не значит одному.")
+            Text(L10n.text("care_promise_title", settings.language))
                 .font(.system(size: 27, weight: .bold, design: .rounded))
-            Text("До поездки, в дороге и во время Умры iumrah Care остаётся одной линией поддержки, связанной с вашей поездкой.")
+            Text(L10n.text("care_promise_body", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
