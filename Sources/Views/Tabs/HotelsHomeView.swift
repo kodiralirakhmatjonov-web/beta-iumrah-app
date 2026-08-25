@@ -74,7 +74,7 @@ struct HotelsHomeView: View {
                 case .success(let image):
                     image.resizable().scaledToFill()
                 default:
-                    LinearGradient(colors: [.iumrahRaisedBackground, .iumrahCardBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.iumrahRaisedBackground, Color.iumrahCardBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
                         .overlay(Image(systemName: "building.2").font(.title3).foregroundStyle(.secondary))
                 }
             }

@@ -85,7 +85,7 @@ struct BookingDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
-                PackagePriceView(amount: booking.totalUsd, currency: "USD")
+                PackagePriceView(amount: Decimal(booking.totalUsd), currency: "USD")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

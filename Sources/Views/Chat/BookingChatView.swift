@@ -136,7 +136,13 @@ struct BookingChatView: View {
             }
             .padding(.horizontal, 15)
             .padding(.vertical, 12)
-            .background(isMine ? Color.iumrahCardBackground : LinearGradient(colors: [.iumrahCareDark, .iumrahCareLight], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .background {
+                if isMine {
+                    Color.iumrahCardBackground
+                } else {
+                    LinearGradient(colors: [Color.iumrahCareDark, Color.iumrahCareLight], startPoint: .topLeading, endPoint: .bottomTrailing)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(alignment: isMine ? .bottomTrailing : .bottomLeading) {
                 Circle().fill(isMine ? Color.iumrahCardBackground : Color.iumrahCareDark).frame(width: 10, height: 10).offset(x: isMine ? 2 : -2, y: 2)

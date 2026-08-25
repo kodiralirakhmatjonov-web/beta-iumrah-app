@@ -1,6 +1,6 @@
 {
-  "id": "iumrah-beta-update-017",
-  "createdAt": "2026-08-25T11:20:00Z",
-  "base": "beta-iumrah-app-main 2.zip",
-  "description": "Main UX refresh: 4-language support, Aiomra Care branding/colors, Hotels tab, improved booking flow, profile capture before booking, and chat/service fixes."
+  "id": "iumrah-beta-update-018-hotfix",
+  "createdAt": "2026-08-25T12:55:00Z",
+  "base": "iumrah-beta-update-017",
+  "description": "Compile hotfix for Xcode 26.6: explicit Color shape styles, Decimal/Double conversions, and chat bubble background type unification."
 }

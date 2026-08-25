@@ -95,7 +95,7 @@ struct BookingsHomeView: View {
                 Spacer()
                 Image(systemName: statusIcon(session.booking.status))
                     .font(.title3)
-                    .foregroundStyle(.iumrahCareDark)
+                    .foregroundStyle(Color.iumrahCareDark)
             }
 
             HStack(spacing: 8) {
@@ -123,7 +123,7 @@ struct BookingsHomeView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                PackagePriceView(amount: session.booking.perPilgrimUsd, currency: "USD")
+                PackagePriceView(amount: Decimal(session.booking.perPilgrimUsd), currency: "USD")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

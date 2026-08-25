@@ -29,8 +29,8 @@ enum BookingDraftBuilder {
 
         let draft = BookingDraftRequest(
             planId: trip.packageTier.rawValue,
-            totalUsd: quote.totalPackagePrice,
-            perPilgrimUsd: quote.pricePerPerson,
+            totalUsd: NSDecimalNumber(decimal: quote.totalPackagePrice).doubleValue,
+            perPilgrimUsd: NSDecimalNumber(decimal: quote.pricePerPerson).doubleValue,
             input: .init(
                 from: trip.originAirport?.city ?? trip.originCode,
                 originCode: trip.originCode,

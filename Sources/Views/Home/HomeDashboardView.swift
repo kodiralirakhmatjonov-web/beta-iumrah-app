@@ -111,9 +111,9 @@ struct HomeDashboardView: View {
         } label: {
             HStack(alignment: .center, spacing: 16) {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(LinearGradient(colors: [.iumrahCareLight.opacity(0.35), .iumrahRaisedBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(LinearGradient(colors: [Color.iumrahCareLight.opacity(0.35), Color.iumrahRaisedBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 88, height: 88)
-                    .overlay(Image(systemName: "building.2").font(.system(size: 28, weight: .medium)).foregroundStyle(.iumrahCareDark))
+                    .overlay(Image(systemName: "building.2").font(.system(size: 28, weight: .medium)).foregroundStyle(Color.iumrahCareDark))
                 VStack(alignment: .leading, spacing: 7) {
                     Text(L10n.text("hotels_title", settings.language))
                         .font(.headline)

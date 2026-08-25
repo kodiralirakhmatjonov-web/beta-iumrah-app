@@ -82,7 +82,7 @@ struct IumrahMarketingCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
                     .fill(
                         dark
-                        ? LinearGradient(colors: [.iumrahCareDark, .iumrahGraphite], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        ? LinearGradient(colors: [Color.iumrahCareDark, Color.iumrahGraphite], startPoint: .topLeading, endPoint: .bottomTrailing)
                         : LinearGradient(colors: [Color.iumrahCardBackground, Color.iumrahCardBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
             }
