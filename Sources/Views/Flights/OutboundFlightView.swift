@@ -7,6 +7,7 @@ struct OutboundFlightView: View {
     @State private var isLoading = true
     @State private var errorText: String?
     @State private var showingChallenge = false
+    @State private var showingReadyAnimation = false
 
     var body: some View {
         ScrollView {
@@ -24,6 +25,8 @@ struct OutboundFlightView: View {
 
                 if isLoading {
                     FlightSearchProgressView()
+                } else if showingReadyAnimation {
+                    FlightSearchReadyView()
                 } else if let errorText {
                     FlightSearchFailureView(
                         message: errorText,
@@ -32,13 +35,13 @@ struct OutboundFlightView: View {
                         onOpenChallenge: { showingChallenge = true }
                     )
                 } else {
-                    ForEach(offers) { offer in
+                    ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
                         Button {
                             journey.selectedOutbound = offer
                             journey.selectedInbound = nil
                             journey.quote = nil
                         } label: {
-                            FlightCard(offer: offer, isSelected: journey.selectedOutbound?.id == offer.id)
+                            FlightCard(offer: offer, isSelected: journey.selectedOutbound?.id == offer.id, isRecommended: index == 0)
                         }
                         .buttonStyle(.plain)
                     }
@@ -58,7 +61,7 @@ struct OutboundFlightView: View {
             .padding(.top, 12)
             .padding(.bottom, 36)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.iumrahPageBackground)
         .navigationTitle("Перелёт")
         .navigationBarTitleDisplayMode(.inline)
         .task { await search(force: false) }
@@ -74,6 +77,7 @@ struct OutboundFlightView: View {
 
     private func retrySearch() async {
         offers = []
+        showingReadyAnimation = false
         journey.selectedOutbound = nil
         journey.selectedInbound = nil
         journey.quote = nil
@@ -92,7 +96,14 @@ struct OutboundFlightView: View {
         errorText = nil
         journey.errorMessage = nil
         do {
-            offers = try await journey.flightService.searchOutbound(trip: journey.trip, hotel: hotel)
+            let found = try await journey.flightService.searchOutbound(trip: journey.trip, hotel: hotel)
+            offers = found
+            isLoading = false
+            showingReadyAnimation = true
+            IumrahHaptics.soft()
+            try? await Task.sleep(for: .milliseconds(1700))
+            withAnimation(.easeInOut(duration: 0.28)) { showingReadyAnimation = false }
+            return
         } catch {
             errorText = error.localizedDescription
             journey.errorMessage = error.localizedDescription

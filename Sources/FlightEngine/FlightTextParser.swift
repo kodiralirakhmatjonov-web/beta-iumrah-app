@@ -26,7 +26,7 @@ enum FlightTextParser {
         let arrivalTime = times.count > 1 ? times[1] : departureTime
 
         let flightNumber = matches(pattern: #"\b[A-Z0-9]{2,3}[\s-]?\d{1,4}\b"#, in: block.uppercased()).first ?? providerCode(provider.id)
-        let airline = inferredAirline(from: block, provider: provider)
+        let airline = inferredAirline(from: block, flightNumber: flightNumber, provider: provider)
         let stops = inferredStops(from: block)
 
         let calendar = Calendar.current
@@ -98,14 +98,48 @@ enum FlightTextParser {
         return nil
     }
 
-    private static func inferredAirline(from block: String, provider: FlightBotProvider) -> String {
-        if provider.marketScope == .uzbekistanPriority { return provider.displayName }
+    private static func inferredAirline(from block: String, flightNumber: String, provider: FlightBotProvider) -> String {
         let known = [
             "Uzbekistan Airways", "Qanot Sharq", "Centrum Air", "Silk Avia", "Air Samarkand", "Fly Khiva",
             "Flynas", "Saudia", "Turkish Airlines", "Qatar Airways", "Emirates", "Air Arabia", "Jazeera Airways",
             "Wizz Air", "Azerbaijan Airlines", "Pegasus", "flydubai"
         ]
-        return known.first(where: { block.localizedCaseInsensitiveContains($0) }) ?? provider.displayName
+        if let explicit = known.first(where: { block.localizedCaseInsensitiveContains($0) }) {
+            return explicit
+        }
+
+        let normalized = flightNumber
+            .uppercased()
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        let code = String(normalized.prefix { $0.isLetter || $0.isNumber }.prefix(2))
+        let carrierByCode: [String: String] = [
+            "HY": "Uzbekistan Airways",
+            "HH": "Qanot Sharq",
+            "C6": "Centrum Air",
+            "US": "Silk Avia",
+            "9S": "Air Samarkand",
+            "2U": "Fly Khiva",
+            "XY": "Flynas",
+            "SV": "Saudia",
+            "TK": "Turkish Airlines",
+            "QR": "Qatar Airways",
+            "EK": "Emirates",
+            "G9": "Air Arabia",
+            "J9": "Jazeera Airways",
+            "W4": "Wizz Air",
+            "J2": "Azerbaijan Airlines",
+            "PC": "Pegasus",
+            "FZ": "flydubai"
+        ]
+        if let mapped = carrierByCode[code] { return mapped }
+        if provider.marketScope == .uzbekistanPriority { return provider.displayName }
+
+        // Never present a metasearch provider as if it were the airline.
+        if provider.id == .skyscanner || provider.id == .googleFlights {
+            return "Авиакомпания"
+        }
+        return provider.displayName
     }
 
     private static func inferredStops(from block: String) -> Int {

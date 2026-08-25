@@ -7,6 +7,7 @@ struct ReturnFlightView: View {
     @State private var isLoading = true
     @State private var errorText: String?
     @State private var showingChallenge = false
+    @State private var showingReadyAnimation = false
 
     var body: some View {
         ScrollView {
@@ -24,6 +25,8 @@ struct ReturnFlightView: View {
 
                 if isLoading {
                     FlightSearchProgressView()
+                } else if showingReadyAnimation {
+                    FlightSearchReadyView()
                 } else if let errorText {
                     FlightSearchFailureView(
                         message: errorText,
@@ -32,12 +35,12 @@ struct ReturnFlightView: View {
                         onOpenChallenge: { showingChallenge = true }
                     )
                 } else {
-                    ForEach(offers) { offer in
+                    ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
                         Button {
                             journey.selectedInbound = offer
                             journey.quote = nil
                         } label: {
-                            FlightCard(offer: offer, isSelected: journey.selectedInbound?.id == offer.id)
+                            FlightCard(offer: offer, isSelected: journey.selectedInbound?.id == offer.id, isRecommended: index == 0)
                         }
                         .buttonStyle(.plain)
                     }
@@ -57,7 +60,7 @@ struct ReturnFlightView: View {
             .padding(.top, 12)
             .padding(.bottom, 36)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.iumrahPageBackground)
         .navigationTitle("Обратно")
         .navigationBarTitleDisplayMode(.inline)
         .task { await search(force: false) }
@@ -73,6 +76,7 @@ struct ReturnFlightView: View {
 
     private func retrySearch() async {
         offers = []
+        showingReadyAnimation = false
         journey.selectedInbound = nil
         journey.quote = nil
         await search(force: true)
@@ -91,7 +95,14 @@ struct ReturnFlightView: View {
         errorText = nil
         journey.errorMessage = nil
         do {
-            offers = try await journey.flightService.searchReturn(trip: journey.trip, hotel: hotel, outbound: outbound)
+            let found = try await journey.flightService.searchReturn(trip: journey.trip, hotel: hotel, outbound: outbound)
+            offers = found
+            isLoading = false
+            showingReadyAnimation = true
+            IumrahHaptics.soft()
+            try? await Task.sleep(for: .milliseconds(1700))
+            withAnimation(.easeInOut(duration: 0.28)) { showingReadyAnimation = false }
+            return
         } catch {
             errorText = error.localizedDescription
             journey.errorMessage = error.localizedDescription

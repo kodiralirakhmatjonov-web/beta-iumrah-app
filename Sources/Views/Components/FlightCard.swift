@@ -3,6 +3,7 @@ import SwiftUI
 struct FlightCard: View {
     let offer: FlightOffer
     let isSelected: Bool
+    var isRecommended: Bool = false
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -19,8 +20,18 @@ struct FlightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if isRecommended {
+                        Label("Рекомендуем", systemImage: "sparkles")
+                            .font(.caption.weight(.bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.primary)
+                            .foregroundStyle(Color.iumrahCardBackground)
+                            .clipShape(Capsule())
+                            .padding(.bottom, 3)
+                    }
                     Text(offer.airline)
                         .font(.headline)
                     Text(offer.flightNumber)
@@ -35,7 +46,7 @@ struct FlightCard: View {
             }
 
             HStack(alignment: .center, spacing: 12) {
-                timeBlock(code: offer.origin, date: offer.departureAt)
+                timeBlock(code: offer.origin, date: offer.departureAt, trailing: false)
                 VStack(spacing: 5) {
                     Image(systemName: "airplane")
                         .font(.caption)
@@ -47,14 +58,19 @@ struct FlightCard: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                timeBlock(code: offer.destination, date: offer.arrivalAt)
+                timeBlock(code: offer.destination, date: offer.arrivalAt, trailing: true)
             }
 
             Divider()
-            HStack {
-                Text("Весь пакет")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Весь пакет")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text("Отель + перелёт + услуги")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
                 Spacer()
                 PackagePriceView(amount: offer.totalPackagePrice, currency: offer.currency)
             }
@@ -68,8 +84,8 @@ struct FlightCard: View {
         }
     }
 
-    private func timeBlock(code: String, date: Date) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func timeBlock(code: String, date: Date, trailing: Bool) -> some View {
+        VStack(alignment: trailing ? .trailing : .leading, spacing: 2) {
             Text(Self.timeFormatter.string(from: date))
                 .font(.title3.monospacedDigit().weight(.bold))
             Text(code.uppercased())
@@ -78,5 +94,6 @@ struct FlightCard: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+        .frame(minWidth: 78, alignment: trailing ? .trailing : .leading)
     }
 }

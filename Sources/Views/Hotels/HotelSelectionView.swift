@@ -32,7 +32,7 @@ struct HotelSelectionView: View {
             .padding(.top, 12)
             .padding(.bottom, 36)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.iumrahPageBackground)
         .navigationTitle("Отели")
         .navigationBarTitleDisplayMode(.inline)
     }

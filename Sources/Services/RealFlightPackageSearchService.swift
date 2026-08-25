@@ -44,7 +44,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             direction: .outbound
         )
         try enforceMinimum(offers)
-        return Array(offers.prefix(AppConfig.flightBotPreferredOptions))
+        let ranked = rankForRecommendation(offers, anchor: trip.departureDate)
+        return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
     }
 
     func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
@@ -68,7 +69,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             direction: .inbound
         )
         try enforceMinimum(offers)
-        return Array(offers.prefix(AppConfig.flightBotPreferredOptions))
+        let ranked = rankForRecommendation(offers, anchor: trip.returnDate)
+        return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
     }
 
     func invalidateSession() {
@@ -147,6 +149,18 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             }
             if $0.stops != $1.stops { return $0.stops < $1.stops }
             return $0.departureAt < $1.departureAt
+        }
+    }
+
+
+    private func rankForRecommendation(_ offers: [FlightOffer], anchor: Date) -> [FlightOffer] {
+        offers.sorted { lhs, rhs in
+            let leftDay = abs(Calendar.current.startOfDay(for: lhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
+            let rightDay = abs(Calendar.current.startOfDay(for: rhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
+            if leftDay != rightDay { return leftDay < rightDay }
+            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+            if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
+            return lhs.departureAt < rhs.departureAt
         }
     }
 

@@ -31,8 +31,8 @@ struct TripBuilderView: View {
             .padding(.top, 12)
             .padding(.bottom, 36)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle("iumrah")
+        .background(Color.iumrahPageBackground)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
     }
 

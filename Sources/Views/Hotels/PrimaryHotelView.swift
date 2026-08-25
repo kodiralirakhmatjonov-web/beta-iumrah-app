@@ -18,7 +18,7 @@ struct PrimaryHotelView: View {
             .padding(.top, 12)
             .padding(.bottom, 36)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.iumrahPageBackground)
         .navigationTitle("Отель")
         .navigationBarTitleDisplayMode(.inline)
         .task {

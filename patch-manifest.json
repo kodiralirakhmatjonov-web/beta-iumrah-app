@@ -1,14 +1,15 @@
 {
-  "patch": "iumrah-beta-technical-012",
+  "patch": "iumrah-beta-update-013",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
+  "backend_changed": false,
   "changes": [
-    "unblock real Flight Engine when Primary Hotel rates are not fully configured",
-    "reuse the existing iumrah-web hotel estimate table only as a temporary server-side beta fallback",
-    "keep manually configured Primary Hotel rates first priority",
-    "allow catalog Primary Hotel fallback when no package mapping exists",
-    "bridge real flight observations through PackageQuote for full-package prices",
-    "expand live fare parsing for Uzbekistan and regional currencies",
-    "treat ambiguous airline-site fares conservatively as per-passenger unless total-party wording is detected"
+    "add four native tabs: Home, Booking, Care and Umrah",
+    "add persistent branded header with light/dark iumrah Project wordmark and profile control",
+    "add left-edge swipe drawer with haptics, profile fields, chats placeholder, language and appearance settings",
+    "replace near-black system dark surfaces with a softer graphite dark palette",
+    "use the two supplied MP4 animations for searching and search-complete states",
+    "mark the first ranked flight option as recommended while still showing only total package pricing",
+    "prevent Skyscanner/Google Flights from being displayed as the airline when carrier identity can be inferred from flight number"
   ]
 }
