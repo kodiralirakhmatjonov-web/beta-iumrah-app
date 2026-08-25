@@ -3,42 +3,43 @@ import UIKit
 
 enum IumrahDesign {
     static let pagePadding: CGFloat = 20
-    static let cardRadius: CGFloat = 28
+    static let cardRadius: CGFloat = 30
+    static let heroRadius: CGFloat = 34
     static let compactRadius: CGFloat = 20
-    static let controlHeight: CGFloat = 54
+    static let controlHeight: CGFloat = 56
 }
 
 private extension UIColor {
     static let iumrahPage = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
-            return UIColor(red: 0.075, green: 0.082, blue: 0.094, alpha: 1)
+            return UIColor(red: 0.105, green: 0.112, blue: 0.126, alpha: 1)
         }
-        return .systemGroupedBackground
+        return UIColor(red: 0.965, green: 0.968, blue: 0.974, alpha: 1)
     }
 
     static let iumrahCard = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
-            return UIColor(red: 0.115, green: 0.125, blue: 0.142, alpha: 1)
+            return UIColor(red: 0.145, green: 0.154, blue: 0.172, alpha: 1)
         }
         return .systemBackground
     }
 
     static let iumrahRaised = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
-            return UIColor(red: 0.145, green: 0.158, blue: 0.178, alpha: 1)
+            return UIColor(red: 0.185, green: 0.196, blue: 0.216, alpha: 1)
         }
-        return .secondarySystemGroupedBackground
+        return UIColor(red: 0.925, green: 0.934, blue: 0.949, alpha: 1)
     }
 
     static let iumrahPrimaryButton = UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(white: 0.93, alpha: 1)
+            ? UIColor(white: 0.96, alpha: 1)
             : UIColor.black
     }
 
     static let iumrahPrimaryButtonText = UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.06, green: 0.065, blue: 0.075, alpha: 1)
+            ? UIColor(red: 0.07, green: 0.075, blue: 0.085, alpha: 1)
             : UIColor.white
     }
 }
@@ -49,6 +50,7 @@ extension Color {
     static let iumrahRaisedBackground = Color(uiColor: .iumrahRaised)
     static let iumrahPrimaryButtonBackground = Color(uiColor: .iumrahPrimaryButton)
     static let iumrahPrimaryButtonText = Color(uiColor: .iumrahPrimaryButtonText)
+    static let iumrahGraphite = Color(red: 0.09, green: 0.10, blue: 0.115)
 }
 
 struct IumrahCardModifier: ViewModifier {
@@ -59,14 +61,33 @@ struct IumrahCardModifier: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.07), lineWidth: 1)
+                    .strokeBorder(.primary.opacity(0.055), lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.06), radius: 18, y: 8)
+            .shadow(color: .black.opacity(0.055), radius: 22, y: 10)
+    }
+}
+
+struct IumrahMarketingCardModifier: ViewModifier {
+    var dark: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .padding(22)
+            .background {
+                RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                    .fill(dark ? Color.iumrahGraphite : Color.iumrahCardBackground)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                    .strokeBorder(dark ? Color.white.opacity(0.08) : Color.primary.opacity(0.055), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(dark ? 0.16 : 0.055), radius: 26, y: 12)
     }
 }
 
 extension View {
     func iumrahCard() -> some View { modifier(IumrahCardModifier()) }
+    func iumrahMarketingCard(dark: Bool = false) -> some View { modifier(IumrahMarketingCardModifier(dark: dark)) }
 }
 
 struct IumrahPrimaryButtonStyle: ButtonStyle {
@@ -78,6 +99,7 @@ struct IumrahPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(Color.iumrahPrimaryButtonText)
             .background(Color.iumrahPrimaryButtonBackground.opacity(configuration.isPressed ? 0.82 : 1))
             .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
+            .shadow(color: .black.opacity(0.10), radius: 12, y: 7)
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .animation(.spring(response: 0.24, dampingFraction: 0.86), value: configuration.isPressed)
     }
@@ -94,7 +116,7 @@ struct IumrahSecondaryButtonStyle: ButtonStyle {
             .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(.primary.opacity(0.07), lineWidth: 1)
             }
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .animation(.spring(response: 0.24, dampingFraction: 0.86), value: configuration.isPressed)

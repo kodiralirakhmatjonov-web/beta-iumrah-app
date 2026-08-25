@@ -71,7 +71,7 @@ enum BookingDraftBuilder {
                 esim: true
             ),
             includedServices: services,
-            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? "Primary Hotel · Madinah" : ""),
+            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? "Рекомендуемый отель · Медина" : ""),
             flight: "\(outbound.airline) \(outbound.flightNumber) · \(inbound.airline) \(inbound.flightNumber)"
         )
         return BookingCreateEnvelope(lang: "ru", booking: draft)

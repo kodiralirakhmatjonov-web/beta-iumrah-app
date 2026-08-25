@@ -25,8 +25,8 @@ final class AppSettingsStore: ObservableObject {
         var title: String {
             switch self {
             case .russian: return "Русский"
-            case .english: return "English"
-            case .uzbek: return "O‘zbek"
+            case .english: return "Английский"
+            case .uzbek: return "Узбекский"
             }
         }
     }

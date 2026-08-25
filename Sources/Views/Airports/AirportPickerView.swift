@@ -22,7 +22,7 @@ struct AirportPickerView: View {
                             .foregroundStyle(.secondary)
                         Text("Найдите аэропорт вылета")
                             .font(.headline)
-                        Text("Можно искать по городу, названию или IATA-коду — например TAS, Tashkent, Москва, Istanbul.")
+                        Text("Можно искать по городу, названию или трёхбуквенному коду аэропорта — например TAS, Ташкент, Москва, Стамбул.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -65,7 +65,7 @@ struct AirportPickerView: View {
                     .listStyle(.plain)
                     .overlay {
                         if !isLoading && results.isEmpty && errorMessage == nil {
-                            ContentUnavailableView("Ничего не найдено", systemImage: "airplane", description: Text("Попробуйте другой город или IATA-код."))
+                            ContentUnavailableView("Ничего не найдено", systemImage: "airplane", description: Text("Попробуйте другой город или код аэропорта."))
                         }
                     }
                 }

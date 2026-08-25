@@ -17,7 +17,7 @@ struct FlightSearchFailureView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if let challenge {
-                Text("\(challenge.providerName) запросил человеческую проверку. Пройдите её и повторите поиск — cookies и сессия сохраняются на этом iPhone.")
+                Text("\(challenge.providerName) запросил человеческую проверку. Пройдите её и повторите поиск — данные проверки и сессия сохраняются на этом iPhone.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

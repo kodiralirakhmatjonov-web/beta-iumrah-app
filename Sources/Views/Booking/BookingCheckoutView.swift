@@ -10,9 +10,9 @@ struct BookingCheckoutView: View {
         ScrollView {
             VStack(spacing: 20) {
                 SectionHeader(
-                    "Отправить на бронирование",
-                    eyebrow: "Booking",
-                    subtitle: "Создадим защищённый номер поездки и отправим пакет на проверку наличия. После этого откроется iumrah Care."
+                    "Проверим вашу поездку",
+                    eyebrow: "Бронирование",
+                    subtitle: "Перед подтверждением iumrah ещё раз проверит доступность выбранного отеля и перелётов."
                 )
 
                 if let createdSession {
@@ -28,7 +28,7 @@ struct BookingCheckoutView: View {
             .padding(.bottom, 40)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("Booking")
+        .navigationTitle("Бронирование")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -73,12 +73,12 @@ struct BookingCheckoutView: View {
 
     private var createCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Что произойдёт")
+            Text("Что произойдёт дальше")
                 .font(.headline)
-            Text("Пакет получит номер IUM-…, статус начнётся с проверки наличия. Этот же номер и защищённый токен используются для Booking и Live Chat.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            checkRow("Поездка получит защищённый номер")
+            checkRow("Начнётся проверка доступности")
+            checkRow("Статус появится во вкладке «Бронирование»")
+            checkRow("Чат iumrah Care будет связан с этой поездкой")
 
             if let error = bookings.errorMessage {
                 Text(error)
@@ -92,7 +92,7 @@ struct BookingCheckoutView: View {
                 if bookings.isCreating {
                     ProgressView().tint(.white)
                 } else {
-                    Text("Отправить на проверку наличия")
+                    Text("Проверить и создать бронирование")
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
@@ -102,20 +102,27 @@ struct BookingCheckoutView: View {
         .iumrahCard()
     }
 
+    private func checkRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.secondary)
+            Text(text).font(.subheadline)
+        }
+    }
+
     private func successCard(_ session: StoredBookingSession) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
-            Text("Booking создан")
+            Text("Поездка создана")
                 .font(.title2.weight(.bold))
             Text(session.id)
                 .font(.headline.monospaced())
-            Text("Сейчас iumrah проверяет наличие компонентов пакета. Статус и чат доступны во вкладках Booking и Care.")
+            Text("Сейчас iumrah проверяет доступность. Статус поездки и чат поддержки уже связаны с этим номером.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button("Открыть Booking") {
+            Button("Открыть бронирование") {
                 chrome.navigate(to: .booking)
             }
             .buttonStyle(IumrahPrimaryButtonStyle())

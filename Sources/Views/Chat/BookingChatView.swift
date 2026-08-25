@@ -31,11 +31,12 @@ struct BookingChatView: View {
 
     private func chatHeader(_ session: StoredBookingSession) -> some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(Color.iumrahRaisedBackground)
-                Image(systemName: "heart.fill")
-            }
-            .frame(width: 42, height: 42)
+            Image("CareMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 42, height: 42)
+                .background(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text("iumrah Care")
                     .font(.headline)

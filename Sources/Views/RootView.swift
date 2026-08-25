@@ -11,7 +11,7 @@ struct RootView: View {
             ZStack(alignment: .leading) {
                 TabView(selection: $selectedTab) {
                     AppNavigationContainer {
-                        TripBuilderView()
+                        HomeDashboardView()
                     }
                     .tag(AppTab.home)
                     .tabItem { Label("Главная", systemImage: "house.fill") }
@@ -20,7 +20,7 @@ struct RootView: View {
                         BookingsHomeView()
                     }
                     .tag(AppTab.booking)
-                    .tabItem { Label("Booking", systemImage: "suitcase.fill") }
+                    .tabItem { Label("Бронирование", systemImage: "suitcase.fill") }
 
                     AppNavigationContainer {
                         CareHomeView()
@@ -32,15 +32,16 @@ struct RootView: View {
                         UmrahHomeView()
                     }
                     .tag(AppTab.umrah)
-                    .tabItem { Label("Umrah", systemImage: "book.closed.fill") }
+                    .tabItem { Label("Умра", systemImage: "book.closed.fill") }
                 }
                 .tint(.primary)
                 .toolbarBackground(Color.iumrahCardBackground, for: .tabBar)
                 .toolbarBackground(.visible, for: .tabBar)
+                .toolbar(chrome.isImmersiveMode ? .hidden : .visible, for: .tabBar)
                 .onChange(of: selectedTab) { _, _ in IumrahHaptics.selection() }
                 .allowsHitTesting(!chrome.isDrawerOpen)
 
-                if chrome.isDrawerOpen {
+                if chrome.isDrawerOpen && !chrome.isImmersiveMode {
                     Color.black.opacity(0.34)
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
@@ -58,7 +59,7 @@ struct RootView: View {
                                     if value.translation.width < -48 { chrome.closeDrawer() }
                                 }
                         )
-                } else {
+                } else if !chrome.isImmersiveMode {
                     HStack(spacing: 0) {
                         Color.clear
                             .frame(width: 18)

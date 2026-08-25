@@ -1,16 +1,19 @@
 {
-  "patch": "iumrah-beta-bootstrap-014",
+  "patch": "iumrah-beta-ui-015",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
+  "backend_changed": false,
+  "based_on": "0.14",
   "changes": [
-    "connect native airport search to existing /api/airports database",
-    "add JED or MED arrival choice for Makkah + Madinah itineraries",
-    "route outbound and inbound flight bots according to selected Saudi arrival airport",
-    "connect final package to existing /api/bookings API",
-    "persist booking access tokens in iOS Keychain and refresh booking status from Cloudflare DB",
-    "connect Booking tab to live booking records",
-    "connect iumrah Care to existing /api/chat/{bookingId} API with polling and sending",
-    "connect sidebar Chats entry to Care tab",
-    "preserve 0.13 interface and existing Package/Flight Engine without backend changes"
+    "replace Home package builder with a marketing-first iumrah journey homepage",
+    "move new Umrah creation into the Booking tab while preserving existing bookings",
+    "add Tripsy-inspired large semantic cards, stronger hierarchy and journey-focused copy",
+    "add persistent iumrah Project header to every tab with profile access",
+    "add dedicated iumrah Care product card and supplied Care logo with first-year-free positioning",
+    "replace iumrah Beta app icon with the supplied iumrah Project mark",
+    "make flight search and ready states fully immersive on a black screen with supplied animations",
+    "localize visible package tier and booking terminology into Russian while preserving iumrah Care as a brand",
+    "redesign final package and booking confirmation flow around confidence and full-package pricing",
+    "preserve Airport, Hotel, Flight, Package, Booking and Chat technical integrations from 0.14"
   ]
 }

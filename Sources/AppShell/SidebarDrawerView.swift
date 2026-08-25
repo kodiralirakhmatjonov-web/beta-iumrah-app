@@ -61,16 +61,16 @@ struct SidebarDrawerView: View {
                     chrome.isProfileEditorPresented = true
                 }
             }
-            .padding(.top, 18)
+            .padding(.top, 58)
 
             Spacer()
 
-            Text("iumrah Beta")
+            Text("iumrah Project")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 18)
+        .padding(.top, 58)
         .padding(.bottom, 24)
         .background(Color.iumrahCardBackground)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 30, topTrailingRadius: 30, style: .continuous))

@@ -7,9 +7,9 @@ struct PrimaryHotelView: View {
         ScrollView {
             VStack(spacing: 22) {
                 SectionHeader(
-                    "Ваш основной отель",
-                    eyebrow: "\(journey.trip.packageTier.title) · \(journey.trip.hotelStars)★",
-                    subtitle: "Primary Hotel подбирается из опубликованного каталога iumrah."
+                    "Мы подобрали отель для вашей поездки",
+                    eyebrow: "Рекомендует iumrah",
+                    subtitle: "Он соответствует выбранному уровню \(journey.trip.packageTier.title) и категории \(journey.trip.hotelStars)★. Вы можете оставить его или посмотреть другие варианты."
                 )
 
                 content
@@ -52,26 +52,26 @@ struct PrimaryHotelView: View {
             }
             .iumrahCard()
         } else if let hotel = journey.selectedHotel {
-            HotelCard(hotel: hotel, badge: "Primary Hotel")
+            HotelCard(hotel: hotel, badge: "Рекомендует iumrah")
 
             NavigationLink {
                 OutboundFlightView()
             } label: {
-                Text("Оставить этот отель")
+                Text("Продолжить с этим отелем")
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
 
             NavigationLink {
                 HotelSelectionView()
             } label: {
-                Text("Изменить отель")
+                Text("Посмотреть другие варианты")
             }
             .buttonStyle(IumrahSecondaryButtonStyle())
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "building.2.crop.circle")
                     .font(.largeTitle)
-                Text("В опубликованном каталоге пока нет подходящего отеля.")
+                Text("В каталоге пока нет подходящего отеля.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }

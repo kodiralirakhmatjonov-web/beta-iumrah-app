@@ -9,11 +9,11 @@ enum FlightEngineAvailabilityError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .packageEngineUnavailable(let message):
-            return "Package Engine недоступен: \(message)"
+            return "Сервис расчёта недоступен: \(message)"
         case .makkahPricingMissing:
-            return "Для Мекки пока нет ни одного настроенного Primary Hotel с внутренней ценой."
+            return "Для Мекки пока не настроен основной отель с внутренней ценой."
         case .madinahPricingMissing:
-            return "Для выбранного маршрута Мекка + Медина пока нет настроенной внутренней цены Primary Hotel в Медине."
+            return "Для выбранного маршрута Мекка + Медина пока не настроена внутренняя цена основного отеля в Медине."
         case .realOutboundRequired:
             return "Обратный поиск требует реальный выбранный рейс туда. Повторите поиск перелёта."
         }
@@ -84,11 +84,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         do {
             let health = try await packageEngine.health()
             guard health.ok, health.hotelsDbConfigured else {
-                throw FlightEngineAvailabilityError.packageEngineUnavailable("D1 hotel binding не готов.")
+                throw FlightEngineAvailabilityError.packageEngineUnavailable("База отелей временно недоступна.")
             }
             let estimateFallback = health.legacyEstimateFallbackEnabled ?? false
             guard (health.flightOptionQuotingReady ?? health.pricingReady ?? false) || estimateFallback else {
-                throw FlightEngineAvailabilityError.packageEngineUnavailable("Flight option quoting ещё не готов.")
+                throw FlightEngineAvailabilityError.packageEngineUnavailable("Расчёт вариантов перелёта временно недоступен.")
             }
             guard (health.makkahPricingReady ?? health.pricingReady ?? false) || estimateFallback else {
                 throw FlightEngineAvailabilityError.makkahPricingMissing

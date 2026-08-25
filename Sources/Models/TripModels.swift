@@ -10,10 +10,10 @@ enum PackageTier: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .economy: return "Economy"
-        case .standard: return "Standard"
-        case .comfort: return "Comfort"
-        case .luxury: return "Luxury"
+        case .economy: return "Эконом"
+        case .standard: return "Стандарт"
+        case .comfort: return "Комфорт"
+        case .luxury: return "Люкс"
         }
     }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OutboundFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
+    @EnvironmentObject private var chrome: AppChromeStore
     @ObservedObject private var challengeCenter = FlightBotChallengeCenter.shared
     @State private var offers: [FlightOffer] = []
     @State private var isLoading = true
@@ -10,24 +11,44 @@ struct OutboundFlightView: View {
     @State private var showingReadyAnimation = false
 
     var body: some View {
+        Group {
+            if isLoading {
+                FlightSearchImmersiveView(state: .searching)
+            } else if showingReadyAnimation {
+                FlightSearchImmersiveView(state: .ready)
+            } else {
+                resultsView
+            }
+        }
+        .background(isLoading || showingReadyAnimation ? Color.black : Color.iumrahPageBackground)
+        .navigationTitle(isLoading || showingReadyAnimation ? "" : "Перелёт")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(isLoading || showingReadyAnimation ? .hidden : .visible, for: .navigationBar)
+        .task { await search(force: false) }
+        .onAppear { chrome.setImmersive(isLoading || showingReadyAnimation) }
+        .onChange(of: isLoading) { _, _ in updateImmersive() }
+        .onChange(of: showingReadyAnimation) { _, _ in updateImmersive() }
+        .onDisappear { chrome.setImmersive(false) }
+        .sheet(isPresented: $showingChallenge) {
+            if let challenge = challengeCenter.pending {
+                FlightChallengeSheet(challenge: challenge) {
+                    challengeCenter.clear()
+                    Task { await retrySearch() }
+                }
+            }
+        }
+    }
+
+    private var resultsView: some View {
         ScrollView {
             LazyVStack(spacing: 18) {
                 SectionHeader(
                     "Выберите перелёт",
                     eyebrow: "Туда",
-                    subtitle: "Для каждого варианта показывается только итоговая стоимость всего Umrah-пакета."
+                    subtitle: "Каждая цена уже означает итоговую стоимость всей Умры с этим вариантом перелёта."
                 )
 
-                Label("Real Flight Engine · минимум \(AppConfig.flightBotMinimumOptions), цель \(AppConfig.flightBotPreferredOptions) вариантов", systemImage: "antenna.radiowaves.left.and.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if isLoading {
-                    FlightSearchProgressView()
-                } else if showingReadyAnimation {
-                    FlightSearchReadyView()
-                } else if let errorText {
+                if let errorText {
                     FlightSearchFailureView(
                         message: errorText,
                         challenge: challengeCenter.pending,
@@ -40,6 +61,7 @@ struct OutboundFlightView: View {
                             journey.selectedOutbound = offer
                             journey.selectedInbound = nil
                             journey.quote = nil
+                            IumrahHaptics.selection()
                         } label: {
                             FlightCard(offer: offer, isSelected: journey.selectedOutbound?.id == offer.id, isRecommended: index == 0)
                         }
@@ -62,17 +84,10 @@ struct OutboundFlightView: View {
             .padding(.bottom, 36)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("Перелёт")
-        .navigationBarTitleDisplayMode(.inline)
-        .task { await search(force: false) }
-        .sheet(isPresented: $showingChallenge) {
-            if let challenge = challengeCenter.pending {
-                FlightChallengeSheet(challenge: challenge) {
-                    challengeCenter.clear()
-                    Task { await retrySearch() }
-                }
-            }
-        }
+    }
+
+    private func updateImmersive() {
+        chrome.setImmersive(isLoading || showingReadyAnimation)
     }
 
     private func retrySearch() async {
@@ -100,8 +115,8 @@ struct OutboundFlightView: View {
             offers = found
             isLoading = false
             showingReadyAnimation = true
-            IumrahHaptics.soft()
-            try? await Task.sleep(for: .milliseconds(1700))
+            IumrahHaptics.success()
+            try? await Task.sleep(for: .milliseconds(1500))
             withAnimation(.easeInOut(duration: 0.28)) { showingReadyAnimation = false }
             return
         } catch {

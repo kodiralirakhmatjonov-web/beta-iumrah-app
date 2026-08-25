@@ -14,7 +14,7 @@ struct BookingDetailView: View {
                 if let session {
                     SectionHeader(
                         session.id,
-                        eyebrow: "Booking",
+                        eyebrow: "Бронирование",
                         subtitle: statusTitle(session.booking.status)
                     )
 
@@ -28,7 +28,7 @@ struct BookingDetailView: View {
                     }
                     .buttonStyle(IumrahPrimaryButtonStyle())
                 } else {
-                    ContentUnavailableView("Booking не найден", systemImage: "suitcase")
+                    ContentUnavailableView("Бронирование не найдено", systemImage: "suitcase")
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
@@ -36,7 +36,7 @@ struct BookingDetailView: View {
             .padding(.bottom, 40)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("Booking")
+        .navigationTitle("Бронирование")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await bookings.refresh(id: bookingID) }
         .task { await bookings.refresh(id: bookingID) }
@@ -52,7 +52,7 @@ struct BookingDetailView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(statusTitle(booking.status))
                     .font(.headline)
-                Text("Статус обновляется из Cloudflare Booking DB")
+                Text("Статус обновляется автоматически")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

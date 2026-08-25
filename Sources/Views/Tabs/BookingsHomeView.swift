@@ -3,22 +3,20 @@ import SwiftUI
 struct BookingsHomeView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var bookings: BookingStore
+    @EnvironmentObject private var chrome: AppChromeStore
 
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
-                SectionHeader(
-                    "Booking",
-                    eyebrow: "Ваши поездки",
-                    subtitle: "Статусы бронирований читаются напрямую из iumrah Booking DB."
-                )
+                builderHero
 
-                if bookings.sessions.isEmpty {
-                    if journey.quote != nil || journey.selectedHotel != nil {
-                        currentDraftCard
-                    }
-                    emptyCard
-                } else {
+                if !bookings.sessions.isEmpty {
+                    SectionHeader(
+                        "Ваши поездки",
+                        eyebrow: "Бронирование",
+                        subtitle: "Все созданные поездки, их статусы и поддержка остаются в одном месте."
+                    )
+
                     ForEach(bookings.sessions) { session in
                         NavigationLink {
                             BookingDetailView(bookingID: session.id)
@@ -27,17 +25,63 @@ struct BookingsHomeView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                } else {
+                    noBookingsCard
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 18)
-            .padding(.bottom, 40)
+            .padding(.top, 8)
+            .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await bookings.refreshAll() }
         .task { await bookings.refreshAll() }
+        .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
+            TripBuilderView()
+        }
+    }
+
+    private var builderHero: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("НОВАЯ ПОЕЗДКА")
+                        .font(.caption.weight(.bold))
+                        .tracking(1)
+                        .foregroundStyle(.secondary)
+                    Text("Соберите свою Умру")
+                        .font(.system(size: 31, weight: .bold, design: .rounded))
+                        .tracking(-0.6)
+                }
+                Spacer()
+                Image(systemName: "plus")
+                    .font(.system(size: 19, weight: .bold))
+                    .frame(width: 44, height: 44)
+                    .background(Color.iumrahRaisedBackground)
+                    .clipShape(Circle())
+            }
+
+            Text("Выберите даты, людей и уровень поездки. Затем iumrah предложит отель и найдёт подходящие перелёты с итоговой стоимостью всего пакета.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                chrome.shouldStartTripBuilder = true
+                IumrahHaptics.selection()
+            } label: {
+                Text("Создать мою Умру")
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+
+            Label("До бронирования Вы увидите итоговую стоимость", systemImage: "checkmark.seal.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahMarketingCard()
     }
 
     private func bookingCard(_ session: StoredBookingSession) -> some View {
@@ -56,7 +100,7 @@ struct BookingsHomeView: View {
             }
 
             HStack(spacing: 8) {
-                Text(session.booking.planId.capitalized)
+                Text(localizedPlan(session.booking.planId))
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 10)
                     .frame(height: 30)
@@ -87,37 +131,32 @@ struct BookingsHomeView: View {
         .iumrahCard()
     }
 
-    private var currentDraftCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Текущий пакет", systemImage: "suitcase.rolling")
-                .font(.headline)
-            if let hotel = journey.selectedHotel {
-                Text(hotel.name)
-                    .font(.title3.weight(.semibold))
+    private var noBookingsCard: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "suitcase")
+                .font(.system(size: 20, weight: .semibold))
+                .frame(width: 46, height: 46)
+                .background(Color.iumrahRaisedBackground)
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Бронирований пока нет")
+                    .font(.headline)
+                Text("После подтверждения первая поездка появится здесь.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            Text("Пакет ещё не отправлен в Booking. Завершите выбор рейсов и подтвердите его на финальном экране.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
 
-    private var emptyCard: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "suitcase")
-                .font(.system(size: 38, weight: .medium))
-                .foregroundStyle(.secondary)
-            Text("Бронирований пока нет")
-                .font(.title3.weight(.bold))
-            Text("Когда Вы отправите собранный Umrah-пакет на проверку наличия, поездка появится здесь.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    private func localizedPlan(_ value: String) -> String {
+        switch value.lowercased() {
+        case "economy": return "Эконом"
+        case "standard": return "Стандарт"
+        case "comfort": return "Комфорт"
+        case "luxury": return "Люкс"
+        default: return value
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 34)
-        .iumrahCard()
     }
 }
