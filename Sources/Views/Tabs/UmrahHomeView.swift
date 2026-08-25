@@ -4,30 +4,35 @@ struct UmrahHomeView: View {
     @EnvironmentObject private var settings: AppSettingsStore
 
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "book.closed.fill")
-                .font(.system(size: 34, weight: .medium))
-                .frame(width: 72, height: 72)
-                .background(Color.iumrahRaisedBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        ScrollView {
+            VStack(spacing: 22) {
+                IumrahRootPageTitle(title: L10n.text("tab_umrah", settings.language))
 
-            Text(L10n.text("tab_umrah", settings.language))
-                .font(.system(size: 31, weight: .bold, design: .rounded))
+                VStack(alignment: .leading, spacing: 18) {
+                    Image(systemName: "book.closed.fill")
+                        .font(.system(size: 28, weight: .medium))
+                        .frame(width: 64, height: 64)
+                        .background(Color.iumrahRaisedBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
 
-            Text(descriptionText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 34)
+                    Text(L10n.text("tab_umrah", settings.language))
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .tracking(-0.5)
+
+                    Text(L10n.text("umrah_coming", settings.language))
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .iumrahMarketingCard()
+            }
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 42)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.iumrahPageBackground)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
     }
-
-    private var descriptionText: String {
-        L10n.text("umrah_coming", settings.language)
-    }
-
 }

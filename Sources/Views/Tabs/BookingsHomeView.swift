@@ -9,6 +9,10 @@ struct BookingsHomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
+                IumrahRootPageTitle(
+                    title: L10n.text("tab_booking", settings.language),
+                    showsMakkahTime: true
+                )
                 builderHero
 
                 if !bookings.sessions.isEmpty {
@@ -31,7 +35,7 @@ struct BookingsHomeView: View {
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 8)
+            .padding(.top, 10)
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)

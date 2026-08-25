@@ -12,6 +12,7 @@ struct HotelsHomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
+                IumrahRootPageTitle(title: L10n.text("tab_hotels", settings.language))
                 hero
                 if isLoading && makkahHotels.isEmpty && madinahHotels.isEmpty {
                     ProgressView()
@@ -28,7 +29,7 @@ struct HotelsHomeView: View {
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 8)
+            .padding(.top, 10)
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)

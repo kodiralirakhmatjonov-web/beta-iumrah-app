@@ -1,0 +1,2 @@
+iumrah Beta update 0.23 applied.
+Premium root UI: large in-content tab titles, restored 78% drawer, iumrah Care gradient redesign, premium booking progress chain, Makkah post-booking home background/time, new app icon.

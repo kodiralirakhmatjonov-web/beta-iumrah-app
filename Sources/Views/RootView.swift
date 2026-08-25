@@ -7,49 +7,35 @@ struct RootView: View {
     @StateObject private var bookings = BookingStore()
 
     var body: some View {
-        TabView(selection: $chrome.currentTab) {
-            tabScreen(.home) {
-                HomeDashboardView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_home", settings.language), systemImage: "house")
-            }
-            .tag(AppTab.home)
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                tabs
+                    .allowsHitTesting(!chrome.isDrawerOpen)
+                    .scaleEffect(chrome.isDrawerOpen ? 0.985 : 1, anchor: .trailing)
+                    .offset(x: chrome.isDrawerOpen ? min(geometry.size.width * 0.08, 32) : 0)
 
-            tabScreen(.hotels) {
-                HotelsHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2")
-            }
-            .tag(AppTab.hotels)
+                if chrome.isDrawerOpen {
+                    Color.black.opacity(0.30)
+                        .ignoresSafeArea()
+                        .onTapGesture { chrome.closeDrawer() }
+                        .transition(.opacity)
 
-            tabScreen(.booking) {
-                BookingsHomeView()
+                    SidebarDrawerView()
+                        .frame(width: min(max(geometry.size.width * 0.78, 286), 352))
+                        .frame(maxHeight: .infinity)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        .gesture(
+                            DragGesture(minimumDistance: 20)
+                                .onEnded { value in
+                                    if value.translation.width < -48 {
+                                        chrome.closeDrawer()
+                                    }
+                                }
+                        )
+                }
             }
-            .tabItem {
-                Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase")
-            }
-            .tag(AppTab.booking)
-
-            tabScreen(.care) {
-                CareHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_care", settings.language), systemImage: "heart.text.square")
-            }
-            .tag(AppTab.care)
-
-            tabScreen(.umrah) {
-                UmrahHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_umrah", settings.language), systemImage: "moon.stars")
-            }
-            .tag(AppTab.umrah)
+            .animation(.spring(response: 0.36, dampingFraction: 0.88), value: chrome.isDrawerOpen)
         }
-        .tint(.primary)
-        .toolbar(chrome.isImmersiveMode ? .hidden : .visible, for: .tabBar)
         .preferredColorScheme(settings.appearance.colorScheme)
         .environmentObject(settings)
         .environmentObject(chrome)
@@ -66,13 +52,62 @@ struct RootView: View {
             chrome.currentTab = newValue
             chrome.requestedTab = nil
         }
+        .onChange(of: chrome.isImmersiveMode) { _, immersive in
+            if immersive && chrome.isDrawerOpen {
+                chrome.closeDrawer()
+            }
+        }
     }
 
-    private func tabScreen<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
-        AppNavigationContainer(
-            showsTabHeader: true,
-            brandTab: tab,
-            content: content
-        )
+    private var tabs: some View {
+        TabView(selection: $chrome.currentTab) {
+            tabScreen {
+                HomeDashboardView()
+            }
+            .tabItem {
+                Label(L10n.text("tab_home", settings.language), systemImage: "house")
+            }
+            .tag(AppTab.home)
+
+            tabScreen {
+                HotelsHomeView()
+            }
+            .tabItem {
+                Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2")
+            }
+            .tag(AppTab.hotels)
+
+            tabScreen {
+                BookingsHomeView()
+            }
+            .tabItem {
+                Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase")
+            }
+            .tag(AppTab.booking)
+
+            tabScreen {
+                CareHomeView()
+            }
+            .tabItem {
+                Label(L10n.text("tab_care", settings.language), systemImage: "heart.fill")
+            }
+            .tag(AppTab.care)
+
+            tabScreen {
+                UmrahHomeView()
+            }
+            .tabItem {
+                Label(L10n.text("tab_umrah", settings.language), systemImage: "moon.stars")
+            }
+            .tag(AppTab.umrah)
+        }
+        .tint(.primary)
+        .toolbar(chrome.isImmersiveMode ? .hidden : .visible, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarBackground(Color.iumrahCardBackground.opacity(0.96), for: .tabBar)
+    }
+
+    private func tabScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        AppNavigationContainer { content() }
     }
 }

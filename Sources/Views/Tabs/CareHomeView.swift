@@ -7,6 +7,7 @@ struct CareHomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
+                IumrahRootPageTitle(title: L10n.text("tab_care", settings.language))
                 careHero
 
                 if bookings.sessions.isEmpty {
@@ -14,9 +15,10 @@ struct CareHomeView: View {
                 } else {
                     SectionHeader(
                         L10n.text("care_chats", settings.language),
-                        eyebrow: L10n.text("care_title", settings.language),
+                        eyebrow: "iumrah Care",
                         subtitle: L10n.text("care_chats_subtitle", settings.language)
                     )
+
                     ForEach(bookings.sessions) { session in
                         NavigationLink {
                             BookingChatView(bookingID: session.id)
@@ -30,70 +32,135 @@ struct CareHomeView: View {
                 supportPromise
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 8)
+            .padding(.top, 10)
             .padding(.bottom, 42)
         }
-        .background(Color.iumrahPageBackground)
+        .background {
+            ZStack {
+                Color.iumrahPageBackground
+                RadialGradient(
+                    colors: [Color.iumrahCareLight.opacity(0.10), Color.clear],
+                    center: .topTrailing,
+                    startRadius: 20,
+                    endRadius: 420
+                )
+            }
+            .ignoresSafeArea()
+        }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .task { await bookings.refreshAll() }
     }
 
     private var careHero: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             HStack(alignment: .top) {
                 Image("CareMark")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 74, height: 74)
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .padding(7)
+                    .background(Color.white.opacity(0.96))
+                    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.12), radius: 18, y: 8)
+
                 Spacer()
-                Text("24/7")
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.45)
-                    .padding(.horizontal, 10)
-                    .frame(height: 30)
-                    .foregroundStyle(.white)
-                    .background(.white.opacity(0.12))
-                    .clipShape(Capsule())
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 6, height: 6)
+                    Text("24/7")
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.45)
+                }
+                .padding(.horizontal, 11)
+                .frame(height: 32)
+                .foregroundStyle(.white)
+                .background(Color.white.opacity(0.13))
+                .clipShape(Capsule())
+                .overlay { Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1) }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.text("care_title", settings.language))
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+            VStack(alignment: .leading, spacing: 9) {
+                Text("iumrah Care")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .tracking(-0.8)
+                    .foregroundStyle(.white)
+
                 Text(L10n.text("care_subtitle", settings.language))
                     .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.96))
+
                 Text(L10n.text("care_promise_body", settings.language))
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(.white.opacity(0.76))
                     .fixedSize(horizontal: false, vertical: true)
-
-                Label(L10n.text("care_free_year", settings.language), systemImage: "gift.fill")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.10))
-                    .clipShape(Capsule())
             }
 
-            HStack(spacing: 18) {
+            HStack(spacing: 8) {
                 careMetric(icon: "message.fill", text: L10n.text("care_metric_answers", settings.language))
                 careMetric(icon: "bell.fill", text: L10n.text("care_metric_updates", settings.language))
                 careMetric(icon: "heart.fill", text: L10n.text("care_metric_care", settings.language))
             }
+
+            Label(L10n.text("care_free_year", settings.language), systemImage: "gift.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color.white.opacity(0.13))
+                .clipShape(Capsule())
         }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahMarketingCard(dark: true)
+        .padding(22)
+        .background {
+            ZStack {
+                LinearGradient(
+                    colors: [Color.iumrahCareDark, Color.iumrahCareLight],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                Circle()
+                    .fill(Color.white.opacity(0.10))
+                    .frame(width: 210, height: 210)
+                    .blur(radius: 2)
+                    .offset(x: 145, y: -115)
+
+                Circle()
+                    .fill(Color.iumrahCareDark.opacity(0.20))
+                    .frame(width: 160, height: 160)
+                    .offset(x: -150, y: 155)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+        }
+        .shadow(color: Color.iumrahCareDark.opacity(0.25), radius: 30, y: 16)
     }
 
     private func careMetric(icon: String, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: icon).font(.headline)
-            Text(text).font(.caption.weight(.semibold))
+        VStack(alignment: .leading, spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 30, height: 30)
+                .background(Color.white.opacity(0.13))
+                .clipShape(Circle())
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(2)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+        .padding(11)
+        .background(Color.black.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        }
     }
 
     private func chatCard(_ session: StoredBookingSession) -> some View {
@@ -102,56 +169,102 @@ struct CareHomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 46, height: 46)
-                .background(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .padding(4)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.iumrahCareLight.opacity(0.18), lineWidth: 1)
+                }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Circle().fill(Color.iumrahCareLight).frame(width: 7, height: 7)
+                    Circle()
+                        .fill(Color.iumrahCareLight)
+                        .frame(width: 7, height: 7)
                     Text("iumrah Care")
                         .font(.headline)
                 }
                 Text(session.travelerName ?? session.id)
                     .font(.subheadline.weight(.semibold))
-                Text(session.id)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
                 Text(L10n.status(session.booking.status, settings.language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
             Spacer()
+
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Color.iumrahCareDark.opacity(0.56))
+                .frame(width: 34, height: 34)
+                .background(Color.iumrahCareLight.opacity(0.13))
+                .clipShape(Circle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahCard()
+        .padding(17)
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.iumrahCareLight.opacity(0.13), lineWidth: 1)
+        }
+        .shadow(color: Color.iumrahCareDark.opacity(0.07), radius: 20, y: 10)
     }
 
     private var lockedChatCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(L10n.text("care_locked_title", settings.language), systemImage: "lock.fill")
-                .font(.headline)
-            Text(L10n.text("care_locked_body", settings.language))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.iumrahCareDark)
+                .frame(width: 40, height: 40)
+                .background(Color.iumrahCareLight.opacity(0.17))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.text("care_locked_title", settings.language))
+                    .font(.headline)
+                Text(L10n.text("care_locked_body", settings.language))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
 
     private var supportPromise: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "heart.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.iumrahCareDark)
+                Spacer()
+                Text("iumrah Care")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.iumrahCareDark.opacity(0.72))
+            }
             Text(L10n.text("care_promise_title", settings.language))
-                .font(.system(size: 27, weight: .bold, design: .rounded))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .tracking(-0.5)
             Text(L10n.text("care_promise_body", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahMarketingCard()
+        .padding(22)
+        .background {
+            LinearGradient(
+                colors: [Color.iumrahCareLight.opacity(0.18), Color.iumrahCardBackground],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(Color.iumrahCareLight.opacity(0.14), lineWidth: 1)
+        }
     }
 }

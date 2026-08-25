@@ -3,10 +3,27 @@ import SwiftUI
 struct HomeDashboardView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var bookings: BookingStore
+
+    private var activeSession: StoredBookingSession? {
+        bookings.sessions.first { $0.booking.status.uppercased() != "COMPLETED" }
+    }
 
     var body: some View {
+        Group {
+            if let activeSession {
+                activeJourneyHome(activeSession)
+            } else {
+                marketingHome
+            }
+        }
+        .task { await bookings.refreshAll() }
+    }
+
+    private var marketingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language))
                 hero
                 confidenceStrip
                 philosophyCard
@@ -15,10 +32,214 @@ struct HomeDashboardView: View {
                 hotelCard
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 8)
+            .padding(.top, 10)
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
+    }
+
+    private func activeJourneyHome(_ session: StoredBookingSession) -> some View {
+        ZStack {
+            Image("MakkahBackground")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .ignoresSafeArea()
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.48), Color.black.opacity(0.12), Color.black.opacity(0.18)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 18) {
+                    IumrahRootPageTitle(
+                        title: L10n.text("tab_home", settings.language),
+                        showsMakkahTime: true,
+                        lightStyle: true
+                    )
+
+                    activeBookingCard(session)
+                    activeCareCard(session)
+
+                    Color.clear
+                        .frame(height: 330)
+                        .accessibilityHidden(true)
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 30)
+            }
+        }
+    }
+
+    private func activeBookingCard(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 17) {
+            HStack(alignment: .center) {
+                Label(L10n.text("home_hero_kicker", settings.language), systemImage: "moon.stars.fill")
+                    .font(.caption.weight(.bold))
+                    .tracking(0.7)
+                    .foregroundStyle(Color.black.opacity(0.58))
+
+                Spacer()
+
+                Image(systemName: statusIcon(session.booking.status))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.iumrahCareDark)
+                    .frame(width: 36, height: 36)
+                    .background(Color.iumrahCareLight.opacity(0.18))
+                    .clipShape(Circle())
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(L10n.status(session.booking.status, settings.language))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .tracking(-0.6)
+                    .foregroundStyle(Color.black)
+
+                if let travelerName = session.travelerName, !travelerName.isEmpty {
+                    Text(travelerName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.black.opacity(0.58))
+                }
+            }
+
+            Rectangle()
+                .fill(Color.black.opacity(0.08))
+                .frame(height: 1)
+
+            VStack(spacing: 12) {
+                journeySummaryRow(
+                    icon: "airplane",
+                    title: L10n.text("route_label", settings.language),
+                    value: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)"
+                )
+                journeySummaryRow(
+                    icon: "calendar",
+                    title: L10n.text("detail_dates", settings.language),
+                    value: "\(L10n.date(session.booking.input.startDate, settings.language)) – \(L10n.date(session.booking.input.endDate, settings.language))"
+                )
+                if !session.booking.hotelNames.makkah.isEmpty {
+                    journeySummaryRow(
+                        icon: "building.2.fill",
+                        title: L10n.text("detail_hotel", settings.language),
+                        value: session.booking.hotelNames.makkah
+                    )
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.text("final_price", settings.language))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.black.opacity(0.50))
+                    Text(money(session.booking.perPilgrimUsd))
+                        .font(.system(size: 27, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.black)
+                }
+                Spacer()
+                Text(session.id)
+                    .font(.caption2.monospaced().weight(.semibold))
+                    .foregroundStyle(Color.black.opacity(0.42))
+            }
+
+            NavigationLink {
+                BookingDetailView(bookingID: session.id)
+            } label: {
+                HStack {
+                    Text(L10n.text("open_booking", settings.language))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.headline)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .frame(height: 54)
+                .background(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .background(Color.white.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.38), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.18), radius: 28, y: 14)
+    }
+
+    private func journeySummaryRow(icon: String, title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.iumrahCareDark)
+                .frame(width: 34, height: 34)
+                .background(Color.iumrahCareLight.opacity(0.15))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(Color.black.opacity(0.48))
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.black)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func activeCareCard(_ session: StoredBookingSession) -> some View {
+        Button {
+            chrome.navigate(to: .care)
+        } label: {
+            HStack(spacing: 14) {
+                Image("CareMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 50, height: 50)
+                    .padding(5)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("iumrah Care")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text(L10n.text("care_subtitle", settings.language))
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.76))
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+            .padding(16)
+            .background {
+                LinearGradient(
+                    colors: [Color.iumrahCareDark.opacity(0.96), Color.iumrahCareLight.opacity(0.88)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+            }
+            .shadow(color: Color.iumrahCareDark.opacity(0.22), radius: 24, y: 12)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(session.id)
     }
 
     private var hero: some View {
@@ -97,14 +318,14 @@ struct HomeDashboardView: View {
                 .background(Color.iumrahRaisedBackground)
                 .clipShape(Capsule())
             Text(L10n.text("home_philosophy_title", settings.language))
-                .font(.system(size: 29, weight: .bold, design: .rounded))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
             Text(L10n.text("home_philosophy_body", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahCard()
+        .iumrahMarketingCard()
     }
 
     private var connectedTripCard: some View {
@@ -202,5 +423,14 @@ struct HomeDashboardView: View {
             .iumrahCard()
         }
         .buttonStyle(.plain)
+    }
+
+    private func money(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: amount)) ?? "$\(Int(amount.rounded()))"
     }
 }

@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-022-flight-details-uzbekistan-search",
-  "createdAt": "2026-08-25T17:10:00Z",
-  "description": "Flight quality update: structured multi-segment flight model, route/layover/timezone enrichment, airline logos, detailed flight screen, richer final booking summaries, stronger Uzbekistan-first provider routing, additional regional official providers, improved web-bot extraction, and Package Engine provider allowlist compatibility."
+  "id": "iumrah-beta-update-023-premium-navigation-care-home",
+  "createdAt": "2026-08-25T18:33:00Z",
+  "description": "Premium production UI update: user-provided app icon, restored 78% side drawer, root tab large titles without fixed brand headers, Makkah time, post-booking Makkah background home, green-gradient iumrah Care redesign, heart Care tab icon, and a redesigned booking progress chain across trip, hotel, flight, ready and checkout stages. Flight 0.22, pricing, Package Engine and TestFlight signing are preserved."
 }

@@ -6,131 +6,233 @@ struct SidebarDrawerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                IumrahHeaderLogo(width: 128)
-                Spacer()
-                Button {
-                    chrome.closeDrawer()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .frame(width: 36, height: 36)
-                        .background(Color.iumrahRaisedBackground)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.bottom, 28)
+            drawerHeader
+            greeting
+            profileCard
 
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 6) {
+                    navigationRow(.home, title: L10n.text("tab_home", settings.language), icon: "house.fill")
+                    navigationRow(.hotels, title: L10n.text("tab_hotels", settings.language), icon: "building.2.fill")
+                    navigationRow(.booking, title: L10n.text("tab_booking", settings.language), icon: "suitcase.fill")
+                    navigationRow(.care, title: "iumrah Care", icon: "heart.fill", careAccent: true)
+                    navigationRow(.umrah, title: L10n.text("tab_umrah", settings.language), icon: "moon.stars.fill")
+
+                    Divider()
+                        .padding(.vertical, 12)
+
+                    Menu {
+                        Picker(L10n.text("language_section", settings.language), selection: $settings.language) {
+                            ForEach(AppSettingsStore.Language.allCases) { language in
+                                Text(language.title).tag(language)
+                            }
+                        }
+                    } label: {
+                        settingsRow(
+                            title: L10n.text("language_section", settings.language),
+                            value: settings.language.title,
+                            icon: "globe"
+                        )
+                    }
+
+                    Menu {
+                        Picker(L10n.text("appearance_section", settings.language), selection: $settings.appearance) {
+                            ForEach(AppSettingsStore.Appearance.allCases) { appearance in
+                                Text(appearance.title(settings.language)).tag(appearance)
+                            }
+                        }
+                    } label: {
+                        settingsRow(
+                            title: L10n.text("appearance_section", settings.language),
+                            value: settings.appearance.title(settings.language),
+                            icon: "circle.lefthalf.filled"
+                        )
+                    }
+
+                    Button {
+                        chrome.isProfileEditorPresented = true
+                        chrome.closeDrawer()
+                    } label: {
+                        settingsRow(
+                            title: L10n.text("settings_title", settings.language),
+                            value: nil,
+                            icon: "gearshape.fill"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 24)
+            }
+
+            HStack(spacing: 7) {
+                Circle()
+                    .fill(Color.iumrahCareLight)
+                    .frame(width: 7, height: 7)
+                Text("iumrah Project")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 12)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 18)
+        .background {
+            ZStack {
+                Color.iumrahCardBackground
+                LinearGradient(
+                    colors: [Color.iumrahCareLight.opacity(0.09), Color.clear, Color.clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+            .ignoresSafeArea()
+        }
+        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 34, topTrailingRadius: 34, style: .continuous))
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.04))
+                .frame(width: 1)
+        }
+        .shadow(color: .black.opacity(0.24), radius: 34, x: 14)
+    }
+
+    private var drawerHeader: some View {
+        HStack(alignment: .center) {
+            IumrahHeaderLogo(width: 164)
+            Spacer(minLength: 12)
+            Button {
+                chrome.closeDrawer()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .frame(width: 40, height: 40)
+                    .background(Color.iumrahRaisedBackground)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 18)
+    }
+
+    private var greeting: some View {
+        VStack(alignment: .leading, spacing: 5) {
             Text(L10n.text("drawer_greeting", settings.language))
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .tracking(-0.5)
             Text(L10n.text("drawer_welcome", settings.language))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .padding(.top, 4)
-
-            profileCard
-                .padding(.top, 22)
-
-            VStack(spacing: 6) {
-                drawerRow(L10n.text("drawer_chats", settings.language), systemImage: "bubble.left.and.bubble.right") {
-                    chrome.navigate(to: .care)
-                }
-
-                Menu {
-                    Picker(L10n.text("language_section", settings.language), selection: $settings.language) {
-                        ForEach(AppSettingsStore.Language.allCases) { language in
-                            Text(language.title).tag(language)
-                        }
-                    }
-                } label: {
-                    drawerLabel("\(L10n.text("language_section", settings.language)) · \(settings.language.title)", systemImage: "globe")
-                }
-
-                Menu {
-                    Picker(L10n.text("appearance_section", settings.language), selection: $settings.appearance) {
-                        ForEach(AppSettingsStore.Appearance.allCases) { appearance in
-                            Text(appearance.title(settings.language)).tag(appearance)
-                        }
-                    }
-                } label: {
-                    drawerLabel("\(L10n.text("appearance_section", settings.language)) · \(settings.appearance.title(settings.language))", systemImage: "circle.lefthalf.filled")
-                }
-
-                drawerRow(L10n.text("settings_title", settings.language), systemImage: "gearshape") {
-                    chrome.isProfileEditorPresented = true
-                }
-            }
-            .padding(.top, 58)
-
-            Spacer()
-
-            Text("iumrah Project")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 58)
-        .padding(.bottom, 24)
-        .background(Color.iumrahCardBackground)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 30, topTrailingRadius: 30, style: .continuous))
-        .shadow(color: .black.opacity(0.22), radius: 30, x: 12)
-        .sheet(isPresented: $chrome.isProfileEditorPresented) {
-            ProfileSettingsView()
-                .environmentObject(settings)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
+        .padding(.top, 28)
     }
 
     private var profileCard: some View {
         Button {
             chrome.isProfileEditorPresented = true
+            chrome.closeDrawer()
         } label: {
             HStack(spacing: 13) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 38))
-                    .symbolRenderingMode(.hierarchical)
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [Color.iumrahCareLight.opacity(0.55), Color.iumrahCareDark.opacity(0.14)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.iumrahCareDark)
+                }
+                .frame(width: 46, height: 46)
+
                 VStack(alignment: .leading, spacing: 3) {
                     Text(settings.displayName)
                         .font(.headline)
+                        .lineLimit(1)
                     Text(settings.hasBookingIdentity ? L10n.text("profile_subtitle_ready", settings.language) : L10n.text("profile_subtitle_empty", settings.language))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
-                Spacer()
+
+                Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.tertiary)
             }
             .padding(14)
-            .background(Color.iumrahRaisedBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Color.iumrahRaisedBackground.opacity(0.86))
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 20)
+    }
+
+    private func navigationRow(_ tab: AppTab, title: String, icon: String, careAccent: Bool = false) -> some View {
+        Button {
+            chrome.navigate(to: tab)
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(careAccent ? Color.iumrahCareDark : Color.primary)
+                    .frame(width: 34, height: 34)
+                    .background(careAccent ? Color.iumrahCareLight.opacity(0.22) : Color.iumrahRaisedBackground)
+                    .clipShape(Circle())
+
+                Text(title)
+                    .font(.body.weight(chrome.currentTab == tab ? .semibold : .medium))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if chrome.currentTab == tab {
+                    Circle()
+                        .fill(careAccent ? Color.iumrahCareLight : Color.primary)
+                        .frame(width: 7, height: 7)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 52)
+            .background(chrome.currentTab == tab ? Color.iumrahRaisedBackground.opacity(0.72) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 
-    private func drawerRow(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            drawerLabel(title, systemImage: systemImage)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func drawerLabel(_ title: String, systemImage: String) -> some View {
+    private func settingsRow(title: String, value: String?, icon: String) -> some View {
         HStack(spacing: 13) {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .semibold))
-                .frame(width: 26)
-            Text(title)
-                .font(.body.weight(.medium))
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: 34, height: 34)
+                .background(Color.iumrahRaisedBackground)
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                if let value {
+                    Text(value)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.tertiary)
         }
-        .contentShape(Rectangle())
         .padding(.horizontal, 8)
-        .frame(height: 50)
+        .frame(height: 54)
+        .contentShape(Rectangle())
     }
 }
