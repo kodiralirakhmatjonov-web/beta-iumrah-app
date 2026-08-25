@@ -27,11 +27,8 @@ struct TripBuilderView: View {
             .padding(.top, 12)
             .padding(.bottom, 42)
         }
-        .safeAreaInset(edge: .top, spacing: 8) {
-            progressHeader
-                .padding(.horizontal, IumrahDesign.pagePadding)
-        }
         .background(Color.iumrahPageBackground)
+        .iumrahInternalNavigation(progress: .trip)
     }
 
     private var intro: some View {
@@ -51,78 +48,43 @@ struct TripBuilderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var progressHeader: some View {
-        HStack(spacing: 8) {
-            step("1", L10n.text("step_trip", settings.language), active: true)
-            divider
-            step("2", L10n.text("step_hotel", settings.language), active: false)
-            divider
-            step("3", L10n.text("step_flight", settings.language), active: false)
-            divider
-            step("4", L10n.text("step_ready", settings.language), active: false)
-        }
-        .padding(14)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.primary.opacity(0.05), lineWidth: 1) }
-    }
-
-    private var divider: some View {
-        Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 18, height: 1)
-    }
-
-    private func step(_ number: String, _ title: String, active: Bool) -> some View {
-        HStack(spacing: 9) {
-            Text(number)
-                .font(.caption2.weight(.bold))
-                .frame(width: 26, height: 26)
-                .foregroundColor(active ? Color.iumrahPrimaryButtonText : Color.secondary)
-                .background(active ? Color.iumrahPrimaryButtonBackground : Color.iumrahRaisedBackground)
-                .clipShape(Circle())
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(active ? Color.primary : Color.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private var routeCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(settings.language == .english ? "Where your trip starts" : settings.language == .uzbek ? "Safar qayerdan boshlanadi" : settings.language == .uzbekCyrillic ? "Сафар қаердан бошланади" : "Откуда начинается поездка", systemImage: "airplane.departure")
+            Label(L10n.text("trip_origin_title", settings.language), systemImage: "airplane.departure")
                 .font(.headline)
 
             AirportSelectorButton(airport: $journey.trip.originAirport, fallbackCode: $journey.trip.origin)
 
-            Text(settings.language == .english ? "Where do you want to go" : settings.language == .uzbek ? "Qayerga yo‘l olmoqchisiz" : settings.language == .uzbekCyrillic ? "Қаерга йўл олмоқчисиз" : "Куда хотите отправиться")
+            Text(L10n.text("trip_destination_title", settings.language))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            Picker("Route", selection: $journey.trip.scope) {
+            Picker(L10n.text("trip_route_picker", settings.language), selection: $journey.trip.scope) {
                 ForEach(JourneyScope.allCases) { scope in
-                    Text(scope.title).tag(scope)
+                    Text(scope.title(settings.language)).tag(scope)
                 }
             }
             .pickerStyle(.segmented)
 
             if journey.trip.scope == .makkahAndMadinah {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(settings.language == .english ? "Which airport first" : settings.language == .uzbek ? "Avval qaysi aeroport" : settings.language == .uzbekCyrillic ? "Аввал қайси аэропорт" : "Куда прилететь сначала")
+                    Text(L10n.text("trip_arrival_title", settings.language))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
 
-                    Picker("Arrival airport", selection: $journey.trip.arrivalAirport) {
+                    Picker(L10n.text("trip_arrival_picker", settings.language), selection: $journey.trip.arrivalAirport) {
                         ForEach(SaudiArrivalAirport.allCases) { airport in
-                            Text(airport.shortTitle).tag(airport)
+                            Text(airport.shortTitle(settings.language)).tag(airport)
                         }
                     }
                     .pickerStyle(.segmented)
 
-                    Text(journey.trip.arrivalAirport == .madinah
-                         ? (settings.language == .english ? "Start with Madinah. Return flights will be searched from Jeddah." : settings.language == .uzbek ? "Avval Madina. Qaytish reysi Jiddadan qidiriladi." : settings.language == .uzbekCyrillic ? "Аввал Мадина. Қайтиш рейси Жиддадан қидирилади." : "Сначала Медина. Обратный перелёт будем искать из Джидды.")
-                         : (settings.language == .english ? "Start with Makkah via Jeddah. Return flights will be searched from Madinah." : settings.language == .uzbek ? "Avval Makka Jidda orqali. Qaytish reysi Madinadan qidiriladi." : settings.language == .uzbekCyrillic ? "Аввал Макка Жидда орқали. Қайтиш рейси Мадинадан қидирилади." : "Сначала Мекка через Джидду. Обратный перелёт будем искать из Медины."))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(L10n.text(
+                        journey.trip.arrivalAirport == .madinah ? "trip_arrival_madinah_hint" : "trip_arrival_jeddah_hint",
+                        settings.language
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
                 .padding(.top, 2)
             }
@@ -132,13 +94,13 @@ struct TripBuilderView: View {
 
     private var datesCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(settings.language == .english ? "When do you want to travel" : settings.language == .uzbek ? "Qachon yo‘lga chiqmoqchisiz" : settings.language == .uzbekCyrillic ? "Қачон йўлга чиқмоқчисиз" : "Когда хотите отправиться", systemImage: "calendar")
+            Label(L10n.text("trip_dates_title", settings.language), systemImage: "calendar")
                 .font(.headline)
 
-            DatePicker(settings.language == .english ? "Departure" : settings.language == .uzbek ? "Jo‘nash" : settings.language == .uzbekCyrillic ? "Жўнаш" : "Вылет", selection: $journey.trip.departureDate, in: Date()..., displayedComponents: .date)
-            DatePicker(settings.language == .english ? "Return" : settings.language == .uzbek ? "Qaytish" : settings.language == .uzbekCyrillic ? "Қайтиш" : "Обратно", selection: $journey.trip.returnDate, in: journey.trip.departureDate..., displayedComponents: .date)
+            DatePicker(L10n.text("departure", settings.language), selection: $journey.trip.departureDate, in: Date()..., displayedComponents: .date)
+            DatePicker(L10n.text("return", settings.language), selection: $journey.trip.returnDate, in: journey.trip.departureDate..., displayedComponents: .date)
 
-            Text(settings.language == .english ? "Flexible dates help find more suitable flights." : settings.language == .uzbek ? "Moslashuvchan sanalar ko‘proq parvoz variantlarini topishga yordam beradi." : settings.language == .uzbekCyrillic ? "Мослашувчан саналар кўпроқ парвоз вариантларини топишга ёрдам беради." : "Гибкие даты помогают найти больше подходящих перелётов.")
+            Text(L10n.text("trip_flexible_hint", settings.language))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -149,12 +111,13 @@ struct TripBuilderView: View {
                             journey.trip.flexibility = option
                             IumrahHaptics.selection()
                         } label: {
-                            Text(option.title)
+                            let selected = journey.trip.flexibility == option
+                            Text(option.title(settings.language))
                                 .font(.subheadline.weight(.semibold))
                                 .padding(.horizontal, 14)
                                 .frame(height: 38)
-                                .background(journey.trip.flexibility == option ? Color.primary : Color.iumrahRaisedBackground)
-                                .foregroundStyle(journey.trip.flexibility == option ? Color(uiColor: .systemBackground) : Color.primary)
+                                .background(selected ? Color.primary : Color.iumrahRaisedBackground)
+                                .foregroundColor(selected ? Color(uiColor: .systemBackground) : Color.primary)
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -167,29 +130,29 @@ struct TripBuilderView: View {
 
     private var travelersCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(settings.language == .english ? "Who travels with you" : settings.language == .uzbek ? "Siz bilan kim safar qiladi" : settings.language == .uzbekCyrillic ? "Сиз билан ким сафар қилади" : "Кто отправляется с вами", systemImage: "person.2")
+            Label(L10n.text("trip_travelers_title", settings.language), systemImage: "person.2")
                 .font(.headline)
                 .padding(.bottom, 4)
 
-            Text(settings.language == .english ? "Rooming and flights will be calculated for your family or group." : settings.language == .uzbek ? "Joylashuv va parvozlar oilangiz yoki guruhingiz uchun hisoblanadi." : settings.language == .uzbekCyrillic ? "Жойлашув ва парвозлар оилангиз ёки гуруҳингиз учун ҳисобланади." : "Размещение и перелёт будут рассчитаны под вашу семью или компанию.")
+            Text(L10n.text("trip_travelers_body", settings.language))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 4)
 
-            CounterRow(title: settings.language == .english ? "Adults" : settings.language == .uzbek ? "Kattalar" : settings.language == .uzbekCyrillic ? "Катталар" : "Взрослые", subtitle: nil, value: $journey.trip.adults, minimum: 1, maximum: 10)
+            CounterRow(title: L10n.text("adults", settings.language), subtitle: nil, value: $journey.trip.adults, minimum: 1, maximum: 10)
             Divider()
-            CounterRow(title: settings.language == .english ? "Children" : settings.language == .uzbek ? "Bolalar" : settings.language == .uzbekCyrillic ? "Болалар" : "Дети", subtitle: settings.language == .english ? "2–11 years" : settings.language == .uzbek ? "2–11 yosh" : settings.language == .uzbekCyrillic ? "2–11 ёш" : "2–11 лет", value: $journey.trip.children, minimum: 0, maximum: 8)
+            CounterRow(title: L10n.text("children", settings.language), subtitle: L10n.text("children_age", settings.language), value: $journey.trip.children, minimum: 0, maximum: 8)
             Divider()
-            CounterRow(title: settings.language == .english ? "Infants" : settings.language == .uzbek ? "Go‘daklar" : settings.language == .uzbekCyrillic ? "Гўдаклар" : "Младенцы", subtitle: settings.language == .english ? "under 2" : settings.language == .uzbek ? "2 yoshgacha" : settings.language == .uzbekCyrillic ? "2 ёшгача" : "до 2 лет", value: $journey.trip.infants, minimum: 0, maximum: 4)
+            CounterRow(title: L10n.text("infants", settings.language), subtitle: L10n.text("infants_age", settings.language), value: $journey.trip.infants, minimum: 0, maximum: 4)
             Divider()
-            CounterRow(title: settings.language == .english ? "Rooms" : settings.language == .uzbek ? "Xonalar" : settings.language == .uzbekCyrillic ? "Хоналар" : "Комнаты", subtitle: nil, value: $journey.trip.rooms, minimum: 1, maximum: 6)
+            CounterRow(title: L10n.text("rooms", settings.language), subtitle: nil, value: $journey.trip.rooms, minimum: 1, maximum: 6)
         }
         .iumrahCard()
     }
 
     private var hotelClassCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(settings.language == .english ? "Hotel level" : settings.language == .uzbek ? "Mehmonxona darajasi" : settings.language == .uzbekCyrillic ? "Меҳмонхона даражаси" : "Уровень отеля", systemImage: "building.2")
+            Label(L10n.text("hotel_level", settings.language), systemImage: "building.2")
                 .font(.headline)
 
             HStack(spacing: 8) {
@@ -198,12 +161,13 @@ struct TripBuilderView: View {
                         journey.trip.hotelStars = stars
                         IumrahHaptics.selection()
                     } label: {
+                        let selected = journey.trip.hotelStars == stars
                         Text("\(stars)★")
                             .font(.subheadline.weight(.bold))
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
-                            .background(journey.trip.hotelStars == stars ? Color.primary : Color.iumrahRaisedBackground)
-                            .foregroundStyle(journey.trip.hotelStars == stars ? Color(uiColor: .systemBackground) : Color.primary)
+                            .background(selected ? Color.primary : Color.iumrahRaisedBackground)
+                            .foregroundColor(selected ? Color(uiColor: .systemBackground) : Color.primary)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -215,7 +179,7 @@ struct TripBuilderView: View {
 
     private var packageCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(settings.language == .english ? "What trip format fits you" : settings.language == .uzbek ? "Qaysi safar formati sizga mos" : settings.language == .uzbekCyrillic ? "Қайси сафар формати сизга мос" : "Какой формат поездки вам ближе", systemImage: "square.grid.2x2")
+            Label(L10n.text("trip_format_title", settings.language), systemImage: "square.grid.2x2")
                 .font(.headline)
 
             ForEach(PackageTier.allCases) { tier in
@@ -228,9 +192,10 @@ struct TripBuilderView: View {
                             .font(.title3)
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 7) {
-                                Text(tier.title).font(.body.weight(.semibold))
+                                Text(tier.title(settings.language))
+                                    .font(.body.weight(.semibold))
                                 if tier == .standard {
-                                    Text(settings.language == .english ? "POPULAR" : settings.language == .uzbek ? "KO‘P TANLANADI" : settings.language == .uzbekCyrillic ? "КЎП ТАНЛАНАДИ" : "ЧАЩЕ ВЫБИРАЮТ")
+                                    Text(L10n.text("popular", settings.language))
                                         .font(.system(size: 9, weight: .bold))
                                         .padding(.horizontal, 7)
                                         .frame(height: 20)
@@ -238,7 +203,9 @@ struct TripBuilderView: View {
                                         .clipShape(Capsule())
                                 }
                             }
-                            Text(tier.subtitle).font(.caption).foregroundStyle(.secondary)
+                            Text(tier.subtitle(settings.language))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                     }

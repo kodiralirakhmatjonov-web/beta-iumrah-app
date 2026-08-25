@@ -2,14 +2,20 @@ import SwiftUI
 
 struct PrimaryHotelView: View {
     @EnvironmentObject private var journey: JourneyStore
+    @EnvironmentObject private var settings: AppSettingsStore
 
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
                 SectionHeader(
-                    "Мы подобрали отель для вашей поездки",
-                    eyebrow: "Рекомендует iumrah",
-                    subtitle: "Он соответствует выбранному уровню \(journey.trip.packageTier.title) и категории \(journey.trip.hotelStars)★. Вы можете оставить его или посмотреть другие варианты."
+                    L10n.text("primary_hotel_title", settings.language),
+                    eyebrow: L10n.text("primary_hotel_badge", settings.language),
+                    subtitle: L10n.format(
+                        "primary_hotel_subtitle",
+                        settings.language,
+                        journey.trip.packageTier.title(settings.language),
+                        journey.trip.hotelStars
+                    )
                 )
 
                 content
@@ -19,8 +25,7 @@ struct PrimaryHotelView: View {
             .padding(.bottom, 36)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("Отель")
-        .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation(progress: .hotel)
         .task {
             if journey.hotels.isEmpty {
                 await journey.loadMakkahHotels()
@@ -33,45 +38,45 @@ struct PrimaryHotelView: View {
         if journey.isLoadingHotels {
             VStack(spacing: 14) {
                 ProgressView()
-                Text("Загружаем каталог iumrah…")
+                Text(L10n.text("primary_hotel_loading", settings.language))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 80)
-        } else if let message = journey.errorMessage, journey.hotels.isEmpty {
+        } else if journey.errorMessage != nil, journey.hotels.isEmpty {
             VStack(spacing: 16) {
                 Image(systemName: "wifi.exclamationmark")
                     .font(.largeTitle)
-                Text(message)
+                Text(L10n.text("hotels_load_error", settings.language))
+                    .font(.headline)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                Button("Повторить") {
+                Button(L10n.text("retry", settings.language)) {
                     Task { await journey.loadMakkahHotels() }
                 }
                 .buttonStyle(IumrahSecondaryButtonStyle())
             }
             .iumrahCard()
         } else if let hotel = journey.selectedHotel {
-            HotelCard(hotel: hotel, badge: "Рекомендует iumrah")
+            HotelCard(hotel: hotel, badge: L10n.text("primary_hotel_badge", settings.language))
 
             NavigationLink {
                 OutboundFlightView()
             } label: {
-                Text("Продолжить с этим отелем")
+                Text(L10n.text("primary_hotel_continue", settings.language))
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
 
             NavigationLink {
                 HotelSelectionView()
             } label: {
-                Text("Посмотреть другие варианты")
+                Text(L10n.text("primary_hotel_other", settings.language))
             }
             .buttonStyle(IumrahSecondaryButtonStyle())
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "building.2.crop.circle")
                     .font(.largeTitle)
-                Text("В каталоге пока нет подходящего отеля.")
+                Text(L10n.text("primary_hotel_empty", settings.language))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }

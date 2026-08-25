@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct FlightSearchReadyView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+
     var body: some View {
         VStack(spacing: 16) {
             ZStack(alignment: .bottom) {
@@ -16,9 +18,9 @@ struct FlightSearchReadyView: View {
             }
 
             VStack(spacing: 5) {
-                Text("Готово")
+                Text(L10n.text("flight_ready_title", settings.language))
                     .font(.title2.weight(.bold))
-                Text("Лучшие варианты найдены и пакет пересчитан")
+                Text(L10n.text("flight_ready_body", settings.language))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

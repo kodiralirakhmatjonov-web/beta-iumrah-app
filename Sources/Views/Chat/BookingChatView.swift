@@ -7,16 +7,18 @@ struct BookingChatView: View {
 
     @State private var messages: [ChatMessage] = []
     @State private var draft = ""
+    @State private var failedDraft: String?
     @State private var isSending = false
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @FocusState private var composerFocused: Bool
 
     var session: StoredBookingSession? { bookings.booking(id: bookingID) }
 
     var body: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
-                header
+                conversationHeader
 
                 ZStack {
                     Color.iumrahPageBackground
@@ -26,7 +28,7 @@ struct BookingChatView: View {
                         emptyState
                     } else {
                         ScrollView {
-                            LazyVStack(spacing: 12) {
+                            LazyVStack(spacing: 10) {
                                 ForEach(messages) { message in
                                     bubble(message)
                                         .id(message.id)
@@ -35,30 +37,15 @@ struct BookingChatView: View {
                             .padding(.horizontal, IumrahDesign.pagePadding)
                             .padding(.vertical, 18)
                         }
+                        .scrollDismissesKeyboard(.interactively)
                         .onChange(of: messages.count) { _, _ in
-                            if let last = messages.last {
-                                withAnimation(.easeOut(duration: 0.22)) {
-                                    proxy.scrollTo(last.id, anchor: .bottom)
-                                }
-                            }
+                            scrollToLatest(proxy)
                         }
                     }
                 }
 
                 if let errorMessage {
-                    Button(L10n.text("chat_retry", settings.language)) {
-                        Task { await load() }
-                    }
-                    .buttonStyle(IumrahSecondaryButtonStyle())
-                    .padding(.horizontal, IumrahDesign.pagePadding)
-                    .padding(.bottom, 8)
-                    .overlay(alignment: .topLeading) {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, IumrahDesign.pagePadding)
-                            .offset(y: -10)
-                    }
+                    errorBar(errorMessage)
                 }
 
                 composer
@@ -66,30 +53,35 @@ struct BookingChatView: View {
             .background(Color.iumrahPageBackground)
             .task {
                 await load()
+                scrollToLatest(proxy, animated: false)
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(10))
                     await load(silent: true)
                 }
             }
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation()
     }
 
-    private var header: some View {
+    private var conversationHeader: some View {
         HStack(spacing: 14) {
             Image("CareMark")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 44, height: 44)
-                .background(.white)
+                .padding(4)
+                .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(session?.travelerName ?? bookingID)
                     .font(.headline)
+                    .lineLimit(1)
                 HStack(spacing: 6) {
-                    Circle().fill(Color.iumrahCareLight).frame(width: 7, height: 7)
-                    Text("Aiomra Care · \(L10n.text("chat_online", settings.language))")
+                    Circle()
+                        .fill(Color.iumrahCareLight)
+                        .frame(width: 7, height: 7)
+                    Text("iumrah Care · \(L10n.text("chat_online", settings.language))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -99,13 +91,20 @@ struct BookingChatView: View {
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.vertical, 12)
         .background(Color.iumrahPageBackground)
+        .overlay(alignment: .bottom) {
+            Divider().opacity(0.45)
+        }
     }
 
     private var emptyState: some View {
         VStack(spacing: 14) {
-            Image(systemName: "message")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(.secondary)
+            Image("CareMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .padding(8)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             Text(L10n.text("chat_empty_title", settings.language))
                 .font(.headline)
             Text(L10n.text("chat_empty_body", settings.language))
@@ -119,46 +118,92 @@ struct BookingChatView: View {
 
     private func bubble(_ message: ChatMessage) -> some View {
         let isMine = message.senderType.lowercased() == "pilgrim"
-        return HStack {
-            if isMine { Spacer(minLength: 34) }
+        return HStack(alignment: .bottom, spacing: 8) {
+            if isMine { Spacer(minLength: 46) }
+
+            if !isMine {
+                Image("CareMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .padding(3)
+                    .background(Color.white)
+                    .clipShape(Circle())
+            }
+
             VStack(alignment: .leading, spacing: 5) {
                 Text(isMine ? L10n.text("chat_you", settings.language) : L10n.text("chat_staff", settings.language))
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(isMine ? Color.secondary : Color.white.opacity(0.72))
+                    .foregroundColor(isMine ? Color.secondary : Color.white.opacity(0.72))
                 Text(message.body)
                     .font(.body)
-                    .foregroundStyle(isMine ? Color.primary : Color.white)
+                    .foregroundColor(isMine ? Color.primary : Color.white)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(chatTimeLabel(message.createdAt))
                     .font(.caption2)
-                    .foregroundStyle(isMine ? Color.secondary : Color.white.opacity(0.65))
+                    .foregroundColor(isMine ? Color.secondary : Color.white.opacity(0.65))
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.horizontal, 15)
-            .padding(.vertical, 12)
+            .padding(.vertical, 11)
             .background {
                 if isMine {
                     Color.iumrahCardBackground
                 } else {
-                    LinearGradient(colors: [Color.iumrahCareDark, Color.iumrahCareLight], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(
+                        colors: [Color.iumrahCareDark, Color.iumrahCareLight],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(alignment: isMine ? .bottomTrailing : .bottomLeading) {
-                Circle().fill(isMine ? Color.iumrahCardBackground : Color.iumrahCareDark).frame(width: 10, height: 10).offset(x: isMine ? 2 : -2, y: 2)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(isMine ? Color.primary.opacity(0.055) : Color.clear, lineWidth: 1)
             }
-            if !isMine { Spacer(minLength: 34) }
+
+            if !isMine { Spacer(minLength: 46) }
         }
+    }
+
+    private func errorBar(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(L10n.text("chat_retry", settings.language)) {
+                if let failedDraft, !failedDraft.isEmpty {
+                    draft = failedDraft
+                    Task { await send() }
+                } else {
+                    Task { await load() }
+                }
+            }
+            .font(.caption.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, IumrahDesign.pagePadding)
+        .padding(.vertical, 10)
+        .background(Color.red.opacity(0.055))
     }
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
+                .focused($composerFocused)
                 .lineLimit(1...4)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .padding(.vertical, 13)
                 .background(Color.iumrahCardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.055), lineWidth: 1)
+                }
+
             Button {
                 Task { await send() }
             } label: {
@@ -171,11 +216,11 @@ struct BookingChatView: View {
                     }
                 }
                 .frame(width: 50, height: 50)
-                .foregroundStyle(.white)
-                .background((draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending) ? Color.secondary.opacity(0.45) : Color.iumrahCareDark)
+                .foregroundColor(.white)
+                .background(sendButtonColor)
                 .clipShape(Circle())
             }
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+            .disabled(!canSend)
         }
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.top, 10)
@@ -183,16 +228,24 @@ struct BookingChatView: View {
         .background(.ultraThinMaterial)
     }
 
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+    }
+
+    private var sendButtonColor: Color {
+        canSend ? Color.iumrahCareDark : Color.secondary.opacity(0.45)
+    }
+
     @MainActor
     private func load(silent: Bool = false) async {
         if !silent { isLoading = true }
-        defer { isLoading = false }
+        defer { if !silent { isLoading = false } }
         do {
             let loaded = try await bookings.loadChat(for: bookingID)
             messages = loaded.sorted(by: { $0.id < $1.id })
-            errorMessage = nil
+            if failedDraft == nil { errorMessage = nil }
         } catch {
-            errorMessage = error.localizedDescription
+            if !silent { errorMessage = L10n.error(error, settings.language) }
         }
     }
 
@@ -200,18 +253,33 @@ struct BookingChatView: View {
     private func send() async {
         let message = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isSending else { return }
+
         isSending = true
+        errorMessage = nil
+        failedDraft = nil
         do {
             _ = try await bookings.send(message: message, for: bookingID)
             draft = ""
             messages = bookings.chats[bookingID] ?? messages
-            errorMessage = nil
+            composerFocused = true
             IumrahHaptics.selection()
         } catch {
-            errorMessage = error.localizedDescription
+            failedDraft = message
+            errorMessage = L10n.format("chat_send_failed", settings.language, L10n.error(error, settings.language))
             IumrahHaptics.error()
         }
         isSending = false
+    }
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy, animated: Bool = true) {
+        guard let last = messages.last else { return }
+        if animated {
+            withAnimation(.easeOut(duration: 0.22)) {
+                proxy.scrollTo(last.id, anchor: .bottom)
+            }
+        } else {
+            proxy.scrollTo(last.id, anchor: .bottom)
+        }
     }
 
     private func chatTimeLabel(_ raw: String) -> String {

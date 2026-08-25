@@ -21,6 +21,7 @@ struct BookingCheckoutView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
+        .iumrahInternalNavigation(progress: .ready)
         .navigationDestination(item: $createdSession) { session in
             BookingDetailView(bookingID: session.id)
         }
@@ -47,7 +48,7 @@ struct BookingCheckoutView: View {
                     Text("\(journey.trip.originCode) → \(journey.trip.outboundDestinationCode)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    PackagePriceView(amount: quote.totalPackagePrice, currency: "USD")
+                    PackagePriceView(amount: quote.totalPackagePrice, currency: quote.currency, showsPerPerson: false)
                 }
                 .padding(16)
                 .background(Color.iumrahRaisedBackground)
@@ -150,10 +151,10 @@ struct BookingCheckoutView: View {
 
         do {
             let profile = BookingPilgrimProfile(
-                firstName: settings.firstName,
-                lastName: settings.lastName,
-                telegram: settings.telegram,
-                whatsapp: settings.whatsapp
+                firstName: settings.firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                lastName: settings.lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                telegram: settings.telegram.trimmingCharacters(in: .whitespacesAndNewlines),
+                whatsapp: settings.whatsapp.trimmingCharacters(in: .whitespacesAndNewlines)
             )
             let session = try await bookings.create(
                 trip: journey.trip,
@@ -167,7 +168,7 @@ struct BookingCheckoutView: View {
             createdSession = session
             IumrahHaptics.success()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = L10n.error(error, settings.language)
             IumrahHaptics.error()
         }
     }

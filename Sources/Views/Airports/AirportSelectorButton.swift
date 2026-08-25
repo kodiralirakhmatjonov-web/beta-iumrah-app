@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AirportSelectorButton: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     @Binding var airport: Airport?
     @Binding var fallbackCode: String
     @State private var isPresented = false
@@ -18,7 +19,7 @@ struct AirportSelectorButton: View {
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Аэропорт вылета")
+                    Text(L10n.text("airport_title", settings.language))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if let airport {
@@ -29,7 +30,7 @@ struct AirportSelectorButton: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     } else {
-                        Text(fallbackCode.isEmpty ? "Выберите аэропорт" : fallbackCode.uppercased())
+                        Text(fallbackCode.isEmpty ? L10n.text("airport_search_title", settings.language) : fallbackCode.uppercased())
                             .font(.headline)
                     }
                 }

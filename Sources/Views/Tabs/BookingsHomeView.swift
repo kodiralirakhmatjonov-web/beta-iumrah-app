@@ -15,7 +15,7 @@ struct BookingsHomeView: View {
                     SectionHeader(
                         L10n.text("tab_booking", settings.language),
                         eyebrow: L10n.text("booking_hero_kicker", settings.language),
-                        subtitle: settings.language == .english ? "Every created trip, its status and support stay together in one place." : settings.language == .uzbek ? "Har bir yaratilgan safar, uning holati va yordami bitta joyda saqlanadi." : settings.language == .uzbekCyrillic ? "Ҳар бир яратилган сафар, унинг ҳолати ва ёрдами битта жойда сақланади." : "Все созданные поездки, их статусы и поддержка остаются в одном месте."
+                        subtitle: L10n.text("booking_home_subtitle", settings.language)
                     )
 
                     ForEach(bookings.sessions) { session in
@@ -119,7 +119,7 @@ struct BookingsHomeView: View {
             }
 
             HStack {
-                Text(session.booking.input.startDate)
+                Text(L10n.date(session.booking.input.startDate, settings.language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -150,12 +150,8 @@ struct BookingsHomeView: View {
     }
 
     private func localizedPlan(_ value: String) -> String {
-        switch value.lowercased() {
-        case "economy": return settings.language == .english ? "Economy" : settings.language == .uzbek ? "Ekonom" : settings.language == .uzbekCyrillic ? "Эконом" : "Эконом"
-        case "standard": return settings.language == .english ? "Standard" : settings.language == .uzbek ? "Standart" : settings.language == .uzbekCyrillic ? "Стандарт" : "Стандарт"
-        case "comfort": return settings.language == .english ? "Comfort" : settings.language == .uzbek ? "Komfort" : settings.language == .uzbekCyrillic ? "Комфорт" : "Комфорт"
-        case "luxury": return settings.language == .english ? "Luxury" : settings.language == .uzbek ? "Premium" : settings.language == .uzbekCyrillic ? "Премиум" : "Люкс"
-        default: return value
-        }
+        guard let tier = PackageTier(rawValue: value.lowercased()) else { return value }
+        return tier.title(settings.language)
     }
+
 }

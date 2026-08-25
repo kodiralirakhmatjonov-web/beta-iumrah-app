@@ -6,15 +6,18 @@ struct FlightSearchImmersiveView: View {
         case ready
     }
 
+    @EnvironmentObject private var settings: AppSettingsStore
     let state: Phase
     @State private var step = 0
 
-    private let searchSteps = [
-        "Проверяем авиакомпании",
-        "Сравниваем подходящие даты",
-        "Пересчитываем всю поездку",
-        "Лучшие билеты почти готовы"
-    ]
+    private var searchSteps: [String] {
+        [
+            L10n.text("flight_search_airlines", settings.language),
+            L10n.text("flight_search_dates", settings.language),
+            L10n.text("flight_search_reprice", settings.language),
+            L10n.text("flight_search_almost", settings.language)
+        ]
+    }
 
     var body: some View {
         ZStack {
@@ -37,12 +40,12 @@ struct FlightSearchImmersiveView: View {
                 Spacer(minLength: 22)
 
                 VStack(spacing: 8) {
-                    Text(state == .searching ? "Лучшие билеты почти готовы" : "Готово")
+                    Text(state == .searching ? L10n.text("flight_search_hero", settings.language) : L10n.text("flight_ready_title", settings.language))
                         .font(.system(size: 27, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
-                    Text(state == .searching ? searchSteps[min(step, searchSteps.count - 1)] : "Подходящие варианты найдены, стоимость поездки пересчитана")
+                    Text(state == .searching ? searchSteps[min(step, searchSteps.count - 1)] : L10n.text("flight_ready_body", settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.58))
                         .multilineTextAlignment(.center)

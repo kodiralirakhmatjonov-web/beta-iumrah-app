@@ -5,6 +5,7 @@ enum APIError: LocalizedError {
     case status(Int)
     case server(Int, String)
     case decoding(Error)
+    case missingBookingToken
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,8 @@ enum APIError: LocalizedError {
             return message
         case .decoding:
             return "Не удалось прочитать данные сервера."
+        case .missingBookingToken:
+            return "Booking access token is missing."
         }
     }
 }
@@ -52,7 +55,7 @@ actor APIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("iumrah-ios-beta/0.14", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.21", forHTTPHeaderField: "User-Agent")
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         request.httpBody = try encoder.encode(body)
 
@@ -74,7 +77,7 @@ actor APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("iumrah-ios-beta/0.14", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.21", forHTTPHeaderField: "User-Agent")
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
 
         let (data, response) = try await session.data(for: request)

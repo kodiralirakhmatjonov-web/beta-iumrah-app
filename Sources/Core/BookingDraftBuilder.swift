@@ -73,7 +73,7 @@ enum BookingDraftBuilder {
                 esim: true
             ),
             includedServices: services,
-            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? "Recommended hotel · Madinah" : ""),
+            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? L10n.text("recommended_madinah_hotel", language) : ""),
             flight: "\(outbound.airline) \(outbound.flightNumber) · \(inbound.airline) \(inbound.flightNumber)",
             pilgrimProfile: pilgrimProfile
         )

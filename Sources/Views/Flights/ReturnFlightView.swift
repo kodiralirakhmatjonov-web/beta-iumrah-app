@@ -3,6 +3,7 @@ import SwiftUI
 struct ReturnFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var chrome: AppChromeStore
+    @EnvironmentObject private var settings: AppSettingsStore
     @ObservedObject private var challengeCenter = FlightBotChallengeCenter.shared
     @State private var offers: [FlightOffer] = []
     @State private var isLoading = true
@@ -18,14 +19,13 @@ struct ReturnFlightView: View {
                 FlightSearchImmersiveView(state: .ready)
             } else {
                 resultsView
+                    .iumrahInternalNavigation(progress: .flight)
             }
         }
         .background(isLoading || showingReadyAnimation ? Color.black : Color.iumrahPageBackground)
-        .navigationTitle(isLoading || showingReadyAnimation ? "" : "Обратно")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(isLoading || showingReadyAnimation ? .hidden : .visible, for: .navigationBar)
+        .toolbar(.hidden, for: .navigationBar)
         .task { await search(force: false) }
-        .onAppear { chrome.setImmersive(isLoading || showingReadyAnimation) }
+        .onAppear { updateImmersive() }
         .onChange(of: isLoading) { _, _ in updateImmersive() }
         .onChange(of: showingReadyAnimation) { _, _ in updateImmersive() }
         .onDisappear { chrome.setImmersive(false) }
@@ -43,9 +43,9 @@ struct ReturnFlightView: View {
         ScrollView {
             LazyVStack(spacing: 18) {
                 SectionHeader(
-                    "Выберите обратный перелёт",
-                    eyebrow: "Обратно",
-                    subtitle: "Стоимость пересчитана вместе с уже выбранным рейсом туда и означает весь пакет целиком."
+                    L10n.text("flight_return_title", settings.language),
+                    eyebrow: L10n.text("flight_return_eyebrow", settings.language),
+                    subtitle: L10n.text("flight_return_body", settings.language)
                 )
 
                 if let errorText {
@@ -71,7 +71,7 @@ struct ReturnFlightView: View {
                         NavigationLink {
                             FinalPackageView()
                         } label: {
-                            Text("Посмотреть готовую Умру")
+                            Text(L10n.text("flight_view_package", settings.language))
                         }
                         .buttonStyle(IumrahPrimaryButtonStyle())
                         .padding(.top, 4)
@@ -101,7 +101,7 @@ struct ReturnFlightView: View {
         if !force, !offers.isEmpty { isLoading = false; return }
         guard let hotel = journey.selectedHotel,
               let outbound = journey.selectedOutbound else {
-            errorText = "Сначала выберите рейс туда."
+            errorText = L10n.text("flight_select_outbound_first", settings.language)
             isLoading = false
             return
         }
@@ -110,8 +110,7 @@ struct ReturnFlightView: View {
         errorText = nil
         journey.errorMessage = nil
         do {
-            let found = try await journey.flightService.searchReturn(trip: journey.trip, hotel: hotel, outbound: outbound)
-            offers = found
+            offers = try await journey.flightService.searchReturn(trip: journey.trip, hotel: hotel, outbound: outbound)
             isLoading = false
             showingReadyAnimation = true
             IumrahHaptics.success()
@@ -119,7 +118,7 @@ struct ReturnFlightView: View {
             withAnimation(.easeInOut(duration: 0.28)) { showingReadyAnimation = false }
             return
         } catch {
-            errorText = error.localizedDescription
+            errorText = L10n.error(error, settings.language)
             journey.errorMessage = error.localizedDescription
         }
         isLoading = false

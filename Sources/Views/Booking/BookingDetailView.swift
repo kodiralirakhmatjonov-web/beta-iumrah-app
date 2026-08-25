@@ -44,8 +44,7 @@ struct BookingDetailView: View {
                 .background(Color.iumrahPageBackground)
             }
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation()
     }
 
     private func hero(_ booking: RemoteBooking, name: String?) -> some View {
@@ -79,13 +78,17 @@ struct BookingDetailView: View {
                 .font(.headline)
             summaryRow(title: L10n.text("route_label", settings.language), value: "\(booking.route.originCode) → \(booking.route.outboundDestination)")
             summaryRow(title: L10n.text("route_return", settings.language), value: booking.route.returnOrigin)
-            summaryRow(title: booking.hotelNames.makkah, value: booking.input.startDate)
+            summaryRow(title: L10n.text("detail_hotel", settings.language), value: booking.hotelNames.makkah)
+            summaryRow(
+                title: L10n.text("detail_dates", settings.language),
+                value: "\(L10n.date(booking.input.startDate, settings.language)) — \(L10n.date(booking.input.endDate, settings.language))"
+            )
             HStack {
                 Text("\(L10n.text("total_for", settings.language)) \(booking.input.travelers.totalPeople) \(L10n.text("travelers", settings.language))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
-                PackagePriceView(amount: Decimal(booking.totalUsd), currency: "USD")
+                PackagePriceView(amount: Decimal(booking.totalUsd), currency: "USD", showsPerPerson: false)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,7 +99,7 @@ struct BookingDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(booking.flight)
                 .font(.headline)
-            Text("\(booking.input.startDate) — \(booking.input.endDate)")
+            Text("\(L10n.date(booking.input.startDate, settings.language)) — \(L10n.date(booking.input.endDate, settings.language))")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(booking.hotelNames.madinah.isEmpty ? booking.hotelNames.makkah : "\(booking.hotelNames.makkah) · \(booking.hotelNames.madinah)")

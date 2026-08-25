@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FinalPackageView: View {
     @EnvironmentObject private var journey: JourneyStore
+    @EnvironmentObject private var settings: AppSettingsStore
     @ObservedObject private var push = PushNotificationManager.shared
 
     var body: some View {
@@ -12,7 +13,7 @@ struct FinalPackageView: View {
                 if let quote = journey.quote {
                     priceCard(quote)
                 } else {
-                    ProgressView("Считаем итоговую стоимость…")
+                    ProgressView(L10n.text("final_calculating", settings.language))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
                 }
@@ -24,7 +25,7 @@ struct FinalPackageView: View {
                 NavigationLink {
                     BookingCheckoutView()
                 } label: {
-                    Text("Забронировать мою Умру")
+                    Text(L10n.text("final_book_cta", settings.language))
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
                 .disabled(journey.quote == nil || journey.selectedOutbound == nil || journey.selectedInbound == nil)
@@ -35,8 +36,7 @@ struct FinalPackageView: View {
             .padding(.bottom, 40)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("Готовая поездка")
-        .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation(progress: .ready)
         .task {
             if journey.quote == nil { await journey.buildQuote() }
             await push.refreshAndRegisterIfAllowed()
@@ -47,10 +47,10 @@ struct FinalPackageView: View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
-            Text("Ваша Умра готова")
+            Text(L10n.text("final_title", settings.language))
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .tracking(-0.7)
-            Text("Мы собрали поездку по вашим датам и предпочтениям. Отель, перелёты и выбранные услуги уже связаны в один пакет.")
+            Text(L10n.text("final_body", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -61,14 +61,19 @@ struct FinalPackageView: View {
 
     private func priceCard(_ quote: PackageQuote) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Итоговая стоимость")
+            Text(L10n.text("final_price", settings.language))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             PackagePriceView(amount: quote.pricePerPerson, currency: quote.currency)
-            Text("Всего за \(journey.trip.travelerCount) путешественников: \(money(quote.totalPackagePrice, quote.currency))")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Label("Это стоимость выбранного пакета целиком", systemImage: "checkmark.seal.fill")
+            Text(L10n.format(
+                "final_total_group",
+                settings.language,
+                journey.trip.travelerCount,
+                money(quote.totalPackagePrice, quote.currency)
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            Label(L10n.text("final_price_note", settings.language), systemImage: "checkmark.seal.fill")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
@@ -78,19 +83,21 @@ struct FinalPackageView: View {
 
     private var itineraryCard: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("В вашей поездке")
+            Text(L10n.text("final_in_trip", settings.language))
                 .font(.headline)
                 .padding(.bottom, 8)
             if let flight = journey.selectedOutbound {
-                timelineRow(icon: "airplane.departure", title: "Перелёт туда", value: "\(flight.airline) · \(flight.flightNumber)")
+                timelineRow(icon: "airplane.departure", title: L10n.text("final_outbound", settings.language), value: "\(flight.airline) · \(flight.flightNumber)")
             }
             if let hotel = journey.selectedHotel {
-                timelineRow(icon: "building.2.fill", title: "Отель", value: hotel.name)
+                timelineRow(icon: "building.2.fill", title: L10n.text("final_hotel", settings.language), value: hotel.name)
             }
-            timelineRow(icon: "car.fill", title: "Трансфер и услуги", value: "Включены по выбранному пакету")
+            timelineRow(icon: "car.fill", title: L10n.text("final_transfer", settings.language), value: L10n.text("included", settings.language))
             if let flight = journey.selectedInbound {
-                timelineRow(icon: "airplane.arrival", title: "Перелёт обратно", value: "\(flight.airline) · \(flight.flightNumber)")
+                timelineRow(icon: "airplane.arrival", title: L10n.text("final_return", settings.language), value: "\(flight.airline) · \(flight.flightNumber)")
             }
+            timelineRow(icon: "heart.fill", title: L10n.text("final_care", settings.language), value: L10n.text("included", settings.language))
+            timelineRow(icon: "doc.text.fill", title: L10n.text("final_visa", settings.language), value: L10n.text("included", settings.language))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
@@ -114,11 +121,11 @@ struct FinalPackageView: View {
 
     private var confidenceCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Перед бронированием")
+            Text(L10n.text("final_before", settings.language))
                 .font(.headline)
-            confidenceRow("Мы ещё раз проверим доступность выбранных вариантов")
-            confidenceRow("Условия будут доступны до подтверждения")
-            confidenceRow("После бронирования поездка появится во вкладке «Бронирование» и в iumrah Care")
+            confidenceRow(L10n.text("final_check_one", settings.language))
+            confidenceRow(L10n.text("final_check_two", settings.language))
+            confidenceRow(L10n.text("final_check_three", settings.language))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
@@ -144,28 +151,30 @@ struct FinalPackageView: View {
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Уведомления о поездке")
+                    Text(L10n.text("notifications_title", settings.language))
                         .font(.headline)
-                    Text(push.statusText)
+                    Text(push.statusText(language: settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
 
-            if let error = push.lastError {
-                Text(error).font(.caption).foregroundStyle(.red)
+            if push.lastError != nil {
+                Text(L10n.text("notifications_error", settings.language))
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
 
             if !push.isAuthorized {
                 Button {
                     Task { await push.requestAuthorization() }
                 } label: {
-                    Text("Включить уведомления")
+                    Text(L10n.text("notifications_enable", settings.language))
                 }
                 .buttonStyle(IumrahSecondaryButtonStyle())
             } else if push.deviceToken != nil {
-                Label("Уведомления подключены", systemImage: "checkmark.circle.fill")
+                Label(L10n.text("notifications_enabled", settings.language), systemImage: "checkmark.circle.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
@@ -178,6 +187,7 @@ struct FinalPackageView: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currency
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "\(currency) \(amount)"
     }

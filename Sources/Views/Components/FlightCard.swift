@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FlightCard: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     let offer: FlightOffer
     let isSelected: Bool
     var isRecommended: Bool = false
@@ -11,28 +12,21 @@ struct FlightCard: View {
         return formatter
     }()
 
-    private static let dayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d MMM"
-        formatter.locale = Locale(identifier: "ru_RU")
-        return formatter
-    }()
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     if isRecommended {
-                        Label("Рекомендуем", systemImage: "sparkles")
+                        Label(L10n.text("flight_recommended", settings.language), systemImage: "sparkles")
                             .font(.caption.weight(.bold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(Color.primary)
-                            .foregroundStyle(Color.iumrahCardBackground)
+                            .foregroundColor(Color.iumrahCardBackground)
                             .clipShape(Capsule())
                             .padding(.bottom, 3)
                     }
-                    Text(offer.airline)
+                    Text(airlineLabel)
                         .font(.headline)
                     Text(offer.flightNumber)
                         .font(.caption)
@@ -53,7 +47,7 @@ struct FlightCard: View {
                     Rectangle()
                         .frame(height: 1)
                         .foregroundStyle(.tertiary)
-                    Text(offer.stopLabel)
+                    Text(stopLabel)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -64,10 +58,10 @@ struct FlightCard: View {
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Весь пакет")
+                    Text(L10n.text("flight_whole_package", settings.language))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                    Text("Отель + перелёт + услуги")
+                    Text(L10n.text("flight_package_contents", settings.language))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -79,9 +73,23 @@ struct FlightCard: View {
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
-                    .strokeBorder(.primary, lineWidth: 1.5)
+                    .strokeBorder(Color.primary, lineWidth: 1.5)
             }
         }
+    }
+
+    private var airlineLabel: String {
+        let normalized = offer.airline.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalized == "авиакомпания" || normalized == "airline" {
+            return L10n.text("flight_airline_unknown", settings.language)
+        }
+        return offer.airline
+    }
+
+    private var stopLabel: String {
+        offer.stops == 0
+            ? L10n.text("flight_direct", settings.language)
+            : L10n.format("flight_stops", settings.language, offer.stops)
     }
 
     private func timeBlock(code: String, date: Date, trailing: Bool) -> some View {
@@ -90,10 +98,17 @@ struct FlightCard: View {
                 .font(.title3.monospacedDigit().weight(.bold))
             Text(code.uppercased())
                 .font(.caption.weight(.semibold))
-            Text(Self.dayFormatter.string(from: date))
+            Text(dayFormatter.string(from: date))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .frame(minWidth: 78, alignment: trailing ? .trailing : .leading)
+    }
+
+    private var dayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM"
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        return formatter
     }
 }

@@ -1,31 +1,32 @@
 import SwiftUI
 
 struct IumrahStoryView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("ПРОЕКТ, РОЖДЁННЫЙ В МЕККЕ")
+                    Text(L10n.text("story_kicker", settings.language))
                         .font(.caption.weight(.bold))
                         .tracking(1.1)
                         .foregroundStyle(.secondary)
-                    Text("Почему iumrah Project")
+                    Text(L10n.text("story_title", settings.language))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .tracking(-0.9)
-                    Text("iumrah появилась не из идеи создать ещё один туристический сервис. Она появилась из опыта.")
+                    Text(L10n.text("story_intro", settings.language))
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                storyParagraph("Проведя больше года в Мекке и находясь рядом с паломниками, мы снова и снова видели одну проблему: поездка, ради которой человек преодолевает тысячи километров, слишком часто становилась зависимой от большой группы, посредников и чужого расписания.")
-
-                storyParagraph("Мы захотели построить другой путь — чтобы человек мог совершить Умру самостоятельно, с семьёй или друзьями, но при этом не оставался один на один с организацией поездки.")
+                storyParagraph(L10n.text("story_p1", settings.language))
+                storyParagraph(L10n.text("story_p2", settings.language))
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Почему Project")
+                    Text(L10n.text("story_why_project_title", settings.language))
                         .font(.title2.weight(.bold))
-                    Text("Потому что этот путь не должен однажды считаться законченным. С каждой поездкой, каждым вопросом и каждой новой потребностью паломника iumrah должна становиться лучше.")
+                    Text(L10n.text("story_why_project_body", settings.language))
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -33,9 +34,9 @@ struct IumrahStoryView: View {
                 .iumrahMarketingCard()
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Наша задача")
+                    Text(L10n.text("story_mission_title", settings.language))
                         .font(.title2.weight(.bold))
-                    Text("Не заставлять паломника разбираться в системе. Система должна разбираться в его поездке.")
+                    Text(L10n.text("story_mission_body", settings.language))
                         .font(.title3.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -47,8 +48,8 @@ struct IumrahStoryView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("История")
-        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("iumrah.story")
+        .iumrahInternalNavigation()
     }
 
     private func storyParagraph(_ text: String) -> some View {

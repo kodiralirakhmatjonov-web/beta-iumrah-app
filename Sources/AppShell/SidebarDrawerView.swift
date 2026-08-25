@@ -22,9 +22,9 @@ struct SidebarDrawerView: View {
             }
             .padding(.bottom, 28)
 
-            Text(settings.language == .english ? "Assalamu alaikum" : settings.language == .uzbek ? "Assalomu alaykum" : settings.language == .uzbekCyrillic ? "Ассалому алайкум" : "Ассаляму алейкум")
+            Text(L10n.text("drawer_greeting", settings.language))
                 .font(.system(size: 26, weight: .bold, design: .rounded))
-            Text(settings.language == .english ? "Welcome to iumrah" : settings.language == .uzbek ? "iumrah'ga xush kelibsiz" : settings.language == .uzbekCyrillic ? "iumrah'га хуш келибсиз" : "Добро пожаловать в iumrah")
+            Text(L10n.text("drawer_welcome", settings.language))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -33,7 +33,7 @@ struct SidebarDrawerView: View {
                 .padding(.top, 22)
 
             VStack(spacing: 6) {
-                drawerRow(settings.language == .english ? "Chats" : settings.language == .uzbek ? "Chatlar" : settings.language == .uzbekCyrillic ? "Чатлар" : "Чаты", systemImage: "bubble.left.and.bubble.right") {
+                drawerRow(L10n.text("drawer_chats", settings.language), systemImage: "bubble.left.and.bubble.right") {
                     chrome.navigate(to: .care)
                 }
 

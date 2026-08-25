@@ -1,14 +1,17 @@
 import SwiftUI
 
 struct FlightSearchProgressView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     @State private var step = 0
 
-    private let labels = [
-        "Проверяем авиакомпании",
-        "Сравниваем актуальные даты",
-        "Считаем всю поездку",
-        "Лучшие билеты почти готовы"
-    ]
+    private var labels: [String] {
+        [
+            L10n.text("flight_search_airlines", settings.language),
+            L10n.text("flight_search_dates", settings.language),
+            L10n.text("flight_search_reprice", settings.language),
+            L10n.text("flight_search_almost", settings.language)
+        ]
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -25,7 +28,7 @@ struct FlightSearchProgressView: View {
             }
 
             VStack(spacing: 6) {
-                Text("Лучшие билеты почти готовы")
+                Text(L10n.text("flight_search_hero", settings.language))
                     .font(.title3.weight(.bold))
                 Text(labels[min(step, labels.count - 1)])
                     .font(.subheadline)

@@ -26,20 +26,22 @@ final class PushNotificationManager: ObservableObject {
         }
     }
 
-    var statusText: String {
+    func statusText(language: AppSettingsStore.Language) -> String {
         switch authorizationStatus {
         case .notDetermined:
-            return "Уведомления ещё не включены"
+            return L10n.text("notifications_not_determined", language)
         case .denied:
-            return "Уведомления отключены в настройках iPhone"
+            return L10n.text("notifications_denied", language)
         case .authorized:
-            return deviceToken == nil ? "Разрешено · регистрируем устройство" : "Уведомления подключены"
+            return deviceToken == nil
+                ? L10n.text("notifications_registering", language)
+                : L10n.text("notifications_enabled", language)
         case .provisional:
-            return "Тихие уведомления подключены"
+            return L10n.text("notifications_provisional", language)
         case .ephemeral:
-            return "Временное разрешение активно"
+            return L10n.text("notifications_ephemeral", language)
         @unknown default:
-            return "Статус уведомлений неизвестен"
+            return L10n.text("notifications_unknown", language)
         }
     }
 
@@ -73,11 +75,15 @@ final class PushNotificationManager: ObservableObject {
 
         // The token is intentionally kept on-device until the Cloudflare
         // push-registration endpoint is enabled. Do not send it to a guessed URL.
-        print("[iumrah Beta] APNs device token registered: \(token)")
+        #if DEBUG
+        print("[iumrah Beta] APNs device token registered")
+        #endif
     }
 
     func didFailToRegister(error: Error) {
         lastError = error.localizedDescription
+        #if DEBUG
         print("[iumrah Beta] APNs registration failed: \(error.localizedDescription)")
+        #endif
     }
 }

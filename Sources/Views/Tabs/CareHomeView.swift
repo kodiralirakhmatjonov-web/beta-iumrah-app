@@ -68,12 +68,19 @@ struct CareHomeView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.72))
                     .fixedSize(horizontal: false, vertical: true)
+
+                Label(L10n.text("care_free_year", settings.language), systemImage: "gift.fill")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.10))
+                    .clipShape(Capsule())
             }
 
             HStack(spacing: 18) {
-                careMetric(icon: "message.fill", text: settings.language == .english ? "Answers" : settings.language == .uzbek ? "Javoblar" : settings.language == .uzbekCyrillic ? "Жавоблар" : "Ответы")
-                careMetric(icon: "bell.fill", text: settings.language == .english ? "Updates" : settings.language == .uzbek ? "Holat" : settings.language == .uzbekCyrillic ? "Ҳолат" : "Статус")
-                careMetric(icon: "heart.fill", text: settings.language == .english ? "Care" : settings.language == .uzbek ? "G‘amxo‘rlik" : settings.language == .uzbekCyrillic ? "Ғамхўрлик" : "Забота")
+                careMetric(icon: "message.fill", text: L10n.text("care_metric_answers", settings.language))
+                careMetric(icon: "bell.fill", text: L10n.text("care_metric_updates", settings.language))
+                careMetric(icon: "heart.fill", text: L10n.text("care_metric_care", settings.language))
             }
         }
         .foregroundStyle(.white)
@@ -101,7 +108,7 @@ struct CareHomeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Circle().fill(Color.iumrahCareLight).frame(width: 7, height: 7)
-                    Text("Aiomra Care")
+                    Text("iumrah Care")
                         .font(.headline)
                 }
                 Text(session.travelerName ?? session.id)

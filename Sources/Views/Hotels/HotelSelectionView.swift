@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HotelSelectionView: View {
     @EnvironmentObject private var journey: JourneyStore
+    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
 
     private var filteredHotels: [HotelSummary] {
@@ -13,9 +14,9 @@ struct HotelSelectionView: View {
         ScrollView {
             LazyVStack(spacing: 18) {
                 SectionHeader(
-                    "Изменить отель",
-                    eyebrow: "Каталог iumrah",
-                    subtitle: "Здесь показываются только отели из вашей опубликованной базы. Live-поиск цены будет подключён отдельным adapter’ом."
+                    L10n.text("hotel_change_title", settings.language),
+                    eyebrow: L10n.text("hotel_catalog_eyebrow", settings.language),
+                    subtitle: L10n.text("hotel_change_body", settings.language)
                 )
 
                 ForEach(filteredHotels) { hotel in
@@ -23,7 +24,10 @@ struct HotelSelectionView: View {
                         journey.chooseHotel(hotel)
                         dismiss()
                     } label: {
-                        HotelCard(hotel: hotel, badge: journey.selectedHotel?.id == hotel.id ? "Выбран" : nil)
+                        HotelCard(
+                            hotel: hotel,
+                            badge: journey.selectedHotel?.id == hotel.id ? L10n.text("selected", settings.language) : nil
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -33,7 +37,6 @@ struct HotelSelectionView: View {
             .padding(.bottom, 36)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("Отели")
-        .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation(progress: .hotel)
     }
 }

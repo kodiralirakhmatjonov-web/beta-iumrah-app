@@ -8,7 +8,7 @@ final class BookingStore: ObservableObject {
 
     private let bookingService = BookingService()
     private let chatService = ChatService()
-    private let storageKey = "iumrah.booking.sessions.v1"
+    private let legacyStorageKey = "iumrah.booking.sessions.v1"
 
     init() {
         loadFromStorage()
@@ -33,13 +33,17 @@ final class BookingStore: ObservableObject {
             pilgrimProfile: pilgrimProfile
         )
         let response = try await bookingService.createBooking(payload)
+        guard let token = response.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        let serverProfile = response.booking.pilgrimProfile ?? pilgrimProfile
         let session = StoredBookingSession(
             id: response.booking.id,
-            accessToken: response.accessToken ?? "",
+            accessToken: token,
             booking: response.booking,
-            travelerName: pilgrimProfile?.displayName,
-            telegram: pilgrimProfile?.telegram,
-            whatsapp: pilgrimProfile?.whatsapp
+            travelerName: serverProfile?.displayName,
+            telegram: serverProfile?.telegram,
+            whatsapp: serverProfile?.whatsapp
         )
         upsert(session)
         return session
@@ -47,10 +51,16 @@ final class BookingStore: ObservableObject {
 
     func refreshAll() async {
         for session in sessions {
+            guard !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
             do {
                 let booking = try await bookingService.fetchBooking(id: session.id, accessToken: session.accessToken)
                 if let index = sessions.firstIndex(where: { $0.id == session.id }) {
                     sessions[index].booking = booking
+                    if let profile = booking.pilgrimProfile {
+                        sessions[index].travelerName = profile.displayName
+                        sessions[index].telegram = profile.telegram
+                        sessions[index].whatsapp = profile.whatsapp
+                    }
                 }
             } catch {
                 continue
@@ -64,14 +74,29 @@ final class BookingStore: ObservableObject {
     }
 
     func loadChat(for bookingID: String) async throws -> [ChatMessage] {
-        guard let session = booking(id: bookingID) else { return [] }
-        let messages = try await chatService.loadChat(bookingID: bookingID, accessToken: session.accessToken)
+        guard let session = booking(id: bookingID), !session.accessToken.isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        let response = try await chatService.loadChat(bookingID: bookingID, accessToken: session.accessToken)
+        if let summary = response.booking,
+           let index = sessions.firstIndex(where: { $0.id == bookingID }) {
+            let first = summary.pilgrimFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let last = summary.pilgrimLastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let displayName = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
+            if !displayName.isEmpty { sessions[index].travelerName = displayName }
+            if let telegram = summary.pilgrimTelegram, !telegram.isEmpty { sessions[index].telegram = telegram }
+            if let whatsapp = summary.pilgrimWhatsapp, !whatsapp.isEmpty { sessions[index].whatsapp = whatsapp }
+            persist()
+        }
+        let messages = response.messages.sorted(by: { $0.id < $1.id })
         chats[bookingID] = messages
         return messages
     }
 
     func send(message: String, for bookingID: String) async throws -> ChatMessage {
-        guard let session = booking(id: bookingID) else { throw APIError.invalidResponse }
+        guard let session = booking(id: bookingID), !session.accessToken.isEmpty else {
+            throw APIError.missingBookingToken
+        }
         let created = try await chatService.send(message: message, bookingID: bookingID, accessToken: session.accessToken)
         var current = chats[bookingID] ?? []
         current.append(created)
@@ -89,17 +114,25 @@ final class BookingStore: ObservableObject {
     }
 
     private func persist() {
-        do {
-            let data = try JSONEncoder().encode(sessions)
-            UserDefaults.standard.set(data, forKey: storageKey)
-        } catch {}
+        _ = BookingSessionVault.save(sessions)
     }
 
     private func loadFromStorage() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+        let secureSessions = BookingSessionVault.load()
+        if !secureSessions.isEmpty {
+            sessions = secureSessions
+            UserDefaults.standard.removeObject(forKey: legacyStorageKey)
+            return
+        }
+
+        guard let data = UserDefaults.standard.data(forKey: legacyStorageKey),
               let decoded = try? JSONDecoder().decode([StoredBookingSession].self, from: data) else {
             return
         }
+
         sessions = decoded
+        if BookingSessionVault.save(decoded) {
+            UserDefaults.standard.removeObject(forKey: legacyStorageKey)
+        }
     }
 }

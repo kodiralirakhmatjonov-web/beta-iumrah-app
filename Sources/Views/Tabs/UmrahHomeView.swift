@@ -27,15 +27,7 @@ struct UmrahHomeView: View {
     }
 
     private var descriptionText: String {
-        switch settings.language {
-        case .english:
-            return "Step-by-step Umrah guidance will be added here in a later update."
-        case .russian:
-            return "Пошаговое сопровождение Умры мы добавим сюда в одном из следующих обновлений."
-        case .uzbek:
-            return "Umra bo‘yicha bosqichma-bosqich yo‘riqnoma keyingi yangilanishlardan birida shu yerga qo‘shiladi."
-        case .uzbekCyrillic:
-            return "Умра бўйича босқичма-босқич йўриқнома кейинги янгиланишлардан бирида шу ерга қўшилади."
-        }
+        L10n.text("umrah_coming", settings.language)
     }
+
 }

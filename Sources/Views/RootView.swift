@@ -49,6 +49,7 @@ struct RootView: View {
             .tag(AppTab.umrah)
         }
         .tint(.primary)
+        .toolbar(chrome.isImmersiveMode ? .hidden : .visible, for: .tabBar)
         .preferredColorScheme(settings.appearance.colorScheme)
         .environmentObject(settings)
         .environmentObject(chrome)

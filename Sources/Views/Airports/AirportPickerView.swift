@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AirportPickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettingsStore
     @Binding var selection: Airport?
     @Binding var fallbackCode: String
 
@@ -20,9 +21,9 @@ struct AirportPickerView: View {
                         Image(systemName: "airplane.circle")
                             .font(.system(size: 42))
                             .foregroundStyle(.secondary)
-                        Text("Найдите аэропорт вылета")
+                        Text(L10n.text("airport_search_title", settings.language))
                             .font(.headline)
-                        Text("Можно искать по городу, названию или трёхбуквенному коду аэропорта — например TAS, Ташкент, Москва, Стамбул.")
+                        Text(L10n.text("airport_search_body", settings.language))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -30,7 +31,7 @@ struct AirportPickerView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if isLoading && results.isEmpty {
-                    ProgressView("Ищем аэропорты…")
+                    ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(results) { airport in
@@ -64,26 +65,34 @@ struct AirportPickerView: View {
                     }
                     .listStyle(.plain)
                     .overlay {
-                        if !isLoading && results.isEmpty && errorMessage == nil {
-                            ContentUnavailableView("Ничего не найдено", systemImage: "airplane", description: Text("Попробуйте другой город или код аэропорта."))
+                        if !isLoading && results.isEmpty {
+                            if let errorMessage {
+                                ContentUnavailableView(
+                                    L10n.text("airport_search_failed", settings.language),
+                                    systemImage: "wifi.exclamationmark",
+                                    description: Text(errorMessage)
+                                )
+                            } else {
+                                ContentUnavailableView(
+                                    L10n.text("airport_none", settings.language),
+                                    systemImage: "airplane",
+                                    description: Text(L10n.text("airport_none_body", settings.language))
+                                )
+                            }
                         }
                     }
                 }
             }
-            .navigationTitle("Аэропорт вылета")
+            .navigationTitle(L10n.text("airport_title", settings.language))
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Город или IATA")
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.text("airport_search_title", settings.language))
             .task {
-                if query.isEmpty {
-                    query = selection?.iata ?? fallbackCode
-                }
+                if query.isEmpty { query = selection?.iata ?? fallbackCode }
             }
-            .task(id: query) {
-                await search()
-            }
+            .task(id: query) { await search() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Закрыть") { dismiss() }
+                    Button(L10n.text("close", settings.language)) { dismiss() }
                 }
             }
         }
@@ -105,7 +114,7 @@ struct AirportPickerView: View {
             results = try await service.search(value, limit: 10)
         } catch {
             results = []
-            errorMessage = error.localizedDescription
+            errorMessage = L10n.error(error, settings.language)
         }
     }
 }

@@ -1,15 +1,17 @@
 import SwiftUI
 
 struct PackagePriceView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     let amount: Decimal
     let currency: String
-    var suffix: String = "/ чел."
+    var showsPerPerson: Bool = true
 
     private var formatted: String {
         let number = NSDecimalNumber(decimal: amount)
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currency
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
         formatter.maximumFractionDigits = 0
         return formatter.string(from: number) ?? "\(currency) \(number)"
     }
@@ -18,9 +20,11 @@ struct PackagePriceView: View {
         HStack(alignment: .firstTextBaseline, spacing: 5) {
             Text(formatted)
                 .font(.system(size: 24, weight: .bold, design: .rounded))
-            Text(suffix)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+            if showsPerPerson {
+                Text(L10n.text("price_per_person", settings.language))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

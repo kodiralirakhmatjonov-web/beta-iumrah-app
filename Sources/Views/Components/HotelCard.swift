@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HotelCard: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     let hotel: HotelSummary
     var badge: String? = nil
 
@@ -50,7 +51,7 @@ struct HotelCard: View {
                     if let rating = hotel.rating {
                         Label(String(format: "%.1f", rating), systemImage: "heart.fill")
                     }
-                    Text(hotel.city)
+                    Text(L10n.city(hotel.city, settings.language))
                 }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)

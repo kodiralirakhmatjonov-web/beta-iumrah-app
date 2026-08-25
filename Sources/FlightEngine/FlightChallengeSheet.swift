@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FlightChallengeSheet: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     let challenge: FlightBotChallenge
     let onCompleted: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -13,10 +14,10 @@ struct FlightChallengeSheet: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Закрыть") { dismiss() }
+                        Button(L10n.text("close", settings.language)) { dismiss() }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Готово") {
+                        Button(L10n.text("flight_ready_title", settings.language)) {
                             dismiss()
                             onCompleted()
                         }

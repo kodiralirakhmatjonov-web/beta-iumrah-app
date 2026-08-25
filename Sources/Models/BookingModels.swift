@@ -112,6 +112,7 @@ struct RemoteBooking: Codable, Identifiable, Hashable {
     let flight: String
     let createdAt: String
     let updatedAt: String
+    let pilgrimProfile: BookingPilgrimProfile?
 }
 
 struct BookingInputRecord: Codable, Hashable {
@@ -124,8 +125,19 @@ struct BookingInputRecord: Codable, Hashable {
     let travelers: BookingTravelers
 }
 
+struct ChatBookingSummary: Decodable, Hashable {
+    let id: String
+    let status: String
+    let createdAt: String?
+    let updatedAt: String?
+    let pilgrimFirstName: String?
+    let pilgrimLastName: String?
+    let pilgrimTelegram: String?
+    let pilgrimWhatsapp: String?
+}
+
 struct ChatListResponse: Decodable {
-    let booking: RemoteBooking?
+    let booking: ChatBookingSummary?
     let messages: [ChatMessage]
 }
 

@@ -10,8 +10,9 @@ struct HomeDashboardView: View {
                 hero
                 confidenceStrip
                 philosophyCard
-                hotelCard
+                connectedTripCard
                 careCard
+                hotelCard
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 8)
@@ -54,8 +55,8 @@ struct HomeDashboardView: View {
                 .font(.headline)
                 .padding(.horizontal, 18)
                 .frame(height: 56)
-                .foregroundStyle(.black)
-                .background(.white)
+                .foregroundColor(.black)
+                .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -72,7 +73,7 @@ struct HomeDashboardView: View {
             HStack(spacing: 10) {
                 chip(icon: "building.2.fill", text: L10n.text("tab_hotels", settings.language))
                 chip(icon: "airplane", text: L10n.text("step_flight", settings.language))
-                chip(icon: "heart.fill", text: "Aiomra Care")
+                chip(icon: "heart.fill", text: "iumrah Care")
             }
         }
     }
@@ -84,7 +85,7 @@ struct HomeDashboardView: View {
             .frame(height: 40)
             .background(Color.iumrahCardBackground)
             .clipShape(Capsule())
-            .overlay { Capsule().strokeBorder(.primary.opacity(0.05), lineWidth: 1) }
+            .overlay { Capsule().strokeBorder(Color.primary.opacity(0.05), lineWidth: 1) }
     }
 
     private var philosophyCard: some View {
@@ -95,14 +96,85 @@ struct HomeDashboardView: View {
                 .frame(height: 36)
                 .background(Color.iumrahRaisedBackground)
                 .clipShape(Capsule())
-            Text(settings.language == .english ? "Not a tour. A more personal Umrah." : settings.language == .uzbek ? "Bu oddiy tur emas. Bu sizga mos Umra." : settings.language == .uzbekCyrillic ? "Бу оддий тур эмас. Бу сизга мос Умра." : "Не тур. Более личная Умра.")
+            Text(L10n.text("home_philosophy_title", settings.language))
                 .font(.system(size: 29, weight: .bold, design: .rounded))
-            Text(settings.language == .english ? "Aiomra helps you organize the trip for yourself, your family or your friends — with a cleaner interface, a simpler flow and support connected to the same booking." : settings.language == .uzbek ? "Aiomra safarni o‘zingiz, oilangiz yoki do‘stlaringiz uchun tartibga solishga yordam beradi — tozaroq interfeys, soddaroq oqim va shu safarga bog‘langan yordam bilan." : settings.language == .uzbekCyrillic ? "Aiomra сафарни ўзингиз, оилангиз ёки дўстларингиз учун тартибга солишга ёрдам беради — тозароқ интерфейс, соддароқ оқим ва шу сафарга боғланган ёрдам билан." : "Aiomra помогает организовать поездку для себя, семьи или друзей — с более чистым интерфейсом, простым сценарием и поддержкой, связанной с тем же бронированием.")
+            Text(L10n.text("home_philosophy_body", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
+    }
+
+    private var connectedTripCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 9) {
+                journeyIcon("airplane")
+                connector
+                journeyIcon("building.2.fill")
+                connector
+                journeyIcon("car.fill")
+                connector
+                journeyIcon("moon.stars.fill")
+                connector
+                journeyIcon("heart.fill")
+            }
+
+            Text(L10n.text("home_connected_title", settings.language))
+                .font(.system(size: 27, weight: .bold, design: .rounded))
+            Text(L10n.text("home_connected_body", settings.language))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahMarketingCard()
+    }
+
+    private func journeyIcon(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 13, weight: .semibold))
+            .frame(width: 34, height: 34)
+            .background(Color.iumrahRaisedBackground)
+            .clipShape(Circle())
+    }
+
+    private var connector: some View {
+        Capsule()
+            .fill(Color.primary.opacity(0.10))
+            .frame(maxWidth: .infinity)
+            .frame(height: 2)
+    }
+
+    private var careCard: some View {
+        Button {
+            chrome.navigate(to: .care)
+        } label: {
+            HStack(alignment: .center, spacing: 16) {
+                Image("CareMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .padding(8)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("iumrah Care")
+                        .font(.headline)
+                    Text(L10n.text("care_subtitle", settings.language))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .iumrahCard()
+        }
+        .buttonStyle(.plain)
     }
 
     private var hotelCard: some View {
@@ -121,36 +193,6 @@ struct HomeDashboardView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(4)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .iumrahCard()
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var careCard: some View {
-        Button {
-            chrome.navigate(to: .care)
-        } label: {
-            HStack(alignment: .center, spacing: 16) {
-                Image("CareMark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
-                    .padding(8)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("Aiomra Care")
-                        .font(.headline)
-                    Text(L10n.text("care_subtitle", settings.language))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")

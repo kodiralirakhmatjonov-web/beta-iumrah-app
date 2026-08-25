@@ -8,22 +8,12 @@ enum PackageTier: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    var title: String {
-        switch self {
-        case .economy: return "Эконом"
-        case .standard: return "Стандарт"
-        case .comfort: return "Комфорт"
-        case .luxury: return "Люкс"
-        }
+    func title(_ language: AppSettingsStore.Language) -> String {
+        L10n.text("tier_\(rawValue)", language)
     }
 
-    var subtitle: String {
-        switch self {
-        case .economy: return "Главное для самостоятельной Умры"
-        case .standard: return "Баланс стоимости и комфорта"
-        case .comfort: return "Больше удобства в поездке"
-        case .luxury: return "Премиальный формат поездки"
-        }
+    func subtitle(_ language: AppSettingsStore.Language) -> String {
+        L10n.text("tier_\(rawValue)_subtitle", language)
     }
 }
 
@@ -35,12 +25,12 @@ enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(_ language: AppSettingsStore.Language) -> String {
         switch self {
-        case .exact: return "Точно"
-        case .plusMinusOne: return "±1 день"
-        case .plusMinusTwo: return "±2 дня"
-        case .weekend: return "Выходные"
+        case .exact: return L10n.text("flex_exact", language)
+        case .plusMinusOne: return L10n.text("flex_pm1", language)
+        case .plusMinusTwo: return L10n.text("flex_pm2", language)
+        case .weekend: return L10n.text("flex_weekend", language)
         }
     }
 }
@@ -51,14 +41,13 @@ enum JourneyScope: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(_ language: AppSettingsStore.Language) -> String {
         switch self {
-        case .makkahOnly: return "Только Мекка"
-        case .makkahAndMadinah: return "Мекка + Медина"
+        case .makkahOnly: return L10n.text("scope_makkah", language)
+        case .makkahAndMadinah: return L10n.text("scope_both", language)
         }
     }
 }
-
 
 enum SaudiArrivalAirport: String, CaseIterable, Codable, Identifiable, Hashable {
     case jeddah = "JED"
@@ -66,17 +55,17 @@ enum SaudiArrivalAirport: String, CaseIterable, Codable, Identifiable, Hashable 
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(_ language: AppSettingsStore.Language) -> String {
         switch self {
-        case .jeddah: return "Джидда · для Мекки"
-        case .madinah: return "Медина"
+        case .jeddah: return L10n.text("airport_jeddah_full", language)
+        case .madinah: return L10n.text("airport_madinah", language)
         }
     }
 
-    var shortTitle: String {
+    func shortTitle(_ language: AppSettingsStore.Language) -> String {
         switch self {
-        case .jeddah: return "Джидда"
-        case .madinah: return "Медина"
+        case .jeddah: return L10n.text("airport_jeddah", language)
+        case .madinah: return L10n.text("airport_madinah", language)
         }
     }
 }

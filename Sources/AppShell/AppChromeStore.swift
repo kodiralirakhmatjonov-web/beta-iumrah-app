@@ -15,6 +15,7 @@ final class AppChromeStore: ObservableObject {
     @Published var currentTab: AppTab = .home
     @Published var shouldStartTripBuilder = false
     @Published var isImmersiveMode = false
+    @Published private(set) var internalNavigationDepth = 0
 
     func openDrawer() {
         guard !isDrawerOpen, !isImmersiveMode else { return }
@@ -45,6 +46,16 @@ final class AppChromeStore: ObservableObject {
         requestedTab = .booking
         if isDrawerOpen { closeDrawer() }
         IumrahHaptics.selection()
+    }
+
+    var isInternalNavigationActive: Bool { internalNavigationDepth > 0 }
+
+    func beginInternalNavigation() {
+        internalNavigationDepth += 1
+    }
+
+    func endInternalNavigation() {
+        internalNavigationDepth = max(0, internalNavigationDepth - 1)
     }
 
     func setImmersive(_ value: Bool) {

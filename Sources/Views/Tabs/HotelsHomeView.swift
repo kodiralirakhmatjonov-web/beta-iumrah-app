@@ -69,7 +69,7 @@ struct HotelsHomeView: View {
 
     private func hotelRow(_ hotel: HotelSummary) -> some View {
         HStack(alignment: .center, spacing: 14) {
-            AsyncImage(url: URL(string: hotel.coverImageURL ?? "")) { phase in
+            AsyncImage(url: AppConfig.absoluteURL(hotel.coverImageURL)) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().scaledToFill()
@@ -95,7 +95,7 @@ struct HotelsHomeView: View {
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                Text(hotel.city)
+                Text(L10n.city(hotel.city, settings.language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

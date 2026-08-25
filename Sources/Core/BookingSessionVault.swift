@@ -19,8 +19,9 @@ enum BookingSessionVault {
         return (try? JSONDecoder().decode([StoredBookingSession].self, from: data)) ?? []
     }
 
-    static func save(_ sessions: [StoredBookingSession]) {
-        guard let data = try? JSONEncoder().encode(sessions) else { return }
+    @discardableResult
+    static func save(_ sessions: [StoredBookingSession]) -> Bool {
+        guard let data = try? JSONEncoder().encode(sessions) else { return false }
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -28,11 +29,13 @@ enum BookingSessionVault {
         ]
         let update: [String: Any] = [kSecValueData as String: data]
         let status = SecItemUpdate(base as CFDictionary, update as CFDictionary)
+        if status == errSecSuccess { return true }
         if status == errSecItemNotFound {
             var add = base
             add[kSecValueData as String] = data
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            SecItemAdd(add as CFDictionary, nil)
+            return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
         }
+        return false
     }
 }
