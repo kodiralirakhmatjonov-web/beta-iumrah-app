@@ -74,7 +74,7 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 10,
             baseURL: URL(string: "https://booking.uzairways.com/en/index.html?optdisable=1")!,
-            defaultFareScope: .totalParty
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .qanotSharq,
@@ -82,7 +82,7 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 20,
             baseURL: URL(string: "https://booking.qanotsharq.com/websky_grs/")!,
-            defaultFareScope: .totalParty
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .centrumAir,
@@ -90,7 +90,7 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 30,
             baseURL: URL(string: "https://booking.centrum-air.com/ibe/C6/home/?language=en")!,
-            defaultFareScope: .totalParty
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .silkAvia,
@@ -98,7 +98,7 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 40,
             baseURL: URL(string: "https://pss.silk-avia.com/ibe/search?lang=en")!,
-            defaultFareScope: .totalParty
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .airSamarkand,
@@ -106,7 +106,7 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 50,
             baseURL: URL(string: "https://booking.airsamarkand.com/en/")!,
-            defaultFareScope: .totalParty
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .flyKhiva,
@@ -114,7 +114,7 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 60,
             baseURL: URL(string: "https://booking.flykhiva.uz/en/")!,
-            defaultFareScope: .totalParty
+            defaultFareScope: .perPassenger
         ),
         FlightBotProvider(
             id: .googleFlights,

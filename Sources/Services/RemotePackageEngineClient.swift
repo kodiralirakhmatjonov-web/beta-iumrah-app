@@ -33,6 +33,7 @@ struct RemotePackageEngineClient {
             totalDays: stay.totalDays,
             nights: .init(makkah: stay.makkahNights, madinah: stay.madinahNights),
             travelers: .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms),
+            travelStartDate: Self.dayFormatter.string(from: trip.departureDate),
             flights: .init(outbound: outbound, inbound: inbound),
             primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID)
         )
@@ -66,4 +67,12 @@ struct RemotePackageEngineClient {
         )
         return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
     }
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
 }

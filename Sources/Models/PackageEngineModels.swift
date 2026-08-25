@@ -50,6 +50,7 @@ struct ConsumerPackageQuoteRequest: Encodable {
     let totalDays: Int
     let nights: Nights
     let travelers: Travelers
+    let travelStartDate: String
     let flights: Flights
     let primaryHotelIds: PrimaryHotelIDs
 }
@@ -75,6 +76,8 @@ struct PackageEngineHealthResponse: Decodable {
     let madinahPricingReady: Bool?
     let fallbackResolutionEnabled: Bool?
     let flightOptionQuotingReady: Bool?
+    let legacyEstimateFallbackEnabled: Bool?
+    let pricingMode: String?
 }
 
 struct PrimaryHotelResolutionResponse: Decodable, Hashable {
@@ -84,6 +87,7 @@ struct PrimaryHotelResolutionResponse: Decodable, Hashable {
     let tier: String
     let stars: Int
     let city: String
+    let pricingMode: String?
 }
 
 struct FlightFareObservationRequest: Encodable {
@@ -147,6 +151,7 @@ struct FlightQuoteContextRequest: Encodable {
     let totalDays: Int
     let nights: Nights
     let travelers: Travelers
+    let travelStartDate: String
     let primaryHotelIds: PrimaryHotelIDs
 
     init(trip: TripDraft, hotel: HotelSummary) {
@@ -157,8 +162,17 @@ struct FlightQuoteContextRequest: Encodable {
         self.totalDays = stay.totalDays
         self.nights = .init(makkah: stay.makkahNights, madinah: stay.madinahNights)
         self.travelers = .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms)
+        self.travelStartDate = Self.dayFormatter.string(from: trip.departureDate)
         self.primaryHotelIds = .init(makkah: hotel.id, madinah: nil)
     }
+
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 }
 
 struct OutboundFlightOptionsQuoteRequest: Encodable {
@@ -192,6 +206,7 @@ struct PublicFlightOptionsQuoteResponse: Decodable {
     let options: [PublicFlightOptionQuote]
     let referenceReturnCandidateId: String?
     let fxAsOf: String?
+    let hotelPricingMode: String?
 }
 
 enum FlightPricingBridgeError: LocalizedError {

@@ -84,14 +84,16 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             guard health.ok, health.hotelsDbConfigured else {
                 throw FlightEngineAvailabilityError.packageEngineUnavailable("D1 hotel binding не готов.")
             }
-            guard health.flightOptionQuotingReady ?? health.pricingReady ?? false else {
+            let estimateFallback = health.legacyEstimateFallbackEnabled ?? false
+            guard (health.flightOptionQuotingReady ?? health.pricingReady ?? false) || estimateFallback else {
                 throw FlightEngineAvailabilityError.packageEngineUnavailable("Flight option quoting ещё не готов.")
             }
-            guard health.makkahPricingReady ?? health.pricingReady ?? false else {
+            guard (health.makkahPricingReady ?? health.pricingReady ?? false) || estimateFallback else {
                 throw FlightEngineAvailabilityError.makkahPricingMissing
             }
             if trip.scope == .makkahAndMadinah,
-               !(health.madinahPricingReady ?? false) {
+               !(health.madinahPricingReady ?? false),
+               !estimateFallback {
                 throw FlightEngineAvailabilityError.madinahPricingMissing
             }
             verifiedSignature = signature

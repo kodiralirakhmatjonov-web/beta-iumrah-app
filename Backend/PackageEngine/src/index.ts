@@ -1,6 +1,7 @@
 import { calculatePackageQuote } from "./pricing";
 import { quoteFlightOptions } from "./flight-options";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
+import { legacyEstimatedHotelCost } from "./hotel-fallback";
 import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
@@ -36,23 +37,53 @@ function publicOnly(result: ReturnType<typeof calculatePackageQuote>): PublicPac
 async function resolveConsumerQuote(input: ConsumerPackageQuoteRequest, env: Env) {
   if (!env.HOTELS_DB) throw new Error("HOTELS_DB binding is not configured");
 
-  const makkah = await resolvePrimaryHotel(
-    env.HOTELS_DB,
-    input.tier,
-    input.hotelStars,
-    "Makkah",
-    input.primaryHotelIds?.makkah,
-  );
+  let makkahCost;
+  let madinahCost = null;
 
-  const madinah = input.includeMadinah
-    ? await resolvePrimaryHotel(
+  try {
+    const makkah = await resolvePrimaryHotel(
+      env.HOTELS_DB,
+      input.tier,
+      input.hotelStars,
+      "Makkah",
+      input.primaryHotelIds?.makkah,
+    );
+    makkahCost = {
+      amountUsd: Number(makkah.base_price_usd),
+      unit: makkah.price_unit,
+      nights: Math.max(1, input.nights.makkah),
+    } as const;
+
+    if (input.includeMadinah) {
+      const madinah = await resolvePrimaryHotel(
         env.HOTELS_DB,
         input.tier,
         input.hotelStars,
         "Madinah",
         input.primaryHotelIds?.madinah,
-      )
-    : null;
+      );
+      madinahCost = {
+        amountUsd: Number(madinah.base_price_usd),
+        unit: madinah.price_unit,
+        nights: Math.max(1, input.nights.madinah),
+      } as const;
+    }
+  } catch {
+    makkahCost = legacyEstimatedHotelCost(
+      input.hotelStars,
+      "Makkah",
+      input.nights.makkah,
+      input.travelStartDate,
+    );
+    madinahCost = input.includeMadinah
+      ? legacyEstimatedHotelCost(
+          input.hotelStars,
+          "Madinah",
+          input.nights.madinah,
+          input.travelStartDate,
+        )
+      : null;
+  }
 
   const coreInput: PackageQuoteRequest = {
     tier: input.tier,
@@ -61,23 +92,13 @@ async function resolveConsumerQuote(input: ConsumerPackageQuoteRequest, env: Env
     travelers: input.travelers,
     flights: input.flights,
     hotels: {
-      makkah: {
-        amountUsd: Number(makkah.base_price_usd),
-        unit: makkah.price_unit,
-        nights: Math.max(1, input.nights.makkah),
-      },
-      madinah: madinah
-        ? {
-            amountUsd: Number(madinah.base_price_usd),
-            unit: madinah.price_unit,
-            nights: Math.max(1, input.nights.madinah),
-          }
-        : null,
+      makkah: makkahCost,
+      madinah: madinahCost,
     },
     customization: input.customization,
   };
 
-  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9");
+  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12");
 }
 
 async function publicHealth(env: Env) {
@@ -85,50 +106,62 @@ async function publicHealth(env: Env) {
     return json({
       ok: true,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
       hotelsDbConfigured: false,
       primaryHotelConfigCount: 0,
       pricingReady: false,
       flightOptionQuotingReady: false,
+      legacyEstimateFallbackEnabled: true,
     });
   }
 
   try {
-    const result = await env.HOTELS_DB.prepare(
-      `SELECT p.city, COUNT(*) AS count
-       FROM package_primary_hotels p
-       INNER JOIN hotels h ON h.id = p.hotel_id
-       WHERE p.active = 1
-         AND h.status = 'published'
-         AND h.city = p.city
-       GROUP BY p.city`,
-    ).all<{ city: string; count: number | string }>();
-    const rows = result.results ?? [];
-    const makkahCount = Number(rows.find((row) => row.city === "Makkah")?.count ?? 0);
-    const madinahCount = Number(rows.find((row) => row.city === "Madinah")?.count ?? 0);
+    let makkahCount = 0;
+    let madinahCount = 0;
+    try {
+      const result = await env.HOTELS_DB.prepare(
+        `SELECT p.city, COUNT(*) AS count
+         FROM package_primary_hotels p
+         INNER JOIN hotels h ON h.id = p.hotel_id
+         WHERE p.active = 1
+           AND h.status = 'published'
+           AND h.city = p.city
+         GROUP BY p.city`,
+      ).all<{ city: string; count: number | string }>();
+      const rows = result.results ?? [];
+      makkahCount = Number(rows.find((row) => row.city === "Makkah")?.count ?? 0);
+      madinahCount = Number(rows.find((row) => row.city === "Madinah")?.count ?? 0);
+    } catch {
+      // The beta can still quote with the legacy estimate fallback if the optional
+      // Primary Hotel mapping table is empty or has not been populated yet.
+    }
+
     const count = makkahCount + madinahCount;
     return json({
       ok: true,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
       hotelsDbConfigured: true,
       primaryHotelConfigCount: count,
       primaryHotelConfigByCity: { Makkah: makkahCount, Madinah: madinahCount },
-      pricingReady: makkahCount > 0,
-      makkahPricingReady: makkahCount > 0,
-      madinahPricingReady: madinahCount > 0,
+      pricingReady: true,
+      makkahPricingReady: true,
+      madinahPricingReady: true,
       fallbackResolutionEnabled: true,
-      flightOptionQuotingReady: makkahCount > 0,
+      legacyEstimateFallbackEnabled: true,
+      flightOptionQuotingReady: true,
+      pricingMode: count > 0 ? "mixed" : "legacyEstimate",
     });
   } catch (error) {
     return json({
       ok: false,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.9",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
       hotelsDbConfigured: true,
       primaryHotelConfigCount: 0,
       pricingReady: false,
       flightOptionQuotingReady: false,
+      legacyEstimateFallbackEnabled: true,
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);
   }
@@ -177,9 +210,32 @@ export default {
           requestedStars: row.requestedStars,
           matchType: row.matchType,
           isFallback: row.matchType !== "exact",
+          pricingMode: "configuredPrimary",
         });
-      } catch (error) {
-        return json({ ok: false, error: error instanceof Error ? error.message : "Primary Hotel not configured" }, 404);
+      } catch {
+        const catalog = await env.HOTELS_DB.prepare(
+          `SELECT id, stars, city
+           FROM hotels
+           WHERE status = 'published' AND city = ?1
+           ORDER BY CASE WHEN stars = ?2 THEN 0 ELSE 1 END,
+                    ABS(COALESCE(stars, ?2) - ?2),
+                    updated_at DESC
+           LIMIT 1`,
+        ).bind(city, stars).first<{ id: string; stars: number | null; city: string }>();
+        if (!catalog) return json({ ok: false, error: `No published hotel is available for ${city}` }, 404);
+        return json({
+          ok: true,
+          hotelId: catalog.id,
+          roomId: null,
+          tier,
+          stars: Number(catalog.stars ?? stars),
+          city,
+          requestedTier: tier,
+          requestedStars: stars,
+          matchType: "catalogFallback",
+          isFallback: true,
+          pricingMode: "legacyEstimate",
+        });
       }
     }
 

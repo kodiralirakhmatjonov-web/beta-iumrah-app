@@ -1,6 +1,7 @@
 import { normalizeToUsd, type FxEnvironment } from "./fx";
 import { calculatePackageQuote } from "./pricing";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
+import { legacyEstimatedHotelCost, type HotelPricingMode } from "./hotel-fallback";
 import type {
   FlightFareObservation,
   FlightOptionsQuoteRequest,
@@ -26,6 +27,7 @@ type NormalizedFare = {
 type ResolvedHotelCosts = {
   makkah: HotelCost;
   madinah: HotelCost | null;
+  pricingMode: HotelPricingMode;
 };
 
 function publicOnly(result: ReturnType<typeof calculatePackageQuote>): PublicPackageQuote {
@@ -125,37 +127,61 @@ async function normalizeObservation(
 async function resolveHotelCosts(context: FlightQuoteContext, env: Env): Promise<ResolvedHotelCosts> {
   if (!env.HOTELS_DB) throw new Error("HOTELS_DB binding is not configured");
 
-  const makkah = await resolvePrimaryHotel(
-    env.HOTELS_DB,
-    context.tier,
-    context.hotelStars,
-    "Makkah",
-    context.primaryHotelIds?.makkah,
-  );
-  const madinah = context.includeMadinah
-    ? await resolvePrimaryHotel(
-        env.HOTELS_DB,
-        context.tier,
-        context.hotelStars,
-        "Madinah",
-        context.primaryHotelIds?.madinah,
-      )
-    : null;
+  try {
+    const makkah = await resolvePrimaryHotel(
+      env.HOTELS_DB,
+      context.tier,
+      context.hotelStars,
+      "Makkah",
+      context.primaryHotelIds?.makkah,
+    );
+    const madinah = context.includeMadinah
+      ? await resolvePrimaryHotel(
+          env.HOTELS_DB,
+          context.tier,
+          context.hotelStars,
+          "Madinah",
+          context.primaryHotelIds?.madinah,
+        )
+      : null;
 
-  return {
-    makkah: {
-      amountUsd: Number(makkah.base_price_usd),
-      unit: makkah.price_unit,
-      nights: Math.max(1, context.nights.makkah),
-    },
-    madinah: madinah
-      ? {
-          amountUsd: Number(madinah.base_price_usd),
-          unit: madinah.price_unit,
-          nights: Math.max(1, context.nights.madinah),
-        }
-      : null,
-  };
+    return {
+      makkah: {
+        amountUsd: Number(makkah.base_price_usd),
+        unit: makkah.price_unit,
+        nights: Math.max(1, context.nights.makkah),
+      },
+      madinah: madinah
+        ? {
+            amountUsd: Number(madinah.base_price_usd),
+            unit: madinah.price_unit,
+            nights: Math.max(1, context.nights.madinah),
+          }
+        : null,
+      pricingMode: "configuredPrimary",
+    };
+  } catch {
+    // Technical beta fallback inherited from the old iumrah web estimate catalog.
+    // It exists only so real flight search can be tested before every Primary Hotel
+    // has a manually maintained internal rate. No component price is exposed to iOS.
+    return {
+      makkah: legacyEstimatedHotelCost(
+        context.hotelStars,
+        "Makkah",
+        context.nights.makkah,
+        context.travelStartDate,
+      ),
+      madinah: context.includeMadinah
+        ? legacyEstimatedHotelCost(
+            context.hotelStars,
+            "Madinah",
+            context.nights.madinah,
+            context.travelStartDate,
+          )
+        : null,
+      pricingMode: "legacyEstimate",
+    };
+  }
 }
 
 function buildQuote(
@@ -219,6 +245,7 @@ export async function quoteFlightOptions(
       const pairHotels: ResolvedHotelCosts = {
         makkah: { ...hotels.makkah, nights: pairContext.nights.makkah },
         madinah: hotels.madinah ? { ...hotels.madinah, nights: pairContext.nights.madinah } : null,
+        pricingMode: hotels.pricingMode,
       };
       const quote = buildQuote(pairContext, candidate.totalGroupUsd, referenceReturn.totalGroupUsd, pairHotels, env);
       return { candidateId: candidate.candidateId, ...publicOnly(quote) };
@@ -232,6 +259,7 @@ export async function quoteFlightOptions(
       options,
       referenceReturnCandidateId: referenceReturn.candidateId,
       fxAsOf,
+      hotelPricingMode: hotels.pricingMode,
     };
   }
 
@@ -248,11 +276,12 @@ export async function quoteFlightOptions(
     const pairHotels: ResolvedHotelCosts = {
       makkah: { ...hotels.makkah, nights: pairContext.nights.makkah },
       madinah: hotels.madinah ? { ...hotels.madinah, nights: pairContext.nights.madinah } : null,
+      pricingMode: hotels.pricingMode,
     };
     const quote = buildQuote(pairContext, outbound.totalGroupUsd, candidate.totalGroupUsd, pairHotels, env);
     return { candidateId: candidate.candidateId, ...publicOnly(quote) };
   });
   options.sort((a, b) => a.pricePerPerson - b.pricePerPerson);
   const fxAsOf = outbound.fxAsOf ?? normalizedReturns.find((candidate) => candidate.fxAsOf)?.fxAsOf ?? null;
-  return { ok: true, phase: "return", options, fxAsOf };
+  return { ok: true, phase: "return", options, fxAsOf, hotelPricingMode: hotels.pricingMode };
 }

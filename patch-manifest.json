@@ -1,12 +1,14 @@
 {
-  "patch": "iumrah-beta-technical-010",
+  "patch": "iumrah-beta-technical-012",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
   "changes": [
-    "replace WebKit navigation delegate/continuation race with main-actor polling",
-    "use native async WKWebView evaluateJavaScript API",
-    "use reloadIgnoringLocalCacheData for broader SDK compatibility",
-    "keep persistent WKWebsiteDataStore for CAPTCHA/session continuation",
-    "no Package Engine or pricing changes"
+    "unblock real Flight Engine when Primary Hotel rates are not fully configured",
+    "reuse the existing iumrah-web hotel estimate table only as a temporary server-side beta fallback",
+    "keep manually configured Primary Hotel rates first priority",
+    "allow catalog Primary Hotel fallback when no package mapping exists",
+    "bridge real flight observations through PackageQuote for full-package prices",
+    "expand live fare parsing for Uzbekistan and regional currencies",
+    "treat ambiguous airline-site fares conservatively as per-passenger unless total-party wording is detected"
   ]
 }

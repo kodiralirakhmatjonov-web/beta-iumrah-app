@@ -87,6 +87,7 @@ export type ConsumerPackageQuoteRequest = {
     outbound: FlightLegCost;
     inbound: FlightLegCost;
   };
+  travelStartDate?: string;
   primaryHotelIds?: {
     makkah?: string | null;
     madinah?: string | null;
@@ -145,4 +146,5 @@ export type PublicFlightOptionsQuoteResponse = {
   options: PublicFlightOptionQuote[];
   referenceReturnCandidateId?: string;
   fxAsOf?: string | null;
+  hotelPricingMode?: "configuredPrimary" | "legacyEstimate";
 };
