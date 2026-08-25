@@ -42,20 +42,29 @@ actor APIClient {
         encoder = JSONEncoder()
     }
 
-    func post<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+    func post<T: Decodable, B: Encodable>(
+        _ path: String,
+        body: B,
+        headers: [String: String] = [:]
+    ) async throws -> T {
         let url = AppConfig.apiBaseURL.appending(path: path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("iumrah-ios-beta/0.9", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.14", forHTTPHeaderField: "User-Agent")
+        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         request.httpBody = try encoder.encode(body)
 
         let (data, response) = try await session.data(for: request)
         return try decodeResponse(data: data, response: response)
     }
 
-    func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
+    func get<T: Decodable>(
+        _ path: String,
+        query: [URLQueryItem] = [],
+        headers: [String: String] = [:]
+    ) async throws -> T {
         guard var components = URLComponents(url: AppConfig.apiBaseURL.appending(path: path), resolvingAgainstBaseURL: false) else {
             throw APIError.invalidResponse
         }
@@ -65,7 +74,8 @@ actor APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("iumrah-ios-beta/0.9", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.14", forHTTPHeaderField: "User-Agent")
+        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
 
         let (data, response) = try await session.data(for: request)
         return try decodeResponse(data: data, response: response)

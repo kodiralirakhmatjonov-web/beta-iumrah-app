@@ -59,8 +59,32 @@ enum JourneyScope: String, CaseIterable, Codable, Identifiable, Hashable {
     }
 }
 
+
+enum SaudiArrivalAirport: String, CaseIterable, Codable, Identifiable, Hashable {
+    case jeddah = "JED"
+    case madinah = "MED"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .jeddah: return "Джидда · для Мекки"
+        case .madinah: return "Медина"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .jeddah: return "Джидда"
+        case .madinah: return "Медина"
+        }
+    }
+}
+
 struct TripDraft: Codable, Hashable {
     var origin: String = "TAS"
+    var originAirport: Airport? = nil
+    var arrivalAirport: SaudiArrivalAirport = .jeddah
     var departureDate: Date = Calendar.current.date(byAdding: .day, value: 21, to: Date()) ?? Date()
     var returnDate: Date = Calendar.current.date(byAdding: .day, value: 28, to: Date()) ?? Date()
     var flexibility: DateFlexibility = .exact
@@ -74,8 +98,22 @@ struct TripDraft: Codable, Hashable {
 
     var travelerCount: Int { adults + children + infants }
 
+    var originCode: String {
+        (originAirport?.iata ?? origin).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    var outboundDestinationCode: String {
+        guard scope == .makkahAndMadinah else { return "JED" }
+        return arrivalAirport.rawValue
+    }
+
+    var returnOriginCode: String {
+        guard scope == .makkahAndMadinah else { return "JED" }
+        return arrivalAirport == .madinah ? "JED" : "MED"
+    }
+
     var canContinue: Bool {
-        !origin.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        originCode.count == 3 &&
         adults > 0 &&
         rooms > 0 &&
         returnDate > departureDate

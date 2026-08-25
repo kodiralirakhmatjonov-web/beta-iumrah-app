@@ -33,7 +33,9 @@ struct SidebarDrawerView: View {
                 .padding(.top, 22)
 
             VStack(spacing: 6) {
-                drawerSoonRow("Чаты", systemImage: "bubble.left.and.bubble.right")
+                drawerRow("Чаты", systemImage: "bubble.left.and.bubble.right") {
+                    chrome.navigate(to: .care)
+                }
 
                 Menu {
                     Picker("Язык", selection: $settings.language) {

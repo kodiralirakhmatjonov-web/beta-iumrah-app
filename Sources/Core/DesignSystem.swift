@@ -113,4 +113,16 @@ enum IumrahHaptics {
         generator.prepare()
         generator.selectionChanged()
     }
+
+    static func success() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.success)
+    }
+
+    static func error() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.error)
+    }
 }

@@ -19,8 +19,8 @@ final class RoundTripFlightBotCoordinator {
     func prepare(trip: TripDraft) async throws -> RoundTripFlightBotSession {
         let outboundRequest = FlightBotSearchRequest(
             direction: .outbound,
-            origin: trip.origin,
-            destination: outboundDestination(for: trip),
+            origin: trip.originCode,
+            destination: trip.outboundDestinationCode,
             date: trip.departureDate,
             adults: trip.adults,
             children: trip.children,
@@ -34,8 +34,8 @@ final class RoundTripFlightBotCoordinator {
 
         let inboundRequest = FlightBotSearchRequest(
             direction: .inbound,
-            origin: returnOrigin(for: trip),
-            destination: trip.origin,
+            origin: trip.returnOriginCode,
+            destination: trip.originCode,
             date: trip.returnDate,
             adults: trip.adults,
             children: trip.children,
@@ -58,11 +58,4 @@ final class RoundTripFlightBotCoordinator {
         )
     }
 
-    private func outboundDestination(for trip: TripDraft) -> String {
-        "JED"
-    }
-
-    private func returnOrigin(for trip: TripDraft) -> String {
-        trip.scope == .makkahAndMadinah ? "MED" : "JED"
-    }
 }

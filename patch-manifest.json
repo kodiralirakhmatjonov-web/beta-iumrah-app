@@ -1,15 +1,16 @@
 {
-  "patch": "iumrah-beta-update-013",
+  "patch": "iumrah-beta-bootstrap-014",
   "target": "beta-iumrah-app repository root",
   "bundle_identifier": "com.iumrah.beta",
-  "backend_changed": false,
   "changes": [
-    "add four native tabs: Home, Booking, Care and Umrah",
-    "add persistent branded header with light/dark iumrah Project wordmark and profile control",
-    "add left-edge swipe drawer with haptics, profile fields, chats placeholder, language and appearance settings",
-    "replace near-black system dark surfaces with a softer graphite dark palette",
-    "use the two supplied MP4 animations for searching and search-complete states",
-    "mark the first ranked flight option as recommended while still showing only total package pricing",
-    "prevent Skyscanner/Google Flights from being displayed as the airline when carrier identity can be inferred from flight number"
+    "connect native airport search to existing /api/airports database",
+    "add JED or MED arrival choice for Makkah + Madinah itineraries",
+    "route outbound and inbound flight bots according to selected Saudi arrival airport",
+    "connect final package to existing /api/bookings API",
+    "persist booking access tokens in iOS Keychain and refresh booking status from Cloudflare DB",
+    "connect Booking tab to live booking records",
+    "connect iumrah Care to existing /api/chat/{bookingId} API with polling and sending",
+    "connect sidebar Chats entry to Care tab",
+    "preserve 0.13 interface and existing Package/Flight Engine without backend changes"
   ]
 }

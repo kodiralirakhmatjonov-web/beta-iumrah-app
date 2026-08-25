@@ -48,16 +48,16 @@ struct FinalPackageView: View {
 
                 notificationCard
 
-                Button {
-                    // Booking endpoint will be connected after PackageQuote API is live.
+                NavigationLink {
+                    BookingCheckoutView()
                 } label: {
                     Text("Продолжить к бронированию")
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
-                .disabled(true)
-                .opacity(0.45)
+                .disabled(journey.quote == nil || journey.selectedOutbound == nil || journey.selectedInbound == nil)
+                .opacity(journey.quote == nil || journey.selectedOutbound == nil || journey.selectedInbound == nil ? 0.45 : 1)
 
-                Text("Следующий backend-шаг: реальный PackageQuote → Booking → Live Chat.")
+                Text("Booking и Live Chat подключены к существующей iumrah Cloudflare базе.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

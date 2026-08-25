@@ -1,0 +1,132 @@
+import Foundation
+
+enum BookingDraftBuilder {
+    static func make(
+        trip: TripDraft,
+        hotel: HotelSummary,
+        outbound: FlightOffer,
+        inbound: FlightOffer,
+        quote: PackageQuote
+    ) -> BookingCreateEnvelope {
+        let stay = TripStayPlanner.breakdown(for: trip)
+        let dates = stayDates(trip: trip, stay: stay)
+        let includeMadinah = trip.scope == .makkahAndMadinah
+        let services = [
+            "flight",
+            "makkahHotel",
+            includeMadinah ? "madinahHotel" : nil,
+            "visa",
+            "meals",
+            "transfer",
+            "accompaniment",
+            "ziyaratMakkah",
+            includeMadinah ? "ziyaratMadinah" : nil,
+            "care",
+            "esim",
+        ].compactMap { $0 }
+
+        let draft = BookingDraftRequest(
+            planId: trip.packageTier.rawValue,
+            totalUsd: quote.totalPackagePrice,
+            perPilgrimUsd: quote.pricePerPerson,
+            input: .init(
+                from: trip.originAirport?.city ?? trip.originCode,
+                originCode: trip.originCode,
+                arrivalAirportCode: trip.outboundDestinationCode,
+                cabinClass: "economy",
+                preferredPlan: trip.packageTier.rawValue,
+                startDate: day(trip.departureDate),
+                endDate: day(trip.returnDate),
+                flexibleDays: flexibleDays(trip.flexibility),
+                hotelPreference: String(trip.hotelStars),
+                includeMadinah: includeMadinah,
+                travelers: .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms)
+            ),
+            route: .init(
+                originCode: trip.originCode,
+                outboundDestination: trip.outboundDestinationCode,
+                returnOrigin: trip.returnOriginCode
+            ),
+            stay: .init(
+                totalDays: stay.totalDays,
+                totalNights: stay.totalNights,
+                makkahCheckIn: dates.makkahCheckIn,
+                makkahCheckOut: dates.makkahCheckOut,
+                makkahNights: stay.makkahNights,
+                madinahCheckIn: dates.madinahCheckIn,
+                madinahCheckOut: dates.madinahCheckOut,
+                madinahNights: stay.madinahNights
+            ),
+            selection: .init(
+                flightId: "\(outbound.id)|\(inbound.id)",
+                makkahHotelId: hotel.id,
+                madinahHotelId: nil
+            ),
+            customization: .init(
+                accompaniment: true,
+                guideMeetingPoint: "airport",
+                ziyaratMakkah: true,
+                ziyaratMadinah: includeMadinah,
+                meals: true,
+                esim: true
+            ),
+            includedServices: services,
+            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? "Primary Hotel · Madinah" : ""),
+            flight: "\(outbound.airline) \(outbound.flightNumber) · \(inbound.airline) \(inbound.flightNumber)"
+        )
+        return BookingCreateEnvelope(lang: "ru", booking: draft)
+    }
+
+    private struct StayDates {
+        let makkahCheckIn: String
+        let makkahCheckOut: String
+        let madinahCheckIn: String?
+        let madinahCheckOut: String?
+    }
+
+    private static func stayDates(trip: TripDraft, stay: TripStayBreakdown) -> StayDates {
+        let start = Calendar.current.startOfDay(for: trip.departureDate)
+        let end = Calendar.current.startOfDay(for: trip.returnDate)
+        guard trip.scope == .makkahAndMadinah else {
+            return .init(makkahCheckIn: day(start), makkahCheckOut: day(end), madinahCheckIn: nil, madinahCheckOut: nil)
+        }
+
+        if trip.arrivalAirport == .madinah {
+            let madinahEnd = Calendar.current.date(byAdding: .day, value: stay.madinahNights, to: start) ?? start
+            return .init(
+                makkahCheckIn: day(madinahEnd),
+                makkahCheckOut: day(end),
+                madinahCheckIn: day(start),
+                madinahCheckOut: day(madinahEnd)
+            )
+        }
+
+        let makkahEnd = Calendar.current.date(byAdding: .day, value: stay.makkahNights, to: start) ?? start
+        return .init(
+            makkahCheckIn: day(start),
+            makkahCheckOut: day(makkahEnd),
+            madinahCheckIn: day(makkahEnd),
+            madinahCheckOut: day(end)
+        )
+    }
+
+    private static func flexibleDays(_ value: DateFlexibility) -> Int {
+        switch value {
+        case .exact: return 0
+        case .plusMinusOne: return 1
+        case .plusMinusTwo, .weekend: return 2
+        }
+    }
+
+    private static func day(_ date: Date) -> String {
+        formatter.string(from: date)
+    }
+
+    private static let formatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+}

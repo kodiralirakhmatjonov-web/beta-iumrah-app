@@ -176,7 +176,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
     private func makeSignature(_ trip: TripDraft) -> String {
         let formatter = ISO8601DateFormatter()
         return [
-            trip.origin.uppercased(),
+            trip.originCode,
             formatter.string(from: trip.departureDate),
             formatter.string(from: trip.returnDate),
             trip.flexibility.rawValue,
@@ -184,6 +184,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             String(trip.children),
             String(trip.infants),
             trip.scope.rawValue,
+            trip.arrivalAirport.rawValue,
         ].joined(separator: "|")
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BookingsHomeView: View {
     @EnvironmentObject private var journey: JourneyStore
+    @EnvironmentObject private var bookings: BookingStore
 
     var body: some View {
         ScrollView {
@@ -9,13 +10,23 @@ struct BookingsHomeView: View {
                 SectionHeader(
                     "Booking",
                     eyebrow: "Ваши поездки",
-                    subtitle: "Подтверждённые Umrah-пакеты и будущие бронирования будут собраны здесь."
+                    subtitle: "Статусы бронирований читаются напрямую из iumrah Booking DB."
                 )
 
-                if journey.quote != nil || journey.selectedHotel != nil {
-                    currentDraftCard
-                } else {
+                if bookings.sessions.isEmpty {
+                    if journey.quote != nil || journey.selectedHotel != nil {
+                        currentDraftCard
+                    }
                     emptyCard
+                } else {
+                    ForEach(bookings.sessions) { session in
+                        NavigationLink {
+                            BookingDetailView(bookingID: session.id)
+                        } label: {
+                            bookingCard(session)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
@@ -25,17 +36,66 @@ struct BookingsHomeView: View {
         .background(Color.iumrahPageBackground)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await bookings.refreshAll() }
+        .task { await bookings.refreshAll() }
+    }
+
+    private func bookingCard(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.id)
+                        .font(.caption.monospaced().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(statusTitle(session.booking.status))
+                        .font(.title3.weight(.bold))
+                }
+                Spacer()
+                Image(systemName: statusIcon(session.booking.status))
+                    .font(.title3)
+            }
+
+            HStack(spacing: 8) {
+                Text(session.booking.planId.capitalized)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(Color.iumrahRaisedBackground)
+                    .clipShape(Capsule())
+                Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(Color.iumrahRaisedBackground)
+                    .clipShape(Capsule())
+            }
+
+            if !session.booking.hotelNames.makkah.isEmpty {
+                Label(session.booking.hotelNames.makkah, systemImage: "building.2")
+                    .font(.subheadline)
+            }
+
+            HStack {
+                Text(session.booking.input.startDate)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                PackagePriceView(amount: session.booking.perPilgrimUsd, currency: "USD")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
     }
 
     private var currentDraftCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Текущая поездка", systemImage: "suitcase.rolling")
+            Label("Текущий пакет", systemImage: "suitcase.rolling")
                 .font(.headline)
             if let hotel = journey.selectedHotel {
                 Text(hotel.name)
                     .font(.title3.weight(.semibold))
             }
-            Text("После подключения финального Booking API здесь появится номер бронирования, статус и документы поездки.")
+            Text("Пакет ещё не отправлен в Booking. Завершите выбор рейсов и подтвердите его на финальном экране.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -51,7 +111,7 @@ struct BookingsHomeView: View {
                 .foregroundStyle(.secondary)
             Text("Бронирований пока нет")
                 .font(.title3.weight(.bold))
-            Text("Когда Вы соберёте и подтвердите Umrah-пакет, поездка появится в этой вкладке.")
+            Text("Когда Вы отправите собранный Umrah-пакет на проверку наличия, поездка появится здесь.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

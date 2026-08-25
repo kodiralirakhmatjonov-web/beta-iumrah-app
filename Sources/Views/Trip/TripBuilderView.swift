@@ -41,13 +41,7 @@ struct TripBuilderView: View {
             Label("Маршрут", systemImage: "airplane.departure")
                 .font(.headline)
 
-            TextField("Город или аэропорт вылета", text: $journey.trip.origin)
-                .textInputAutocapitalization(.characters)
-                .autocorrectionDisabled()
-                .padding(.horizontal, 14)
-                .frame(height: 50)
-                .background(.thinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            AirportSelectorButton(airport: $journey.trip.originAirport, fallbackCode: $journey.trip.origin)
 
             Picker("Маршрут", selection: $journey.trip.scope) {
                 ForEach(JourneyScope.allCases) { scope in
@@ -55,6 +49,28 @@ struct TripBuilderView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            if journey.trip.scope == .makkahAndMadinah {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Куда прилететь сначала")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Picker("Аэропорт прилёта", selection: $journey.trip.arrivalAirport) {
+                        ForEach(SaudiArrivalAirport.allCases) { airport in
+                            Text(airport.shortTitle).tag(airport)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text(journey.trip.arrivalAirport == .madinah
+                         ? "Сначала Медина (MED), обратный рейс ищем из Джидды (JED)."
+                         : "Сначала Мекка через Джидду (JED), обратный рейс ищем из Медины (MED).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 2)
+            }
         }
         .iumrahCard()
     }
@@ -95,7 +111,7 @@ struct TripBuilderView: View {
                 .font(.headline)
                 .padding(.bottom, 4)
 
-            CounterRow(title: "Взрослые", subtitle: nil, value: $journey.trip.adults, minimum: 1, maximum: 12)
+            CounterRow(title: "Взрослые", subtitle: nil, value: $journey.trip.adults, minimum: 1, maximum: 10)
             Divider()
             CounterRow(title: "Дети", subtitle: "2–11 лет", value: $journey.trip.children, minimum: 0, maximum: 8)
             Divider()
