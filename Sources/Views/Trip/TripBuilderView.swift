@@ -154,7 +154,7 @@ struct TripBuilderView: View {
                                 .padding(.horizontal, 14)
                                 .frame(height: 38)
                                 .background(journey.trip.flexibility == option ? Color.primary : Color.iumrahRaisedBackground)
-                                .foregroundStyle(journey.trip.flexibility == option ? Color(uiColor: .systemBackground) : .primary)
+                                .foregroundStyle(journey.trip.flexibility == option ? Color(uiColor: .systemBackground) : Color.primary)
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -203,7 +203,7 @@ struct TripBuilderView: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
                             .background(journey.trip.hotelStars == stars ? Color.primary : Color.iumrahRaisedBackground)
-                            .foregroundStyle(journey.trip.hotelStars == stars ? Color(uiColor: .systemBackground) : .primary)
+                            .foregroundStyle(journey.trip.hotelStars == stars ? Color(uiColor: .systemBackground) : Color.primary)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)

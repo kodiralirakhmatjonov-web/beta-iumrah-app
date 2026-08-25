@@ -124,14 +124,14 @@ struct BookingChatView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(isMine ? L10n.text("chat_you", settings.language) : L10n.text("chat_staff", settings.language))
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(isMine ? .secondary : .white.opacity(0.72))
+                    .foregroundStyle(isMine ? Color.secondary : Color.white.opacity(0.72))
                 Text(message.body)
                     .font(.body)
-                    .foregroundStyle(isMine ? .primary : .white)
+                    .foregroundStyle(isMine ? Color.primary : Color.white)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(chatTimeLabel(message.createdAt))
                     .font(.caption2)
-                    .foregroundStyle(isMine ? .secondary : .white.opacity(0.65))
+                    .foregroundStyle(isMine ? Color.secondary : Color.white.opacity(0.65))
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.horizontal, 15)

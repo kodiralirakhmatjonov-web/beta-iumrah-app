@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-019-hotfix",
-  "createdAt": "2026-08-25T12:58:00Z",
-  "description": "Fix TestFlight compile failure: RootView referenced non-existent UmrahGuidesView; use existing UmrahHomeView and localize its placeholder."
+  "id": "iumrah-beta-update-020-hotfix",
+  "createdAt": "2026-08-25T13:08:00Z",
+  "description": "Compile hotfix for build 88987470836: fix JourneyStore quote property references and explicit SwiftUI Color ternaries in chat/trip UI."
 }

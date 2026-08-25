@@ -41,7 +41,7 @@ struct BookingCheckoutView: View {
             Text(L10n.text("checkout_subtitle", settings.language))
                 .font(.body)
                 .foregroundStyle(.secondary)
-            if let hotel = journey.selectedHotel, let quote = journey.packageQuote {
+            if let hotel = journey.selectedHotel, let quote = journey.quote {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(hotel.name).font(.headline)
                     Text("\(journey.trip.originCode) → \(journey.trip.outboundDestinationCode)")
@@ -142,7 +142,7 @@ struct BookingCheckoutView: View {
               let hotel = journey.selectedHotel,
               let outbound = journey.selectedOutbound,
               let inbound = journey.selectedInbound,
-              let quote = journey.packageQuote else { return }
+              let quote = journey.quote else { return }
 
         isSubmitting = true
         errorMessage = nil
