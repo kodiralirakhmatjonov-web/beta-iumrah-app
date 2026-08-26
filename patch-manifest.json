@@ -1,5 +1,30 @@
 {
-  "id": "iumrah-beta-update-027-production-room-categories",
-  "createdAt": "2026-08-26T12:35:00Z",
-  "description": "Production room-category architecture for iumrah Beta. DOUBLE, TRIPLE and QUADRUPLE are now canonical server-side categories seeded for every published hotel in the existing iumrah-hotels D1. iOS loads them from Package Engine instead of creating synthetic room IDs. Booking persistence stores room category/name/real room ID in dedicated booking D1 columns and payload_json, while actual hotel inventory rooms remain separately validated by their true room ID. Legacy 0.26 synthetic room IDs are migrated locally into canonical categories and re-synced to the server. Package Engine health performs idempotent schema registration on the existing hotel and booking databases. No pricing rules, flight search logic, signing assets or protected workflows are changed."
+  "name": "iumrah-beta-hotfix-028-unified-roomcategories",
+  "files": [
+    {
+      "path": "BETA_HOTFIX_028_APPLIED.txt",
+      "sha256": "0a5ebfbf0713e0c0b62c18bf93229bcb4be2d3c7e5e753fbf75adba0cfd0fbe2",
+      "bytes": 337
+    },
+    {
+      "path": "Sources/Core/AppLocalization.swift",
+      "sha256": "98ddc94c251fa602b797d7b83d83433cb353b34201b354ca8b3c868be627a117",
+      "bytes": 131550
+    },
+    {
+      "path": "Sources/Models/BookingModels.swift",
+      "sha256": "85316836f1a6d35a58358e13c273f4f0f8f1eac4e18fc3c23297f333965ba0ae",
+      "bytes": 6355
+    },
+    {
+      "path": "Sources/Services/BookingService.swift",
+      "sha256": "71d5caaebef4b02219c170e3a5048e079265a2bd9f388466657d176717ca867a",
+      "bytes": 3617
+    },
+    {
+      "path": "Sources/State/BookingStore.swift",
+      "sha256": "29d9c06bdac62d79de16a97021817619fe9e5752b436e7b9cf0850de9b515604",
+      "bytes": 11200
+    }
+  ]
 }

@@ -1,0 +1,4 @@
+iumrah Beta hotfix 028
+Fixes the merge conflict between production room categories (027) and unified operations/chat/push update.
+Preserves DOUBLE/TRIPLE/QUADRUPLE room-category booking contracts while keeping unified chat, iUmrah ID sync, push registration and permanent-delete API.
+Package Engine files are not changed by this hotfix.

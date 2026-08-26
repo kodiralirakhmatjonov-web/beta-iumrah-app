@@ -78,6 +78,8 @@ struct BookingSelection: Codable, Hashable {
     let flightId: String
     let makkahHotelId: String
     let madinahHotelId: String?
+    let makkahRoomId: String?
+    let makkahRoomCategory: IumrahRoomCategory?
 }
 
 struct BookingCustomization: Codable, Hashable {
@@ -213,15 +215,19 @@ struct BookingHotelUpdateRequest: Encodable {
     let roomBeds: String?
     let roomSizeM2: Double?
     let roomMaxGuests: Int?
+    let roomCategory: String?
+    let roomSource: String?
 
-    init(hotel: HotelSummary, room: HotelRoom?) {
+    init(hotel: HotelSummary, room: HotelRoom?, roomCategory: IumrahRoomCategoryOption? = nil) {
         hotelId = hotel.id
         coverImageURL = hotel.coverImageURL
         roomId = room?.id
-        roomName = room?.name
-        roomBeds = room?.beds
+        roomName = room?.name ?? roomCategory?.displayName
+        roomBeds = room?.beds ?? roomCategory?.bedConfiguration
         roomSizeM2 = room?.sizeM2
-        roomMaxGuests = room?.maxGuests
+        roomMaxGuests = room?.maxGuests ?? roomCategory?.maxGuests
+        self.roomCategory = roomCategory?.category.rawValue
+        roomSource = roomCategory != nil ? "iumrahPrimary" : room != nil ? "hotelInventory" : nil
     }
 
     init(snapshot: BookingHotelSelectionSnapshot) {
@@ -232,5 +238,7 @@ struct BookingHotelUpdateRequest: Encodable {
         roomBeds = snapshot.roomBeds
         roomSizeM2 = snapshot.roomSizeM2
         roomMaxGuests = snapshot.roomMaxGuests
+        roomCategory = snapshot.roomCategory?.rawValue
+        roomSource = snapshot.roomSource
     }
 }

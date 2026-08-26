@@ -15,10 +15,16 @@ struct BookingService {
         return response.booking
     }
 
-    func updateHotelSelection(id: String, accessToken: String, hotel: HotelSummary, room: HotelRoom?) async throws -> BookingMutationResponse {
+    func updateHotelSelection(
+        id: String,
+        accessToken: String,
+        hotel: HotelSummary,
+        room: HotelRoom?,
+        roomCategory: IumrahRoomCategoryOption? = nil
+    ) async throws -> BookingMutationResponse {
         try await api.patch(
             "/api/package/booking/\(id)",
-            body: BookingHotelUpdateRequest(hotel: hotel, room: room),
+            body: BookingHotelUpdateRequest(hotel: hotel, room: room, roomCategory: roomCategory),
             headers: ["x-booking-token": accessToken]
         )
     }
