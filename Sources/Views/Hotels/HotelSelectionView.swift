@@ -20,9 +20,11 @@ struct HotelSelectionView: View {
                 )
 
                 ForEach(filteredHotels) { hotel in
-                    Button {
-                        journey.chooseHotel(hotel)
-                        dismiss()
+                    NavigationLink {
+                        HotelDetailView(
+                            hotel: hotel,
+                            onRoomSelected: { _ in dismiss() }
+                        )
                     } label: {
                         HotelCard(
                             hotel: hotel,

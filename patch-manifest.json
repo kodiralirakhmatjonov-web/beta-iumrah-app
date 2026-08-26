@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-024-flight-search-stability-live-waiting",
-  "createdAt": "2026-08-26T07:22:00Z",
-  "description": "Flight search stability update: bounded provider/search deadlines, anchor-date-first flexibility, concurrent outbound and return-reference discovery, early return at the minimum live result target, SPA-safe WKWebView polling, Uzbekistan-first provider plan with early metasearch fallback, premium black immersive waiting screen with transparent white iumrah wordmark and localized live status copy. Pricing and Package Engine logic are unchanged."
+  "id": "iumrah-beta-update-025-hotel-booking-detail-delete",
+  "createdAt": "2026-08-26T10:30:00Z",
+  "description": "Hotel and booking production UX update: clickable curated hotel cards, native Hotel Detail with swipe gallery/all-photos view, rating/amenities/map/room cards, room selection linked to Journey and stored booking sessions, compact Booking Detail without global wordmark, expandable outbound/return flight cards, hotel change flow through the existing iumrah Hotel Catalog, iumrah Care shortcut, and authenticated server-side booking hotel mutation/permanent D1 deletion via the existing Package Engine. No pricing rules, Flight Engine search logic, signing files, or protected workflows are changed."
 }

@@ -45,6 +45,11 @@ struct BookingCheckoutView: View {
             if let hotel = journey.selectedHotel, let quote = journey.quote {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(hotel.name).font(.headline)
+                    if let room = journey.selectedRoom {
+                        Label(room.name, systemImage: "bed.double")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                     Text("\(journey.trip.originCode) → \(journey.trip.outboundDestinationCode)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -159,6 +164,7 @@ struct BookingCheckoutView: View {
             let session = try await bookings.create(
                 trip: journey.trip,
                 hotel: hotel,
+                room: journey.selectedRoom,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,

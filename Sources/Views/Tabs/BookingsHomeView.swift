@@ -5,6 +5,8 @@ struct BookingsHomeView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @State private var pendingDeleteID: String?
+    @State private var deleteError: String?
 
     var body: some View {
         ScrollView {
@@ -29,6 +31,20 @@ struct BookingsHomeView: View {
                             bookingCard(session)
                         }
                         .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                pendingDeleteID = session.id
+                            } label: {
+                                Label(L10n.text("booking_delete", settings.language), systemImage: "trash")
+                            }
+                        }
+                    }
+
+                    if let deleteError {
+                        Text(deleteError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else {
                     noBookingsCard
@@ -41,6 +57,32 @@ struct BookingsHomeView: View {
         .background(Color.iumrahPageBackground)
         .refreshable { await bookings.refreshAll() }
         .task { await bookings.refreshAll() }
+        .confirmationDialog(
+            L10n.text("booking_delete_confirm_title", settings.language),
+            isPresented: Binding(
+                get: { pendingDeleteID != nil },
+                set: { if !$0 { pendingDeleteID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(L10n.text("booking_delete_confirm_action", settings.language), role: .destructive) {
+                guard let id = pendingDeleteID else { return }
+                pendingDeleteID = nil
+                Task {
+                    do {
+                        try await bookings.deleteBooking(id: id)
+                        deleteError = nil
+                        IumrahHaptics.success()
+                    } catch {
+                        deleteError = L10n.error(error, settings.language)
+                        IumrahHaptics.error()
+                    }
+                }
+            }
+            Button(L10n.text("cancel", settings.language), role: .cancel) { pendingDeleteID = nil }
+        } message: {
+            Text(L10n.text("booking_delete_confirm_body", settings.language))
+        }
         .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
             TripBuilderView()
         }

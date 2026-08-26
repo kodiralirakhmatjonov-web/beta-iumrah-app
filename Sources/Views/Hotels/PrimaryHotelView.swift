@@ -57,7 +57,12 @@ struct PrimaryHotelView: View {
             }
             .iumrahCard()
         } else if let hotel = journey.selectedHotel {
-            HotelCard(hotel: hotel, badge: L10n.text("primary_hotel_badge", settings.language))
+            NavigationLink {
+                HotelDetailView(hotel: hotel)
+            } label: {
+                HotelCard(hotel: hotel, badge: L10n.text("primary_hotel_badge", settings.language))
+            }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 OutboundFlightView()

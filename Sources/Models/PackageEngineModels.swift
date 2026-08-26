@@ -70,6 +70,7 @@ struct PackageEngineHealthResponse: Decodable {
     let service: String
     let pricingVersion: String
     let hotelsDbConfigured: Bool
+    let bookingsDbConfigured: Bool?
     let primaryHotelConfigCount: Int?
     let pricingReady: Bool?
     let makkahPricingReady: Bool?

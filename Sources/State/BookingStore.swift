@@ -1,6 +1,17 @@
 import Foundation
 import SwiftUI
 
+enum BookingStoreError: LocalizedError {
+    case permanentDeleteUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .permanentDeleteUnavailable:
+            return "Permanent booking deletion is not available on the server."
+        }
+    }
+}
+
 @MainActor
 final class BookingStore: ObservableObject {
     @Published private(set) var sessions: [StoredBookingSession] = []
@@ -17,6 +28,7 @@ final class BookingStore: ObservableObject {
     func create(
         trip: TripDraft,
         hotel: HotelSummary,
+        room: HotelRoom?,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -43,9 +55,19 @@ final class BookingStore: ObservableObject {
             booking: response.booking,
             travelerName: serverProfile?.displayName,
             telegram: serverProfile?.telegram,
-            whatsapp: serverProfile?.whatsapp
+            whatsapp: serverProfile?.whatsapp,
+            outboundFlight: outbound,
+            inboundFlight: inbound,
+            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room)
         )
         upsert(session)
+        if room != nil {
+            _ = try? await bookingService.updateHotelSelection(
+                id: session.id,
+                accessToken: session.accessToken,
+                snapshot: session.hotelSelection ?? BookingHotelSelectionSnapshot(hotel: hotel, room: room)
+            )
+        }
         return session
     }
 
@@ -60,6 +82,9 @@ final class BookingStore: ObservableObject {
                         sessions[index].travelerName = profile.displayName
                         sessions[index].telegram = profile.telegram
                         sessions[index].whatsapp = profile.whatsapp
+                    }
+                    if let hotelSelection = booking.hotelSelection {
+                        sessions[index].hotelSelection = hotelSelection
                     }
                 }
             } catch {
@@ -102,6 +127,55 @@ final class BookingStore: ObservableObject {
         current.append(created)
         chats[bookingID] = current.sorted(by: { $0.id < $1.id })
         return created
+    }
+
+
+    func syncHotelSelectionIfNeeded(bookingID: String) async {
+        guard let session = booking(id: bookingID),
+              let snapshot = session.hotelSelection,
+              snapshot.roomId != nil,
+              session.booking.hotelSelection?.roomId != snapshot.roomId,
+              !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        do {
+            _ = try await bookingService.updateHotelSelection(
+                id: bookingID,
+                accessToken: session.accessToken,
+                snapshot: snapshot
+            )
+        } catch {
+            // Keep the local selection and retry on a later booking-detail refresh.
+        }
+    }
+
+    func updateHotelSelection(bookingID: String, hotel: HotelSummary, room: HotelRoom?) async throws {
+        guard let session = booking(id: bookingID), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        _ = try await bookingService.updateHotelSelection(
+            id: bookingID,
+            accessToken: session.accessToken,
+            hotel: hotel,
+            room: room
+        )
+        guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
+        sessions[index].hotelSelection = BookingHotelSelectionSnapshot(hotel: hotel, room: room)
+        persist()
+    }
+
+    func deleteBooking(id: String) async throws {
+        guard let session = booking(id: id), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        do {
+            _ = try await bookingService.deleteBooking(id: id, accessToken: session.accessToken)
+        } catch APIError.status(let code) where code == 405 {
+            throw BookingStoreError.permanentDeleteUnavailable
+        } catch APIError.server(let code, let message) where code == 405 || message.uppercased() == "METHOD_NOT_ALLOWED" {
+            throw BookingStoreError.permanentDeleteUnavailable
+        }
+        sessions.removeAll(where: { $0.id == id })
+        chats[id] = nil
+        persist()
     }
 
     private func upsert(_ session: StoredBookingSession) {

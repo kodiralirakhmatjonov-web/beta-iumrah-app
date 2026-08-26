@@ -14,4 +14,27 @@ struct BookingService {
         )
         return response.booking
     }
+
+    func updateHotelSelection(id: String, accessToken: String, hotel: HotelSummary, room: HotelRoom?) async throws -> BookingMutationResponse {
+        try await api.patch(
+            "/api/package/booking/\(id)",
+            body: BookingHotelUpdateRequest(hotel: hotel, room: room),
+            headers: ["x-booking-token": accessToken]
+        )
+    }
+
+    func updateHotelSelection(id: String, accessToken: String, snapshot: BookingHotelSelectionSnapshot) async throws -> BookingMutationResponse {
+        try await api.patch(
+            "/api/package/booking/\(id)",
+            body: BookingHotelUpdateRequest(snapshot: snapshot),
+            headers: ["x-booking-token": accessToken]
+        )
+    }
+
+    func deleteBooking(id: String, accessToken: String) async throws -> BookingMutationResponse {
+        try await api.delete(
+            "/api/package/booking/\(id)",
+            headers: ["x-booking-token": accessToken]
+        )
+    }
 }

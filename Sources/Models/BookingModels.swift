@@ -113,6 +113,7 @@ struct RemoteBooking: Codable, Identifiable, Hashable {
     let createdAt: String
     let updatedAt: String
     let pilgrimProfile: BookingPilgrimProfile?
+    let hotelSelection: BookingHotelSelectionSnapshot?
 }
 
 struct BookingInputRecord: Codable, Hashable {
@@ -161,4 +162,44 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var travelerName: String?
     var telegram: String?
     var whatsapp: String?
+    var outboundFlight: FlightOffer?
+    var inboundFlight: FlightOffer?
+    var hotelSelection: BookingHotelSelectionSnapshot?
+}
+
+struct BookingMutationResponse: Decodable {
+    let ok: Bool?
+    let deleted: Bool?
+    let updatedAt: String?
+}
+
+
+struct BookingHotelUpdateRequest: Encodable {
+    let hotelId: String
+    let coverImageURL: String?
+    let roomId: String?
+    let roomName: String?
+    let roomBeds: String?
+    let roomSizeM2: Double?
+    let roomMaxGuests: Int?
+
+    init(hotel: HotelSummary, room: HotelRoom?) {
+        hotelId = hotel.id
+        coverImageURL = hotel.coverImageURL
+        roomId = room?.id
+        roomName = room?.name
+        roomBeds = room?.beds
+        roomSizeM2 = room?.sizeM2
+        roomMaxGuests = room?.maxGuests
+    }
+
+    init(snapshot: BookingHotelSelectionSnapshot) {
+        hotelId = snapshot.hotelId
+        coverImageURL = snapshot.coverImageURL
+        roomId = snapshot.roomId
+        roomName = snapshot.roomName
+        roomBeds = snapshot.roomBeds
+        roomSizeM2 = snapshot.roomSizeM2
+        roomMaxGuests = snapshot.roomMaxGuests
+    }
 }

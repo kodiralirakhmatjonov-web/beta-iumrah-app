@@ -62,8 +62,13 @@ struct HotelsHomeView: View {
             if hotels.isEmpty {
                 EmptyView()
             }
-            ForEach(hotels.prefix(4)) { hotel in
-                hotelRow(hotel)
+            ForEach(hotels) { hotel in
+                NavigationLink {
+                    HotelDetailView(hotel: hotel)
+                } label: {
+                    hotelRow(hotel)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -101,7 +106,11 @@ struct HotelsHomeView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
         }
+        .contentShape(Rectangle())
         .iumrahCard()
     }
 

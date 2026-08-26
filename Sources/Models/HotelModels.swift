@@ -4,7 +4,7 @@ struct HotelsResponse: Decodable {
     let hotels: [HotelSummary]
 }
 
-struct HotelSummary: Decodable, Identifiable, Hashable {
+struct HotelSummary: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let city: String
@@ -23,7 +23,7 @@ struct HotelDetailResponse: Decodable {
     let hotel: HotelDetail
 }
 
-struct HotelDetail: Decodable, Identifiable, Hashable {
+struct HotelDetail: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let city: String
@@ -46,7 +46,7 @@ struct HotelDetail: Decodable, Identifiable, Hashable {
     let images: [HotelImage]
 }
 
-struct HotelRoom: Decodable, Identifiable, Hashable {
+struct HotelRoom: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let maxGuests: Int?
@@ -57,7 +57,7 @@ struct HotelRoom: Decodable, Identifiable, Hashable {
     let amenities: [String]
 }
 
-struct HotelImage: Decodable, Identifiable, Hashable {
+struct HotelImage: Codable, Identifiable, Hashable {
     let id: String
     let provider: String?
     let category: String
@@ -66,4 +66,29 @@ struct HotelImage: Decodable, Identifiable, Hashable {
     let position: Int
     let isCover: Bool
     let url: String
+}
+
+
+struct BookingHotelSelectionSnapshot: Codable, Hashable {
+    let hotelId: String
+    let hotelName: String
+    let city: String
+    let coverImageURL: String?
+    let roomId: String?
+    let roomName: String?
+    let roomBeds: String?
+    let roomSizeM2: Double?
+    let roomMaxGuests: Int?
+
+    init(hotel: HotelSummary, room: HotelRoom? = nil) {
+        hotelId = hotel.id
+        hotelName = hotel.name
+        city = hotel.city
+        coverImageURL = hotel.coverImageURL
+        roomId = room?.id
+        roomName = room?.name
+        roomBeds = room?.beds
+        roomSizeM2 = room?.sizeM2
+        roomMaxGuests = room?.maxGuests
+    }
 }

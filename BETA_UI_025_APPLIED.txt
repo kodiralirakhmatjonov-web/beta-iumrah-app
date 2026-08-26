@@ -1,0 +1,1 @@
+iumrah Beta update 0.25 applied: Hotel Detail, room selection, booking detail disclosures, hotel change, Care action, and authenticated server-side booking deletion.

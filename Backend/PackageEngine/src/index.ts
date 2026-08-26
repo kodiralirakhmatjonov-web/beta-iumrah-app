@@ -3,11 +3,13 @@ import { quoteFlightOptions } from "./flight-options";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
 import { legacyEstimatedHotelCost } from "./hotel-fallback";
 import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
+import { deletePilgrimBooking, updatePilgrimHotel } from "./booking-control";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
 type Env = {
   PRICING_VERSION?: string;
   HOTELS_DB?: D1Like;
+  BOOKINGS_DB?: D1Like & { batch(statements: import("./primary-hotels").D1PreparedStatementLike[]): Promise<unknown[]> };
   CBU_FX_URL?: string;
   AUTH_SESSION_URL?: string;
 };
@@ -108,6 +110,7 @@ async function publicHealth(env: Env) {
       service: "iumrah-package-engine",
       pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
       hotelsDbConfigured: false,
+      bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: 0,
       pricingReady: false,
       flightOptionQuotingReady: false,
@@ -142,6 +145,7 @@ async function publicHealth(env: Env) {
       service: "iumrah-package-engine",
       pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
       hotelsDbConfigured: true,
+      bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: count,
       primaryHotelConfigByCity: { Makkah: makkahCount, Madinah: madinahCount },
       pricingReady: true,
@@ -158,6 +162,7 @@ async function publicHealth(env: Env) {
       service: "iumrah-package-engine",
       pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
       hotelsDbConfigured: true,
+      bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: 0,
       pricingReady: false,
       flightOptionQuotingReady: false,
@@ -183,6 +188,14 @@ export default {
       }
 
       return json({ ok: false, error: "NOT_FOUND" }, 404);
+    }
+
+    const bookingMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})$/);
+    if (bookingMatch) {
+      const bookingId = bookingMatch[1];
+      if (request.method === "DELETE") return deletePilgrimBooking(request, bookingId, env);
+      if (request.method === "PATCH") return updatePilgrimHotel(request, bookingId, env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
     }
 
     if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {

@@ -19,6 +19,11 @@
       "binding": "HOTELS_DB",
       "database_name": "iumrah-hotels",
       "database_id": "__D1_DATABASE_ID__"
+    },
+    {
+      "binding": "BOOKINGS_DB",
+      "database_name": "__BOOKING_D1_DATABASE_NAME__",
+      "database_id": "__BOOKING_D1_DATABASE_ID__"
     }
   ],
   "vars": {
