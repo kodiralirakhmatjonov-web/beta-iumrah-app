@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct BookingChatView: View {
     @EnvironmentObject private var bookings: BookingStore
@@ -117,7 +118,7 @@ struct BookingChatView: View {
     }
 
     private func bubble(_ message: ChatMessage) -> some View {
-        let isMine = message.senderType.lowercased() == "pilgrim"
+        let isMine = ["client", "pilgrim"].contains(message.senderType.lowercased())
         return HStack(alignment: .bottom, spacing: 8) {
             if isMine { Spacer(minLength: 46) }
 
@@ -135,10 +136,15 @@ struct BookingChatView: View {
                 Text(isMine ? L10n.text("chat_you", settings.language) : L10n.text("chat_staff", settings.language))
                     .font(.caption2.weight(.bold))
                     .foregroundColor(isMine ? Color.secondary : Color.white.opacity(0.72))
-                Text(message.body)
-                    .font(.body)
-                    .foregroundColor(isMine ? Color.primary : Color.white)
-                    .fixedSize(horizontal: false, vertical: true)
+                if message.messageType == "image", let attachmentID = message.attachmentID, let accessToken = session?.accessToken {
+                    AuthenticatedChatImage(bookingID: bookingID, attachmentID: attachmentID, accessToken: accessToken)
+                }
+                if !message.body.isEmpty && !(message.messageType == "image" && message.body == "Фотография") {
+                    Text(message.body)
+                        .font(.body)
+                        .foregroundColor(isMine ? Color.primary : Color.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text(chatTimeLabel(message.createdAt))
                     .font(.caption2)
                     .foregroundColor(isMine ? Color.secondary : Color.white.opacity(0.65))
@@ -242,7 +248,7 @@ struct BookingChatView: View {
         defer { if !silent { isLoading = false } }
         do {
             let loaded = try await bookings.loadChat(for: bookingID)
-            messages = loaded.sorted(by: { $0.id < $1.id })
+            messages = loaded.sorted { lhs, rhs in lhs.createdAt == rhs.createdAt ? lhs.id < rhs.id : lhs.createdAt < rhs.createdAt }
             if failedDraft == nil { errorMessage = nil }
         } catch {
             if !silent { errorMessage = L10n.error(error, settings.language) }
@@ -298,4 +304,34 @@ private extension ISO8601DateFormatter {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+}
+
+
+private struct AuthenticatedChatImage: View {
+    let bookingID: String
+    let attachmentID: String
+    let accessToken: String
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                ProgressView()
+                    .frame(width: 180, height: 120)
+            }
+        }
+        .frame(maxWidth: 240, maxHeight: 280)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .task(id: attachmentID) {
+            guard image == nil else { return }
+            if let data = try? await ChatService().loadAttachment(bookingID: bookingID, attachmentID: attachmentID, accessToken: accessToken),
+               let loaded = UIImage(data: data) {
+                image = loaded
+            }
+        }
+    }
 }

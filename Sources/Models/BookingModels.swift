@@ -78,8 +78,6 @@ struct BookingSelection: Codable, Hashable {
     let flightId: String
     let makkahHotelId: String
     let madinahHotelId: String?
-    let makkahRoomId: String?
-    let makkahRoomCategory: IumrahRoomCategory?
 }
 
 struct BookingCustomization: Codable, Hashable {
@@ -128,33 +126,28 @@ struct BookingInputRecord: Codable, Hashable {
     let travelers: BookingTravelers
 }
 
-struct ChatBookingSummary: Decodable, Hashable {
-    let id: String
-    let status: String
-    let createdAt: String?
-    let updatedAt: String?
-    let pilgrimFirstName: String?
-    let pilgrimLastName: String?
-    let pilgrimTelegram: String?
-    let pilgrimWhatsapp: String?
-}
-
 struct ChatListResponse: Decodable {
-    let booking: ChatBookingSummary?
+    let ok: Bool?
+    let bookingID: String?
     let messages: [ChatMessage]
 }
 
 struct ChatMessagePostResponse: Decodable {
+    let ok: Bool?
     let message: ChatMessage
 }
 
 struct ChatMessage: Codable, Identifiable, Hashable {
-    let id: Int
-    let bookingId: String
+    let id: String
+    let bookingID: String
     let senderType: String
-    let senderId: String
+    let senderName: String?
     let body: String
+    let messageType: String?
+    let attachmentID: String?
+    let attachmentURL: String?
     let createdAt: String
+    let readByStaff: Bool?
 }
 
 struct StoredBookingSession: Codable, Identifiable, Hashable {
@@ -167,6 +160,42 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var outboundFlight: FlightOffer?
     var inboundFlight: FlightOffer?
     var hotelSelection: BookingHotelSelectionSnapshot?
+    var iumrahID: String? = nil
+}
+
+struct ClientBookingSyncRequest: Encodable {
+    let bookingID: String
+    let clientUserID: String
+    let firstName: String
+    let lastName: String
+    let displayName: String
+    let telegram: String
+    let whatsapp: String
+    let bookingSnapshot: RemoteBooking
+}
+
+struct ClientBookingSyncResponse: Decodable {
+    let ok: Bool
+    let pilgrimID: String?
+    let iumrahID: String?
+}
+
+struct ClientPushRegistrationRequest: Encodable {
+    let deviceToken: String
+    let environment: String
+    let clientUserID: String
+    let firstName: String
+    let lastName: String
+    let displayName: String
+    let telegram: String
+    let whatsapp: String
+}
+
+struct ClientPushRegistrationResponse: Decodable {
+    let ok: Bool
+    let ready: Bool?
+    let pilgrimID: String?
+    let iumrahID: String?
 }
 
 struct BookingMutationResponse: Decodable {
@@ -184,19 +213,15 @@ struct BookingHotelUpdateRequest: Encodable {
     let roomBeds: String?
     let roomSizeM2: Double?
     let roomMaxGuests: Int?
-    let roomCategory: String?
-    let roomSource: String?
 
-    init(hotel: HotelSummary, room: HotelRoom?, roomCategory: IumrahRoomCategoryOption? = nil) {
+    init(hotel: HotelSummary, room: HotelRoom?) {
         hotelId = hotel.id
         coverImageURL = hotel.coverImageURL
         roomId = room?.id
-        roomName = room?.name ?? roomCategory?.displayName
-        roomBeds = room?.beds ?? roomCategory?.bedConfiguration
+        roomName = room?.name
+        roomBeds = room?.beds
         roomSizeM2 = room?.sizeM2
-        roomMaxGuests = room?.maxGuests ?? roomCategory?.maxGuests
-        self.roomCategory = roomCategory?.category.rawValue
-        roomSource = roomCategory != nil ? "iumrahPrimary" : room != nil ? "hotelInventory" : nil
+        roomMaxGuests = room?.maxGuests
     }
 
     init(snapshot: BookingHotelSelectionSnapshot) {
@@ -207,7 +232,5 @@ struct BookingHotelUpdateRequest: Encodable {
         roomBeds = snapshot.roomBeds
         roomSizeM2 = snapshot.roomSizeM2
         roomMaxGuests = snapshot.roomMaxGuests
-        roomCategory = snapshot.roomCategory?.rawValue
-        roomSource = snapshot.roomSource
     }
 }

@@ -73,8 +73,6 @@ final class PushNotificationManager: ObservableObject {
         UserDefaults.standard.set(token, forKey: tokenDefaultsKey)
         lastError = nil
 
-        // The token is intentionally kept on-device until the Cloudflare
-        // push-registration endpoint is enabled. Do not send it to a guessed URL.
         #if DEBUG
         print("[iumrah Beta] APNs device token registered")
         #endif

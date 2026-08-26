@@ -5,6 +5,7 @@ struct RootView: View {
     @StateObject private var chrome = AppChromeStore()
     @StateObject private var journey = JourneyStore()
     @StateObject private var bookings = BookingStore()
+    @ObservedObject private var push = PushNotificationManager.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -46,6 +47,15 @@ struct RootView: View {
                 .environmentObject(settings)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .task {
+            await bookings.synchronizeCloud()
+            await push.refreshAndRegisterIfAllowed()
+            if let token = push.deviceToken { await bookings.registerPushDevice(token: token) }
+        }
+        .onChange(of: push.deviceToken) { _, token in
+            guard let token else { return }
+            Task { await bookings.registerPushDevice(token: token) }
         }
         .onChange(of: chrome.requestedTab) { _, newValue in
             guard let newValue else { return }
