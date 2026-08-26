@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-26-intel
+    runs-on: macos-26
     env:
       SCHEME: iumrahBeta
       PROJECT: iumrahBeta.xcodeproj
@@ -99,15 +99,6 @@ jobs:
           IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-
-          # Public repositories are supported. The signing private key is stored
-          # only as AES-256-CBC encrypted ciphertext in the repository; the
-          # decryption password stays in GitHub Actions Secrets. Never print or
-          # persist IOS_SIGNING_KEY_PASSWORD in workflow logs/artifacts.
-          if [ "${{ github.event.repository.private }}" != "true" ]; then
-            echo "Public repository signing mode enabled."
-            echo "Signing/distribution-private-key.enc is encrypted; its password remains in GitHub Secrets."
-          fi
 
           for name in APPLE_TEAM_ID APPLE_ID_EMAIL APPLE_APP_SPECIFIC_PASSWORD IOS_SIGNING_KEY_PASSWORD; do
             if [ -z "${!name}" ]; then
