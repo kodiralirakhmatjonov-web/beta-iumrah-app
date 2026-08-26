@@ -7,6 +7,7 @@ final class JourneyStore: ObservableObject {
     @Published var hotels: [HotelSummary] = []
     @Published var selectedHotel: HotelSummary?
     @Published var selectedRoom: HotelRoom?
+    @Published var selectedRoomCategory: IumrahRoomCategoryOption?
     @Published var selectedOutbound: FlightOffer?
     @Published var selectedInbound: FlightOffer?
     @Published var quote: PackageQuote?
@@ -75,6 +76,7 @@ final class JourneyStore: ObservableObject {
     func resetAfterTripChange() {
         selectedHotel = nil
         selectedRoom = nil
+        selectedRoomCategory = nil
         selectedOutbound = nil
         selectedInbound = nil
         quote = nil
@@ -82,7 +84,10 @@ final class JourneyStore: ObservableObject {
     }
 
     func chooseHotel(_ hotel: HotelSummary) {
-        if selectedHotel?.id != hotel.id { selectedRoom = nil }
+        if selectedHotel?.id != hotel.id {
+            selectedRoom = nil
+            selectedRoomCategory = nil
+        }
         selectedHotel = hotel
         selectedOutbound = nil
         selectedInbound = nil
@@ -91,6 +96,12 @@ final class JourneyStore: ObservableObject {
 
     func chooseRoom(_ room: HotelRoom?) {
         selectedRoom = room
+        if room != nil { selectedRoomCategory = nil }
+    }
+
+    func chooseRoomCategory(_ category: IumrahRoomCategoryOption?) {
+        selectedRoomCategory = category
+        if category != nil { selectedRoom = nil }
     }
 
     func buildQuote() async {

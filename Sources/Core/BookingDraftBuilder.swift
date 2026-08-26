@@ -4,6 +4,8 @@ enum BookingDraftBuilder {
     static func make(
         trip: TripDraft,
         hotel: HotelSummary,
+        room: HotelRoom?,
+        roomCategory: IumrahRoomCategoryOption?,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -62,7 +64,9 @@ enum BookingDraftBuilder {
             selection: .init(
                 flightId: "\(outbound.id)|\(inbound.id)",
                 makkahHotelId: hotel.id,
-                madinahHotelId: nil
+                madinahHotelId: nil,
+                makkahRoomId: room?.id,
+                makkahRoomCategory: roomCategory?.category
             ),
             customization: .init(
                 accompaniment: true,

@@ -36,7 +36,7 @@ struct BookingHotelChangeView: View {
                             HotelDetailView(
                                 hotel: hotel,
                                 bookingID: bookingID,
-                                onRoomSelected: { _ in
+                                onSelectionSaved: {
                                     dismiss()
                                 }
                             )

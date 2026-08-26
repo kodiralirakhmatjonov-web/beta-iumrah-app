@@ -29,6 +29,7 @@ final class BookingStore: ObservableObject {
         trip: TripDraft,
         hotel: HotelSummary,
         room: HotelRoom?,
+        roomCategory: IumrahRoomCategoryOption?,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -38,6 +39,8 @@ final class BookingStore: ObservableObject {
         let payload = BookingDraftBuilder.make(
             trip: trip,
             hotel: hotel,
+            room: room,
+            roomCategory: roomCategory,
             outbound: outbound,
             inbound: inbound,
             quote: quote,
@@ -58,14 +61,14 @@ final class BookingStore: ObservableObject {
             whatsapp: serverProfile?.whatsapp,
             outboundFlight: outbound,
             inboundFlight: inbound,
-            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room)
+            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
         )
         upsert(session)
-        if room != nil {
+        if room != nil || roomCategory != nil {
             _ = try? await bookingService.updateHotelSelection(
                 id: session.id,
                 accessToken: session.accessToken,
-                snapshot: session.hotelSelection ?? BookingHotelSelectionSnapshot(hotel: hotel, room: room)
+                snapshot: session.hotelSelection ?? BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
             )
         }
         return session
@@ -84,7 +87,18 @@ final class BookingStore: ObservableObject {
                         sessions[index].whatsapp = profile.whatsapp
                     }
                     if let hotelSelection = booking.hotelSelection {
-                        sessions[index].hotelSelection = hotelSelection
+                        let localSelection = sessions[index].hotelSelection
+                        if hotelSelection.roomCategory == nil,
+                           hotelSelection.roomId == nil,
+                           let localSelection,
+                           localSelection.hotelId == hotelSelection.hotelId,
+                           localSelection.roomCategory != nil {
+                            // Older booking parsers may not echo the new roomCategory fields yet.
+                            // Keep the securely stored server-synced category instead of erasing it.
+                            sessions[index].hotelSelection = localSelection
+                        } else {
+                            sessions[index].hotelSelection = hotelSelection
+                        }
                     }
                 }
             } catch {
@@ -133,8 +147,9 @@ final class BookingStore: ObservableObject {
     func syncHotelSelectionIfNeeded(bookingID: String) async {
         guard let session = booking(id: bookingID),
               let snapshot = session.hotelSelection,
-              snapshot.roomId != nil,
-              session.booking.hotelSelection?.roomId != snapshot.roomId,
+              snapshot.roomId != nil || snapshot.roomCategory != nil,
+              (session.booking.hotelSelection?.roomId != snapshot.roomId ||
+               session.booking.hotelSelection?.roomCategory != snapshot.roomCategory),
               !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         do {
             _ = try await bookingService.updateHotelSelection(
@@ -147,7 +162,12 @@ final class BookingStore: ObservableObject {
         }
     }
 
-    func updateHotelSelection(bookingID: String, hotel: HotelSummary, room: HotelRoom?) async throws {
+    func updateHotelSelection(
+        bookingID: String,
+        hotel: HotelSummary,
+        room: HotelRoom?,
+        roomCategory: IumrahRoomCategoryOption? = nil
+    ) async throws {
         guard let session = booking(id: bookingID), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw APIError.missingBookingToken
         }
@@ -155,10 +175,11 @@ final class BookingStore: ObservableObject {
             id: bookingID,
             accessToken: session.accessToken,
             hotel: hotel,
-            room: room
+            room: room,
+            roomCategory: roomCategory
         )
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
-        sessions[index].hotelSelection = BookingHotelSelectionSnapshot(hotel: hotel, room: room)
+        sessions[index].hotelSelection = BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
         persist()
     }
 
@@ -194,7 +215,8 @@ final class BookingStore: ObservableObject {
     private func loadFromStorage() {
         let secureSessions = BookingSessionVault.load()
         if !secureSessions.isEmpty {
-            sessions = secureSessions
+            sessions = migrateLegacyPrimaryRooms(in: secureSessions)
+            _ = BookingSessionVault.save(sessions)
             UserDefaults.standard.removeObject(forKey: legacyStorageKey)
             return
         }
@@ -204,9 +226,19 @@ final class BookingStore: ObservableObject {
             return
         }
 
-        sessions = decoded
-        if BookingSessionVault.save(decoded) {
+        sessions = migrateLegacyPrimaryRooms(in: decoded)
+        if BookingSessionVault.save(sessions) {
             UserDefaults.standard.removeObject(forKey: legacyStorageKey)
+        }
+    }
+
+    private func migrateLegacyPrimaryRooms(in values: [StoredBookingSession]) -> [StoredBookingSession] {
+        values.map { value in
+            var value = value
+            if let selection = value.hotelSelection {
+                value.hotelSelection = selection.migratedLegacyPrimaryRoom
+            }
+            return value
         }
     }
 }

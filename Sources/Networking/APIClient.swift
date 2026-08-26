@@ -57,7 +57,7 @@ actor APIClient {
         if let timeoutInterval { request.timeoutInterval = timeoutInterval }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("iumrah-ios-beta/0.25", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.27", forHTTPHeaderField: "User-Agent")
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         request.httpBody = try encoder.encode(body)
 
@@ -81,7 +81,7 @@ actor APIClient {
         request.httpMethod = "GET"
         if let timeoutInterval { request.timeoutInterval = timeoutInterval }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("iumrah-ios-beta/0.25", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.27", forHTTPHeaderField: "User-Agent")
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
 
         let (data, response) = try await session.data(for: request)
@@ -100,7 +100,7 @@ actor APIClient {
         if let timeoutInterval { request.timeoutInterval = timeoutInterval }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("iumrah-ios-beta/0.25", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.27", forHTTPHeaderField: "User-Agent")
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         request.httpBody = try encoder.encode(body)
 
@@ -118,7 +118,7 @@ actor APIClient {
         request.httpMethod = "DELETE"
         if let timeoutInterval { request.timeoutInterval = timeoutInterval }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("iumrah-ios-beta/0.25", forHTTPHeaderField: "User-Agent")
+        request.setValue("iumrah-ios-beta/0.27", forHTTPHeaderField: "User-Agent")
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
 
         let (data, response) = try await session.data(for: request)

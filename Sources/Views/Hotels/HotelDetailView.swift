@@ -10,7 +10,7 @@ struct HotelDetailView: View {
     let hotel: HotelSummary
     var bookingID: String? = nil
     var selectionFlow: Bool = false
-    var onRoomSelected: ((HotelRoom) -> Void)? = nil
+    var onSelectionSaved: (() -> Void)? = nil
 
     @State private var detail: HotelDetail?
     @State private var isLoading = false
@@ -18,11 +18,16 @@ struct HotelDetailView: View {
     @State private var selectedImageIndex = 0
     @State private var isGalleryPresented = false
     @State private var selectedRoomID: String?
+    @State private var selectedRoomCategory: IumrahRoomCategoryOption?
+    @State private var roomCategories: [IumrahRoomCategoryOption] = []
+    @State private var isLoadingRoomCategories = false
+    @State private var roomCategoryError: String?
     @State private var isSavingSelection = false
     @State private var selectionError: String?
     @State private var navigateToFlights = false
 
     private let service = HotelCatalogService()
+    private let packageEngine = RemotePackageEngineClient()
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -57,11 +62,14 @@ struct HotelDetailView: View {
             topBackButton
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if shouldShowContinueBar, let selectedRoom = currentSelectedRoom {
-                continueBar(selectedRoom)
+            if shouldShowContinueBar, let selectedName = currentSelectionName {
+                continueBar(selectedName)
             }
         }
-        .task { await load() }
+        .task {
+            await load()
+            await loadRoomCategories()
+        }
         .fullScreenCover(isPresented: $isGalleryPresented) {
             HotelGalleryView(hotelName: hotel.name, images: detail?.images ?? [])
                 .environmentObject(settings)
@@ -72,22 +80,21 @@ struct HotelDetailView: View {
     }
 
     private var shouldShowContinueBar: Bool {
-        bookingID == nil && selectionFlow && currentSelectedRoom != nil
+        bookingID == nil && selectionFlow && currentSelectionName != nil
     }
 
-    private var currentSelectedRoom: HotelRoom? {
-        if let selectedRoomID {
-            if let curated = curatedRoomOptions.first(where: { $0.id == selectedRoomID }) {
-                return curated.asRoom
-            }
-            if let room = detail?.rooms.first(where: { $0.id == selectedRoomID }) {
-                return room
-            }
+    private var currentSelectionName: String? {
+        if let selectedRoomCategory {
+            return L10n.text(selectedRoomCategory.category.titleKey, settings.language)
         }
-        if journey.selectedHotel?.id == hotel.id {
-            return journey.selectedRoom
+        if let selectedRoomID, let room = detail?.rooms.first(where: { $0.id == selectedRoomID }) {
+            return room.name
         }
-        return nil
+        guard journey.selectedHotel?.id == hotel.id else { return nil }
+        if let category = journey.selectedRoomCategory {
+            return L10n.text(category.category.titleKey, settings.language)
+        }
+        return journey.selectedRoom?.name
     }
 
     private var topBackButton: some View {
@@ -274,19 +281,39 @@ struct HotelDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.62))
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(curatedRoomOptions) { option in
-                        PrimaryRoomQuickPickCard(
-                            option: option,
-                            isSelected: selectedRoomID == option.id || (journey.selectedHotel?.id == hotel.id && journey.selectedRoom?.id == option.id),
-                            action: { select(option.asRoom) }
-                        )
-                        .environmentObject(settings)
-                        .frame(width: 270)
-                    }
+            if isLoadingRoomCategories && roomCategories.isEmpty {
+                HStack(spacing: 10) {
+                    ProgressView().tint(.white)
+                    Text(L10n.text("hotel_primary_rooms_loading", settings.language))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.62))
                 }
-                .padding(.trailing, 6)
+                .frame(height: 72)
+            } else if let roomCategoryError, roomCategories.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(roomCategoryError)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.68))
+                    Button(L10n.text("retry", settings.language)) {
+                        Task { await loadRoomCategories() }
+                    }
+                    .buttonStyle(DarkOutlineButtonStyle())
+                }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(roomCategories) { option in
+                            PrimaryRoomQuickPickCard(
+                                option: option,
+                                isSelected: isCategorySelected(option),
+                                action: { select(option) }
+                            )
+                            .environmentObject(settings)
+                            .frame(width: 270)
+                        }
+                    }
+                    .padding(.trailing, 6)
+                }
             }
         }
     }
@@ -425,14 +452,14 @@ struct HotelDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
-    private func continueBar(_ room: HotelRoom) -> some View {
+    private func continueBar(_ selectedName: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.text("hotel_room_chosen", settings.language))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.52))
-                    Text(room.name)
+                    Text(selectedName)
                         .font(.headline)
                         .foregroundStyle(.white)
                 }
@@ -479,27 +506,40 @@ struct HotelDetailView: View {
     }
 
     private func isRoomSelected(_ room: HotelRoom) -> Bool {
-        if selectedRoomID == room.id { return true }
+        if selectedRoomID == room.id && selectedRoomCategory == nil { return true }
         if let bookingID,
            let snapshot = bookings.booking(id: bookingID)?.hotelSelection,
            snapshot.hotelId == hotel.id,
-           snapshot.roomId == room.id {
+           snapshot.roomId == room.id,
+           snapshot.roomCategory == nil {
             return true
         }
-        return journey.selectedHotel?.id == hotel.id && journey.selectedRoom?.id == room.id
+        return journey.selectedHotel?.id == hotel.id && journey.selectedRoom?.id == room.id && journey.selectedRoomCategory == nil
+    }
+
+    private func isCategorySelected(_ option: IumrahRoomCategoryOption) -> Bool {
+        if selectedRoomCategory?.category == option.category { return true }
+        if let bookingID,
+           let snapshot = bookings.booking(id: bookingID)?.hotelSelection,
+           snapshot.hotelId == hotel.id,
+           snapshot.roomCategory == option.category {
+            return true
+        }
+        return journey.selectedHotel?.id == hotel.id && journey.selectedRoomCategory?.category == option.category
     }
 
     private func select(_ room: HotelRoom) {
         selectionError = nil
         selectedRoomID = room.id
+        selectedRoomCategory = nil
 
         if let bookingID {
             isSavingSelection = true
             Task { @MainActor in
                 defer { isSavingSelection = false }
                 do {
-                    try await bookings.updateHotelSelection(bookingID: bookingID, hotel: hotel, room: room)
-                    onRoomSelected?(room)
+                    try await bookings.updateHotelSelection(bookingID: bookingID, hotel: hotel, room: room, roomCategory: nil)
+                    onSelectionSaved?()
                     IumrahHaptics.success()
                 } catch {
                     selectedRoomID = nil
@@ -510,6 +550,32 @@ struct HotelDetailView: View {
         } else {
             journey.chooseHotel(hotel)
             journey.chooseRoom(room)
+            IumrahHaptics.success()
+        }
+    }
+
+    private func select(_ option: IumrahRoomCategoryOption) {
+        selectionError = nil
+        selectedRoomID = nil
+        selectedRoomCategory = option
+
+        if let bookingID {
+            isSavingSelection = true
+            Task { @MainActor in
+                defer { isSavingSelection = false }
+                do {
+                    try await bookings.updateHotelSelection(bookingID: bookingID, hotel: hotel, room: nil, roomCategory: option)
+                    onSelectionSaved?()
+                    IumrahHaptics.success()
+                } catch {
+                    selectedRoomCategory = nil
+                    selectionError = L10n.error(error, settings.language)
+                    IumrahHaptics.error()
+                }
+            }
+        } else {
+            journey.chooseHotel(hotel)
+            journey.chooseRoomCategory(option)
             IumrahHaptics.success()
         }
     }
@@ -576,39 +642,18 @@ struct HotelDetailView: View {
         return "checkmark.circle.fill"
     }
 
-    private var curatedRoomOptions: [CuratedRoomOption] {
-        [
-            CuratedRoomOption(
-                id: "iumrah-double-room",
-                titleKey: "room_type_double",
-                subtitleKey: "room_type_double_body",
-                badgeKey: "hotel_primary_room_badge",
-                icon: "bed.double.fill",
-                maxGuests: 2,
-                beds: "1 King Bed",
-                tone: .orange
-            ),
-            CuratedRoomOption(
-                id: "iumrah-triple-room",
-                titleKey: "room_type_triple",
-                subtitleKey: "room_type_triple_body",
-                badgeKey: "hotel_primary_room_badge",
-                icon: "person.3.fill",
-                maxGuests: 3,
-                beds: "3 Single Beds",
-                tone: .purple
-            ),
-            CuratedRoomOption(
-                id: "iumrah-quad-room",
-                titleKey: "room_type_quad",
-                subtitleKey: "room_type_quad_body",
-                badgeKey: "hotel_primary_room_badge",
-                icon: "square.grid.2x2.fill",
-                maxGuests: 4,
-                beds: "4 Single Beds",
-                tone: .blue
-            )
-        ]
+    @MainActor
+    private func loadRoomCategories() async {
+        guard !isLoadingRoomCategories else { return }
+        isLoadingRoomCategories = true
+        roomCategoryError = nil
+        defer { isLoadingRoomCategories = false }
+        do {
+            roomCategories = try await packageEngine.roomCategories(hotelID: hotel.id)
+        } catch {
+            roomCategories = []
+            roomCategoryError = L10n.text("hotel_primary_rooms_error", settings.language)
+        }
     }
 
     @MainActor
@@ -662,40 +707,16 @@ private enum PrimaryRoomTone {
     }
 }
 
-private struct CuratedRoomOption: Identifiable {
-    let id: String
-    let titleKey: String
-    let subtitleKey: String
-    let badgeKey: String
-    let icon: String
-    let maxGuests: Int
-    let beds: String
-    let tone: PrimaryRoomTone
-
-    var asRoom: HotelRoom {
-        HotelRoom(
-            id: id,
-            name: titleKey == "room_type_double" ? "Double Room" : titleKey == "room_type_triple" ? "Triple Room" : "Quadruple Room",
-            maxGuests: maxGuests,
-            sizeM2: nil,
-            beds: beds,
-            view: nil,
-            description: nil,
-            amenities: []
-        )
-    }
-}
-
 private struct PrimaryRoomQuickPickCard: View {
     @EnvironmentObject private var settings: AppSettingsStore
 
-    let option: CuratedRoomOption
+    let option: IumrahRoomCategoryOption
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text(option.badgeKey, settings.language))
+            Text(L10n.text("hotel_primary_room_badge", settings.language))
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.white.opacity(0.74))
                 .padding(.horizontal, 10)
@@ -705,15 +726,15 @@ private struct PrimaryRoomQuickPickCard: View {
 
             Spacer(minLength: 4)
 
-            Image(systemName: option.icon)
+            Image(systemName: categoryIcon)
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(.white)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.text(option.titleKey, settings.language))
+                Text(L10n.text(option.category.titleKey, settings.language))
                     .font(.title3.weight(.bold))
                     .foregroundStyle(.white)
-                Text(L10n.text(option.subtitleKey, settings.language))
+                Text(L10n.text(option.category.bodyKey, settings.language))
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.76))
                     .fixedSize(horizontal: false, vertical: true)
@@ -721,7 +742,7 @@ private struct PrimaryRoomQuickPickCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 factRow(icon: "person.2.fill", text: L10n.format("room_sleeps", settings.language, option.maxGuests))
-                factRow(icon: "bed.double.fill", text: option.beds)
+                factRow(icon: "bed.double.fill", text: localizedBeds)
             }
             .foregroundStyle(.white.opacity(0.86))
 
@@ -733,12 +754,36 @@ private struct PrimaryRoomQuickPickCard: View {
         .padding(20)
         .frame(height: 270)
         .background(
-            LinearGradient(colors: option.tone.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: categoryTone.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
         )
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(isSelected ? Color.white.opacity(0.9) : Color.white.opacity(0.14), lineWidth: isSelected ? 2 : 1)
+        }
+    }
+
+    private var categoryTone: PrimaryRoomTone {
+        switch option.category {
+        case .double: return .orange
+        case .triple: return .purple
+        case .quadruple: return .blue
+        }
+    }
+
+    private var categoryIcon: String {
+        switch option.category {
+        case .double: return "bed.double.fill"
+        case .triple: return "person.3.fill"
+        case .quadruple: return "square.grid.2x2.fill"
+        }
+    }
+
+    private var localizedBeds: String {
+        switch option.category {
+        case .double: return L10n.text("room_beds_double", settings.language)
+        case .triple: return L10n.text("room_beds_triple", settings.language)
+        case .quadruple: return L10n.text("room_beds_quad", settings.language)
         }
     }
 

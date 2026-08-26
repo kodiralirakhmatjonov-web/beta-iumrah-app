@@ -4,6 +4,7 @@ import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
 import { legacyEstimatedHotelCost } from "./hotel-fallback";
 import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
 import { deletePilgrimBooking, updatePilgrimHotel } from "./booking-control";
+import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRoomCategories, listHotelRoomCategories } from "./room-categories";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
 type Env = {
@@ -119,6 +120,10 @@ async function publicHealth(env: Env) {
   }
 
   try {
+    await ensureHotelRoomCategories(env.HOTELS_DB);
+    if (env.BOOKINGS_DB) await ensureBookingRoomColumns(env.BOOKINGS_DB);
+    const roomCategoryCount = await countActiveHotelRoomCategories(env.HOTELS_DB);
+
     let makkahCount = 0;
     let madinahCount = 0;
     try {
@@ -155,6 +160,9 @@ async function publicHealth(env: Env) {
       legacyEstimateFallbackEnabled: true,
       flightOptionQuotingReady: true,
       pricingMode: count > 0 ? "mixed" : "legacyEstimate",
+      roomCategoriesReady: roomCategoryCount > 0,
+      roomCategoryCount,
+      bookingRoomColumnsReady: Boolean(env.BOOKINGS_DB),
     });
   } catch (error) {
     return json({
@@ -200,6 +208,33 @@ export default {
 
     if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {
       return publicHealth(env);
+    }
+
+    const hotelRoomCategoriesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/room-categories$/);
+    if (request.method === "GET" && hotelRoomCategoriesMatch) {
+      if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB binding is not configured" }, 503);
+      try {
+        const hotelId = decodeURIComponent(hotelRoomCategoriesMatch[1]).trim();
+        if (!hotelId || hotelId.length > 180) return json({ ok: false, error: "INVALID_HOTEL" }, 400);
+        const categories = await listHotelRoomCategories(env.HOTELS_DB, hotelId);
+        if (!categories) return json({ ok: false, error: "HOTEL_NOT_FOUND" }, 404);
+        return json({
+          ok: true,
+          hotelId,
+          categories: categories.map((row) => ({
+            id: row.id,
+            hotelId: row.hotel_id,
+            category: row.category,
+            displayName: row.display_name,
+            maxGuests: Number(row.max_guests),
+            bedConfiguration: row.bed_configuration,
+            position: Number(row.position),
+            source: row.source,
+          })),
+        });
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : "ROOM_CATEGORIES_FAILED" }, 500);
+      }
     }
 
     if (request.method === "GET" && url.pathname === "/api/package/primary-hotel") {

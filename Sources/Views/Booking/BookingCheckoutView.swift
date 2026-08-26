@@ -45,7 +45,11 @@ struct BookingCheckoutView: View {
             if let hotel = journey.selectedHotel, let quote = journey.quote {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(hotel.name).font(.headline)
-                    if let room = journey.selectedRoom {
+                    if let roomCategory = journey.selectedRoomCategory {
+                        Label(L10n.text(roomCategory.category.titleKey, settings.language), systemImage: "bed.double")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else if let room = journey.selectedRoom {
                         Label(room.name, systemImage: "bed.double")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -165,6 +169,7 @@ struct BookingCheckoutView: View {
                 trip: journey.trip,
                 hotel: hotel,
                 room: journey.selectedRoom,
+                roomCategory: journey.selectedRoomCategory,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,

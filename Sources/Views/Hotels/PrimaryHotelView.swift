@@ -65,7 +65,7 @@ struct PrimaryHotelView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
-                OutboundFlightView()
+                HotelDetailView(hotel: hotel, selectionFlow: true)
             } label: {
                 Text(L10n.text("primary_hotel_continue", settings.language))
             }

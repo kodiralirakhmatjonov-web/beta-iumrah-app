@@ -79,6 +79,9 @@ struct PackageEngineHealthResponse: Decodable {
     let flightOptionQuotingReady: Bool?
     let legacyEstimateFallbackEnabled: Bool?
     let pricingMode: String?
+    let roomCategoriesReady: Bool?
+    let roomCategoryCount: Int?
+    let bookingRoomColumnsReady: Bool?
 }
 
 struct PrimaryHotelResolutionResponse: Decodable, Hashable {

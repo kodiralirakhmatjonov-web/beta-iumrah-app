@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-026-hotel-detail-premium-search-layout",
-  "createdAt": "2026-08-26T12:20:00Z",
-  "description": "Premium iOS UI correction for iumrah Beta: hotel cards now open a rebuilt black Hotel Detail experience with native floating back button, swipe gallery, all-photos CTA, clean highlights/map, curated primary room presets, actual-room carousel without polluted scraper text, and package-builder continuation to flights. The immersive flight-search screen is also rebalanced so the animation stays above, the iumrah wordmark sits below it, and the live 1–2 minute search messages are larger and calmer. No signing files, no protected workflows, and no backend deletion logic are changed in this patch."
+  "id": "iumrah-beta-update-027-production-room-categories",
+  "createdAt": "2026-08-26T12:35:00Z",
+  "description": "Production room-category architecture for iumrah Beta. DOUBLE, TRIPLE and QUADRUPLE are now canonical server-side categories seeded for every published hotel in the existing iumrah-hotels D1. iOS loads them from Package Engine instead of creating synthetic room IDs. Booking persistence stores room category/name/real room ID in dedicated booking D1 columns and payload_json, while actual hotel inventory rooms remain separately validated by their true room ID. Legacy 0.26 synthetic room IDs are migrated locally into canonical categories and re-synced to the server. Package Engine health performs idempotent schema registration on the existing hotel and booking databases. No pricing rules, flight search logic, signing assets or protected workflows are changed."
 }

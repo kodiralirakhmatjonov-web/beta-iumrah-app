@@ -4,7 +4,14 @@ struct RemotePackageEngineClient {
     private let api = APIClient.shared
 
     func health() async throws -> PackageEngineHealthResponse {
-        try await api.get(AppConfig.packageHealthPath, timeoutInterval: 8)
+        try await api.get(AppConfig.packageHealthPath)
+    }
+
+    func roomCategories(hotelID: String) async throws -> [IumrahRoomCategoryOption] {
+        let response: HotelRoomCategoriesResponse = try await api.get(
+            "/api/package/hotel/\(hotelID)/room-categories"
+        )
+        return response.categories.sorted(by: { $0.position < $1.position })
     }
 
     func primaryHotel(tier: PackageTier, stars: Int, city: String) async throws -> PrimaryHotelResolutionResponse {
@@ -37,7 +44,7 @@ struct RemotePackageEngineClient {
             flights: .init(outbound: outbound, inbound: inbound),
             primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID)
         )
-        return try await api.post(AppConfig.packageQuotePath, body: request, timeoutInterval: 15)
+        return try await api.post(AppConfig.packageQuotePath, body: request)
     }
 
     func quoteOutboundOptions(
@@ -51,7 +58,7 @@ struct RemotePackageEngineClient {
             outboundCandidates: try outbound.map { try FlightFareObservationRequest(candidate: $0) },
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
-        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
     }
 
     func quoteReturnOptions(
@@ -65,7 +72,7 @@ struct RemotePackageEngineClient {
             selectedOutbound: try FlightFareObservationRequest(candidate: selectedOutbound),
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
-        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
     }
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()

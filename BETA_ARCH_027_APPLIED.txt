@@ -1,0 +1,9 @@
+BETA_ARCH_027_APPLIED
+
+Update 0.27 makes iumrah room presets production data, not client-only UI:
+- DOUBLE / TRIPLE / QUADRUPLE are persisted as hotel_room_categories for every published hotel in the existing iumrah-hotels D1.
+- iOS loads these categories from Package Engine and no longer invents synthetic room IDs.
+- Booking D1 receives dedicated makkah_room_category / makkah_room_name / makkah_room_id fields.
+- Booking payload_json and selection persist room category/source while real hotel inventory rooms keep their real roomId.
+- New bookings carry room category in the draft and are server-synced after booking token creation.
+- Existing booking hotel changes persist the same canonical room category architecture.
