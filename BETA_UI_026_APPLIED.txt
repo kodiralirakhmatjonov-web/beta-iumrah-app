@@ -1,0 +1,7 @@
+BETA_UI_026_APPLIED
+
+Update 026:
+- Rebuilt Hotel Detail into black premium layout with native floating back button, hero gallery, all-photos CTA, highlights, map, curated room presets, clean actual-room carousel, and flight-step continuation.
+- Fixed hotel selection flow so primary/other hotel cards open the new detail view in package-building mode.
+- Updated immersive flight-search screen so animation stays above, logo sits below it, live search copy is larger, and the 1–2 minute search sequence feels premium.
+- Localized the new hotel-detail and room-selection strings in EN/RU/UZ/UZ-Cyrl.

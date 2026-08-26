@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-025-hotel-booking-detail-delete",
-  "createdAt": "2026-08-26T10:30:00Z",
-  "description": "Hotel and booking production UX update: clickable curated hotel cards, native Hotel Detail with swipe gallery/all-photos view, rating/amenities/map/room cards, room selection linked to Journey and stored booking sessions, compact Booking Detail without global wordmark, expandable outbound/return flight cards, hotel change flow through the existing iumrah Hotel Catalog, iumrah Care shortcut, and authenticated server-side booking hotel mutation/permanent D1 deletion via the existing Package Engine. No pricing rules, Flight Engine search logic, signing files, or protected workflows are changed."
+  "id": "iumrah-beta-update-026-hotel-detail-premium-search-layout",
+  "createdAt": "2026-08-26T12:20:00Z",
+  "description": "Premium iOS UI correction for iumrah Beta: hotel cards now open a rebuilt black Hotel Detail experience with native floating back button, swipe gallery, all-photos CTA, clean highlights/map, curated primary room presets, actual-room carousel without polluted scraper text, and package-builder continuation to flights. The immersive flight-search screen is also rebalanced so the animation stays above, the iumrah wordmark sits below it, and the live 1–2 minute search messages are larger and calmer. No signing files, no protected workflows, and no backend deletion logic are changed in this patch."
 }

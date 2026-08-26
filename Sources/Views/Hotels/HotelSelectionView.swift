@@ -23,7 +23,7 @@ struct HotelSelectionView: View {
                     NavigationLink {
                         HotelDetailView(
                             hotel: hotel,
-                            onRoomSelected: { _ in dismiss() }
+                            selectionFlow: true
                         )
                     } label: {
                         HotelCard(
