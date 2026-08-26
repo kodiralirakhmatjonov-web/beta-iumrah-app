@@ -12,10 +12,22 @@ struct FlightSearchImmersiveView: View {
 
     private var searchSteps: [String] {
         [
-            L10n.text("flight_search_airlines", settings.language),
-            L10n.text("flight_search_dates", settings.language),
-            L10n.text("flight_search_reprice", settings.language),
-            L10n.text("flight_search_almost", settings.language)
+            L10n.text("flight_wait_01", settings.language),
+            L10n.text("flight_wait_02", settings.language),
+            L10n.text("flight_wait_03", settings.language),
+            L10n.text("flight_wait_04", settings.language),
+            L10n.text("flight_wait_05", settings.language),
+            L10n.text("flight_wait_06", settings.language),
+            L10n.text("flight_wait_07", settings.language),
+            L10n.text("flight_wait_08", settings.language),
+            L10n.text("flight_wait_09", settings.language),
+            L10n.text("flight_wait_10", settings.language),
+            L10n.text("flight_wait_11", settings.language),
+            L10n.text("flight_wait_12", settings.language),
+            L10n.text("flight_wait_long_01", settings.language),
+            L10n.text("flight_wait_long_02", settings.language),
+            L10n.text("flight_wait_long_03", settings.language),
+            L10n.text("flight_wait_long_04", settings.language),
         ]
     }
 
@@ -24,44 +36,68 @@ struct FlightSearchImmersiveView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer(minLength: 34)
+                Spacer(minLength: 42)
 
                 Image("HeaderWordmarkDark")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 168)
-                    .padding(.bottom, 20)
+                    .frame(width: 190)
+                    .accessibilityHidden(true)
 
-                LoopingVideoView(resource: state == .searching ? "flight-search" : "flight-ready")
-                    .frame(maxWidth: 390)
-                    .frame(height: 330)
-                    .clipped()
+                if state == .searching {
+                    // The supplied animation expands upward from its source point.
+                    // Rotate it so the source sits directly below the iumrah mark
+                    // and the routes visually flow out of the brand into the screen.
+                    LoopingVideoView(resource: "flight-search", gravity: .resizeAspect)
+                        .frame(maxWidth: 430)
+                        .frame(height: 350)
+                        .rotationEffect(.degrees(180))
+                        .clipped()
+                        .padding(.top, -18)
+                } else {
+                    LoopingVideoView(resource: "flight-ready", gravity: .resizeAspect)
+                        .frame(maxWidth: 390)
+                        .frame(height: 320)
+                        .clipped()
+                        .padding(.top, 4)
+                }
 
-                Spacer(minLength: 22)
+                Spacer(minLength: 14)
 
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     Text(state == .searching ? L10n.text("flight_search_hero", settings.language) : L10n.text("flight_ready_title", settings.language))
-                        .font(.system(size: 27, weight: .bold, design: .rounded))
+                        .font(.system(size: 29, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
                     Text(state == .searching ? searchSteps[min(step, searchSteps.count - 1)] : L10n.text("flight_ready_body", settings.language))
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.58))
+                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.64))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
+                        .contentTransition(.opacity)
+                        .animation(.easeInOut(duration: 0.35), value: step)
+                        .padding(.horizontal, 28)
+
+                    if state == .searching {
+                        Text(L10n.text("flight_wait_average", settings.language))
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.36))
+                            .padding(.top, 5)
+                    }
                 }
 
-                Spacer(minLength: 40)
+                Spacer(minLength: 46)
             }
             .padding(.horizontal, 20)
         }
-        .task {
+        .task(id: state) {
             guard state == .searching else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(760))
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    step = min(step + 1, searchSteps.count - 1)
+            step = 0
+            while !Task.isCancelled, step < searchSteps.count - 1 {
+                try? await Task.sleep(for: .seconds(7))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    step += 1
                 }
             }
         }

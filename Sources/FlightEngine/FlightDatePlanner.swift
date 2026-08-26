@@ -7,9 +7,9 @@ enum FlightDatePlanner {
         case .exact:
             return [start]
         case .plusMinusOne:
-            return [-1, 0, 1].compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+            return [0, -1, 1].compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
         case .plusMinusTwo:
-            return [-2, -1, 0, 1, 2].compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+            return [0, -1, 1, -2, 2].compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
         case .weekend:
             return weekendDates(around: start, calendar: calendar)
         }

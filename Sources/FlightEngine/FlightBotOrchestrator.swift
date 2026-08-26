@@ -15,7 +15,7 @@ final class FlightBotOrchestrator {
             switch self {
             case .insufficientResults(let found, let minimum, let blocked):
                 let blockedText = blocked.isEmpty ? "" : " Требуется проверка: \(blocked.joined(separator: ", "))."
-                return "Flight Engine нашёл \(found) подтверждённых вариантов; для beta нужно минимум \(minimum).\(blockedText)"
+                return "Flight Engine нашёл \(found) подтверждённых вариантов; нужно минимум \(minimum).\(blockedText)"
             }
         }
     }
@@ -33,11 +33,17 @@ final class FlightBotOrchestrator {
 
     private init() {}
 
-    func search(request baseRequest: FlightBotSearchRequest, flexibility: DateFlexibility) async throws -> SearchResult {
-        FlightBotChallengeCenter.shared.clear()
-
+    func search(
+        request baseRequest: FlightBotSearchRequest,
+        flexibility: DateFlexibility,
+        minimumResults: Int? = nil,
+        preferredResults: Int? = nil
+    ) async throws -> SearchResult {
+        let requiredMinimum = max(1, minimumResults ?? minimumTarget)
+        let desired = max(requiredMinimum, preferredResults ?? preferredTarget)
         let searchID = UUID().uuidString
         let requestedAt = Date()
+        let deadline = requestedAt.addingTimeInterval(AppConfig.flightBotSearchHardTimeoutSeconds)
         let dates = FlightDatePlanner.dates(anchor: baseRequest.date, flexibility: flexibility)
         let providers = FlightBotProviderRegistry.ordered(for: baseRequest.origin, destination: baseRequest.destination)
 
@@ -45,8 +51,11 @@ final class FlightBotOrchestrator {
         var challenges: [FlightBotChallenge] = []
         var succeeded = 0
         var started = 0
+        var completedBatches = 0
 
-        for date in dates {
+        searchLoop: for date in dates {
+            guard Date() < deadline else { break }
+
             let request = FlightBotSearchRequest(
                 direction: baseRequest.direction,
                 origin: baseRequest.origin,
@@ -59,15 +68,19 @@ final class FlightBotOrchestrator {
             )
 
             for batchStart in stride(from: 0, to: providers.count, by: AppConfig.flightBotProviderBatchSize) {
+                guard Date() < deadline else { break searchLoop }
+
                 let batchEnd = min(providers.count, batchStart + AppConfig.flightBotProviderBatchSize)
                 let batch = Array(providers[batchStart..<batchEnd])
                 started += batch.count
 
-                let tasks: [(FlightBotProvider, Task<ProviderAttempt, Never>)] = batch.map { provider in
-                    let task = Task { @MainActor in
+                let tasks: [Task<ProviderAttempt, Never>] = batch.map { provider in
+                    Task { @MainActor in
                         do {
+                            let remaining = max(3, deadline.timeIntervalSinceNow)
+                            let providerBudget = min(AppConfig.flightBotProviderTimeoutSeconds, remaining)
                             let results = try await FlightBotRunner(provider: provider, request: request)
-                                .run(timeoutSeconds: AppConfig.flightBotProviderTimeoutSeconds)
+                                .run(timeoutSeconds: providerBudget)
                             return ProviderAttempt.candidates(results)
                         } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
                             return ProviderAttempt.challenge(challenge)
@@ -75,13 +88,12 @@ final class FlightBotOrchestrator {
                             return ProviderAttempt.failed
                         }
                     }
-                    return (provider, task)
                 }
 
-                for (_, task) in tasks {
+                for task in tasks {
                     switch await task.value {
                     case .candidates(let results):
-                        succeeded += 1
+                        if !results.isEmpty { succeeded += 1 }
                         collected.append(contentsOf: results)
                     case .challenge(let challenge):
                         challenges.append(challenge)
@@ -90,13 +102,16 @@ final class FlightBotOrchestrator {
                     }
                 }
 
-                if deduplicateAndRank(collected, anchor: baseRequest.date).count >= preferredTarget {
-                    break
-                }
-            }
+                completedBatches += 1
+                let ranked = deduplicateAndRank(collected, anchor: baseRequest.date)
 
-            if deduplicateAndRank(collected, anchor: baseRequest.date).count >= preferredTarget {
-                break
+                // Never keep a pilgrim staring at a spinner just to move from 4–5
+                // good live options to 6. Once the minimum is reached after at least
+                // two provider batches, return immediately. If a single first batch
+                // already produced the preferred target, return even sooner.
+                if ranked.count >= desired || (ranked.count >= requiredMinimum && completedBatches >= 2) {
+                    break searchLoop
+                }
             }
         }
 
@@ -109,22 +124,21 @@ final class FlightBotOrchestrator {
             providersBlocked: challenges.count,
             rawCandidateCount: collected.count,
             deduplicatedCandidateCount: final.count,
-            minimumTarget: minimumTarget,
-            preferredTarget: preferredTarget
+            minimumTarget: requiredMinimum,
+            preferredTarget: desired
         )
 
-        guard final.count >= minimumTarget else {
+        guard final.count >= requiredMinimum else {
             if let challenge = challenges.first {
                 FlightBotChallengeCenter.shared.publish(challenge)
             }
             throw OrchestratorError.insufficientResults(
                 found: final.count,
-                minimum: minimumTarget,
-                blockedProviders: challenges.map(\.providerName)
+                minimum: requiredMinimum,
+                blockedProviders: Array(Set(challenges.map(\.providerName))).sorted()
             )
         }
 
-        FlightBotChallengeCenter.shared.clear()
         return SearchResult(candidates: final, summary: summary, blockedChallenges: challenges)
     }
 
@@ -139,8 +153,8 @@ final class FlightBotOrchestrator {
         }
 
         return unique.values.sorted { lhs, rhs in
-            let leftDay = abs(lhs.departureAt.timeIntervalSince(anchor))
-            let rightDay = abs(rhs.departureAt.timeIntervalSince(anchor))
+            let leftDay = abs(Calendar.current.startOfDay(for: lhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
+            let rightDay = abs(Calendar.current.startOfDay(for: rhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
             if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
             if leftDay != rightDay { return leftDay < rightDay }
             if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {

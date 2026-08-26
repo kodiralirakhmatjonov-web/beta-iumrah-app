@@ -4,7 +4,7 @@ struct RemotePackageEngineClient {
     private let api = APIClient.shared
 
     func health() async throws -> PackageEngineHealthResponse {
-        try await api.get(AppConfig.packageHealthPath)
+        try await api.get(AppConfig.packageHealthPath, timeoutInterval: 8)
     }
 
     func primaryHotel(tier: PackageTier, stars: Int, city: String) async throws -> PrimaryHotelResolutionResponse {
@@ -37,7 +37,7 @@ struct RemotePackageEngineClient {
             flights: .init(outbound: outbound, inbound: inbound),
             primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID)
         )
-        return try await api.post(AppConfig.packageQuotePath, body: request)
+        return try await api.post(AppConfig.packageQuotePath, body: request, timeoutInterval: 15)
     }
 
     func quoteOutboundOptions(
@@ -51,7 +51,7 @@ struct RemotePackageEngineClient {
             outboundCandidates: try outbound.map { try FlightFareObservationRequest(candidate: $0) },
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
-        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
     }
 
     func quoteReturnOptions(
@@ -65,7 +65,7 @@ struct RemotePackageEngineClient {
             selectedOutbound: try FlightFareObservationRequest(candidate: selectedOutbound),
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
-        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
     }
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()

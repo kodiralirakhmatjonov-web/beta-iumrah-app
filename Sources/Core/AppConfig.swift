@@ -16,8 +16,10 @@ enum AppConfig {
     static let flightEngineMode: FlightEngineMode = .officialWebBots
     static let flightBotMinimumOptions = 4
     static let flightBotPreferredOptions = 6
-    static let flightBotProviderBatchSize = 3
-    static let flightBotProviderTimeoutSeconds: Double = 16
+    static let flightBotProviderBatchSize = 4
+    static let flightBotProviderTimeoutSeconds: Double = 11
+    static let flightBotSearchHardTimeoutSeconds: Double = 58
+    static let flightSearchScreenHardTimeoutSeconds: Double = 88
 
     static let packageHealthPath = "/api/package/health"
     static let packageQuotePath = "/api/package/quote"

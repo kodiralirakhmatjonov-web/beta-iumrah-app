@@ -50,10 +50,19 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
 
     func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
         try await ensureBackendReady(for: trip)
-        let currentSession = try await sessionFor(trip: trip)
+        var currentSession = try await sessionFor(trip: trip)
         guard let sourceID = outbound.sourceCandidateID,
               let selectedCandidate = currentSession.outbound.first(where: { $0.id == sourceID }) else {
             throw FlightEngineAvailabilityError.realOutboundRequired
+        }
+
+        // The first screen only needs one verified return candidate to calculate
+        // a complete package reference price. When the pilgrim actually opens
+        // return selection, expand that side to a full list if necessary.
+        if currentSession.inbound.count < AppConfig.flightBotMinimumOptions {
+            let refreshed = try await botService.refreshInbound(trip: trip)
+            currentSession = currentSession.replacingInbound(with: refreshed)
+            self.session = currentSession
         }
 
         let response = try await packageEngine.quoteReturnOptions(

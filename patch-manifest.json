@@ -1,5 +1,5 @@
 {
-  "id": "iumrah-beta-update-023-premium-navigation-care-home",
-  "createdAt": "2026-08-25T18:33:00Z",
-  "description": "Premium production UI update: user-provided app icon, restored 78% side drawer, root tab large titles without fixed brand headers, Makkah time, post-booking Makkah background home, green-gradient iumrah Care redesign, heart Care tab icon, and a redesigned booking progress chain across trip, hotel, flight, ready and checkout stages. Flight 0.22, pricing, Package Engine and TestFlight signing are preserved."
+  "id": "iumrah-beta-update-024-flight-search-stability-live-waiting",
+  "createdAt": "2026-08-26T07:22:00Z",
+  "description": "Flight search stability update: bounded provider/search deadlines, anchor-date-first flexibility, concurrent outbound and return-reference discovery, early return at the minimum live result target, SPA-safe WKWebView polling, Uzbekistan-first provider plan with early metasearch fallback, premium black immersive waiting screen with transparent white iumrah wordmark and localized live status copy. Pricing and Package Engine logic are unchanged."
 }

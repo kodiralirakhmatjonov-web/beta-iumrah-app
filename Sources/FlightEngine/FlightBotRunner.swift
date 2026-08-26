@@ -2,10 +2,9 @@ import Foundation
 @preconcurrency import WebKit
 
 /// Runs one public flight-provider search inside a persistent WKWebView session.
-/// WebKit work is main-actor isolated. The runner intentionally uses polling for
-/// navigation completion instead of delegate continuations/task-group races;
-/// this is more predictable on Xcode 26 / iOS 26 while preserving persistent
-/// cookies for a user-completed verification challenge.
+/// Every provider has one absolute deadline. Complex airline SPAs often keep
+/// WKWebView.isLoading=true because of trackers/streaming requests, so the bot
+/// waits for a usable DOM instead of waiting for the entire page to become idle.
 @MainActor
 final class FlightBotRunner {
     enum BotError: LocalizedError {
@@ -42,79 +41,87 @@ final class FlightBotRunner {
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
 
         self.webView = WKWebView(frame: .zero, configuration: configuration)
-        self.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 iumrah-beta/0.22"
+        self.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 iumrah-beta/0.24"
     }
 
     func run(timeoutSeconds: Double = AppConfig.flightBotProviderTimeoutSeconds) async throws -> [LiveFlightCandidate] {
+        let deadline = Date().addingTimeInterval(max(4, timeoutSeconds))
         let url = provider.searchURL(for: request)
         let urlRequest = URLRequest(
             url: url,
             cachePolicy: .reloadIgnoringLocalCacheData,
-            timeoutInterval: timeoutSeconds
+            timeoutInterval: max(4, timeoutSeconds)
         )
 
         webView.load(urlRequest)
-        try await waitForNavigation(timeoutSeconds: timeoutSeconds)
+        try await waitForUsableDOM(deadline: deadline)
         try await detectChallengeIfNeeded()
 
         if provider.id != .googleFlights && provider.id != .skyscanner {
             _ = try? await evaluate(FlightBotScripts.submitSearch(provider: provider, request: request))
-            try await Task.sleep(for: .milliseconds(1200))
-            try await waitForNavigation(timeoutSeconds: min(timeoutSeconds, 8))
-            try await detectChallengeIfNeeded()
-        } else {
-            try await Task.sleep(for: .milliseconds(900))
+            // Do not wait for a full navigation here. Most booking engines are SPAs
+            // and update the current document without ever reaching an idle state.
+            try await sleepIfTime(.milliseconds(650), deadline: deadline)
         }
 
         var best: [LiveFlightCandidate] = []
-        let retryDelays: [Duration] = [.zero, .milliseconds(900), .milliseconds(1600), .milliseconds(2400)]
-
-        for delay in retryDelays {
-            if delay != .zero {
-                try await Task.sleep(for: delay)
-            }
-
-            try await detectChallengeIfNeeded()
-
-            guard let blocks = try await evaluate(FlightBotScripts.extractCandidateBlocks) as? [String] else {
-                continue
-            }
-
-            let parsed = FlightTextParser.candidates(
-                blocks: blocks,
-                provider: provider,
-                request: request,
-                sourceURL: webView.url ?? url
-            )
-
-            if parsed.count > best.count {
-                best = parsed
-            }
-            if best.count >= 3 {
-                break
-            }
-        }
-
-        guard !best.isEmpty else {
-            throw BotError.noCandidates
-        }
-        return best
-    }
-
-    private func waitForNavigation(timeoutSeconds: Double) async throws {
-        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        var sawCandidateBlocks = false
 
         while Date() < deadline {
-            if !webView.isLoading, webView.url != nil {
-                return
+            try Task.checkCancellation()
+            try await detectChallengeIfNeeded()
+
+            if let blocks = try? await evaluate(FlightBotScripts.extractCandidateBlocks) as? [String], !blocks.isEmpty {
+                sawCandidateBlocks = true
+                let parsed = FlightTextParser.candidates(
+                    blocks: blocks,
+                    provider: provider,
+                    request: request,
+                    sourceURL: webView.url ?? url
+                )
+                if parsed.count > best.count { best = parsed }
+                if best.count >= 3 { break }
             }
-            try await Task.sleep(for: .milliseconds(120))
+
+            try await sleepIfTime(.milliseconds(700), deadline: deadline)
         }
 
-        if webView.url == nil {
-            throw BotError.invalidPage
-        }
+        if !best.isEmpty { return best }
+        if sawCandidateBlocks { throw BotError.noCandidates }
+        if webView.url == nil { throw BotError.invalidPage }
         throw BotError.timeout
+    }
+
+    private func waitForUsableDOM(deadline: Date) async throws {
+        let started = Date()
+
+        while Date() < deadline {
+            try Task.checkCancellation()
+
+            if webView.url != nil {
+                let ready = (try? await evaluate("document.readyState")) as? String
+                if ready == "interactive" || ready == "complete" {
+                    return
+                }
+
+                // Some booking sites continuously load analytics resources and never
+                // report a clean navigation end. Once a URL and document exist, let
+                // the search script proceed instead of burning the provider timeout.
+                if Date().timeIntervalSince(started) >= 2.4 {
+                    return
+                }
+            }
+
+            try await sleepIfTime(.milliseconds(120), deadline: deadline)
+        }
+
+        if webView.url == nil { throw BotError.invalidPage }
+        throw BotError.timeout
+    }
+
+    private func sleepIfTime(_ duration: Duration, deadline: Date) async throws {
+        guard Date() < deadline else { throw BotError.timeout }
+        try await Task.sleep(for: duration)
     }
 
     private func detectChallengeIfNeeded() async throws {
@@ -131,6 +138,7 @@ final class FlightBotRunner {
     }
 
     private func evaluate(_ script: String) async throws -> Any? {
-        try await webView.evaluateJavaScript(script)
+        try Task.checkCancellation()
+        return try await webView.evaluateJavaScript(script)
     }
 }

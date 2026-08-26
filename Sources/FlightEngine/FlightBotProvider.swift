@@ -112,25 +112,37 @@ enum FlightBotProviderRegistry {
         let toUzbekistan = to.map(uzbekistanAirportCodes.contains) ?? false
         let domesticUzbekistan = fromUzbekistan && toUzbekistan
         let saudiRoute = saudiAirportCodes.contains(from) || (to.map(saudiAirportCodes.contains) ?? false)
+        let byID = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
 
-        var filtered = providers
+        let ids: [FlightBotProviderID]
         if domesticUzbekistan {
-            filtered = providers.filter { $0.marketScope == .uzbekistanPriority || $0.marketScope == .global }
-        } else if !fromUzbekistan && !toUzbekistan && !saudiRoute {
-            filtered = providers.filter { $0.marketScope != .uzbekistanPriority || $0.id == .uzbekistanAirways }
+            // Search the local market first, but put one broad discovery source in
+            // the first batch so a broken airline booking form cannot stall the UI.
+            ids = [
+                .uzbekistanAirways, .qanotSharq, .centrumAir, .googleFlights,
+                .silkAvia, .airSamarkand, .flyKhiva, .skyscanner,
+            ]
+        } else if fromUzbekistan || toUzbekistan {
+            ids = [
+                .uzbekistanAirways, .qanotSharq, .centrumAir, .googleFlights,
+                .airSamarkand, .silkAvia, .flyKhiva, .skyscanner,
+                .flynas, .turkishAirlines, .airArabia, .flydubai,
+                .jazeeraAirways, .saudia, .airAstana, .flyArystan,
+            ]
+        } else if saudiRoute {
+            ids = [
+                .flynas, .saudia, .turkishAirlines, .googleFlights,
+                .airArabia, .jazeeraAirways, .flydubai, .skyscanner,
+                .airAstana, .flyArystan, .uzbekistanAirways,
+            ]
+        } else {
+            ids = [
+                .turkishAirlines, .airArabia, .flydubai, .googleFlights,
+                .jazeeraAirways, .airAstana, .flyArystan, .skyscanner,
+                .uzbekistanAirways,
+            ]
         }
 
-        return filtered.sorted { lhs, rhs in
-            if fromUzbekistan || toUzbekistan {
-                if lhs.marketScope != rhs.marketScope {
-                    let rank: [FlightBotProvider.MarketScope: Int] = [.uzbekistanPriority: 0, .regional: 1, .global: 2]
-                    return (rank[lhs.marketScope] ?? 9) < (rank[rhs.marketScope] ?? 9)
-                }
-            } else if lhs.marketScope != rhs.marketScope {
-                let rank: [FlightBotProvider.MarketScope: Int] = [.regional: 0, .global: 1, .uzbekistanPriority: 2]
-                return (rank[lhs.marketScope] ?? 9) < (rank[rhs.marketScope] ?? 9)
-            }
-            return lhs.priority < rhs.priority
-        }
+        return ids.compactMap { byID[$0] }
     }
 }
