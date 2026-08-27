@@ -6,6 +6,7 @@ struct BookingHotelChangeView: View {
     @Environment(\.dismiss) private var dismiss
 
     let bookingID: String
+    let role: HotelSelectionRole
 
     @State private var hotels: [HotelSummary] = []
     @State private var isLoading = false
@@ -36,6 +37,7 @@ struct BookingHotelChangeView: View {
                             HotelDetailView(
                                 hotel: hotel,
                                 bookingID: bookingID,
+                                selectionRole: role,
                                 onSelectionSaved: {
                                     dismiss()
                                 }
@@ -88,7 +90,7 @@ struct BookingHotelChangeView: View {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            hotels = try await service.listHotels(city: "Makkah")
+            hotels = try await service.listHotels(city: role == .madinah ? "Madinah" : "Makkah")
         } catch {
             errorMessage = L10n.text("hotels_load_error", settings.language)
         }

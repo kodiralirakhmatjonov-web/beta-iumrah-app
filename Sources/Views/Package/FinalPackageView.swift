@@ -330,6 +330,8 @@ struct FinalPackageView: View {
                 madinahHotel: journey.selectedMadinahHotel,
                 room: journey.selectedRoom,
                 roomCategory: journey.selectedRoomCategory,
+                madinahRoom: journey.selectedMadinahRoom,
+                madinahRoomCategory: journey.selectedMadinahRoomCategory,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,

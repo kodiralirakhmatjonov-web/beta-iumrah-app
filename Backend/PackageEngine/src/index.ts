@@ -3,7 +3,7 @@ import { quoteFlightOptions } from "./flight-options";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
 import { legacyEstimatedHotelCost } from "./hotel-fallback";
 import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
-import { deleteAdminBooking, deletePilgrimBooking, updatePilgrimHotel } from "./booking-control";
+import { deleteAdminBooking, deletePilgrimBooking, updatePilgrimContact, updatePilgrimCustomization, updatePilgrimHotel } from "./booking-control";
 import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRoomCategories, listHotelRoomCategories } from "./room-categories";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
@@ -202,6 +202,18 @@ export default {
       }
 
       return json({ ok: false, error: "NOT_FOUND" }, 404);
+    }
+
+    const bookingContactMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/contact$/);
+    if (bookingContactMatch) {
+      if (request.method === "PATCH") return updatePilgrimContact(request, bookingContactMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    const bookingCustomizationMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/customization$/);
+    if (bookingCustomizationMatch) {
+      if (request.method === "PATCH") return updatePilgrimCustomization(request, bookingCustomizationMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
     }
 
     const bookingMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})$/);

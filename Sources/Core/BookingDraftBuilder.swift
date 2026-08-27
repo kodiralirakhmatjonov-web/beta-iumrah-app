@@ -7,6 +7,8 @@ enum BookingDraftBuilder {
         madinahHotel: HotelSummary? = nil,
         room: HotelRoom?,
         roomCategory: IumrahRoomCategoryOption?,
+        madinahRoom: HotelRoom? = nil,
+        madinahRoomCategory: IumrahRoomCategoryOption? = nil,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -67,7 +69,9 @@ enum BookingDraftBuilder {
                 makkahHotelId: hotel.id,
                 madinahHotelId: includeMadinah ? madinahHotel?.id : nil,
                 makkahRoomId: room?.id,
-                makkahRoomCategory: roomCategory?.category
+                makkahRoomCategory: roomCategory?.category,
+                madinahRoomId: includeMadinah ? madinahRoom?.id : nil,
+                madinahRoomCategory: includeMadinah ? madinahRoomCategory?.category : nil
             ),
             customization: .init(
                 accompaniment: true,

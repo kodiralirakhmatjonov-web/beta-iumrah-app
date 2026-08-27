@@ -9,19 +9,28 @@ struct BookingDetailView: View {
 
     @State private var outboundExpanded = false
     @State private var inboundExpanded = false
-    @State private var hotelExpanded = false
-    @State private var showHotelChange = false
+    @State private var makkahHotelExpanded = false
+    @State private var madinahHotelExpanded = false
+    @State private var showMakkahHotelChange = false
+    @State private var showMadinahHotelChange = false
+    @State private var showContactEdit = false
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
     @State private var deleteError: String?
+    @State private var ziyaratMakkah = true
+    @State private var ziyaratMadinah = false
+    @State private var isSavingZiyarat = false
+    @State private var mutationError: String?
+    @State private var isRequestingConfirmation = false
+    @State private var confirmationSent = false
 
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
 
     var body: some View {
         Group {
             if let session {
-                ScrollView {
-                    VStack(spacing: 18) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 16) {
                         statusHero(session)
                         bookingMetaCard(session.booking)
 
@@ -43,21 +52,52 @@ struct BookingDetailView: View {
                             isExpanded: $inboundExpanded
                         )
 
-                        hotelCard(session)
+                        hotelCard(session, role: .makkah, isExpanded: $makkahHotelExpanded)
+
+                        if session.booking.input.includeMadinah {
+                            hotelCard(session, role: .madinah, isExpanded: $madinahHotelExpanded)
+                        }
+
+                        transferCard(session)
+                        guideCard(session)
+                        ziyaratCard(session)
                         contactCard(session)
+
+                        if session.pendingChangeConfirmation == true || confirmationSent {
+                            confirmationCard(session)
+                        }
+
                         careAction
                         destructiveActions
                     }
                     .padding(.horizontal, IumrahDesign.pagePadding)
-                    .padding(.top, 10)
-                    .padding(.bottom, 54)
+                    .padding(.top, 12)
+                    .padding(.bottom, 56)
                 }
                 .background(Color.iumrahPageBackground)
-                .task { await bookings.refreshAll(); await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID) }
-                .sheet(isPresented: $showHotelChange) {
-                    BookingHotelChangeView(bookingID: bookingID)
+                .task {
+                    await bookings.refreshAll()
+                    await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
+                    loadZiyaratDraft()
+                }
+                .sheet(isPresented: $showMakkahHotelChange) {
+                    BookingHotelChangeView(bookingID: bookingID, role: .makkah)
                         .environmentObject(settings)
                         .environmentObject(bookings)
+                }
+                .sheet(isPresented: $showMadinahHotelChange) {
+                    BookingHotelChangeView(bookingID: bookingID, role: .madinah)
+                        .environmentObject(settings)
+                        .environmentObject(bookings)
+                }
+                .sheet(isPresented: $showContactEdit) {
+                    BookingContactEditSheet(
+                        bookingID: bookingID,
+                        telegram: session.telegram ?? "",
+                        whatsapp: session.whatsapp ?? ""
+                    )
+                    .environmentObject(settings)
+                    .environmentObject(bookings)
                 }
             } else {
                 VStack(spacing: 12) {
@@ -169,62 +209,74 @@ struct BookingDetailView: View {
         .iumrahCard()
     }
 
-    private func hotelCard(_ session: StoredBookingSession) -> some View {
-        let snapshot = session.hotelSelection
-        let hotelName = snapshot?.hotelName ?? session.booking.hotelNames.makkah
+    private func hotelCard(_ session: StoredBookingSession, role: HotelSelectionRole, isExpanded: Binding<Bool>) -> some View {
+        let snapshot = role == .madinah ? session.madinahHotelSelection : session.hotelSelection
+        let hotelName = snapshot?.hotelName ?? (role == .madinah ? session.booking.hotelNames.madinah : session.booking.hotelNames.makkah)
         let roomDisplayName = snapshot?.roomCategory.map { L10n.text($0.titleKey, settings.language) } ?? snapshot?.roomName
+        let title = role == .madinah ? L10n.text("booking_madinah_hotel", settings.language) : L10n.text("booking_makkah_hotel", settings.language)
+        let nights: Int? = role == .madinah ? session.booking.stay.madinahNights : session.booking.stay.makkahNights
 
         return VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .center, spacing: 14) {
-                AsyncImage(url: AppConfig.absoluteURL(snapshot?.coverImageURL)) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    default:
-                        ZStack {
-                            Color.iumrahRaisedBackground
-                            Image(systemName: "building.2")
-                                .foregroundStyle(.secondary)
+                ZStack {
+                    AsyncImage(url: AppConfig.absoluteURL(snapshot?.coverImageURL)) { phase in
+                        switch phase {
+                        case .success(let image): image.resizable().scaledToFill()
+                        default:
+                            ZStack {
+                                Color.iumrahRaisedBackground
+                                Image(systemName: role == .madinah ? "moon.stars.fill" : "building.2.fill")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
-                .frame(width: 76, height: 76)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .frame(width: 82, height: 82)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.text("detail_hotel", settings.language))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
-                    Text(hotelName)
-                        .font(.headline)
-                        .lineLimit(2)
+                    Text(hotelName.isEmpty ? L10n.text("booking_hotel_pending", settings.language) : hotelName)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .fixedSize(horizontal: false, vertical: true)
                     if let roomDisplayName, !roomDisplayName.isEmpty {
-                        Text(roomDisplayName)
-                            .font(.subheadline)
+                        Label(roomDisplayName, systemImage: "bed.double.fill")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
+                            .lineLimit(2)
                     }
                 }
                 Spacer(minLength: 0)
             }
 
+            HStack(spacing: 8) {
+                if let nights, nights > 0 {
+                    servicePill(icon: "moon.fill", text: L10n.format("booking_nights_count", settings.language, nights))
+                }
+                if let city = snapshot?.city, !city.isEmpty {
+                    servicePill(icon: "mappin", text: L10n.city(city, settings.language))
+                }
+            }
+
             Button {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                    hotelExpanded.toggle()
+                    isExpanded.wrappedValue.toggle()
                 }
             } label: {
                 HStack {
-                    Text(hotelExpanded ? L10n.text("collapse", settings.language) : L10n.text("expand", settings.language))
+                    Text(isExpanded.wrappedValue ? L10n.text("collapse", settings.language) : L10n.text("expand", settings.language))
                     Spacer()
-                    Image(systemName: hotelExpanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: isExpanded.wrappedValue ? "chevron.up" : "chevron.down")
                 }
                 .font(.subheadline.weight(.semibold))
             }
             .buttonStyle(.plain)
 
-            if hotelExpanded {
+            if isExpanded.wrappedValue {
                 VStack(spacing: 10) {
-                    if let city = snapshot?.city {
-                        summaryRow(title: L10n.text("hotel_location_title", settings.language), value: L10n.city(city, settings.language))
-                    }
                     if let beds = snapshot?.roomBeds, !beds.isEmpty {
                         summaryRow(title: L10n.text("room_beds", settings.language), value: beds)
                     }
@@ -239,9 +291,11 @@ struct BookingDetailView: View {
             }
 
             Button {
-                showHotelChange = true
+                if role == .madinah { showMadinahHotelChange = true }
+                else { showMakkahHotelChange = true }
             } label: {
                 HStack {
+                    Image(systemName: "arrow.triangle.2.circlepath")
                     Text(L10n.text("booking_change_hotel", settings.language))
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -252,47 +306,236 @@ struct BookingDetailView: View {
         .iumrahCard()
     }
 
+    private func transferCard(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            serviceHeader(
+                icon: "car.side.fill",
+                title: L10n.text("booking_transfer_title", settings.language),
+                subtitle: L10n.text("booking_transfer_body", settings.language),
+                badge: L10n.text("booking_included", settings.language)
+            )
+
+            VStack(spacing: 11) {
+                serviceRouteRow(icon: "airplane.arrival", text: L10n.format("booking_transfer_arrival", settings.language, session.booking.input.arrivalAirportCode))
+                serviceRouteRow(icon: "building.2.fill", text: L10n.text("booking_transfer_makkah", settings.language))
+                if session.booking.input.includeMadinah {
+                    serviceRouteRow(icon: "arrow.left.arrow.right", text: L10n.text("booking_transfer_intercity", settings.language))
+                    serviceRouteRow(icon: "moon.stars.fill", text: L10n.text("booking_transfer_madinah", settings.language))
+                }
+                if currentZiyaratMakkah(session) || currentZiyaratMadinah(session) {
+                    serviceRouteRow(icon: "sparkles", text: L10n.text("booking_transfer_ziyarat", settings.language))
+                }
+                serviceRouteRow(icon: "airplane.departure", text: L10n.format("booking_transfer_departure", settings.language, session.booking.route.returnOrigin))
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func guideCard(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            serviceHeader(
+                icon: "person.badge.shield.checkmark.fill",
+                title: L10n.text("booking_guide_title", settings.language),
+                subtitle: session.guide == nil ? L10n.text("booking_guide_pending", settings.language) : L10n.text("booking_guide_assigned", settings.language),
+                badge: nil
+            )
+
+            if let guide = session.guide {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(guide.displayName)
+                        .font(.title3.weight(.bold))
+                    if !guide.roleTitle.isEmpty {
+                        Text(guide.roleTitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !guide.whatsapp.isEmpty {
+                        summaryRow(title: "WhatsApp", value: guide.whatsapp)
+                    } else if !guide.phoneSA.isEmpty {
+                        summaryRow(title: L10n.text("booking_phone", settings.language), value: guide.phoneSA)
+                    } else if !guide.phoneUZ.isEmpty {
+                        summaryRow(title: L10n.text("booking_phone", settings.language), value: guide.phoneUZ)
+                    }
+                }
+                .padding(15)
+                .background(Color.iumrahRaisedBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            } else {
+                Text(L10n.text("booking_guide_care_note", settings.language))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func ziyaratCard(_ session: StoredBookingSession) -> some View {
+        let savedMakkah = currentZiyaratMakkah(session)
+        let savedMadinah = currentZiyaratMadinah(session)
+        let hasChanges = ziyaratMakkah != savedMakkah || ziyaratMadinah != savedMadinah
+
+        return VStack(alignment: .leading, spacing: 16) {
+            serviceHeader(
+                icon: "sparkles",
+                title: L10n.text("booking_ziyarat_title", settings.language),
+                subtitle: L10n.text("booking_ziyarat_body", settings.language),
+                badge: nil
+            )
+
+            Toggle(isOn: $ziyaratMakkah) {
+                Label(L10n.text("booking_ziyarat_makkah", settings.language), systemImage: "building.columns.fill")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .tint(Color.iumrahCareLight)
+
+            if session.booking.input.includeMadinah {
+                Divider()
+                Toggle(isOn: $ziyaratMadinah) {
+                    Label(L10n.text("booking_ziyarat_madinah", settings.language), systemImage: "moon.stars.fill")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .tint(Color.iumrahCareLight)
+            }
+
+            if hasChanges {
+                Button {
+                    Task { await saveZiyarat() }
+                } label: {
+                    HStack {
+                        if isSavingZiyarat { ProgressView().tint(.primary) }
+                        Text(L10n.text("booking_save_changes", settings.language))
+                        Spacer()
+                        Image(systemName: "checkmark")
+                    }
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+                .disabled(isSavingZiyarat)
+            }
+
+            if let mutationError {
+                Text(mutationError)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .iumrahCard()
+    }
+
     private func contactCard(_ session: StoredBookingSession) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.text("booking_contacts", settings.language))
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(L10n.text("booking_contacts", settings.language))
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showContactEdit = true
+                } label: {
+                    Label(L10n.text("booking_contact_edit", settings.language), systemImage: "pencil")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 11)
+                        .frame(height: 34)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
             if let telegram = session.telegram, !telegram.isEmpty {
                 summaryRow(title: "Telegram", value: telegram)
             }
             if let whatsapp = session.whatsapp, !whatsapp.isEmpty {
                 summaryRow(title: "WhatsApp", value: whatsapp)
             }
+            if (session.telegram ?? "").isEmpty && (session.whatsapp ?? "").isEmpty {
+                Text(L10n.text("booking_contact_empty", settings.language))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
+    }
+
+    private func confirmationCard(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: confirmationSent ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath.circle.fill")
+                    .font(.system(size: 27, weight: .semibold))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(confirmationSent ? L10n.text("booking_request_sent", settings.language) : L10n.text("booking_changes_pending_title", settings.language))
+                        .font(.headline)
+                    Text(L10n.text("booking_changes_pending_body", settings.language))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if session.pendingChangeConfirmation == true {
+                Button {
+                    Task { await requestConfirmation() }
+                } label: {
+                    HStack {
+                        if isRequestingConfirmation { ProgressView().tint(.white) }
+                        Text(L10n.text("booking_request_confirmation", settings.language))
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(IumrahPrimaryButtonStyle())
+                .disabled(isRequestingConfirmation)
+            }
+        }
+        .padding(18)
+        .background(Color.iumrahCareLight.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.iumrahCareLight.opacity(0.28), lineWidth: 1)
+        }
     }
 
     private var careAction: some View {
         NavigationLink {
             BookingChatView(bookingID: bookingID)
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: 15) {
                 Image("CareMark")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 38, height: 38)
-                VStack(alignment: .leading, spacing: 3) {
+                    .padding(9)
+                    .frame(width: 58, height: 58)
+                    .background(.white, in: Circle())
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 5) {
                     Text("iumrah Care")
-                        .font(.headline)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
                     Text(L10n.text("booking_care_body", settings.language))
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(L10n.text("booking_open_care", settings.language))
+                        .font(.caption.weight(.bold))
+                        .padding(.top, 2)
                 }
-                Spacer()
+                Spacer(minLength: 8)
                 Image(systemName: "arrow.up.right")
-                    .font(.subheadline.weight(.bold))
+                    .font(.headline.weight(.bold))
             }
             .padding(18)
-            .background(Color.iumrahCareLight.opacity(0.16))
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .background(
+                LinearGradient(
+                    colors: [Color.iumrahCareLight.opacity(0.20), Color.iumrahCardBackground],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .strokeBorder(Color.iumrahCareLight.opacity(0.28), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.iumrahCareLight.opacity(0.24), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -327,6 +570,60 @@ struct BookingDetailView: View {
         }
     }
 
+    private func serviceHeader(icon: String, title: String, subtitle: String, badge: String?) -> some View {
+        HStack(alignment: .top, spacing: 13) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .background(Color.iumrahRaisedBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.headline)
+                    if let badge {
+                        Text(badge)
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 8)
+                            .frame(height: 24)
+                            .background(Color.iumrahCareLight.opacity(0.16), in: Capsule())
+                    }
+                }
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func serviceRouteRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .frame(width: 30, height: 30)
+                .background(Color.iumrahRaisedBackground, in: Circle())
+            Text(text)
+                .font(.subheadline.weight(.semibold))
+            Spacer(minLength: 0)
+            Image(systemName: "checkmark")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Color.iumrahCareLight)
+        }
+    }
+
+    private func servicePill(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Color.iumrahRaisedBackground, in: Capsule())
+    }
+
     private func summaryRow(title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Text(title)
@@ -336,6 +633,58 @@ struct BookingDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func currentZiyaratMakkah(_ session: StoredBookingSession) -> Bool {
+        session.ziyaratMakkahOverride ?? session.booking.customization?.ziyaratMakkah ?? true
+    }
+
+    private func currentZiyaratMadinah(_ session: StoredBookingSession) -> Bool {
+        session.ziyaratMadinahOverride ?? session.booking.customization?.ziyaratMadinah ?? session.booking.input.includeMadinah
+    }
+
+    private func loadZiyaratDraft() {
+        guard let session else { return }
+        ziyaratMakkah = currentZiyaratMakkah(session)
+        ziyaratMadinah = currentZiyaratMadinah(session)
+    }
+
+    @MainActor
+    private func saveZiyarat() async {
+        guard !isSavingZiyarat else { return }
+        isSavingZiyarat = true
+        mutationError = nil
+        defer { isSavingZiyarat = false }
+        do {
+            try await bookings.updateZiyarat(
+                bookingID: bookingID,
+                makkah: ziyaratMakkah,
+                madinah: session?.booking.input.includeMadinah == true ? ziyaratMadinah : false
+            )
+            IumrahHaptics.success()
+        } catch {
+            mutationError = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func requestConfirmation() async {
+        guard !isRequestingConfirmation else { return }
+        isRequestingConfirmation = true
+        mutationError = nil
+        defer { isRequestingConfirmation = false }
+        do {
+            try await bookings.requestChangeConfirmation(
+                bookingID: bookingID,
+                message: L10n.text("booking_change_confirmation_message", settings.language)
+            )
+            confirmationSent = true
+            IumrahHaptics.success()
+        } catch {
+            mutationError = L10n.error(error, settings.language)
+            IumrahHaptics.error()
         }
     }
 
@@ -351,6 +700,104 @@ struct BookingDetailView: View {
             dismiss()
         } catch {
             deleteError = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+}
+
+private struct BookingContactEditSheet: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var bookings: BookingStore
+    @Environment(\.dismiss) private var dismiss
+
+    let bookingID: String
+    @State private var telegram: String
+    @State private var whatsapp: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(bookingID: String, telegram: String, whatsapp: String) {
+        self.bookingID = bookingID
+        _telegram = State(initialValue: telegram)
+        _whatsapp = State(initialValue: whatsapp)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(L10n.text("booking_contact_edit_title", settings.language))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text(L10n.text("booking_contact_edit_body", settings.language))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: 12) {
+                    TextField("Telegram", text: $telegram)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .padding(.horizontal, 16)
+                        .frame(height: 54)
+                        .background(Color.iumrahRaisedBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                    TextField("WhatsApp", text: $whatsapp)
+                        .keyboardType(.phonePad)
+                        .padding(.horizontal, 16)
+                        .frame(height: 54)
+                        .background(Color.iumrahRaisedBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+
+                Button {
+                    Task { await save() }
+                } label: {
+                    HStack {
+                        if isSaving { ProgressView().tint(.white) }
+                        Text(L10n.text("booking_save_changes", settings.language))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(IumrahPrimaryButtonStyle())
+                .disabled(isSaving || (telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && whatsapp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+
+                Spacer()
+            }
+            .padding(20)
+            .background(Color.iumrahPageBackground.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .frame(width: 36, height: 36)
+                            .background(Color.iumrahRaisedBackground, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func save() async {
+        guard !isSaving else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        do {
+            try await bookings.updateContacts(bookingID: bookingID, telegram: telegram, whatsapp: whatsapp)
+            IumrahHaptics.success()
+            dismiss()
+        } catch {
+            errorMessage = L10n.error(error, settings.language)
             IumrahHaptics.error()
         }
     }

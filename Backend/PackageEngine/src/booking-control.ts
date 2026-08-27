@@ -114,6 +114,16 @@ function clean(value: unknown, max = 240) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function bool(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+async function persistBookingPayload(db: BookingD1, id: string, payload: Record<string, unknown>, now: string) {
+  await db.prepare(
+    `UPDATE bookings SET payload_json = ?1, updated_at = ?2 WHERE id = ?3`,
+  ).bind(JSON.stringify(payload), now, id).run();
+}
+
 export async function updatePilgrimHotel(request: Request, id: string, env: BookingControlEnv): Promise<Response> {
   if (!env.BOOKINGS_DB) return json({ error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
   if (!env.HOTELS_DB) return json({ error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
@@ -127,6 +137,9 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
     return json({ error: "INVALID_REQUEST" }, 400);
   }
 
+  const roleRaw = clean(body.role, 32).toLowerCase();
+  const role = roleRaw === "madinah" || roleRaw === "medina" ? "madinah" : "makkah";
+  const expectedCity = role === "madinah" ? "Madinah" : "Makkah";
   const hotelId = clean(body.hotelId, 180);
   const coverImageURL = clean(body.coverImageURL, 700) || null;
   const roomId = clean(body.roomId, 180) || null;
@@ -146,6 +159,11 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
       "SELECT id, name, city FROM hotels WHERE id = ?1 AND status = 'published' LIMIT 1",
     ).bind(hotelId).first<{ id: string; name: string; city: string }>();
     if (!hotel) return json({ error: "HOTEL_NOT_FOUND" }, 404);
+    const normalizedCity = String(hotel.city || "").trim().toLowerCase();
+    const validCities = role === "madinah" ? ["madinah", "medina", "al madinah"] : ["makkah", "mecca"];
+    if (normalizedCity && !validCities.includes(normalizedCity)) {
+      return json({ error: "HOTEL_CITY_MISMATCH", expectedCity }, 409);
+    }
 
     let canonicalRoomName = roomName;
     let canonicalRoomBeds = roomBeds;
@@ -166,26 +184,32 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
       if (!room) return json({ error: "ROOM_NOT_FOUND" }, 404);
     }
 
-    await ensureBookingRoomColumns(env.BOOKINGS_DB);
     const payload = JSON.parse(booking.payload_json || "{}") as Record<string, unknown>;
     const rawHotelNames = payload.hotelNames && typeof payload.hotelNames === "object"
       ? payload.hotelNames as Record<string, unknown>
       : {};
-    payload.hotelNames = { ...rawHotelNames, makkah: hotel.name };
+    payload.hotelNames = {
+      ...rawHotelNames,
+      [role]: hotel.name,
+    };
 
     const rawSelection = payload.selection && typeof payload.selection === "object"
       ? payload.selection as Record<string, unknown>
       : {};
+    const hotelKey = role === "madinah" ? "madinahHotelId" : "makkahHotelId";
+    const roomKey = role === "madinah" ? "madinahRoomId" : "makkahRoomId";
+    const categoryKey = role === "madinah" ? "madinahRoomCategory" : "makkahRoomCategory";
     payload.selection = {
       ...rawSelection,
-      makkahHotelId: hotelId,
-      makkahRoomId: roomId,
-      makkahRoomCategory: requestedRoomCategory,
+      [hotelKey]: hotelId,
+      [roomKey]: roomId,
+      [categoryKey]: requestedRoomCategory,
     };
-    payload.hotelSelection = {
+
+    const snapshot = {
       hotelId,
       hotelName: hotel.name,
-      city: hotel.city,
+      city: hotel.city || expectedCity,
       coverImageURL,
       roomId,
       roomName: canonicalRoomName,
@@ -195,30 +219,112 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
       roomCategory: requestedRoomCategory,
       roomSource,
     };
+    if (role === "madinah") payload.madinahHotelSelection = snapshot;
+    else payload.hotelSelection = snapshot;
 
     const now = new Date().toISOString();
-    await env.BOOKINGS_DB.prepare(
-      `UPDATE bookings
-       SET makkah_hotel = ?1,
-           makkah_room_category = ?2,
-           makkah_room_name = ?3,
-           makkah_room_id = ?4,
-           payload_json = ?5,
-           updated_at = ?6
-       WHERE id = ?7`,
-    ).bind(
-      hotel.name,
-      requestedRoomCategory,
-      canonicalRoomName,
-      roomId,
-      JSON.stringify(payload),
-      now,
-      id,
-    ).run();
+    if (role === "makkah") {
+      await ensureBookingRoomColumns(env.BOOKINGS_DB);
+      await env.BOOKINGS_DB.prepare(
+        `UPDATE bookings
+         SET makkah_hotel = ?1,
+             makkah_room_category = ?2,
+             makkah_room_name = ?3,
+             makkah_room_id = ?4,
+             payload_json = ?5,
+             updated_at = ?6
+         WHERE id = ?7`,
+      ).bind(
+        hotel.name,
+        requestedRoomCategory,
+        canonicalRoomName,
+        roomId,
+        JSON.stringify(payload),
+        now,
+        id,
+      ).run();
+    } else {
+      await persistBookingPayload(env.BOOKINGS_DB, id, payload, now);
+    }
 
-    return json({ ok: true, updatedAt: now, hotelSelection: payload.hotelSelection });
+    return json({ ok: true, updatedAt: now, role, hotelSelection: snapshot });
   } catch (error) {
     console.error("booking-control-hotel-failed", error);
+    return json({ error: "BOOKING_UPDATE_FAILED" }, 500);
+  }
+}
+
+export async function updatePilgrimContact(request: Request, id: string, env: BookingControlEnv): Promise<Response> {
+  if (!env.BOOKINGS_DB) return json({ error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
+
+  let body: Record<string, unknown>;
+  try {
+    const value = await request.json();
+    if (!value || typeof value !== "object") throw new Error("INVALID_REQUEST");
+    body = value as Record<string, unknown>;
+  } catch {
+    return json({ error: "INVALID_REQUEST" }, 400);
+  }
+
+  try {
+    const booking = await authorizedBooking(request, id, env.BOOKINGS_DB);
+    if (!booking) return json({ error: "BOOKING_NOT_FOUND" }, 404);
+    const payload = JSON.parse(booking.payload_json || "{}") as Record<string, unknown>;
+    const profile = payload.pilgrimProfile && typeof payload.pilgrimProfile === "object"
+      ? payload.pilgrimProfile as Record<string, unknown>
+      : {};
+    payload.pilgrimProfile = {
+      ...profile,
+      telegram: clean(body.telegram, 180),
+      whatsapp: clean(body.whatsapp, 100),
+    };
+    const now = new Date().toISOString();
+    await persistBookingPayload(env.BOOKINGS_DB, id, payload, now);
+    return json({ ok: true, updatedAt: now });
+  } catch (error) {
+    console.error("booking-control-contact-failed", error);
+    return json({ error: "BOOKING_UPDATE_FAILED" }, 500);
+  }
+}
+
+export async function updatePilgrimCustomization(request: Request, id: string, env: BookingControlEnv): Promise<Response> {
+  if (!env.BOOKINGS_DB) return json({ error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
+
+  let body: Record<string, unknown>;
+  try {
+    const value = await request.json();
+    if (!value || typeof value !== "object") throw new Error("INVALID_REQUEST");
+    body = value as Record<string, unknown>;
+  } catch {
+    return json({ error: "INVALID_REQUEST" }, 400);
+  }
+
+  try {
+    const booking = await authorizedBooking(request, id, env.BOOKINGS_DB);
+    if (!booking) return json({ error: "BOOKING_NOT_FOUND" }, 404);
+    const payload = JSON.parse(booking.payload_json || "{}") as Record<string, unknown>;
+    const current = payload.customization && typeof payload.customization === "object"
+      ? payload.customization as Record<string, unknown>
+      : {};
+    const input = payload.input && typeof payload.input === "object" ? payload.input as Record<string, unknown> : {};
+    const includeMadinah = input.includeMadinah === true;
+    const ziyaratMakkah = bool(body.ziyaratMakkah, current.ziyaratMakkah !== false);
+    const ziyaratMadinah = includeMadinah ? bool(body.ziyaratMadinah, current.ziyaratMadinah !== false) : false;
+    payload.customization = { ...current, ziyaratMakkah, ziyaratMadinah };
+
+    const services = Array.isArray(payload.includedServices)
+      ? payload.includedServices.filter((item): item is string => typeof item === "string")
+      : [];
+    const nextServices = new Set(services.filter((item) => item !== "ziyaratMakkah" && item !== "ziyaratMadinah"));
+    if (ziyaratMakkah) nextServices.add("ziyaratMakkah");
+    if (ziyaratMadinah) nextServices.add("ziyaratMadinah");
+    payload.includedServices = Array.from(nextServices);
+
+    const now = new Date().toISOString();
+    await persistBookingPayload(env.BOOKINGS_DB, id, payload, now);
+    return json({ ok: true, updatedAt: now, customization: payload.customization });
+  } catch (error) {
+    console.error("booking-control-customization-failed", error);
     return json({ error: "BOOKING_UPDATE_FAILED" }, 500);
   }
 }

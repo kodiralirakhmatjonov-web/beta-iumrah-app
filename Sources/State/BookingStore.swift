@@ -18,6 +18,7 @@ final class BookingStore: ObservableObject {
     @Published private(set) var chats: [String: [ChatMessage]] = [:]
 
     private let bookingService = BookingService()
+    private let hotelCatalogService = HotelCatalogService()
     private let chatService = ChatService()
     private let clientPushService = ClientPushService()
     private let legacyStorageKey = "iumrah.booking.sessions.v1"
@@ -32,6 +33,8 @@ final class BookingStore: ObservableObject {
         madinahHotel: HotelSummary? = nil,
         room: HotelRoom?,
         roomCategory: IumrahRoomCategoryOption? = nil,
+        madinahRoom: HotelRoom? = nil,
+        madinahRoomCategory: IumrahRoomCategoryOption? = nil,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -44,6 +47,8 @@ final class BookingStore: ObservableObject {
             madinahHotel: madinahHotel,
             room: room,
             roomCategory: roomCategory,
+            madinahRoom: madinahRoom,
+            madinahRoomCategory: madinahRoomCategory,
             outbound: outbound,
             inbound: inbound,
             quote: quote,
@@ -64,26 +69,37 @@ final class BookingStore: ObservableObject {
             whatsapp: serverProfile?.whatsapp,
             outboundFlight: outbound,
             inboundFlight: inbound,
-            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory),
+            madinahHotelSelection: madinahHotel.map { BookingHotelSelectionSnapshot(hotel: $0, room: madinahRoom, roomCategory: madinahRoomCategory) }
         )
         if let profile = serverProfile, !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            !profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            if let trip = try? await bookingService.syncClientIdentity(
+            if let response = try? await bookingService.syncClientIdentity(
                 id: session.id,
                 accessToken: session.accessToken,
                 clientUserID: ClientIdentityStore.id,
                 profile: profile
             ) {
-                session.pilgrimID = trip.pilgrimID
-                session.operationStatus = trip.status
+                session.pilgrimID = response.trip.pilgrimID
+                session.operationStatus = response.trip.status
+                session.guide = response.assignment?.guide
             }
         }
         upsert(session)
-        if room != nil || roomCategory != nil {
+        if let makkahSelection = session.hotelSelection {
             _ = try? await bookingService.updateHotelSelection(
                 id: session.id,
                 accessToken: session.accessToken,
-                snapshot: session.hotelSelection ?? BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+                role: .makkah,
+                snapshot: makkahSelection
+            )
+        }
+        if let madinahSelection = session.madinahHotelSelection {
+            _ = try? await bookingService.updateHotelSelection(
+                id: session.id,
+                accessToken: session.accessToken,
+                role: .madinah,
+                snapshot: madinahSelection
             )
         }
         return session
@@ -95,47 +111,47 @@ final class BookingStore: ObservableObject {
         for session in sessions {
             let token = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
             if token.isEmpty {
-                // A real server booking is always created with an access token.
-                // Tokenless sessions are legacy test remnants and can be removed safely.
                 staleBookingIDs.insert(session.id)
                 continue
             }
 
             do {
                 let booking = try await bookingService.fetchBooking(id: session.id, accessToken: token)
-                var operationalTrip: ClientTripSnapshot?
+                var operational: ClientTripResponse?
                 if let profile = identityProfile(remote: booking.pilgrimProfile, session: session) {
-                    operationalTrip = try? await bookingService.syncClientIdentity(
+                    operational = try? await bookingService.syncClientIdentity(
                         id: session.id,
                         accessToken: token,
                         clientUserID: ClientIdentityStore.id,
                         profile: profile
                     )
                 }
-                if operationalTrip == nil {
-                    operationalTrip = try? await bookingService.fetchOperationalTrip(id: session.id, accessToken: token)
+                if operational == nil {
+                    operational = try? await bookingService.fetchOperationalTrip(id: session.id, accessToken: token)
                 }
+
                 if let index = sessions.firstIndex(where: { $0.id == session.id }) {
                     sessions[index].booking = booking
-                    sessions[index].operationStatus = operationalTrip?.status ?? sessions[index].operationStatus
-                    sessions[index].pilgrimID = operationalTrip?.pilgrimID ?? sessions[index].pilgrimID
+                    sessions[index].operationStatus = operational?.trip.status ?? sessions[index].operationStatus
+                    sessions[index].pilgrimID = operational?.trip.pilgrimID ?? sessions[index].pilgrimID
+                    sessions[index].guide = operational?.assignment?.guide ?? sessions[index].guide
+
                     if let profile = booking.pilgrimProfile {
                         sessions[index].travelerName = profile.displayName
                         sessions[index].telegram = profile.telegram
                         sessions[index].whatsapp = profile.whatsapp
                     }
-                    if let hotelSelection = booking.hotelSelection {
-                        let localSelection = sessions[index].hotelSelection
-                        if hotelSelection.roomCategory == nil,
-                           hotelSelection.roomId == nil,
-                           let localSelection,
-                           localSelection.hotelId == hotelSelection.hotelId,
-                           localSelection.roomCategory != nil {
-                            sessions[index].hotelSelection = localSelection
-                        } else {
-                            sessions[index].hotelSelection = hotelSelection
-                        }
+                    mergeRemoteHotelSelection(booking.hotelSelection, into: &sessions[index].hotelSelection)
+                    mergeRemoteHotelSelection(booking.madinahHotelSelection, into: &sessions[index].madinahHotelSelection)
+                    if let customization = booking.customization {
+                        sessions[index].ziyaratMakkahOverride = customization.ziyaratMakkah
+                        sessions[index].ziyaratMadinahOverride = customization.ziyaratMadinah
                     }
+                }
+
+                await hydrateHotelSelectionIfNeeded(bookingID: session.id, role: .makkah)
+                if booking.input.includeMadinah {
+                    await hydrateHotelSelectionIfNeeded(bookingID: session.id, role: .madinah)
                 }
             } catch APIError.status(let code) where code == 404 || code == 410 {
                 staleBookingIDs.insert(session.id)
@@ -154,6 +170,36 @@ final class BookingStore: ObservableObject {
 
     func booking(id: String) -> StoredBookingSession? {
         sessions.first(where: { $0.id == id })
+    }
+
+    private func hydrateHotelSelectionIfNeeded(bookingID: String, role: HotelSelectionRole) async {
+        guard let current = booking(id: bookingID) else { return }
+        let existing = role == .madinah ? current.madinahHotelSelection : current.hotelSelection
+        guard existing == nil else { return }
+
+        let rawName = role == .madinah ? current.booking.hotelNames.madinah : current.booking.hotelNames.makkah
+        let targetName = normalizedHotelName(rawName)
+        guard !targetName.isEmpty else { return }
+
+        let city = role == .madinah ? "Madinah" : "Makkah"
+        guard let hotels = try? await hotelCatalogService.listHotels(city: city),
+              let hotel = hotels.first(where: { normalizedHotelName($0.name) == targetName }),
+              let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
+
+        let snapshot = BookingHotelSelectionSnapshot(hotel: hotel, room: nil, roomCategory: nil)
+        if role == .madinah {
+            sessions[index].madinahHotelSelection = snapshot
+        } else {
+            sessions[index].hotelSelection = snapshot
+        }
+    }
+
+    private func normalizedHotelName(_ value: String) -> String {
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func loadChat(for bookingID: String) async throws -> [ChatMessage] {
@@ -217,24 +263,27 @@ final class BookingStore: ObservableObject {
 
     func syncHotelSelectionIfNeeded(bookingID: String) async {
         guard let session = booking(id: bookingID),
-              let snapshot = session.hotelSelection,
-              snapshot.roomId != nil || snapshot.roomCategory != nil,
-              (session.booking.hotelSelection?.roomId != snapshot.roomId ||
-               session.booking.hotelSelection?.roomCategory != snapshot.roomCategory),
               !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        do {
-            _ = try await bookingService.updateHotelSelection(
-                id: bookingID,
-                accessToken: session.accessToken,
-                snapshot: snapshot
-            )
-        } catch {
-            // Keep the local selection and retry on a later booking-detail refresh.
-        }
+
+        await syncHotelSelectionIfNeeded(
+            bookingID: bookingID,
+            role: .makkah,
+            local: session.hotelSelection,
+            remote: session.booking.hotelSelection,
+            accessToken: session.accessToken
+        )
+        await syncHotelSelectionIfNeeded(
+            bookingID: bookingID,
+            role: .madinah,
+            local: session.madinahHotelSelection,
+            remote: session.booking.madinahHotelSelection,
+            accessToken: session.accessToken
+        )
     }
 
     func updateHotelSelection(
         bookingID: String,
+        role: HotelSelectionRole = .makkah,
         hotel: HotelSummary,
         room: HotelRoom?,
         roomCategory: IumrahRoomCategoryOption? = nil
@@ -245,13 +294,106 @@ final class BookingStore: ObservableObject {
         _ = try await bookingService.updateHotelSelection(
             id: bookingID,
             accessToken: session.accessToken,
+            role: role,
             hotel: hotel,
             room: room,
             roomCategory: roomCategory
         )
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
-        sessions[index].hotelSelection = BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+        let snapshot = BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+        if role == .madinah {
+            sessions[index].madinahHotelSelection = snapshot
+        } else {
+            sessions[index].hotelSelection = snapshot
+        }
+        sessions[index].pendingChangeConfirmation = true
         persist()
+    }
+
+    func updateContacts(bookingID: String, telegram: String, whatsapp: String) async throws {
+        guard let session = booking(id: bookingID), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        let cleanTelegram = telegram.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanWhatsApp = whatsapp.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = try await bookingService.updateContacts(
+            id: bookingID,
+            accessToken: session.accessToken,
+            telegram: cleanTelegram,
+            whatsapp: cleanWhatsApp
+        )
+
+        guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
+        sessions[index].telegram = cleanTelegram
+        sessions[index].whatsapp = cleanWhatsApp
+        sessions[index].pendingChangeConfirmation = true
+        if let profile = identityProfile(remote: sessions[index].booking.pilgrimProfile, session: sessions[index]) {
+            let updatedProfile = BookingPilgrimProfile(
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+                telegram: cleanTelegram,
+                whatsapp: cleanWhatsApp
+            )
+            if let response = try? await bookingService.syncClientIdentity(
+                id: bookingID,
+                accessToken: session.accessToken,
+                clientUserID: ClientIdentityStore.id,
+                profile: updatedProfile
+            ) {
+                sessions[index].pilgrimID = response.trip.pilgrimID ?? sessions[index].pilgrimID
+                sessions[index].operationStatus = response.trip.status
+                sessions[index].guide = response.assignment?.guide ?? sessions[index].guide
+            }
+        }
+        persist()
+    }
+
+    func updateZiyarat(bookingID: String, makkah: Bool, madinah: Bool) async throws {
+        guard let session = booking(id: bookingID), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        _ = try await bookingService.updateZiyarat(
+            id: bookingID,
+            accessToken: session.accessToken,
+            makkah: makkah,
+            madinah: madinah
+        )
+        guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
+        sessions[index].ziyaratMakkahOverride = makkah
+        sessions[index].ziyaratMadinahOverride = madinah
+        sessions[index].pendingChangeConfirmation = true
+        persist()
+    }
+
+    func requestChangeConfirmation(bookingID: String, message: String) async throws {
+        _ = try await send(message: message, for: bookingID)
+        guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
+        sessions[index].pendingChangeConfirmation = false
+        persist()
+    }
+
+    private func syncHotelSelectionIfNeeded(
+        bookingID: String,
+        role: HotelSelectionRole,
+        local: BookingHotelSelectionSnapshot?,
+        remote: BookingHotelSelectionSnapshot?,
+        accessToken: String
+    ) async {
+        guard let local else { return }
+        let differs = remote?.hotelId != local.hotelId ||
+            remote?.roomId != local.roomId ||
+            remote?.roomCategory != local.roomCategory
+        guard differs else { return }
+        do {
+            _ = try await bookingService.updateHotelSelection(
+                id: bookingID,
+                accessToken: accessToken,
+                role: role,
+                snapshot: local
+            )
+        } catch {
+            // Keep the local selection and retry on a later booking-detail refresh.
+        }
     }
 
     func deleteBooking(id: String) async throws {
@@ -304,6 +446,18 @@ final class BookingStore: ObservableObject {
     private func isRemoteMissing(code: Int, message: String) -> Bool {
         let normalized = message.uppercased()
         return code == 404 || code == 410 || normalized.contains("NOT_FOUND") || normalized.contains("NOT FOUND")
+    }
+
+    private func mergeRemoteHotelSelection(_ remote: BookingHotelSelectionSnapshot?, into local: inout BookingHotelSelectionSnapshot?) {
+        guard let remote else { return }
+        if remote.roomCategory == nil,
+           remote.roomId == nil,
+           let current = local,
+           current.hotelId == remote.hotelId,
+           current.roomCategory != nil {
+            return
+        }
+        local = remote
     }
 
     private func identityProfile(remote: BookingPilgrimProfile?, session: StoredBookingSession) -> BookingPilgrimProfile? {

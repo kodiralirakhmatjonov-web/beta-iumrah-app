@@ -166,8 +166,11 @@ struct BookingCheckoutView: View {
             let session = try await bookings.create(
                 trip: journey.trip,
                 hotel: hotel,
+                madinahHotel: journey.selectedMadinahHotel,
                 room: journey.selectedRoom,
                 roomCategory: journey.selectedRoomCategory,
+                madinahRoom: journey.selectedMadinahRoom,
+                madinahRoomCategory: journey.selectedMadinahRoomCategory,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,
