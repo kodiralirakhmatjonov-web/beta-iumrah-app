@@ -4,6 +4,7 @@ enum BookingDraftBuilder {
     static func make(
         trip: TripDraft,
         hotel: HotelSummary,
+        madinahHotel: HotelSummary? = nil,
         room: HotelRoom?,
         roomCategory: IumrahRoomCategoryOption?,
         outbound: FlightOffer,
@@ -64,7 +65,7 @@ enum BookingDraftBuilder {
             selection: .init(
                 flightId: "\(outbound.id)|\(inbound.id)",
                 makkahHotelId: hotel.id,
-                madinahHotelId: nil,
+                madinahHotelId: includeMadinah ? madinahHotel?.id : nil,
                 makkahRoomId: room?.id,
                 makkahRoomCategory: roomCategory?.category
             ),
@@ -77,7 +78,10 @@ enum BookingDraftBuilder {
                 esim: true
             ),
             includedServices: services,
-            hotelNames: .init(makkah: hotel.name, madinah: includeMadinah ? L10n.text("recommended_madinah_hotel", language) : ""),
+            hotelNames: .init(
+                makkah: hotel.name,
+                madinah: includeMadinah ? (madinahHotel?.name ?? L10n.text("recommended_madinah_hotel", language)) : ""
+            ),
             flight: "\(outbound.airlinesSummary) \(outbound.flightNumbersSummary) · \(inbound.airlinesSummary) \(inbound.flightNumbersSummary)",
             pilgrimProfile: pilgrimProfile
         )

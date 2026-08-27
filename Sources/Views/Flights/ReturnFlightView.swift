@@ -23,7 +23,6 @@ struct ReturnFlightView: View {
             }
         }
         .background(isLoading || showingReadyAnimation ? Color.black : Color.iumrahPageBackground)
-        .toolbar(.hidden, for: .navigationBar)
         .task { await search(force: false) }
         .onAppear { updateImmersive() }
         .onChange(of: isLoading) { _, _ in updateImmersive() }
@@ -42,6 +41,7 @@ struct ReturnFlightView: View {
     private var resultsView: some View {
         ScrollView {
             LazyVStack(spacing: 18) {
+                IumrahFlowProgress(stage: .flight)
                 SectionHeader(
                     L10n.text("flight_return_title", settings.language),
                     eyebrow: L10n.text("flight_return_eyebrow", settings.language),
@@ -115,9 +115,15 @@ struct ReturnFlightView: View {
 
     private func search(force: Bool) async {
         if !force, !offers.isEmpty { isLoading = false; return }
-        guard let hotel = journey.selectedHotel,
+        guard let makkahHotel = journey.selectedHotel,
               let outbound = journey.selectedOutbound else {
             errorText = L10n.text("flight_select_outbound_first", settings.language)
+            isLoading = false
+            return
+        }
+        let madinahHotel = journey.selectedMadinahHotel
+        if journey.trip.scope == .makkahAndMadinah, madinahHotel == nil {
+            errorText = FlowCopy.text(.madinahHotelRequired, settings.language)
             isLoading = false
             return
         }
@@ -126,7 +132,7 @@ struct ReturnFlightView: View {
         errorText = nil
         journey.errorMessage = nil
         do {
-            offers = try await journey.flightService.searchReturn(trip: journey.trip, hotel: hotel, outbound: outbound)
+            offers = try await journey.flightService.searchReturn(trip: journey.trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
             isLoading = false
             showingReadyAnimation = true
             IumrahHaptics.success()

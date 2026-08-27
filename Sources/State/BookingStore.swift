@@ -29,6 +29,7 @@ final class BookingStore: ObservableObject {
     func create(
         trip: TripDraft,
         hotel: HotelSummary,
+        madinahHotel: HotelSummary? = nil,
         room: HotelRoom?,
         roomCategory: IumrahRoomCategoryOption? = nil,
         outbound: FlightOffer,
@@ -40,6 +41,7 @@ final class BookingStore: ObservableObject {
         let payload = BookingDraftBuilder.make(
             trip: trip,
             hotel: hotel,
+            madinahHotel: madinahHotel,
             room: room,
             roomCategory: roomCategory,
             outbound: outbound,
@@ -88,21 +90,30 @@ final class BookingStore: ObservableObject {
     }
 
     func refreshAll() async {
+        var staleBookingIDs = Set<String>()
+
         for session in sessions {
-            guard !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+            let token = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            if token.isEmpty {
+                // A real server booking is always created with an access token.
+                // Tokenless sessions are legacy test remnants and can be removed safely.
+                staleBookingIDs.insert(session.id)
+                continue
+            }
+
             do {
-                let booking = try await bookingService.fetchBooking(id: session.id, accessToken: session.accessToken)
+                let booking = try await bookingService.fetchBooking(id: session.id, accessToken: token)
                 var operationalTrip: ClientTripSnapshot?
                 if let profile = identityProfile(remote: booking.pilgrimProfile, session: session) {
                     operationalTrip = try? await bookingService.syncClientIdentity(
                         id: session.id,
-                        accessToken: session.accessToken,
+                        accessToken: token,
                         clientUserID: ClientIdentityStore.id,
                         profile: profile
                     )
                 }
                 if operationalTrip == nil {
-                    operationalTrip = try? await bookingService.fetchOperationalTrip(id: session.id, accessToken: session.accessToken)
+                    operationalTrip = try? await bookingService.fetchOperationalTrip(id: session.id, accessToken: token)
                 }
                 if let index = sessions.firstIndex(where: { $0.id == session.id }) {
                     sessions[index].booking = booking
@@ -120,17 +131,23 @@ final class BookingStore: ObservableObject {
                            let localSelection,
                            localSelection.hotelId == hotelSelection.hotelId,
                            localSelection.roomCategory != nil {
-                            // Keep the locally persisted primary room category if an older
-                            // booking response has not echoed the category fields yet.
                             sessions[index].hotelSelection = localSelection
                         } else {
                             sessions[index].hotelSelection = hotelSelection
                         }
                     }
                 }
+            } catch APIError.status(let code) where code == 404 || code == 410 {
+                staleBookingIDs.insert(session.id)
+            } catch APIError.server(let code, let message) where isRemoteMissing(code: code, message: message) {
+                staleBookingIDs.insert(session.id)
             } catch {
                 continue
             }
+        }
+
+        for id in staleBookingIDs {
+            purgeLocalBooking(id: id)
         }
         persist()
     }
@@ -238,19 +255,55 @@ final class BookingStore: ObservableObject {
     }
 
     func deleteBooking(id: String) async throws {
-        guard let session = booking(id: id), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw APIError.missingBookingToken
+        guard let session = booking(id: id) else {
+            purgeLocalBooking(id: id)
+            return
         }
+
+        let token = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !token.isEmpty {
+            do {
+                _ = try await bookingService.deleteBooking(id: id, accessToken: token)
+            } catch APIError.status(let code) where code == 404 || code == 410 {
+                // Idempotent delete: if the server no longer has the booking, the local copy is stale.
+            } catch APIError.server(let code, let message) where isRemoteMissing(code: code, message: message) {
+                // Same as a successful delete from the client's point of view.
+            } catch APIError.status(let code) where code == 405 {
+                throw BookingStoreError.permanentDeleteUnavailable
+            } catch APIError.server(let code, let message) where code == 405 || message.uppercased().contains("METHOD_NOT_ALLOWED") {
+                throw BookingStoreError.permanentDeleteUnavailable
+            } catch {
+                // Some legacy delete paths completed the database mutation and then returned 500.
+                // Reconcile once: if the booking is now absent remotely, finish the local delete.
+                guard await remoteBookingIsMissing(id: id, accessToken: token) else { throw error }
+            }
+        }
+
+        purgeLocalBooking(id: id)
+        persist()
+    }
+
+
+    private func remoteBookingIsMissing(id: String, accessToken: String) async -> Bool {
         do {
-            _ = try await bookingService.deleteBooking(id: id, accessToken: session.accessToken)
-        } catch APIError.status(let code) where code == 405 {
-            throw BookingStoreError.permanentDeleteUnavailable
-        } catch APIError.server(let code, let message) where code == 405 || message.uppercased() == "METHOD_NOT_ALLOWED" {
-            throw BookingStoreError.permanentDeleteUnavailable
+            _ = try await bookingService.fetchBooking(id: id, accessToken: accessToken)
+            return false
+        } catch APIError.status(let code) where code == 404 || code == 410 {
+            return true
+        } catch APIError.server(let code, let message) where isRemoteMissing(code: code, message: message) {
+            return true
+        } catch {
+            return false
         }
+    }
+    private func purgeLocalBooking(id: String) {
         sessions.removeAll(where: { $0.id == id })
         chats[id] = nil
-        persist()
+    }
+
+    private func isRemoteMissing(code: Int, message: String) -> Bool {
+        let normalized = message.uppercased()
+        return code == 404 || code == 410 || normalized.contains("NOT_FOUND") || normalized.contains("NOT FOUND")
     }
 
     private func identityProfile(remote: BookingPilgrimProfile?, session: StoredBookingSession) -> BookingPilgrimProfile? {

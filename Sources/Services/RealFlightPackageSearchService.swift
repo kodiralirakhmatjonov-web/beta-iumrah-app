@@ -28,12 +28,13 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
     private var tripSignature: String?
     private var verifiedSignature: String?
 
-    func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer] {
+    func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await ensureBackendReady(for: trip)
         let currentSession = try await sessionFor(trip: trip)
         let response = try await packageEngine.quoteOutboundOptions(
             trip: trip,
-            hotel: hotel,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
             outbound: currentSession.outbound,
             inbound: currentSession.inbound
         )
@@ -48,7 +49,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
     }
 
-    func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
+    func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer] {
         try await ensureBackendReady(for: trip)
         var currentSession = try await sessionFor(trip: trip)
         guard let sourceID = outbound.sourceCandidateID,
@@ -67,7 +68,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
 
         let response = try await packageEngine.quoteReturnOptions(
             trip: trip,
-            hotel: hotel,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
             selectedOutbound: selectedCandidate,
             inbound: currentSession.inbound
         )
@@ -207,34 +209,34 @@ final class AutomaticFlightSearchService: FlightSearchServicing {
     private let packageEngine = RemotePackageEngineClient()
     private var remoteReady: Bool?
 
-    func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer] {
+    func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         switch AppConfig.flightEngineMode {
         case .sandbox:
-            return try await sandbox.searchOutbound(trip: trip, hotel: hotel)
+            return try await sandbox.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
         case .officialWebBots:
-            return try await real.searchOutbound(trip: trip, hotel: hotel)
+            return try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
         case .automatic:
             guard await canUseRemoteEngine() else {
-                return try await sandbox.searchOutbound(trip: trip, hotel: hotel)
+                return try await sandbox.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
             }
-            return try await real.searchOutbound(trip: trip, hotel: hotel)
+            return try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
         }
     }
 
-    func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
+    func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer] {
         switch AppConfig.flightEngineMode {
         case .sandbox:
-            return try await sandbox.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+            return try await sandbox.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
         case .officialWebBots:
             guard outbound.sourceCandidateID != nil else {
                 throw FlightEngineAvailabilityError.realOutboundRequired
             }
-            return try await real.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+            return try await real.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
         case .automatic:
             if outbound.sourceCandidateID != nil {
-                return try await real.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+                return try await real.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
             }
-            return try await sandbox.searchReturn(trip: trip, hotel: hotel, outbound: outbound)
+            return try await sandbox.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
         }
     }
 

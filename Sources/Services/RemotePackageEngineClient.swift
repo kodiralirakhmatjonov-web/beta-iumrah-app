@@ -4,14 +4,14 @@ struct RemotePackageEngineClient {
     private let api = APIClient.shared
 
     func health() async throws -> PackageEngineHealthResponse {
-        try await api.get(AppConfig.packageHealthPath)
+        try await api.get(AppConfig.packageHealthPath, timeoutInterval: 8)
     }
 
     func roomCategories(hotelID: String) async throws -> [IumrahRoomCategoryOption] {
         let response: HotelRoomCategoriesResponse = try await api.get(
             "/api/package/hotel/\(hotelID)/room-categories"
         )
-        return response.categories.sorted(by: { $0.position < $1.position })
+        return response.categories.sorted { $0.position < $1.position }
     }
 
     func primaryHotel(tier: PackageTier, stars: Int, city: String) async throws -> PrimaryHotelResolutionResponse {
@@ -44,35 +44,37 @@ struct RemotePackageEngineClient {
             flights: .init(outbound: outbound, inbound: inbound),
             primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID)
         )
-        return try await api.post(AppConfig.packageQuotePath, body: request)
+        return try await api.post(AppConfig.packageQuotePath, body: request, timeoutInterval: 15)
     }
 
     func quoteOutboundOptions(
         trip: TripDraft,
-        hotel: HotelSummary,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
         outbound: [LiveFlightCandidate],
         inbound: [LiveFlightCandidate]
     ) async throws -> PublicFlightOptionsQuoteResponse {
         let request = OutboundFlightOptionsQuoteRequest(
-            context: .init(trip: trip, hotel: hotel),
+            context: .init(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel),
             outboundCandidates: try outbound.map { try FlightFareObservationRequest(candidate: $0) },
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
-        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
     }
 
     func quoteReturnOptions(
         trip: TripDraft,
-        hotel: HotelSummary,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
         selectedOutbound: LiveFlightCandidate,
         inbound: [LiveFlightCandidate]
     ) async throws -> PublicFlightOptionsQuoteResponse {
         let request = ReturnFlightOptionsQuoteRequest(
-            context: .init(trip: trip, hotel: hotel),
+            context: .init(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel),
             selectedOutbound: try FlightFareObservationRequest(candidate: selectedOutbound),
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
-        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request)
+        return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
     }
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()

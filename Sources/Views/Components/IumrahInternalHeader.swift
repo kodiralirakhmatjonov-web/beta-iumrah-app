@@ -16,163 +16,46 @@ enum TripProgressStage: Int, CaseIterable {
     }
 }
 
-struct IumrahInternalHeader: View {
-    @Environment(\.dismiss) private var dismiss
+/// Compact, scrollable progress element for the Umrah builder.
+/// It belongs inside page content instead of being pinned to the safe area.
+struct IumrahFlowProgress: View {
     @EnvironmentObject private var settings: AppSettingsStore
-
-    let progressStage: TripProgressStage?
+    let stage: TripProgressStage
 
     var body: some View {
-        VStack(spacing: progressStage == nil ? 0 : 12) {
-            HStack(spacing: 10) {
-                Button {
-                    IumrahHaptics.soft()
-                    dismiss()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 15, weight: .bold))
-                        Text(L10n.text("back", settings.language))
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .frame(minWidth: 76, minHeight: 40, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-
-                Spacer(minLength: 0)
-
-                IumrahHeaderLogo(width: 112)
-
-                Spacer(minLength: 0)
-
-                Color.clear
-                    .frame(width: 76, height: 40)
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(FlowCopy.text(.stepOfFour, settings.language)) \(stage.rawValue) / 4")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 12)
+                Text(L10n.text(stage.localizationKey, settings.language))
+                    .font(.subheadline.weight(.semibold))
             }
 
-            if let progressStage {
-                IumrahTripProgressChain(activeStage: progressStage)
-            }
-        }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.top, 8)
-        .padding(.bottom, progressStage == nil ? 14 : 16)
-        .background {
-            ZStack(alignment: .bottom) {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                LinearGradient(
-                    colors: [Color.iumrahPageBackground.opacity(0.95), Color.iumrahPageBackground.opacity(0.76), Color.iumrahPageBackground.opacity(0.0)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: progressStage == nil ? 76 : 132)
-            }
-            .ignoresSafeArea(edges: .top)
-        }
-    }
-}
-
-private struct IumrahTripProgressChain: View {
-    @EnvironmentObject private var settings: AppSettingsStore
-    let activeStage: TripProgressStage
-
-    var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 0) {
-                ForEach(Array(TripProgressStage.allCases.enumerated()), id: \.element.rawValue) { index, stage in
-                    stageNode(stage)
-
-                    if index < TripProgressStage.allCases.count - 1 {
-                        Capsule()
-                            .fill(connectorColor(after: stage))
-                            .frame(height: 4)
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 5)
-                    }
-                }
-            }
-
-            HStack(spacing: 0) {
-                ForEach(TripProgressStage.allCases, id: \.rawValue) { stage in
-                    Text(L10n.text(stage.localizationKey, settings.language))
-                        .font(.system(size: 10, weight: stage == activeStage ? .bold : .semibold, design: .rounded))
-                        .foregroundStyle(stageLabelColor(stage))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+            HStack(spacing: 7) {
+                ForEach(TripProgressStage.allCases, id: \.rawValue) { item in
+                    Capsule(style: .continuous)
+                        .fill(segmentColor(item))
                         .frame(maxWidth: .infinity)
+                        .frame(height: item == stage ? 6 : 4)
                 }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 15)
-        .padding(.bottom, 13)
-        .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.iumrahGraphite)
-                .overlay {
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.05), Color.clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                }
-        }
+        .padding(.vertical, 14)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
         }
-        .shadow(color: .black.opacity(0.16), radius: 20, y: 10)
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder
-    private func stageNode(_ stage: TripProgressStage) -> some View {
-        let isComplete = stage.rawValue < activeStage.rawValue
-        let isActive = stage == activeStage
-
-        ZStack {
-            Circle()
-                .fill(nodeBackground(isComplete: isComplete, isActive: isActive))
-                .overlay {
-                    Circle()
-                        .strokeBorder(nodeBorder(isComplete: isComplete, isActive: isActive), lineWidth: isActive ? 2 : 1)
-                }
-
-            if isComplete {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Color.iumrahCareDark)
-            } else {
-                Text("\(stage.rawValue)")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(isActive ? Color.black : Color.white.opacity(0.64))
-            }
-        }
-        .frame(width: 31, height: 31)
-        .shadow(color: isActive ? Color.white.opacity(0.14) : Color.clear, radius: 8)
-    }
-
-    private func nodeBackground(isComplete: Bool, isActive: Bool) -> Color {
-        if isComplete { return Color.iumrahCareLight }
-        if isActive { return Color.white }
-        return Color.white.opacity(0.06)
-    }
-
-    private func nodeBorder(isComplete: Bool, isActive: Bool) -> Color {
-        if isComplete { return Color.iumrahCareLight.opacity(0.72) }
-        if isActive { return Color.white }
-        return Color.white.opacity(0.18)
-    }
-
-    private func connectorColor(after stage: TripProgressStage) -> Color {
-        stage.rawValue < activeStage.rawValue ? Color.iumrahCareLight : Color.white.opacity(0.14)
-    }
-
-    private func stageLabelColor(_ stage: TripProgressStage) -> Color {
-        if stage == activeStage { return Color.white }
-        if stage.rawValue < activeStage.rawValue { return Color.white.opacity(0.78) }
-        return Color.white.opacity(0.42)
+    private func segmentColor(_ item: TripProgressStage) -> Color {
+        if item.rawValue < stage.rawValue { return Color.iumrahCareLight }
+        if item == stage { return Color.primary }
+        return Color.secondary.opacity(0.18)
     }
 }
 
@@ -183,10 +66,12 @@ private struct IumrahInternalNavigationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .toolbar(.hidden, for: .navigationBar)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                IumrahInternalHeader(progressStage: progressStage)
-            }
+            // Keep Apple's own navigation affordance. The progress element belongs to
+            // the scroll content, while the navigation bar stays visually quiet.
+            .toolbar(.visible, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .tint(Color.primary)
             .onAppear {
                 guard !registered else { return }
                 registered = true

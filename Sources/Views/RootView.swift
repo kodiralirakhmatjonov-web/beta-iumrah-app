@@ -135,7 +135,7 @@ struct RootView: View {
             .tag(AppTab.umrah)
         }
         .tint(.primary)
-        .toolbar(chrome.isImmersiveMode ? .hidden : .visible, for: .tabBar)
+        .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarBackground(Color.iumrahCardBackground.opacity(0.96), for: .tabBar)
     }

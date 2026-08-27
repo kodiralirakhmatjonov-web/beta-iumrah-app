@@ -158,7 +158,7 @@ struct FlightQuoteContextRequest: Encodable {
     let travelStartDate: String
     let primaryHotelIds: PrimaryHotelIDs
 
-    init(trip: TripDraft, hotel: HotelSummary) {
+    init(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) {
         let stay = TripStayPlanner.breakdown(for: trip)
         self.tier = trip.packageTier.rawValue
         self.hotelStars = trip.hotelStars
@@ -167,7 +167,10 @@ struct FlightQuoteContextRequest: Encodable {
         self.nights = .init(makkah: stay.makkahNights, madinah: stay.madinahNights)
         self.travelers = .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms)
         self.travelStartDate = Self.dayFormatter.string(from: trip.departureDate)
-        self.primaryHotelIds = .init(makkah: hotel.id, madinah: nil)
+        self.primaryHotelIds = .init(
+            makkah: makkahHotel.id,
+            madinah: trip.scope == .makkahAndMadinah ? madinahHotel?.id : nil
+        )
     }
 
     private static let dayFormatter: DateFormatter = {

@@ -2,18 +2,18 @@ import Foundation
 
 @MainActor
 protocol FlightSearchServicing {
-    func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer]
-    func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer]
+    func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer]
+    func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer]
 }
 
 @MainActor
 struct BetaFlightSearchService: FlightSearchServicing {
-    func searchOutbound(trip: TripDraft, hotel: HotelSummary) async throws -> [FlightOffer] {
+    func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await Task.sleep(for: .milliseconds(1100))
         return makeOffers(direction: .outbound, trip: trip, anchor: trip.departureDate)
     }
 
-    func searchReturn(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer) async throws -> [FlightOffer] {
+    func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer] {
         try await Task.sleep(for: .milliseconds(900))
         return makeOffers(direction: .inbound, trip: trip, anchor: trip.returnDate)
     }

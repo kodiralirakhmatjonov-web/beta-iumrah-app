@@ -162,7 +162,6 @@ struct BookingHotelSelectionSnapshot: Codable, Hashable {
 
     var migratedLegacyPrimaryRoom: BookingHotelSelectionSnapshot {
         guard roomCategory == nil, let roomId else { return self }
-
         let category: IumrahRoomCategory
         let name: String
         let beds: String
@@ -186,7 +185,6 @@ struct BookingHotelSelectionSnapshot: Codable, Hashable {
         default:
             return self
         }
-
         return BookingHotelSelectionSnapshot(
             hotelId: hotelId,
             hotelName: hotelName,
