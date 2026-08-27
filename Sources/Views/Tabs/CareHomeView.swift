@@ -185,11 +185,19 @@ struct CareHomeView: View {
                     Text("iumrah Care")
                         .font(.headline)
                 }
-                Text(session.travelerName ?? session.id)
-                    .font(.subheadline.weight(.semibold))
-                Text(L10n.status(session.booking.status, settings.language))
-                    .font(.caption)
+                Text(careTripSubtitle)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                HStack(spacing: 6) {
+                    if let pilgrimID = session.displayPilgrimID {
+                        Text("ID \(pilgrimID)").monospaced()
+                        Text("·")
+                    }
+                    Text(L10n.status(session.effectiveStatus, settings.language))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -209,6 +217,15 @@ struct CareHomeView: View {
                 .strokeBorder(Color.iumrahCareLight.opacity(0.13), lineWidth: 1)
         }
         .shadow(color: Color.iumrahCareDark.opacity(0.07), radius: 20, y: 10)
+    }
+
+    private var careTripSubtitle: String {
+        switch settings.language {
+        case .russian: return "Поддержка рядом на всех этапах вашей поездки"
+        case .english: return "Support by your side throughout your journey"
+        case .uzbek: return "Safaringizning barcha bosqichlarida yoningizdagi yordam"
+        case .uzbekCyrillic: return "Сафарингизнинг барча босқичларида ёнингиздаги ёрдам"
+        }
     }
 
     private var lockedChatCard: some View {

@@ -78,8 +78,6 @@ struct BookingSelection: Codable, Hashable {
     let flightId: String
     let makkahHotelId: String
     let madinahHotelId: String?
-    let makkahRoomId: String?
-    let makkahRoomCategory: IumrahRoomCategory?
 }
 
 struct BookingCustomization: Codable, Hashable {
@@ -152,6 +150,23 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     let readByStaff: Bool?
 }
 
+struct ClientTripResponse: Decodable {
+    let ok: Bool?
+    let trip: ClientTripSnapshot
+}
+
+struct ClientTripSnapshot: Decodable, Hashable {
+    let tripID: String
+    let bookingID: String
+    let pilgrimID: String?
+    let status: String
+    let paymentStatus: String?
+    let confirmationNumber: String?
+    let startDate: String?
+    let endDate: String?
+    let updatedAt: String?
+}
+
 struct StoredBookingSession: Codable, Identifiable, Hashable {
     let id: String
     let accessToken: String
@@ -162,42 +177,32 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var outboundFlight: FlightOffer?
     var inboundFlight: FlightOffer?
     var hotelSelection: BookingHotelSelectionSnapshot?
-    var iumrahID: String? = nil
-}
+    var operationStatus: String? = nil
+    var pilgrimID: String? = nil
 
-struct ClientBookingSyncRequest: Encodable {
-    let bookingID: String
-    let clientUserID: String
-    let firstName: String
-    let lastName: String
-    let displayName: String
-    let telegram: String
-    let whatsapp: String
-    let bookingSnapshot: RemoteBooking
-}
+    var displayPilgrimID: String? {
+        guard let raw = pilgrimID?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
+        let digits = raw.filter(\.isNumber)
+        guard !digits.isEmpty, digits.count <= 6 else { return nil }
+        return String(repeating: "0", count: 6 - digits.count) + digits
+    }
 
-struct ClientBookingSyncResponse: Decodable {
-    let ok: Bool
-    let pilgrimID: String?
-    let iumrahID: String?
-}
-
-struct ClientPushRegistrationRequest: Encodable {
-    let deviceToken: String
-    let environment: String
-    let clientUserID: String
-    let firstName: String
-    let lastName: String
-    let displayName: String
-    let telegram: String
-    let whatsapp: String
-}
-
-struct ClientPushRegistrationResponse: Decodable {
-    let ok: Bool
-    let ready: Bool?
-    let pilgrimID: String?
-    let iumrahID: String?
+    var effectiveStatus: String {
+        guard let operationStatus, !operationStatus.isEmpty else { return booking.status }
+        switch operationStatus.lowercased() {
+        case "new": return "NEW"
+        case "availability_check": return "AVAILABILITY_CHECK"
+        case "payment_pending": return "PAYMENT_PENDING"
+        case "paid": return "PAID"
+        case "booking_confirmed": return "BOOKING_CONFIRMED"
+        case "documents_ready": return "DOCUMENTS_READY"
+        case "ready_to_travel": return "READY_TO_TRAVEL"
+        case "in_trip": return "IN_TRIP"
+        case "completed": return "COMPLETED"
+        case "cancelled": return "CANCELLED"
+        default: return booking.status
+        }
+    }
 }
 
 struct BookingMutationResponse: Decodable {
@@ -215,19 +220,15 @@ struct BookingHotelUpdateRequest: Encodable {
     let roomBeds: String?
     let roomSizeM2: Double?
     let roomMaxGuests: Int?
-    let roomCategory: String?
-    let roomSource: String?
 
-    init(hotel: HotelSummary, room: HotelRoom?, roomCategory: IumrahRoomCategoryOption? = nil) {
+    init(hotel: HotelSummary, room: HotelRoom?) {
         hotelId = hotel.id
         coverImageURL = hotel.coverImageURL
         roomId = room?.id
-        roomName = room?.name ?? roomCategory?.displayName
-        roomBeds = room?.beds ?? roomCategory?.bedConfiguration
+        roomName = room?.name
+        roomBeds = room?.beds
         roomSizeM2 = room?.sizeM2
-        roomMaxGuests = room?.maxGuests ?? roomCategory?.maxGuests
-        self.roomCategory = roomCategory?.category.rawValue
-        roomSource = roomCategory != nil ? "iumrahPrimary" : room != nil ? "hotelInventory" : nil
+        roomMaxGuests = room?.maxGuests
     }
 
     init(snapshot: BookingHotelSelectionSnapshot) {
@@ -238,7 +239,5 @@ struct BookingHotelUpdateRequest: Encodable {
         roomBeds = snapshot.roomBeds
         roomSizeM2 = snapshot.roomSizeM2
         roomMaxGuests = snapshot.roomMaxGuests
-        roomCategory = snapshot.roomCategory?.rawValue
-        roomSource = snapshot.roomSource
     }
 }

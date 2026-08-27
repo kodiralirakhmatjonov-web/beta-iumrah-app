@@ -3,6 +3,12 @@ import Foundation
 import UIKit
 import UserNotifications
 
+struct IumrahPushEvent: Equatable {
+    let type: String
+    let bookingID: String?
+    let status: String?
+}
+
 @MainActor
 final class PushNotificationManager: ObservableObject {
     static let shared = PushNotificationManager()
@@ -10,6 +16,8 @@ final class PushNotificationManager: ObservableObject {
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Published private(set) var deviceToken: String?
     @Published private(set) var lastError: String?
+    @Published private(set) var lastEvent: IumrahPushEvent?
+    @Published private(set) var eventRevision: Int = 0
 
     private let tokenDefaultsKey = "iumrah.beta.apns.device-token"
 
@@ -54,6 +62,12 @@ final class PushNotificationManager: ObservableObject {
         }
     }
 
+    func ensureAuthorizationForBookedTrips(hasBookings: Bool) async {
+        await refreshAndRegisterIfAllowed()
+        guard hasBookings, authorizationStatus == .notDetermined else { return }
+        await requestAuthorization()
+    }
+
     func requestAuthorization() async {
         lastError = nil
 
@@ -83,5 +97,13 @@ final class PushNotificationManager: ObservableObject {
         #if DEBUG
         print("[iumrah Beta] APNs registration failed: \(error.localizedDescription)")
         #endif
+    }
+
+    func receiveRemotePayload(_ userInfo: [AnyHashable: Any]) {
+        let type = (userInfo["type"] as? String) ?? "notification"
+        let bookingID = userInfo["bookingID"] as? String
+        let status = userInfo["status"] as? String
+        lastEvent = IumrahPushEvent(type: type, bookingID: bookingID, status: status)
+        eventRevision &+= 1
     }
 }

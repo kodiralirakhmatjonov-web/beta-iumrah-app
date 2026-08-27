@@ -19,6 +19,7 @@ final class BookingStore: ObservableObject {
 
     private let bookingService = BookingService()
     private let chatService = ChatService()
+    private let clientPushService = ClientPushService()
     private let legacyStorageKey = "iumrah.booking.sessions.v1"
 
     init() {
@@ -29,7 +30,6 @@ final class BookingStore: ObservableObject {
         trip: TripDraft,
         hotel: HotelSummary,
         room: HotelRoom?,
-        roomCategory: IumrahRoomCategoryOption?,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -39,8 +39,6 @@ final class BookingStore: ObservableObject {
         let payload = BookingDraftBuilder.make(
             trip: trip,
             hotel: hotel,
-            room: room,
-            roomCategory: roomCategory,
             outbound: outbound,
             inbound: inbound,
             quote: quote,
@@ -52,7 +50,7 @@ final class BookingStore: ObservableObject {
             throw APIError.missingBookingToken
         }
         let serverProfile = response.booking.pilgrimProfile ?? pilgrimProfile
-        let session = StoredBookingSession(
+        var session = StoredBookingSession(
             id: response.booking.id,
             accessToken: token,
             booking: response.booking,
@@ -61,21 +59,29 @@ final class BookingStore: ObservableObject {
             whatsapp: serverProfile?.whatsapp,
             outboundFlight: outbound,
             inboundFlight: inbound,
-            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room)
         )
+        if let profile = serverProfile, !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let trip = try? await bookingService.syncClientIdentity(
+                id: session.id,
+                accessToken: session.accessToken,
+                clientUserID: ClientIdentityStore.id,
+                profile: profile
+            ) {
+                session.pilgrimID = trip.pilgrimID
+                session.operationStatus = trip.status
+            }
+        }
         upsert(session)
-        if room != nil || roomCategory != nil {
+        if room != nil {
             _ = try? await bookingService.updateHotelSelection(
                 id: session.id,
                 accessToken: session.accessToken,
-                snapshot: session.hotelSelection ?? BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+                snapshot: session.hotelSelection ?? BookingHotelSelectionSnapshot(hotel: hotel, room: room)
             )
         }
-        await syncCloudSession(id: session.id)
-        if let token = PushNotificationManager.shared.deviceToken {
-            await registerPushDevice(token: token)
-        }
-        return booking(id: session.id) ?? session
+        return session
     }
 
     func refreshAll() async {
@@ -83,25 +89,29 @@ final class BookingStore: ObservableObject {
             guard !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
             do {
                 let booking = try await bookingService.fetchBooking(id: session.id, accessToken: session.accessToken)
+                var operationalTrip: ClientTripSnapshot?
+                if let profile = identityProfile(remote: booking.pilgrimProfile, session: session) {
+                    operationalTrip = try? await bookingService.syncClientIdentity(
+                        id: session.id,
+                        accessToken: session.accessToken,
+                        clientUserID: ClientIdentityStore.id,
+                        profile: profile
+                    )
+                }
+                if operationalTrip == nil {
+                    operationalTrip = try? await bookingService.fetchOperationalTrip(id: session.id, accessToken: session.accessToken)
+                }
                 if let index = sessions.firstIndex(where: { $0.id == session.id }) {
                     sessions[index].booking = booking
+                    sessions[index].operationStatus = operationalTrip?.status ?? sessions[index].operationStatus
+                    sessions[index].pilgrimID = operationalTrip?.pilgrimID ?? sessions[index].pilgrimID
                     if let profile = booking.pilgrimProfile {
                         sessions[index].travelerName = profile.displayName
                         sessions[index].telegram = profile.telegram
                         sessions[index].whatsapp = profile.whatsapp
                     }
                     if let hotelSelection = booking.hotelSelection {
-                        let localSelection = sessions[index].hotelSelection
-                        if hotelSelection.roomCategory == nil,
-                           hotelSelection.roomId == nil,
-                           let localSelection,
-                           localSelection.hotelId == hotelSelection.hotelId,
-                           localSelection.roomCategory != nil {
-                            // Keep a previously synced iumrah room category if an older parser omits it.
-                            sessions[index].hotelSelection = localSelection
-                        } else {
-                            sessions[index].hotelSelection = hotelSelection
-                        }
+                        sessions[index].hotelSelection = hotelSelection
                     }
                 }
             } catch {
@@ -120,11 +130,9 @@ final class BookingStore: ObservableObject {
             throw APIError.missingBookingToken
         }
         let response = try await chatService.loadChat(bookingID: bookingID, accessToken: session.accessToken)
-        let messages = response.messages.sorted { lhs, rhs in
-            lhs.createdAt == rhs.createdAt ? lhs.id < rhs.id : lhs.createdAt < rhs.createdAt
-        }
+        let messages = response.messages.sorted(by: { $0.createdAt < $1.createdAt })
         chats[bookingID] = messages
-        try? await chatService.markRead(bookingID: bookingID, accessToken: session.accessToken)
+        _ = try? await chatService.markRead(bookingID: bookingID, accessToken: session.accessToken)
         return messages
     }
 
@@ -135,18 +143,52 @@ final class BookingStore: ObservableObject {
         let created = try await chatService.send(message: message, bookingID: bookingID, accessToken: session.accessToken)
         var current = chats[bookingID] ?? []
         current.append(created)
-        chats[bookingID] = current.sorted { lhs, rhs in
-            lhs.createdAt == rhs.createdAt ? lhs.id < rhs.id : lhs.createdAt < rhs.createdAt
-        }
+        chats[bookingID] = current.sorted(by: { $0.createdAt < $1.createdAt })
         return created
+    }
+
+
+    func sendPhoto(data: Data, for bookingID: String) async throws -> ChatMessage {
+        guard let session = booking(id: bookingID), !session.accessToken.isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        let created = try await chatService.sendPhoto(data: data, bookingID: bookingID, accessToken: session.accessToken)
+        var current = chats[bookingID] ?? []
+        current.append(created)
+        chats[bookingID] = current.sorted(by: { $0.createdAt < $1.createdAt })
+        return created
+    }
+
+    func chatAttachmentData(path: String, bookingID: String) async throws -> Data {
+        guard let session = booking(id: bookingID), !session.accessToken.isEmpty else {
+            throw APIError.missingBookingToken
+        }
+        return try await chatService.loadAttachment(path: path, accessToken: session.accessToken)
+    }
+
+    func syncPushSubscriptions(deviceToken: String, locale: String) async {
+        let token = deviceToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else { return }
+        for session in sessions where !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            do {
+                try await clientPushService.register(
+                    deviceToken: token,
+                    bookingID: session.id,
+                    accessToken: session.accessToken,
+                    locale: locale
+                )
+            } catch {
+                // A single stale/deleted booking must not block registration for the user's other trips.
+                continue
+            }
+        }
     }
 
     func syncHotelSelectionIfNeeded(bookingID: String) async {
         guard let session = booking(id: bookingID),
               let snapshot = session.hotelSelection,
-              snapshot.roomId != nil || snapshot.roomCategory != nil,
-              (session.booking.hotelSelection?.roomId != snapshot.roomId ||
-               session.booking.hotelSelection?.roomCategory != snapshot.roomCategory),
+              snapshot.roomId != nil,
+              session.booking.hotelSelection?.roomId != snapshot.roomId,
               !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         do {
             _ = try await bookingService.updateHotelSelection(
@@ -159,12 +201,7 @@ final class BookingStore: ObservableObject {
         }
     }
 
-    func updateHotelSelection(
-        bookingID: String,
-        hotel: HotelSummary,
-        room: HotelRoom?,
-        roomCategory: IumrahRoomCategoryOption? = nil
-    ) async throws {
+    func updateHotelSelection(bookingID: String, hotel: HotelSummary, room: HotelRoom?) async throws {
         guard let session = booking(id: bookingID), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw APIError.missingBookingToken
         }
@@ -172,61 +209,45 @@ final class BookingStore: ObservableObject {
             id: bookingID,
             accessToken: session.accessToken,
             hotel: hotel,
-            room: room,
-            roomCategory: roomCategory
+            room: room
         )
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
-        sessions[index].hotelSelection = BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory)
+        sessions[index].hotelSelection = BookingHotelSelectionSnapshot(hotel: hotel, room: room)
         persist()
-        await syncCloudSession(id: bookingID)
     }
 
     func deleteBooking(id: String) async throws {
         guard let session = booking(id: id), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw APIError.missingBookingToken
         }
-        _ = try await bookingService.deleteBooking(id: id, accessToken: session.accessToken)
+        do {
+            _ = try await bookingService.deleteBooking(id: id, accessToken: session.accessToken)
+        } catch APIError.status(let code) where code == 405 {
+            throw BookingStoreError.permanentDeleteUnavailable
+        } catch APIError.server(let code, let message) where code == 405 || message.uppercased() == "METHOD_NOT_ALLOWED" {
+            throw BookingStoreError.permanentDeleteUnavailable
+        }
         sessions.removeAll(where: { $0.id == id })
         chats[id] = nil
         persist()
     }
 
-    func synchronizeCloud() async {
-        for session in sessions {
-            guard !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
-            await syncCloudSession(id: session.id)
+    private func identityProfile(remote: BookingPilgrimProfile?, session: StoredBookingSession) -> BookingPilgrimProfile? {
+        if let remote,
+           !remote.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !remote.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return remote
         }
-    }
-
-    func registerPushDevice(token: String) async {
-        let value = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
-        for session in sessions {
-            guard !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
-            do {
-                let response = try await bookingService.registerPushDevice(token: value, session: session)
-                if let index = sessions.firstIndex(where: { $0.id == session.id }) {
-                    sessions[index].iumrahID = response.iumrahID ?? response.pilgrimID ?? sessions[index].iumrahID
-                    persist()
-                }
-                return
-            } catch {
-                continue
-            }
-        }
-    }
-
-    private func syncCloudSession(id: String) async {
-        guard let session = booking(id: id), !session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        do {
-            let response = try await bookingService.syncClientBooking(session)
-            if let index = sessions.firstIndex(where: { $0.id == id }) {
-                sessions[index].iumrahID = response.iumrahID ?? response.pilgrimID ?? sessions[index].iumrahID
-                persist()
-            }
-        } catch {
-            // The booking remains usable locally; the next launch/refresh retries the cloud link.
-        }
+        let parts = (session.travelerName ?? "")
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+        guard parts.count >= 2 else { return nil }
+        return BookingPilgrimProfile(
+            firstName: parts[0],
+            lastName: parts.dropFirst().joined(separator: " "),
+            telegram: session.telegram ?? "",
+            whatsapp: session.whatsapp ?? ""
+        )
     }
 
     private func upsert(_ session: StoredBookingSession) {
@@ -245,8 +266,7 @@ final class BookingStore: ObservableObject {
     private func loadFromStorage() {
         let secureSessions = BookingSessionVault.load()
         if !secureSessions.isEmpty {
-            sessions = migrateLegacyPrimaryRooms(in: secureSessions)
-            _ = BookingSessionVault.save(sessions)
+            sessions = secureSessions
             UserDefaults.standard.removeObject(forKey: legacyStorageKey)
             return
         }
@@ -256,19 +276,9 @@ final class BookingStore: ObservableObject {
             return
         }
 
-        sessions = migrateLegacyPrimaryRooms(in: decoded)
-        if BookingSessionVault.save(sessions) {
+        sessions = decoded
+        if BookingSessionVault.save(decoded) {
             UserDefaults.standard.removeObject(forKey: legacyStorageKey)
-        }
-    }
-
-    private func migrateLegacyPrimaryRooms(in values: [StoredBookingSession]) -> [StoredBookingSession] {
-        values.map { value in
-            var value = value
-            if let selection = value.hotelSelection {
-                value.hotelSelection = selection.migratedLegacyPrimaryRoom
-            }
-            return value
         }
     }
 }

@@ -6,7 +6,7 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var bookings: BookingStore
 
     private var activeSession: StoredBookingSession? {
-        bookings.sessions.first { $0.booking.status.uppercased() != "COMPLETED" }
+        bookings.sessions.first { $0.effectiveStatus.uppercased() != "COMPLETED" }
     }
 
     var body: some View {
@@ -86,7 +86,7 @@ struct HomeDashboardView: View {
 
                 Spacer()
 
-                Image(systemName: statusIcon(session.booking.status))
+                Image(systemName: statusIcon(session.effectiveStatus))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.iumrahCareDark)
                     .frame(width: 36, height: 36)
@@ -95,7 +95,7 @@ struct HomeDashboardView: View {
             }
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(L10n.status(session.booking.status, settings.language))
+                Text(L10n.status(session.effectiveStatus, settings.language))
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .tracking(-0.6)
                     .foregroundStyle(Color.black)
@@ -141,9 +141,11 @@ struct HomeDashboardView: View {
                         .foregroundStyle(Color.black)
                 }
                 Spacer()
-                Text(session.id)
-                    .font(.caption2.monospaced().weight(.semibold))
-                    .foregroundStyle(Color.black.opacity(0.42))
+                if let pilgrimID = session.displayPilgrimID {
+                    Text("ID \(pilgrimID)")
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(Color.black.opacity(0.42))
+                }
             }
 
             NavigationLink {
@@ -239,7 +241,7 @@ struct HomeDashboardView: View {
             .shadow(color: Color.iumrahCareDark.opacity(0.22), radius: 24, y: 12)
         }
         .buttonStyle(.plain)
-        .accessibilityHint(session.id)
+        .accessibilityHint(session.displayPilgrimID.map { "ID \($0)" } ?? "")
     }
 
     private var hero: some View {

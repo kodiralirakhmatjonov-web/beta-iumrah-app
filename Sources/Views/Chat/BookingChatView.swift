@@ -1,17 +1,23 @@
+import PhotosUI
 import SwiftUI
 import UIKit
 
 struct BookingChatView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var chrome: AppChromeStore
     let bookingID: String
 
     @State private var messages: [ChatMessage] = []
     @State private var draft = ""
     @State private var failedDraft: String?
     @State private var isSending = false
+    @State private var isSendingPhoto = false
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var registeredImmersive = false
     @FocusState private var composerFocused: Bool
 
     var session: StoredBookingSession? { bookings.booking(id: bookingID) }
@@ -19,29 +25,33 @@ struct BookingChatView: View {
     var body: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
-                conversationHeader
-
                 ZStack {
                     Color.iumrahPageBackground
-                    if isLoading {
-                        ProgressView(L10n.text("chat_load", settings.language))
-                    } else if messages.isEmpty {
-                        emptyState
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 10) {
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            careBanner
+                                .padding(.bottom, 5)
+
+                            if isLoading && messages.isEmpty {
+                                ProgressView(L10n.text("chat_load", settings.language))
+                                    .padding(.top, 42)
+                            } else if messages.isEmpty {
+                                emptyState
+                                    .padding(.top, 18)
+                            } else {
                                 ForEach(messages) { message in
                                     bubble(message)
                                         .id(message.id)
                                 }
                             }
-                            .padding(.horizontal, IumrahDesign.pagePadding)
-                            .padding(.vertical, 18)
                         }
-                        .scrollDismissesKeyboard(.interactively)
-                        .onChange(of: messages.count) { _, _ in
-                            scrollToLatest(proxy)
-                        }
+                        .padding(.horizontal, IumrahDesign.pagePadding)
+                        .padding(.top, 12)
+                        .padding(.bottom, 18)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: messages.count) { _, _ in
+                        scrollToLatest(proxy)
                     }
                 }
 
@@ -53,47 +63,121 @@ struct BookingChatView: View {
             }
             .background(Color.iumrahPageBackground)
             .task {
+                await PushNotificationManager.shared.ensureAuthorizationForBookedTrips(hasBookings: true)
                 await load()
                 scrollToLatest(proxy, animated: false)
                 while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(10))
+                    try? await Task.sleep(for: .seconds(6))
                     await load(silent: true)
                 }
             }
         }
-        .iumrahInternalNavigation()
+        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) { chatNavigationHeader }
+        .onAppear {
+            guard !registeredImmersive else { return }
+            registeredImmersive = true
+            chrome.beginInternalNavigation()
+        }
+        .onDisappear {
+            guard registeredImmersive else { return }
+            registeredImmersive = false
+            chrome.endInternalNavigation()
+        }
+        .onChange(of: selectedPhoto) { _, item in
+            if let item { Task { await sendPhoto(item) } }
+        }
     }
 
-    private var conversationHeader: some View {
-        HStack(spacing: 14) {
+    private var chatNavigationHeader: some View {
+        HStack(spacing: 12) {
+            Button {
+                IumrahHaptics.soft()
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .bold))
+                    .frame(width: 46, height: 46)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text("iumrah Care")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary.opacity(0.82))
+
+            Spacer()
+
+            NavigationLink {
+                BookingDetailView(bookingID: bookingID)
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 22, weight: .medium))
+                    .frame(width: 46, height: 46)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, IumrahDesign.pagePadding)
+        .padding(.top, 7)
+        .padding(.bottom, 10)
+        .background {
+            ZStack(alignment: .bottom) {
+                Rectangle().fill(.ultraThinMaterial)
+                LinearGradient(
+                    colors: [
+                        Color.iumrahPageBackground.opacity(0.96),
+                        Color.iumrahPageBackground.opacity(0.72),
+                        Color.iumrahPageBackground.opacity(0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 86)
+            }
+            .ignoresSafeArea(edges: .top)
+        }
+    }
+
+    private var careBanner: some View {
+        HStack(spacing: 12) {
             Image("CareMark")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 44, height: 44)
-                .padding(4)
+                .frame(width: 36, height: 36)
+                .padding(5)
                 .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session?.travelerName ?? bookingID)
-                    .font(.headline)
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.iumrahCareLight)
-                        .frame(width: 7, height: 7)
-                    Text("iumrah Care · \(L10n.text("chat_online", settings.language))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("iumrah Care")
+                    .font(.subheadline.weight(.bold))
+                Text(careSupportText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.vertical, 12)
-        .background(Color.iumrahPageBackground)
-        .overlay(alignment: .bottom) {
-            Divider().opacity(0.45)
+        .padding(13)
+        .background(Color.iumrahCareLight.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.iumrahCareLight.opacity(0.20), lineWidth: 1)
+        }
+    }
+
+    private var careSupportText: String {
+        switch settings.language {
+        case .russian: return "Поддержка рядом на всех этапах вашей поездки."
+        case .english: return "Support by your side throughout your journey."
+        case .uzbek: return "Safaringizning barcha bosqichlarida yoningizdagi yordam."
+        case .uzbekCyrillic: return "Сафарингизнинг барча босқичларида ёнингиздаги ёрдам."
         }
     }
 
@@ -114,7 +198,7 @@ struct BookingChatView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
     }
 
     private func bubble(_ message: ChatMessage) -> some View {
@@ -132,19 +216,24 @@ struct BookingChatView: View {
                     .clipShape(Circle())
             }
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(isMine ? L10n.text("chat_you", settings.language) : L10n.text("chat_staff", settings.language))
+            VStack(alignment: .leading, spacing: 6) {
+                Text(isMine ? L10n.text("chat_you", settings.language) : "iumrah Care")
                     .font(.caption2.weight(.bold))
                     .foregroundColor(isMine ? Color.secondary : Color.white.opacity(0.72))
-                if message.messageType == "image", let attachmentID = message.attachmentID, let accessToken = session?.accessToken {
-                    AuthenticatedChatImage(bookingID: bookingID, attachmentID: attachmentID, accessToken: accessToken)
+
+                if message.messageType == "image", let path = message.attachmentURL {
+                    AuthenticatedChatImage(path: path, bookingID: bookingID)
+                        .frame(maxWidth: 250)
+                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 }
-                if !message.body.isEmpty && !(message.messageType == "image" && message.body == "Фотография") {
+
+                if !message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(message.body)
                         .font(.body)
                         .foregroundColor(isMine ? Color.primary : Color.white)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
                 Text(chatTimeLabel(message.createdAt))
                     .font(.caption2)
                     .foregroundColor(isMine ? Color.secondary : Color.white.opacity(0.65))
@@ -197,7 +286,22 @@ struct BookingChatView: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 10) {
+        HStack(alignment: .bottom, spacing: 9) {
+            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                Group {
+                    if isSendingPhoto {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: 19, weight: .semibold))
+                    }
+                }
+                .frame(width: 46, height: 46)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+            }
+            .disabled(isSending || isSendingPhoto)
+
             TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
                 .focused($composerFocused)
                 .lineLimit(1...4)
@@ -235,7 +339,7 @@ struct BookingChatView: View {
     }
 
     private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending && !isSendingPhoto
     }
 
     private var sendButtonColor: Color {
@@ -248,7 +352,7 @@ struct BookingChatView: View {
         defer { if !silent { isLoading = false } }
         do {
             let loaded = try await bookings.loadChat(for: bookingID)
-            messages = loaded.sorted { lhs, rhs in lhs.createdAt == rhs.createdAt ? lhs.id < rhs.id : lhs.createdAt < rhs.createdAt }
+            messages = loaded.sorted(by: { $0.createdAt < $1.createdAt })
             if failedDraft == nil { errorMessage = nil }
         } catch {
             if !silent { errorMessage = L10n.error(error, settings.language) }
@@ -277,6 +381,26 @@ struct BookingChatView: View {
         isSending = false
     }
 
+    @MainActor
+    private func sendPhoto(_ item: PhotosPickerItem) async {
+        selectedPhoto = nil
+        isSendingPhoto = true
+        errorMessage = nil
+        defer { isSendingPhoto = false }
+        do {
+            guard let raw = try await item.loadTransferable(type: Data.self),
+                  let data = optimizedChatJPEG(raw) else {
+                throw APIError.invalidResponse
+            }
+            _ = try await bookings.sendPhoto(data: data, for: bookingID)
+            messages = bookings.chats[bookingID] ?? messages
+            IumrahHaptics.selection()
+        } catch {
+            errorMessage = L10n.format("chat_send_failed", settings.language, L10n.error(error, settings.language))
+            IumrahHaptics.error()
+        }
+    }
+
     private func scrollToLatest(_ proxy: ScrollViewProxy, animated: Bool = true) {
         guard let last = messages.last else { return }
         if animated {
@@ -298,19 +422,10 @@ struct BookingChatView: View {
     }
 }
 
-private extension ISO8601DateFormatter {
-    static let fractional: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-}
-
-
 private struct AuthenticatedChatImage: View {
+    @EnvironmentObject private var bookings: BookingStore
+    let path: String
     let bookingID: String
-    let attachmentID: String
-    let accessToken: String
     @State private var image: UIImage?
 
     var body: some View {
@@ -320,18 +435,40 @@ private struct AuthenticatedChatImage: View {
                     .resizable()
                     .scaledToFit()
             } else {
-                ProgressView()
-                    .frame(width: 180, height: 120)
+                ZStack {
+                    Color.black.opacity(0.05)
+                    ProgressView()
+                }
+                .frame(width: 220, height: 150)
             }
         }
-        .frame(maxWidth: 240, maxHeight: 280)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .task(id: attachmentID) {
-            guard image == nil else { return }
-            if let data = try? await ChatService().loadAttachment(bookingID: bookingID, attachmentID: attachmentID, accessToken: accessToken),
-               let loaded = UIImage(data: data) {
-                image = loaded
-            }
+        .task(id: path) {
+            guard image == nil,
+                  let data = try? await bookings.chatAttachmentData(path: path, bookingID: bookingID),
+                  let loaded = UIImage(data: data) else { return }
+            image = loaded
         }
     }
+}
+
+private func optimizedChatJPEG(_ data: Data) -> Data? {
+    guard let image = UIImage(data: data) else { return nil }
+    let maxSide: CGFloat = 1600
+    let sourceSize = image.size
+    let largest = max(sourceSize.width, sourceSize.height)
+    let scale = largest > maxSide ? maxSide / largest : 1
+    let target = CGSize(width: max(1, sourceSize.width * scale), height: max(1, sourceSize.height * scale))
+    let renderer = UIGraphicsImageRenderer(size: target)
+    let normalized = renderer.image { _ in
+        image.draw(in: CGRect(origin: .zero, size: target))
+    }
+    return normalized.jpegData(compressionQuality: 0.80)
+}
+
+private extension ISO8601DateFormatter {
+    static let fractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 }

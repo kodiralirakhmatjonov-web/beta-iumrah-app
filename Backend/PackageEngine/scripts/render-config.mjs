@@ -22,14 +22,7 @@ async function findBookingDatabase() {
   if (!listResponse.ok) throw new Error(`Unable to list D1 databases (${listResponse.status})`);
   const listPayload = await listResponse.json();
   const databases = Array.isArray(listPayload.result) ? listPayload.result : [];
-
-  // Prefer likely iumrah databases, but verify by inspecting sqlite_master. We never
-  // create a new DB or guess an ID: the binding is only generated after finding the
-  // existing database that actually contains the bookings table.
-  databases.sort((a, b) => {
-    const score = (value) => /iumrah/i.test(String(value?.name ?? '')) ? 0 : 1;
-    return score(a) - score(b);
-  });
+  const candidates = [];
 
   for (const database of databases) {
     const id = database.uuid ?? database.id;
@@ -41,22 +34,45 @@ async function findBookingDatabase() {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bookings' LIMIT 1",
+            sql: `
+              SELECT
+                (SELECT COUNT(*) FROM bookings) AS booking_count,
+                (SELECT MAX(COALESCE(updated_at, created_at, '')) FROM bookings) AS newest_booking,
+                (SELECT COUNT(*) FROM pragma_table_info('bookings') WHERE name IN ('id','access_token_hash','payload_json')) AS required_columns
+            `,
           }),
         },
       );
       if (!queryResponse.ok) continue;
       const payload = await queryResponse.json();
-      const batches = Array.isArray(payload.result) ? payload.result : [];
-      const found = batches.some((batch) => Array.isArray(batch?.results) && batch.results.some((row) => row?.name === 'bookings'));
-      if (found) {
-        return { id: String(id), name: String(database.name ?? 'iumrah-bookings') };
-      }
+      const rows = payload?.result?.[0]?.results ?? [];
+      const row = rows[0];
+      if (!row || Number(row.required_columns ?? 0) !== 3) continue;
+      candidates.push({
+        id: String(id),
+        name: String(database.name ?? 'iumrah-bookings'),
+        bookingCount: Number(row.booking_count ?? 0),
+        newestBooking: String(row.newest_booking ?? ''),
+      });
     } catch {
-      // Keep scanning other existing D1 databases.
+      // Not the production booking database. Keep scanning.
     }
   }
-  throw new Error('No existing D1 database containing the bookings table was found. Refusing to create or guess a booking database.');
+
+  if (!candidates.length) {
+    throw new Error('No existing D1 database with the production bookings schema (id/access_token_hash/payload_json) was found.');
+  }
+
+  // The active database is the one receiving the newest bookings. Count is a
+  // deterministic tie-breaker for cloned/legacy databases.
+  candidates.sort((a, b) => {
+    const byNewest = b.newestBooking.localeCompare(a.newestBooking);
+    if (byNewest !== 0) return byNewest;
+    return b.bookingCount - a.bookingCount;
+  });
+  const selected = candidates[0];
+  console.log('Bookings D1 candidates:', candidates.map(item => `${item.name}:${item.bookingCount}:${item.newestBooking}`).join(', '));
+  return { id: selected.id, name: selected.name };
 }
 
 const bookingDatabase = await findBookingDatabase();

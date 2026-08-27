@@ -1,5 +1,4 @@
-import type { D1Like, D1PreparedStatementLike } from "./primary-hotels";
-import { ensureBookingRoomColumns, findHotelRoomCategory, parseRoomCategory } from "./room-categories";
+import type { D1Like, D1PreparedStatementLike, D1ResultLike } from "./primary-hotels";
 
 type BookingD1 = D1Like & {
   batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
@@ -69,23 +68,43 @@ async function bookingChildTables(db: BookingD1) {
   return tables;
 }
 
+async function hardDeleteBookingRows(id: string, db: BookingD1): Promise<boolean> {
+  const existing = await db.prepare("SELECT id FROM bookings WHERE id = ?1 LIMIT 1").bind(id).first<{ id: string }>();
+  if (!existing) return false;
+
+  const childTables = await bookingChildTables(db);
+  const statements: D1PreparedStatementLike[] = childTables.map((table) =>
+    db.prepare(`DELETE FROM "${table}" WHERE booking_id = ?1`).bind(id),
+  );
+  statements.push(db.prepare("DELETE FROM bookings WHERE id = ?1").bind(id));
+  await db.batch(statements);
+  return true;
+}
+
 export async function deletePilgrimBooking(request: Request, id: string, env: BookingControlEnv): Promise<Response> {
   if (!env.BOOKINGS_DB) return json({ error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
 
   try {
     const row = await authorizedBooking(request, id, env.BOOKINGS_DB);
     if (!row) return json({ error: "BOOKING_NOT_FOUND" }, 404);
-
-    const childTables = await bookingChildTables(env.BOOKINGS_DB);
-    const statements: D1PreparedStatementLike[] = childTables.map((table) =>
-      env.BOOKINGS_DB!.prepare(`DELETE FROM "${table}" WHERE booking_id = ?1`).bind(id),
-    );
-    statements.push(env.BOOKINGS_DB.prepare("DELETE FROM bookings WHERE id = ?1").bind(id));
-    await env.BOOKINGS_DB.batch(statements);
-
+    await hardDeleteBookingRows(id, env.BOOKINGS_DB);
     return json({ ok: true, deleted: true });
   } catch (error) {
     console.error("booking-control-delete-failed", error);
+    return json({ error: "BOOKING_DELETE_FAILED" }, 500);
+  }
+}
+
+export async function deleteAdminBooking(id: string, env: BookingControlEnv): Promise<Response> {
+  if (!env.BOOKINGS_DB) return json({ error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
+  if (!validBookingId(id)) return json({ error: "INVALID_BOOKING_ID" }, 400);
+
+  try {
+    const deleted = await hardDeleteBookingRows(id, env.BOOKINGS_DB);
+    if (!deleted) return json({ error: "BOOKING_NOT_FOUND" }, 404);
+    return json({ ok: true, deleted: true });
+  } catch (error) {
+    console.error("booking-control-admin-delete-failed", error);
     return json({ error: "BOOKING_DELETE_FAILED" }, 500);
   }
 }
@@ -110,8 +129,6 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
   const hotelId = clean(body.hotelId, 180);
   const coverImageURL = clean(body.coverImageURL, 700) || null;
   const roomId = clean(body.roomId, 180) || null;
-  const requestedRoomCategory = parseRoomCategory(body.roomCategory);
-  const roomSource = clean(body.roomSource, 80) || (requestedRoomCategory ? "iumrahPrimary" : roomId ? "hotelInventory" : null);
   const roomName = clean(body.roomName, 220) || null;
   const roomBeds = clean(body.roomBeds, 220) || null;
   const roomSizeM2 = typeof body.roomSizeM2 === "number" && Number.isFinite(body.roomSizeM2) ? body.roomSizeM2 : null;
@@ -127,26 +144,12 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
     ).bind(hotelId).first<{ id: string; name: string; city: string }>();
     if (!hotel) return json({ error: "HOTEL_NOT_FOUND" }, 404);
 
-    let canonicalRoomName = roomName;
-    let canonicalRoomBeds = roomBeds;
-    let canonicalRoomMaxGuests = roomMaxGuests;
-
-    if (requestedRoomCategory) {
-      const categoryRecord = await findHotelRoomCategory(env.HOTELS_DB, hotelId, requestedRoomCategory);
-      if (!categoryRecord) return json({ error: "ROOM_CATEGORY_NOT_FOUND" }, 404);
-      canonicalRoomName = categoryRecord.display_name;
-      canonicalRoomBeds = categoryRecord.bed_configuration;
-      canonicalRoomMaxGuests = categoryRecord.max_guests;
-    }
-
     if (roomId) {
       const room = await env.HOTELS_DB.prepare(
         "SELECT id FROM hotel_rooms WHERE id = ?1 AND hotel_id = ?2 LIMIT 1",
       ).bind(roomId, hotelId).first<{ id: string }>();
       if (!room) return json({ error: "ROOM_NOT_FOUND" }, 404);
     }
-
-    await ensureBookingRoomColumns(env.BOOKINGS_DB);
 
     const payload = JSON.parse(booking.payload_json || "{}") as Record<string, unknown>;
     const rawHotelNames = payload.hotelNames && typeof payload.hotelNames === "object"
@@ -157,45 +160,23 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
     const rawSelection = payload.selection && typeof payload.selection === "object"
       ? payload.selection as Record<string, unknown>
       : {};
-    payload.selection = {
-      ...rawSelection,
-      makkahHotelId: hotelId,
-      makkahRoomId: roomId,
-      makkahRoomCategory: requestedRoomCategory,
-    };
+    payload.selection = { ...rawSelection, makkahHotelId: hotelId, makkahRoomId: roomId };
     payload.hotelSelection = {
       hotelId,
       hotelName: hotel.name,
       city: hotel.city,
       coverImageURL,
       roomId,
-      roomName: canonicalRoomName,
-      roomBeds: canonicalRoomBeds,
+      roomName,
+      roomBeds,
       roomSizeM2,
-      roomMaxGuests: canonicalRoomMaxGuests,
-      roomCategory: requestedRoomCategory,
-      roomSource,
+      roomMaxGuests,
     };
 
     const now = new Date().toISOString();
     await env.BOOKINGS_DB.prepare(
-      `UPDATE bookings
-       SET makkah_hotel = ?1,
-           makkah_room_category = ?2,
-           makkah_room_name = ?3,
-           makkah_room_id = ?4,
-           payload_json = ?5,
-           updated_at = ?6
-       WHERE id = ?7`,
-    ).bind(
-      hotel.name,
-      requestedRoomCategory,
-      canonicalRoomName,
-      roomId,
-      JSON.stringify(payload),
-      now,
-      id,
-    ).run();
+      "UPDATE bookings SET makkah_hotel = ?1, payload_json = ?2, updated_at = ?3 WHERE id = ?4",
+    ).bind(hotel.name, JSON.stringify(payload), now, id).run();
 
     return json({ ok: true, updatedAt: now, hotelSelection: payload.hotelSelection });
   } catch (error) {

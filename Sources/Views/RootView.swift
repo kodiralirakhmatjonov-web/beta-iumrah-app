@@ -48,15 +48,6 @@ struct RootView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .task {
-            await bookings.synchronizeCloud()
-            await push.refreshAndRegisterIfAllowed()
-            if let token = push.deviceToken { await bookings.registerPushDevice(token: token) }
-        }
-        .onChange(of: push.deviceToken) { _, token in
-            guard let token else { return }
-            Task { await bookings.registerPushDevice(token: token) }
-        }
         .onChange(of: chrome.requestedTab) { _, newValue in
             guard let newValue else { return }
             chrome.currentTab = newValue
@@ -67,6 +58,38 @@ struct RootView: View {
                 chrome.closeDrawer()
             }
         }
+        .task {
+            await bookings.refreshAll()
+            await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+            await syncPushSubscriptions()
+        }
+        .onChange(of: push.deviceToken) { _, _ in
+            Task { await syncPushSubscriptions() }
+        }
+        .onChange(of: bookings.sessions.map(\.id)) { _, _ in
+            Task {
+                await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                await syncPushSubscriptions()
+            }
+        }
+        .onChange(of: settings.language.rawValue) { _, _ in
+            Task { await syncPushSubscriptions() }
+        }
+        .onChange(of: push.eventRevision) { _, _ in
+            Task {
+                await bookings.refreshAll()
+                if let bookingID = push.lastEvent?.bookingID,
+                   push.lastEvent?.type.hasPrefix("chat_") == true {
+                    _ = try? await bookings.loadChat(for: bookingID)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func syncPushSubscriptions() async {
+        guard let token = push.deviceToken, !token.isEmpty else { return }
+        await bookings.syncPushSubscriptions(deviceToken: token, locale: settings.language.rawValue)
     }
 
     private var tabs: some View {

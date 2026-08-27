@@ -129,17 +129,19 @@ struct BookingsHomeView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(session.travelerName ?? session.id)
+                    Text(session.travelerName ?? L10n.text("booking_your_trip", settings.language))
                         .font(.headline)
-                    Text(session.id)
-                        .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(L10n.status(session.booking.status, settings.language))
+                    if let pilgrimID = session.displayPilgrimID {
+                        Text("ID \(pilgrimID)")
+                            .font(.caption.monospaced().weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(L10n.status(session.effectiveStatus, settings.language))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: statusIcon(session.booking.status))
+                Image(systemName: statusIcon(session.effectiveStatus))
                     .font(.title3)
                     .foregroundStyle(Color.iumrahCareDark)
             }

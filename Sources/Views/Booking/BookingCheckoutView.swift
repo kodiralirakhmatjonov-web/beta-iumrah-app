@@ -45,11 +45,7 @@ struct BookingCheckoutView: View {
             if let hotel = journey.selectedHotel, let quote = journey.quote {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(hotel.name).font(.headline)
-                    if let roomCategory = journey.selectedRoomCategory {
-                        Label(L10n.text(roomCategory.category.titleKey, settings.language), systemImage: "bed.double")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else if let room = journey.selectedRoom {
+                    if let room = journey.selectedRoom {
                         Label(room.name, systemImage: "bed.double")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -103,7 +99,7 @@ struct BookingCheckoutView: View {
                     Text(L10n.text("success_body", settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(createdSession.id)
+                    Text(createdSession.displayPilgrimID.map { "ID \($0)" } ?? "ID —")
                         .font(.caption.monospaced().weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -120,11 +116,9 @@ struct BookingCheckoutView: View {
             }
 
             Button {
-                if settings.hasBookingIdentity {
-                    Task { await submitBooking() }
-                } else {
-                    showProfileSheet = true
-                }
+                // Always confirm the pilgrim's first and last name immediately before
+                // creating a trip. Saved values remain prefilled in the sheet.
+                showProfileSheet = true
             } label: {
                 if isSubmitting {
                     ProgressView().tint(Color.iumrahPrimaryButtonText)
@@ -169,7 +163,6 @@ struct BookingCheckoutView: View {
                 trip: journey.trip,
                 hotel: hotel,
                 room: journey.selectedRoom,
-                roomCategory: journey.selectedRoomCategory,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,
