@@ -1,4 +1,5 @@
-import type { D1Like, D1PreparedStatementLike, D1ResultLike } from "./primary-hotels";
+import type { D1Like, D1PreparedStatementLike } from "./primary-hotels";
+import { ensureBookingRoomColumns, findHotelRoomCategory, parseRoomCategory } from "./room-categories";
 
 type BookingD1 = D1Like & {
   batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
@@ -129,6 +130,8 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
   const hotelId = clean(body.hotelId, 180);
   const coverImageURL = clean(body.coverImageURL, 700) || null;
   const roomId = clean(body.roomId, 180) || null;
+  const requestedRoomCategory = parseRoomCategory(body.roomCategory);
+  const roomSource = clean(body.roomSource, 80) || (requestedRoomCategory ? "iumrahPrimary" : roomId ? "hotelInventory" : null);
   const roomName = clean(body.roomName, 220) || null;
   const roomBeds = clean(body.roomBeds, 220) || null;
   const roomSizeM2 = typeof body.roomSizeM2 === "number" && Number.isFinite(body.roomSizeM2) ? body.roomSizeM2 : null;
@@ -144,6 +147,18 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
     ).bind(hotelId).first<{ id: string; name: string; city: string }>();
     if (!hotel) return json({ error: "HOTEL_NOT_FOUND" }, 404);
 
+    let canonicalRoomName = roomName;
+    let canonicalRoomBeds = roomBeds;
+    let canonicalRoomMaxGuests = roomMaxGuests;
+
+    if (requestedRoomCategory) {
+      const categoryRecord = await findHotelRoomCategory(env.HOTELS_DB, hotelId, requestedRoomCategory);
+      if (!categoryRecord) return json({ error: "ROOM_CATEGORY_NOT_FOUND" }, 404);
+      canonicalRoomName = categoryRecord.display_name;
+      canonicalRoomBeds = categoryRecord.bed_configuration;
+      canonicalRoomMaxGuests = categoryRecord.max_guests;
+    }
+
     if (roomId) {
       const room = await env.HOTELS_DB.prepare(
         "SELECT id FROM hotel_rooms WHERE id = ?1 AND hotel_id = ?2 LIMIT 1",
@@ -151,6 +166,7 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
       if (!room) return json({ error: "ROOM_NOT_FOUND" }, 404);
     }
 
+    await ensureBookingRoomColumns(env.BOOKINGS_DB);
     const payload = JSON.parse(booking.payload_json || "{}") as Record<string, unknown>;
     const rawHotelNames = payload.hotelNames && typeof payload.hotelNames === "object"
       ? payload.hotelNames as Record<string, unknown>
@@ -160,23 +176,45 @@ export async function updatePilgrimHotel(request: Request, id: string, env: Book
     const rawSelection = payload.selection && typeof payload.selection === "object"
       ? payload.selection as Record<string, unknown>
       : {};
-    payload.selection = { ...rawSelection, makkahHotelId: hotelId, makkahRoomId: roomId };
+    payload.selection = {
+      ...rawSelection,
+      makkahHotelId: hotelId,
+      makkahRoomId: roomId,
+      makkahRoomCategory: requestedRoomCategory,
+    };
     payload.hotelSelection = {
       hotelId,
       hotelName: hotel.name,
       city: hotel.city,
       coverImageURL,
       roomId,
-      roomName,
-      roomBeds,
+      roomName: canonicalRoomName,
+      roomBeds: canonicalRoomBeds,
       roomSizeM2,
-      roomMaxGuests,
+      roomMaxGuests: canonicalRoomMaxGuests,
+      roomCategory: requestedRoomCategory,
+      roomSource,
     };
 
     const now = new Date().toISOString();
     await env.BOOKINGS_DB.prepare(
-      "UPDATE bookings SET makkah_hotel = ?1, payload_json = ?2, updated_at = ?3 WHERE id = ?4",
-    ).bind(hotel.name, JSON.stringify(payload), now, id).run();
+      `UPDATE bookings
+       SET makkah_hotel = ?1,
+           makkah_room_category = ?2,
+           makkah_room_name = ?3,
+           makkah_room_id = ?4,
+           payload_json = ?5,
+           updated_at = ?6
+       WHERE id = ?7`,
+    ).bind(
+      hotel.name,
+      requestedRoomCategory,
+      canonicalRoomName,
+      roomId,
+      JSON.stringify(payload),
+      now,
+      id,
+    ).run();
 
     return json({ ok: true, updatedAt: now, hotelSelection: payload.hotelSelection });
   } catch (error) {
