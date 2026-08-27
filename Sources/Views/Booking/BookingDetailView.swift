@@ -172,6 +172,7 @@ struct BookingDetailView: View {
     private func hotelCard(_ session: StoredBookingSession) -> some View {
         let snapshot = session.hotelSelection
         let hotelName = snapshot?.hotelName ?? session.booking.hotelNames.makkah
+        let roomDisplayName = snapshot?.roomCategory.map { L10n.text($0.titleKey, settings.language) } ?? snapshot?.roomName
 
         return VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .center, spacing: 14) {
@@ -196,8 +197,8 @@ struct BookingDetailView: View {
                     Text(hotelName)
                         .font(.headline)
                         .lineLimit(2)
-                    if let room = snapshot?.roomName, !room.isEmpty {
-                        Text(room)
+                    if let roomDisplayName, !roomDisplayName.isEmpty {
+                        Text(roomDisplayName)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
