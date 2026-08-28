@@ -84,7 +84,7 @@ final class IumrahAccountStore: ObservableObject {
         IumrahAccountVault.clear()
     }
 
-    func linkBooking(bookingID: String, bookingToken: String) async throws -> String {
+    func linkBooking(bookingID: String, bookingToken: String) async throws -> IumrahAccountLinkBookingResponse {
         guard let token else { throw APIError.status(401) }
         return try await service.linkBooking(bookingID: bookingID, bookingToken: bookingToken, token: token)
     }

@@ -87,10 +87,47 @@ enum BookingDraftBuilder {
                 madinah: includeMadinah ? (madinahHotel?.name ?? L10n.text("recommended_madinah_hotel", language)) : ""
             ),
             flight: "\(outbound.airlinesSummary) \(outbound.flightNumbersSummary) · \(inbound.airlinesSummary) \(inbound.flightNumbersSummary)",
-            pilgrimProfile: pilgrimProfile
+            pilgrimProfile: pilgrimProfile,
+            generatorTrace: .init(
+                quoteId: quote.quoteId ?? inbound.quoteId,
+                outbound: generatorFlight(outbound),
+                inbound: generatorFlight(inbound),
+                makkahHotel: generatorHotel(hotel, room: room, roomCategory: roomCategory),
+                madinahHotel: madinahHotel.map { generatorHotel($0, room: madinahRoom, roomCategory: madinahRoomCategory) }
+            )
         )
         return BookingCreateEnvelope(lang: language.rawValue, booking: draft)
     }
+
+    private static func generatorFlight(_ offer: FlightOffer) -> BookingGeneratorFlightSnapshot {
+        BookingGeneratorFlightSnapshot(
+            candidateId: offer.sourceCandidateID,
+            airline: offer.airlinesSummary,
+            flightNumbers: offer.flightNumbersSummary,
+            origin: offer.origin,
+            destination: offer.destination,
+            departureAt: isoDateTime.string(from: offer.departureAt),
+            arrivalAt: isoDateTime.string(from: offer.arrivalAt),
+            source: offer.sourceLabel
+        )
+    }
+
+    private static func generatorHotel(_ hotel: HotelSummary, room: HotelRoom?, roomCategory: IumrahRoomCategoryOption?) -> BookingGeneratorHotelSnapshot {
+        BookingGeneratorHotelSnapshot(
+            hotelId: hotel.id,
+            hotelName: hotel.name,
+            city: hotel.city,
+            roomId: room?.id ?? roomCategory?.id,
+            roomName: room?.name ?? roomCategory?.displayName,
+            roomCategory: roomCategory?.category.rawValue
+        )
+    }
+
+    private static let isoDateTime: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 
     private struct StayDates {
         let makkahCheckIn: String

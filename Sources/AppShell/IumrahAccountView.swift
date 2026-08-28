@@ -1,6 +1,8 @@
 import SwiftUI
 import UserNotifications
 import UIKit
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 struct IumrahAccountView: View {
     @EnvironmentObject private var account: IumrahAccountStore
@@ -22,6 +24,9 @@ struct IumrahAccountView: View {
     @State private var profileMessage: String?
     @State private var profileLoadedForID: String?
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var showProfileEditor = false
+    @State private var identityCardFlipped = false
+    @State private var showIdentityFullscreen = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -62,6 +67,12 @@ struct IumrahAccountView: View {
         .onChange(of: account.iumrahID) { _, _ in
             loadProfileDraftIfNeeded(force: true)
         }
+        .sheet(isPresented: $showProfileEditor) {
+            profileEditorSheet
+        }
+        .fullScreenCover(isPresented: $showIdentityFullscreen) {
+            identityFullscreenView
+        }
     }
 
     private var accountHeader: some View {
@@ -85,63 +96,222 @@ struct IumrahAccountView: View {
     }
 
     private func identityCard(_ profile: IumrahAccountProfile) -> some View {
+        VStack(spacing: 10) {
+            ZStack {
+                identityFront(profile)
+                    .opacity(identityCardFlipped ? 0 : 1)
+
+                identityBack(profile)
+                    .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                    .opacity(identityCardFlipped ? 1 : 0)
+            }
+            .frame(height: 238)
+            .rotation3DEffect(.degrees(identityCardFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
+            .animation(.spring(response: 0.52, dampingFraction: 0.82), value: identityCardFlipped)
+            .contentShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .onTapGesture {
+                IumrahHaptics.selection()
+                identityCardFlipped.toggle()
+            }
+
+            HStack(spacing: 8) {
+                Label(
+                    identityCardFlipped ? tr("Front side", "Лицевая сторона", "Old tomoni", "Олд томони") : tr("Tap to flip", "Нажмите, чтобы перевернуть", "Aylantirish uchun bosing", "Айлантириш учун босинг"),
+                    systemImage: identityCardFlipped ? "rectangle.portrait.rotate" : "hand.tap.fill"
+                )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    IumrahHaptics.selection()
+                    showIdentityFullscreen = true
+                } label: {
+                    Label(tr("Full screen", "На весь экран", "To‘liq ekran", "Тўлиқ экран"), systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 12)
+                        .frame(height: 36)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 6)
+        }
+    }
+
+    private func identityFront(_ profile: IumrahAccountProfile) -> some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.iumrahCareDark, Color.iumrahGraphite],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.black)
+
+            LinearGradient(
+                colors: [Color.white.opacity(0.09), .clear, Color.iumrahCareLight.opacity(0.12)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
 
             Circle()
-                .fill(Color.white.opacity(0.06))
-                .frame(width: 180, height: 180)
-                .offset(x: 215, y: -82)
+                .fill(Color.white.opacity(0.055))
+                .frame(width: 190, height: 190)
+                .offset(x: 220, y: -98)
 
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("iumrah")
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Iumrah ID")
                             .font(.system(size: 25, weight: .bold, design: .rounded))
-                        Text("IDENTITY")
-                            .font(.caption2.weight(.bold))
-                            .tracking(2.1)
-                            .foregroundStyle(.white.opacity(0.62))
+                        Text(tr("DIGITAL PILGRIM IDENTITY", "ЦИФРОВАЯ ID-КАРТА ПАЛОМНИКА", "RAQAMLI ZIYORATCHI ID", "РАҚАМЛИ ЗИЁРАТЧИ ID"))
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(1.5)
+                            .foregroundStyle(.white.opacity(0.52))
                     }
                     Spacer()
-                    Label(tr("Active", "Активен", "Faol", "Фаол"), systemImage: "checkmark.seal.fill")
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 11)
-                        .frame(height: 32)
-                        .background(.white.opacity(0.12), in: Capsule())
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(Color.iumrahCareLight)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text(displayName(profile))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 25, weight: .bold, design: .rounded))
                         .lineLimit(2)
-                    Text("ID  \(normalizedID(profile.iumrahID))")
-                        .font(.system(size: 31, weight: .bold, design: .monospaced))
-                        .tracking(2.4)
+                    Text(normalizedID(profile.iumrahID))
+                        .font(.system(size: 33, weight: .bold, design: .monospaced))
+                        .tracking(3)
                         .textSelection(.enabled)
                 }
 
                 HStack(spacing: 18) {
                     Label("\(bookings.sessions.count) \(tr("trips", "поездок", "safar", "сафар"))", systemImage: "suitcase.fill")
-                    Label(tr("One account", "Единый аккаунт", "Yagona akkaunt", "Ягона аккаунт"), systemImage: "person.2.fill")
+                    Label(tr("Permanent ID", "Постоянный ID", "Doimiy ID", "Доимий ID"), systemImage: "person.text.rectangle.fill")
                 }
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(.white.opacity(0.66))
             }
             .foregroundStyle(.white)
             .padding(24)
         }
-        .frame(minHeight: 238)
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 32, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 1) }
-        .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+        .overlay { RoundedRectangle(cornerRadius: 32, style: .continuous).strokeBorder(.white.opacity(0.10), lineWidth: 1) }
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+    }
+
+    private func identityBack(_ profile: IumrahAccountProfile) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(Color.iumrahCardBackground)
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.075), lineWidth: 1)
+
+            HStack(spacing: 22) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image("HeaderWordmarkLight")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 142, height: 34, alignment: .leading)
+                        .accessibilityLabel("Iumrah")
+                    Text(tr("Official digital identity", "Цифровая идентификация", "Raqamli identifikatsiya", "Рақамли идентификация"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    Text("Iumrah ID")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Text(normalizedID(profile.iumrahID))
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                    Text("aiumra.app")
+                        .font(.caption.monospaced().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 4)
+
+                qrCodeView(size: 116)
+                    .padding(9)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.black.opacity(0.08), lineWidth: 1) }
+            }
+            .padding(24)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .shadow(color: .black.opacity(0.08), radius: 20, y: 10)
+    }
+
+    private var identityFullscreenView: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if let profile = account.account {
+                VStack(spacing: 22) {
+                    HStack {
+                        Spacer()
+                        Button {
+                            IumrahHaptics.soft()
+                            showIdentityFullscreen = false
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 46, height: 46)
+                                .background(.white.opacity(0.12), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Spacer()
+
+                    ZStack {
+                        identityFront(profile).opacity(identityCardFlipped ? 0 : 1)
+                        identityBack(profile)
+                            .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                            .opacity(identityCardFlipped ? 1 : 0)
+                    }
+                    .frame(height: 260)
+                    .rotation3DEffect(.degrees(identityCardFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
+                    .animation(.spring(response: 0.52, dampingFraction: 0.82), value: identityCardFlipped)
+                    .onTapGesture {
+                        IumrahHaptics.selection()
+                        identityCardFlipped.toggle()
+                    }
+
+                    Text(tr("Tap the card to flip it", "Нажмите на карту, чтобы перевернуть", "Kartani aylantirish uchun bosing", "Картани айлантириш учун босинг"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.58))
+
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func qrCodeView(size: CGFloat) -> some View {
+        if let image = makeQRCode("https://aiumra.app") {
+            Image(uiImage: image)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            Image(systemName: "qrcode")
+                .font(.system(size: size * 0.66, weight: .medium))
+                .frame(width: size, height: size)
+                .foregroundStyle(.black)
+        }
+    }
+
+    private func makeQRCode(_ value: String) -> UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(value.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage else { return nil }
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+        let context = CIContext(options: nil)
+        guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cg)
     }
 
     private func activeTripCard(_ session: StoredBookingSession) -> some View {
@@ -165,6 +335,9 @@ struct IumrahAccountView: View {
                             .foregroundStyle(.secondary)
                         Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
                             .font(.system(size: 23, weight: .bold, design: .rounded))
+                        Text("Бронь \(session.displayBookingNumber)")
+                            .font(.caption.monospaced().weight(.semibold))
+                            .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
@@ -243,37 +416,121 @@ struct IumrahAccountView: View {
 
     private func profileSection(_ profile: IumrahAccountProfile) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(icon: "person.text.rectangle.fill", title: tr("Account details", "Данные аккаунта", "Akkaunt ma’lumotlari", "Аккаунт маълумотлари"), subtitle: tr("Used for your profile and future trips", "Используются в профиле и новых поездках", "Profil va yangi safarlarda ishlatiladi", "Профил ва янги сафарларда ишлатилади"))
-
-            accountField(tr("First name", "Имя", "Ism", "Исм"), text: $firstName, contentType: .givenName)
-            accountField(tr("Last name", "Фамилия", "Familiya", "Фамилия"), text: $lastName, contentType: .familyName)
-            accountField(tr("Phone", "Телефон", "Telefon", "Телефон"), text: $phone, keyboard: .phonePad, contentType: .telephoneNumber)
-            accountField("Email", text: $email, keyboard: .emailAddress, contentType: .emailAddress, autocapitalization: .never)
-            accountField("Telegram", text: $telegram, autocapitalization: .never)
-            accountField("WhatsApp", text: $whatsapp, keyboard: .phonePad, contentType: .telephoneNumber)
-
-            if let profileMessage {
-                Text(profileMessage)
-                    .font(.caption)
-                    .foregroundStyle(profileMessage == savedText ? Color.green : Color.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button {
-                Task { await saveProfile() }
-            } label: {
-                HStack(spacing: 10) {
-                    if isSavingProfile { ProgressView().tint(.white) }
-                    Image(systemName: "checkmark.circle.fill")
-                    Text(tr("Save account details", "Сохранить данные аккаунта", "Akkaunt ma’lumotlarini saqlash", "Аккаунт маълумотларини сақлаш"))
-                    Spacer(minLength: 10)
+            HStack(alignment: .top, spacing: 12) {
+                sectionHeader(
+                    icon: "person.text.rectangle.fill",
+                    title: tr("Account details", "Данные аккаунта", "Akkaunt ma’lumotlari", "Аккаунт маълумотлари"),
+                    subtitle: tr("Used for your profile and future trips", "Используются в профиле и новых поездках", "Profil va yangi safarlarda ishlatiladi", "Профил ва янги сафарларда ишлатилади")
+                )
+                Spacer(minLength: 4)
+                Button {
+                    loadProfileDraftIfNeeded(force: true, profile: profile)
+                    profileMessage = nil
+                    showProfileEditor = true
+                    IumrahHaptics.selection()
+                } label: {
+                    Label(tr("Edit", "Изменить", "Tahrirlash", "Таҳрирлаш"), systemImage: "pencil")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 12)
+                        .frame(height: 38)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
                 }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingProfile)
+
+            VStack(spacing: 0) {
+                accountSummaryRow(icon: "person.fill", title: tr("Name", "Имя", "Ism", "Исм"), value: displayName(profile))
+                Divider().padding(.leading, 52)
+                accountSummaryRow(icon: "phone.fill", title: tr("Phone", "Телефон", "Telefon", "Телефон"), value: profile.phone)
+                Divider().padding(.leading, 52)
+                accountSummaryRow(icon: "envelope.fill", title: "Email", value: profile.email)
+                Divider().padding(.leading, 52)
+                accountSummaryRow(icon: "paperplane.fill", title: "Telegram", value: profile.telegram)
+                Divider().padding(.leading, 52)
+                accountSummaryRow(icon: "message.fill", title: "WhatsApp", value: profile.whatsapp)
+            }
+            .padding(.horizontal, 4)
         }
         .iumrahCard()
         .onAppear { loadProfileDraftIfNeeded(force: false, profile: profile) }
+    }
+
+    private func accountSummaryRow(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 38, height: 38)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "—" : value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.secondary : Color.primary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 9)
+    }
+
+    private var profileEditorSheet: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(tr("Account details", "Данные аккаунта", "Akkaunt ma’lumotlari", "Аккаунт маълумотлари"))
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                        Text(tr("These details are reused for future Iumrah trips.", "Эти данные будут использоваться для Ваших следующих поездок Iumrah.", "Bu ma’lumotlar keyingi Iumrah safarlarida ishlatiladi.", "Бу маълумотлар кейинги Iumrah сафарларида ишлатилади."))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(spacing: 12) {
+                        accountField(tr("First name", "Имя", "Ism", "Исм"), text: $firstName, contentType: .givenName)
+                        accountField(tr("Last name", "Фамилия", "Familiya", "Фамилия"), text: $lastName, contentType: .familyName)
+                        accountField(tr("Phone", "Телефон", "Telefon", "Телефон"), text: $phone, keyboard: .phonePad, contentType: .telephoneNumber)
+                        accountField("Email", text: $email, keyboard: .emailAddress, contentType: .emailAddress, autocapitalization: .never)
+                        accountField("Telegram", text: $telegram, autocapitalization: .never)
+                        accountField("WhatsApp", text: $whatsapp, keyboard: .phonePad, contentType: .telephoneNumber)
+                    }
+                    .padding(16)
+                    .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+
+                    if let profileMessage {
+                        Text(profileMessage)
+                            .font(.footnote)
+                            .foregroundStyle(profileMessage == savedText ? Color.green : Color.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Button {
+                        Task { await saveProfile(dismissAfterSave: true) }
+                    } label: {
+                        HStack(spacing: 10) {
+                            if isSavingProfile { ProgressView().tint(.white) }
+                            Image(systemName: "checkmark.circle.fill")
+                            Text(tr("Save account details", "Сохранить данные аккаунта", "Akkaunt ma’lumotlarini saqlash", "Аккаунт маълумотларини сақлаш"))
+                            Spacer(minLength: 8)
+                        }
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingProfile)
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 18)
+                .padding(.bottom, 36)
+            }
+            .background(Color.iumrahPageBackground)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(tr("Close", "Закрыть", "Yopish", "Ёпиш")) { showProfileEditor = false }
+                }
+            }
+        }
     }
 
     private var settingsSection: some View {
@@ -485,7 +742,11 @@ struct IumrahAccountView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
                     .font(.subheadline.weight(.bold))
-                Text("\(L10n.date(session.booking.input.startDate, settings.language)) · \(L10n.status(session.effectiveStatus, settings.language))")
+                Text("Бронь \(session.displayBookingNumber) · \(L10n.date(session.booking.input.startDate, settings.language))")
+                    .font(.caption.monospaced().weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(L10n.status(session.effectiveStatus, settings.language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -656,7 +917,7 @@ struct IumrahAccountView: View {
     }
 
     @MainActor
-    private func saveProfile() async {
+    private func saveProfile(dismissAfterSave: Bool = false) async {
         isSavingProfile = true
         profileMessage = nil
         defer { isSavingProfile = false }
@@ -672,6 +933,7 @@ struct IumrahAccountView: View {
             applyProfileToLocalSettings(profile)
             profileMessage = savedText
             IumrahHaptics.success()
+            if dismissAfterSave { showProfileEditor = false }
         } catch {
             profileMessage = L10n.error(error, settings.language)
             IumrahHaptics.error()

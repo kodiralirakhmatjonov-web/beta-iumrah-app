@@ -1,5 +1,6 @@
 import { normalizeToUsd, type FxEnvironment } from "./fx";
 import { calculatePackageQuote } from "./pricing";
+import { persistQuoteAudit } from "./quote-audit";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
 import { legacyEstimatedHotelCost, type HotelPricingMode } from "./hotel-fallback";
 import type {
@@ -24,9 +25,10 @@ type NormalizedFare = {
   fxAsOf: string | null;
 };
 
+type ResolvedHotelCost = HotelCost & { hotelId?: string | null; roomId?: string | null };
 type ResolvedHotelCosts = {
-  makkah: HotelCost;
-  madinah: HotelCost | null;
+  makkah: ResolvedHotelCost;
+  madinah: ResolvedHotelCost | null;
   pricingMode: HotelPricingMode;
 };
 
@@ -158,12 +160,16 @@ async function resolveHotelCosts(context: FlightQuoteContext, env: Env): Promise
         amountUsd: Number(makkah.base_price_usd),
         unit: makkah.price_unit,
         nights: Math.max(1, context.nights.makkah),
+        hotelId: makkah.hotel_id,
+        roomId: makkah.room_id,
       },
       madinah: madinah
         ? {
             amountUsd: Number(madinah.base_price_usd),
             unit: madinah.price_unit,
             nights: Math.max(1, context.nights.madinah),
+            hotelId: madinah.hotel_id,
+            roomId: madinah.room_id,
           }
         : null,
       pricingMode: "configuredPrimary",
@@ -247,7 +253,7 @@ export async function quoteFlightOptions(
 
     const returnObservation = input.returnCandidates.find((candidate) => candidate.candidateId === referenceReturn.candidateId)!;
     const outboundObservationMap = new Map(input.outboundCandidates.map((candidate) => [candidate.candidateId, candidate]));
-    const options: PublicFlightOptionQuote[] = normalizedOutbound.map((candidate) => {
+    const options: PublicFlightOptionQuote[] = await Promise.all(normalizedOutbound.map(async (candidate) => {
       const outboundObservation = outboundObservationMap.get(candidate.candidateId)!;
       const pairContext = adjustedContextForPair(input.context, outboundObservation, returnObservation);
       const pairHotels: ResolvedHotelCosts = {
@@ -256,8 +262,15 @@ export async function quoteFlightOptions(
         pricingMode: hotels.pricingMode,
       };
       const quote = buildQuote(pairContext, candidate.totalGroupUsd, referenceReturn.totalGroupUsd, pairHotels, env);
+      await persistQuoteAudit(env.HOTELS_DB, quote, {
+        tier: pairContext.tier, includeMadinah: pairContext.includeMadinah, totalDays: pairContext.totalDays, travelers: pairContext.travelers,
+        outbound: { ...outboundObservation, normalizedGroupUsd: candidate.totalGroupUsd },
+        inbound: { ...returnObservation, normalizedGroupUsd: referenceReturn.totalGroupUsd },
+        makkahHotel: { ...pairHotels.makkah, pricingMode: pairHotels.pricingMode },
+        madinahHotel: pairHotels.madinah ? { ...pairHotels.madinah, pricingMode: pairHotels.pricingMode } : null,
+      });
       return { candidateId: candidate.candidateId, ...publicOnly(quote) };
-    });
+    }));
 
     options.sort((a, b) => a.pricePerPerson - b.pricePerPerson);
     const fxAsOf = referenceReturn.fxAsOf ?? normalizedOutbound.find((candidate) => candidate.fxAsOf)?.fxAsOf ?? null;
@@ -278,7 +291,7 @@ export async function quoteFlightOptions(
   );
 
   const returnObservationMap = new Map(input.returnCandidates.map((candidate) => [candidate.candidateId, candidate]));
-  const options: PublicFlightOptionQuote[] = normalizedReturns.map((candidate) => {
+  const options: PublicFlightOptionQuote[] = await Promise.all(normalizedReturns.map(async (candidate) => {
     const returnObservation = returnObservationMap.get(candidate.candidateId)!;
     const pairContext = adjustedContextForPair(input.context, input.selectedOutbound, returnObservation);
     const pairHotels: ResolvedHotelCosts = {
@@ -287,8 +300,15 @@ export async function quoteFlightOptions(
       pricingMode: hotels.pricingMode,
     };
     const quote = buildQuote(pairContext, outbound.totalGroupUsd, candidate.totalGroupUsd, pairHotels, env);
+    await persistQuoteAudit(env.HOTELS_DB, quote, {
+      tier: pairContext.tier, includeMadinah: pairContext.includeMadinah, totalDays: pairContext.totalDays, travelers: pairContext.travelers,
+      outbound: { ...input.selectedOutbound, normalizedGroupUsd: outbound.totalGroupUsd },
+      inbound: { ...returnObservation, normalizedGroupUsd: candidate.totalGroupUsd },
+      makkahHotel: { ...pairHotels.makkah, pricingMode: pairHotels.pricingMode },
+      madinahHotel: pairHotels.madinah ? { ...pairHotels.madinah, pricingMode: pairHotels.pricingMode } : null,
+    });
     return { candidateId: candidate.candidateId, ...publicOnly(quote) };
-  });
+  }));
   options.sort((a, b) => a.pricePerPerson - b.pricePerPerson);
   const fxAsOf = outbound.fxAsOf ?? normalizedReturns.find((candidate) => candidate.fxAsOf)?.fxAsOf ?? null;
   return { ok: true, phase: "return", options, fxAsOf, hotelPricingMode: hotels.pricingMode };

@@ -17,7 +17,7 @@ struct BookingService {
 
 
 
-    func syncBookingProfile(id: String, accessToken: String, profile: BookingPilgrimProfile) async throws -> ClientTripResponse {
+    func syncBookingProfile(id: String, accessToken: String, profile: BookingPilgrimProfile, generatorTrace: BookingGeneratorTrace? = nil) async throws -> ClientTripResponse {
         let response: ClientTripResponse = try await api.post(
             "/api/catalog/hotels/client/trips/\(id)/sync",
             body: BookingProfileSyncRequest(
@@ -25,7 +25,8 @@ struct BookingService {
                 lastName: profile.lastName,
                 displayName: profile.displayName,
                 telegram: profile.telegram,
-                whatsapp: profile.whatsapp
+                whatsapp: profile.whatsapp,
+                generatorTrace: generatorTrace
             ),
             headers: ["x-booking-token": accessToken]
         )
@@ -128,4 +129,5 @@ private struct BookingProfileSyncRequest: Encodable {
     let displayName: String
     let telegram: String
     let whatsapp: String
+    let generatorTrace: BookingGeneratorTrace?
 }

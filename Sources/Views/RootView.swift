@@ -79,8 +79,8 @@ struct RootView: View {
         for session in bookings.sessions {
             let bookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !bookingToken.isEmpty else { continue }
-            if let canonicalID = try? await account.linkBooking(bookingID: session.id, bookingToken: bookingToken) {
-                bookings.applyCanonicalPilgrimID(canonicalID, to: session.id)
+            if let linked = try? await account.linkBooking(bookingID: session.id, bookingToken: bookingToken) {
+                bookings.applyCanonicalLink(linked, to: session.id)
             }
         }
     }

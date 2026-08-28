@@ -23,7 +23,7 @@ struct HomeDashboardView: View {
     private var marketingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language))
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true)
                 hero
                 confidenceStrip
                 philosophyCard
@@ -59,7 +59,8 @@ struct HomeDashboardView: View {
                     IumrahRootPageTitle(
                         title: L10n.text("tab_home", settings.language),
                         showsMakkahTime: true,
-                        lightStyle: true
+                        lightStyle: true,
+                        usesBrandLogo: true
                     )
 
                     activeBookingCard(session)

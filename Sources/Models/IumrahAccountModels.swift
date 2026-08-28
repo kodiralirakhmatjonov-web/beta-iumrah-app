@@ -192,4 +192,6 @@ struct IumrahAccountLinkBookingRequest: Encodable {
 struct IumrahAccountLinkBookingResponse: Decodable {
     let ok: Bool
     let pilgrimID: String
+    let bookingNumber: Int?
+    let bookingDisplayNumber: String?
 }

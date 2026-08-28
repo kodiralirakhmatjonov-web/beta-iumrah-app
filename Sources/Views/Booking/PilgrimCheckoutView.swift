@@ -529,7 +529,9 @@ struct PilgrimCheckoutView: View {
         do {
             _ = try await account.activate(bookingID: bookingID, bookingToken: session.accessToken, password: password)
             bookings.setAccountToken(account.bearerToken)
-            if let id = account.iumrahID { bookings.applyCanonicalPilgrimID(id, to: bookingID) }
+            if let linked = try? await account.linkBooking(bookingID: bookingID, bookingToken: session.accessToken) {
+                bookings.applyCanonicalLink(linked, to: bookingID)
+            }
             await loadCheckout(showLoader: false)
             IumrahHaptics.success()
         } catch APIError.server(_, let message) where message.uppercased().contains("ACCOUNT_ALREADY_ACTIVE") {

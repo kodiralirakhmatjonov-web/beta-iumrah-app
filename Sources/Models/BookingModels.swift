@@ -18,6 +18,36 @@ struct BookingDraftRequest: Encodable {
     let hotelNames: BookingHotelNames
     let flight: String
     let pilgrimProfile: BookingPilgrimProfile?
+    let generatorTrace: BookingGeneratorTrace?
+}
+
+
+struct BookingGeneratorTrace: Codable, Hashable {
+    let quoteId: String?
+    let outbound: BookingGeneratorFlightSnapshot
+    let inbound: BookingGeneratorFlightSnapshot
+    let makkahHotel: BookingGeneratorHotelSnapshot
+    let madinahHotel: BookingGeneratorHotelSnapshot?
+}
+
+struct BookingGeneratorFlightSnapshot: Codable, Hashable {
+    let candidateId: String?
+    let airline: String
+    let flightNumbers: String
+    let origin: String
+    let destination: String
+    let departureAt: String
+    let arrivalAt: String
+    let source: String
+}
+
+struct BookingGeneratorHotelSnapshot: Codable, Hashable {
+    let hotelId: String
+    let hotelName: String
+    let city: String
+    let roomId: String?
+    let roomName: String?
+    let roomCategory: String?
 }
 
 struct BookingPilgrimProfile: Codable, Hashable {
@@ -181,6 +211,8 @@ struct BookingGuideSnapshot: Codable, Hashable {
 struct ClientTripSnapshot: Decodable, Hashable {
     let tripID: String
     let bookingID: String
+    let bookingNumber: Int?
+    let bookingDisplayNumber: String?
     let pilgrimID: String?
     let status: String
     let paymentStatus: String?
@@ -207,12 +239,20 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var pendingChangeConfirmation: Bool? = nil
     var operationStatus: String? = nil
     var pilgrimID: String? = nil
+    var bookingNumber: Int? = nil
+    var bookingDisplayNumber: String? = nil
 
     var displayPilgrimID: String? {
         guard let raw = pilgrimID?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
         let digits = raw.filter(\.isNumber)
         guard !digits.isEmpty, digits.count <= 6 else { return nil }
         return String(repeating: "0", count: 6 - digits.count) + digits
+    }
+
+    var displayBookingNumber: String {
+        if let value = bookingDisplayNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty { return value }
+        if let bookingNumber, bookingNumber > 0 { return "#" + String(format: "%04d", bookingNumber) }
+        return "#----"
     }
 
     var effectiveStatus: String {
@@ -291,3 +331,4 @@ struct BookingCustomizationUpdateRequest: Encodable {
     let ziyaratMakkah: Bool
     let ziyaratMadinah: Bool
 }
+

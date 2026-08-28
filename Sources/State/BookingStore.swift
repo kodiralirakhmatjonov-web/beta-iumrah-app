@@ -74,14 +74,23 @@ final class BookingStore: ObservableObject {
             hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory),
             madinahHotelSelection: madinahHotel.map { BookingHotelSelectionSnapshot(hotel: $0, room: madinahRoom, roomCategory: madinahRoomCategory) }
         )
+        if let accountToken, !accountToken.isEmpty,
+           let linked = try? await accountService.linkBooking(bookingID: session.id, bookingToken: session.accessToken, token: accountToken) {
+            session.pilgrimID = linked.pilgrimID
+            session.bookingNumber = linked.bookingNumber
+            session.bookingDisplayNumber = linked.bookingDisplayNumber
+        }
         if let profile = serverProfile, !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            !profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             if let response = try? await bookingService.syncBookingProfile(
                 id: session.id,
                 accessToken: session.accessToken,
-                profile: profile
+                profile: profile,
+                generatorTrace: payload.booking.generatorTrace
             ) {
                 session.pilgrimID = response.trip.pilgrimID
+                session.bookingNumber = response.trip.bookingNumber ?? session.bookingNumber
+                session.bookingDisplayNumber = response.trip.bookingDisplayNumber ?? session.bookingDisplayNumber
                 session.operationStatus = response.trip.status
                 session.guide = response.assignment?.guide
             }
@@ -170,6 +179,8 @@ final class BookingStore: ObservableObject {
                 sessions[index].booking = detail.booking
                 sessions[index].operationStatus = detail.trip.status
                 sessions[index].pilgrimID = detail.trip.pilgrimID
+                sessions[index].bookingNumber = detail.trip.bookingNumber
+                sessions[index].bookingDisplayNumber = detail.trip.bookingDisplayNumber
                 sessions[index].guide = detail.assignment?.guide ?? sessions[index].guide
                 mergeRemoteHotelSelection(detail.booking.hotelSelection, into: &sessions[index].hotelSelection)
                 mergeRemoteHotelSelection(detail.booking.madinahHotelSelection, into: &sessions[index].madinahHotelSelection)
@@ -188,7 +199,9 @@ final class BookingStore: ObservableObject {
                     madinahHotelSelection: detail.booking.madinahHotelSelection,
                     guide: detail.assignment?.guide,
                     operationStatus: detail.trip.status,
-                    pilgrimID: detail.trip.pilgrimID
+                    pilgrimID: detail.trip.pilgrimID,
+                    bookingNumber: detail.trip.bookingNumber,
+                    bookingDisplayNumber: detail.trip.bookingDisplayNumber
                 )
                 sessions.append(restored)
             }
@@ -197,9 +210,11 @@ final class BookingStore: ObservableObject {
         persist()
     }
 
-    func applyCanonicalPilgrimID(_ value: String, to bookingID: String) {
+    func applyCanonicalLink(_ value: IumrahAccountLinkBookingResponse, to bookingID: String) {
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
-        sessions[index].pilgrimID = value
+        sessions[index].pilgrimID = value.pilgrimID
+        sessions[index].bookingNumber = value.bookingNumber ?? sessions[index].bookingNumber
+        sessions[index].bookingDisplayNumber = value.bookingDisplayNumber ?? sessions[index].bookingDisplayNumber
         persist()
     }
 
@@ -208,6 +223,8 @@ final class BookingStore: ObservableObject {
         sessions[index].booking = booking
         sessions[index].operationStatus = operational?.trip.status ?? sessions[index].operationStatus
         sessions[index].pilgrimID = operational?.trip.pilgrimID ?? sessions[index].pilgrimID
+        sessions[index].bookingNumber = operational?.trip.bookingNumber ?? sessions[index].bookingNumber
+        sessions[index].bookingDisplayNumber = operational?.trip.bookingDisplayNumber ?? sessions[index].bookingDisplayNumber
         sessions[index].guide = operational?.assignment?.guide ?? sessions[index].guide
         if let profile = booking.pilgrimProfile {
             sessions[index].travelerName = profile.displayName

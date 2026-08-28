@@ -144,10 +144,18 @@ struct BookingDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.text("booking_detail_title", settings.language))
                     .font(.headline)
-                if let pilgrimID = session?.displayPilgrimID {
-                    Text("ID \(pilgrimID)")
-                        .font(.caption2.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
+                if let session {
+                    HStack(spacing: 7) {
+                        Text("Бронь \(session.displayBookingNumber)")
+                        if let pilgrimID = session.displayPilgrimID {
+                            Text("·")
+                            Text("Iumrah ID \(pilgrimID)")
+                        }
+                    }
+                    .font(.caption2.monospaced().weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
                 }
             }
             Spacer()

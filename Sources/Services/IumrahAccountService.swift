@@ -58,13 +58,13 @@ struct IumrahAccountService {
         )
     }
 
-    func linkBooking(bookingID: String, bookingToken: String, token: String) async throws -> String {
+    func linkBooking(bookingID: String, bookingToken: String, token: String) async throws -> IumrahAccountLinkBookingResponse {
         let response: IumrahAccountLinkBookingResponse = try await api.post(
             "/api/catalog/hotels/client/account/link-booking",
             body: IumrahAccountLinkBookingRequest(bookingID: bookingID),
             headers: ["Authorization": "Bearer \(token)", "x-booking-token": bookingToken]
         )
-        return response.pilgrimID
+        return response
     }
 
     func checkout(bookingID: String, authorizationHeaders: [String: String]) async throws -> IumrahCheckoutResponse {

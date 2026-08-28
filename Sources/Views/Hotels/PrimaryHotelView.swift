@@ -66,7 +66,7 @@ struct PrimaryHotelView: View {
             stayCard(
                 hotel: hotel,
                 role: .makkah,
-                title: FlowCopy.text(.makkahStay, settings.language),
+                title: recommendedTitle(role: .makkah),
                 roomName: journey.selectedRoom?.name ?? journey.selectedRoomCategory?.displayName
             )
         } else {
@@ -80,12 +80,25 @@ struct PrimaryHotelView: View {
                 stayCard(
                     hotel: hotel,
                     role: .madinah,
-                    title: FlowCopy.text(.madinahStay, settings.language),
+                    title: recommendedTitle(role: .madinah),
                     roomName: journey.selectedMadinahRoom?.name ?? journey.selectedMadinahRoomCategory?.displayName
                 )
             } else {
                 missingHotelCard(role: .madinah)
             }
+        }
+    }
+
+    private func recommendedTitle(role: HotelSelectionRole) -> String {
+        switch settings.language {
+        case .english:
+            return role == .makkah ? "Recommended AiUmra · Makkah" : "Recommended AiUmra · Madinah"
+        case .russian:
+            return role == .makkah ? "Recommended AiUmra для Мекки" : "Recommended AiUmra для Медины"
+        case .uzbekLatin:
+            return role == .makkah ? "Recommended AiUmra · Makka" : "Recommended AiUmra · Madina"
+        case .uzbekCyrillic:
+            return role == .makkah ? "Recommended AiUmra · Макка" : "Recommended AiUmra · Мадина"
         }
     }
 
@@ -103,23 +116,22 @@ struct PrimaryHotelView: View {
 
     private func stayCard(hotel: HotelSummary, role: HotelSelectionRole, title: String, roomName: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                hotelImage(hotel)
-                    .frame(height: 190)
+            hotelImage(hotel)
+                .frame(height: 214)
 
+            VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 7) {
-                    Image(systemName: role == .makkah ? "building.2.fill" : "moon.stars.fill")
+                    Image(systemName: "sparkles")
                     Text(title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                 }
                 .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.iumrahCareDark)
                 .padding(.horizontal, 12)
                 .frame(height: 34)
-                .background(.black.opacity(0.48), in: Capsule())
-                .padding(14)
-            }
+                .background(Color.iumrahCareLight.opacity(0.12), in: Capsule())
 
-            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 8) {
@@ -170,7 +182,9 @@ struct PrimaryHotelView: View {
                     .buttonStyle(SoftHotelActionButtonStyle())
                 }
             }
-            .padding(18)
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 20)
         }
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
@@ -225,8 +239,8 @@ private struct SoftHotelActionButtonStyle: ButtonStyle {
         configuration.label
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 10)
-            .frame(height: 46)
+            .padding(.horizontal, 14)
+            .frame(height: 48)
             .background(Color.iumrahRaisedBackground.opacity(configuration.isPressed ? 0.72 : 1))
             .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)

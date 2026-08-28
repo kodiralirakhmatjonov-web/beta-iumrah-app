@@ -55,3 +55,35 @@ private struct ChatMessageSendRequest: Encodable {
 private struct EmptyPayload: Encodable {}
 
 private struct BasicOKResponse: Decodable { let ok: Bool }
+
+struct IumrahPublicProfile: Decodable, Hashable {
+    let id: String
+    let firstName: String
+    let lastName: String
+    let displayName: String
+    let roleKind: String
+    let roleTitle: String
+    let phoneUZ: String
+    let phoneSA: String
+    let telegram: String
+    let whatsapp: String
+    let instagram: String
+    let bio: String
+    let publicSlug: String
+    let publicVisible: Bool
+    let active: Bool
+    let isOwner: Bool
+    let photoURL: String?
+}
+
+private struct IumrahPublicProfilesResponse: Decodable {
+    let ok: Bool
+    let members: [IumrahPublicProfile]
+}
+
+extension ChatService {
+    func loadCareProfile() async throws -> IumrahPublicProfile? {
+        let value: IumrahPublicProfilesResponse = try await api.get("/api/catalog/hotels/team")
+        return value.members.first(where: { $0.isOwner }) ?? value.members.first
+    }
+}

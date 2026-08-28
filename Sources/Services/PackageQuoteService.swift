@@ -15,7 +15,8 @@ struct BetaPackageQuoteService: PackageQuoteServicing {
                 totalPackagePrice: exactTotal,
                 pricePerPerson: inbound.totalPackagePrice,
                 currency: inbound.currency,
-                isEstimated: false
+                isEstimated: false,
+                quoteId: inbound.quoteId
             )
         }
 
@@ -25,7 +26,8 @@ struct BetaPackageQuoteService: PackageQuoteServicing {
             totalPackagePrice: blendedPerPerson * Decimal(travelers),
             pricePerPerson: blendedPerPerson,
             currency: inbound.currency,
-            isEstimated: true
+            isEstimated: true,
+            quoteId: nil
         )
     }
 }

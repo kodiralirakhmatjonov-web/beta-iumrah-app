@@ -18,6 +18,8 @@ struct BookingChatView: View {
     @State private var errorMessage: String?
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var registeredImmersive = false
+    @State private var careProfile: IumrahPublicProfile?
+    @State private var showCareProfile = false
     @FocusState private var composerFocused: Bool
 
     var session: StoredBookingSession? { bookings.booking(id: bookingID) }
@@ -64,6 +66,7 @@ struct BookingChatView: View {
             .background(Color.iumrahPageBackground)
             .task {
                 await PushNotificationManager.shared.ensureAuthorizationForBookedTrips(hasBookings: true)
+                await loadCareProfile()
                 await load()
                 scrollToLatest(proxy, animated: false)
                 while !Task.isCancelled {
@@ -87,6 +90,11 @@ struct BookingChatView: View {
         .onChange(of: selectedPhoto) { _, item in
             if let item { Task { await sendPhoto(item) } }
         }
+        .sheet(isPresented: $showCareProfile) {
+            careProfileSheet
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private var chatNavigationHeader: some View {
@@ -105,9 +113,25 @@ struct BookingChatView: View {
 
             Spacer()
 
-            Text("iumrah Care")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary.opacity(0.82))
+            Button {
+                IumrahHaptics.selection()
+                showCareProfile = true
+            } label: {
+                HStack(spacing: 9) {
+                    careAvatar(size: 36)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(careProfile?.displayName.isEmpty == false ? careProfile!.displayName : "Iumrah Care")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(careProfile?.roleTitle.isEmpty == false ? careProfile!.roleTitle : careSupportShortText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
 
             Spacer()
 
@@ -140,6 +164,175 @@ struct BookingChatView: View {
                 .frame(height: 86)
             }
             .ignoresSafeArea(edges: .top)
+        }
+    }
+
+    private var careSupportShortText: String {
+        switch settings.language {
+        case .russian: return "Поддержка Iumrah"
+        case .english: return "Iumrah Support"
+        case .uzbek: return "Iumrah yordami"
+        case .uzbekCyrillic: return "Iumrah ёрдами"
+        }
+    }
+
+    @ViewBuilder
+    private func careAvatar(size: CGFloat) -> some View {
+        if let path = careProfile?.photoURL, let url = AppConfig.absoluteURL(path) {
+            AsyncImage(url: url) { phase in
+                if case .success(let image) = phase {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image("CareMark").resizable().scaledToFit().padding(size * 0.13).background(Color.white)
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay { Circle().strokeBorder(Color.primary.opacity(0.10), lineWidth: 1) }
+        } else {
+            Image("CareMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .padding(size * 0.10)
+                .background(Color.white, in: Circle())
+                .overlay { Circle().strokeBorder(Color.primary.opacity(0.10), lineWidth: 1) }
+        }
+    }
+
+    private var careProfileSheet: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    VStack(spacing: 13) {
+                        careAvatar(size: 96)
+                        Text(careProfile?.displayName.isEmpty == false ? careProfile!.displayName : "Iumrah Care")
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .multilineTextAlignment(.center)
+                        Text(careProfile?.roleTitle.isEmpty == false ? careProfile!.roleTitle : careSupportShortText)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    if let bio = careProfile?.bio.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
+                        Text(bio)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(18)
+                            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    }
+
+                    HStack(spacing: 10) {
+                        contactAction(title: tr("Call", "Позвонить", "Qo‘ng‘iroq", "Қўнғироқ"), icon: "phone.fill") { openPhone() }
+                        contactAction(title: "Telegram", icon: "paperplane.fill") { openTelegram() }
+                        contactAction(title: "WhatsApp", icon: "message.fill") { openWhatsApp() }
+                    }
+
+                    VStack(spacing: 0) {
+                        profileInfoRow(icon: "phone.fill", title: tr("Phone", "Телефон", "Telefon", "Телефон"), value: preferredPhone)
+                        Divider().padding(.leading, 50)
+                        profileInfoRow(icon: "paperplane.fill", title: "Telegram", value: careProfile?.telegram ?? "")
+                        Divider().padding(.leading, 50)
+                        profileInfoRow(icon: "message.fill", title: "WhatsApp", value: careProfile?.whatsapp ?? "")
+                    }
+                    .padding(.horizontal, 16)
+                    .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 22)
+                .padding(.bottom, 36)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle("Iumrah")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(tr("Done", "Готово", "Tayyor", "Тайёр")) { showCareProfile = false }
+                }
+            }
+        }
+    }
+
+    private func contactAction(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 19, weight: .semibold))
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 76)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func profileInfoRow(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 36, height: 36)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Text(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "—" : value)
+                    .font(.subheadline.weight(.semibold))
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 10)
+    }
+
+    private var preferredPhone: String {
+        let sa = careProfile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !sa.isEmpty { return sa }
+        return careProfile?.phoneUZ ?? ""
+    }
+
+    private func openPhone() {
+        let digits = preferredPhone.filter { $0.isNumber || $0 == "+" }
+        guard !digits.isEmpty, let url = URL(string: "tel:\(digits)") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func openTelegram() {
+        guard let raw = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return }
+        let url: URL?
+        if raw.lowercased().hasPrefix("http") { url = URL(string: raw) }
+        else {
+            let username = raw.replacingOccurrences(of: "@", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            url = URL(string: "https://t.me/\(username)")
+        }
+        if let url { UIApplication.shared.open(url) }
+    }
+
+    private func openWhatsApp() {
+        guard let raw = careProfile?.whatsapp.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return }
+        if raw.lowercased().hasPrefix("http"), let url = URL(string: raw) { UIApplication.shared.open(url); return }
+        let digits = raw.filter(\.isNumber)
+        guard !digits.isEmpty, let url = URL(string: "https://wa.me/\(digits)") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    @MainActor
+    private func loadCareProfile() async {
+        if careProfile != nil { return }
+        careProfile = try? await ChatService().loadCareProfile()
+    }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
         }
     }
 

@@ -84,22 +84,42 @@ struct OutboundFlightView: View {
                         }
                     }
 
-                    if journey.selectedOutbound != nil {
-                        NavigationLink {
-                            ReturnFlightView()
-                        } label: {
-                            Text(L10n.text("flight_choose_return", settings.language))
-                        }
-                        .buttonStyle(IumrahPrimaryButtonStyle())
-                        .padding(.top, 4)
-                    }
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
-            .padding(.bottom, 36)
+            .padding(.bottom, 112)
         }
         .background(Color.iumrahPageBackground)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if journey.selectedOutbound != nil {
+                floatingContinueBar
+            }
+        }
+    }
+
+
+    private var floatingContinueBar: some View {
+        VStack(spacing: 0) {
+            Divider().opacity(0.35)
+            NavigationLink {
+                ReturnFlightView()
+            } label: {
+                HStack(spacing: 10) {
+                    Text(L10n.text("flight_choose_return", settings.language))
+                    Spacer(minLength: 12)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 16, weight: .bold))
+                }
+                .padding(.horizontal, 20)
+                .frame(height: 58)
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
     }
 
     private func updateImmersive() {

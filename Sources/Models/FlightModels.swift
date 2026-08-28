@@ -197,6 +197,7 @@ struct PackageQuote: Hashable, Codable {
     let pricePerPerson: Decimal
     let currency: String
     let isEstimated: Bool
+    let quoteId: String?
 }
 
 private extension String {

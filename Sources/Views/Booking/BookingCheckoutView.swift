@@ -103,9 +103,14 @@ struct BookingCheckoutView: View {
                     Text(L10n.text("success_body", settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(createdSession.displayPilgrimID.map { "ID \($0)" } ?? "ID —")
-                        .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text("Бронь \(createdSession.displayBookingNumber)")
+                        if let pilgrimID = createdSession.displayPilgrimID {
+                            Text("· Iumrah ID \(pilgrimID)")
+                        }
+                    }
+                    .font(.caption.monospaced().weight(.semibold))
+                    .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .iumrahCard()

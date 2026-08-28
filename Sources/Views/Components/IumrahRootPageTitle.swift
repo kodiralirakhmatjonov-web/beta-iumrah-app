@@ -1,26 +1,39 @@
 import SwiftUI
 
 struct IumrahRootPageTitle: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
 
     let title: String
     var showsMakkahTime = false
     var lightStyle = false
+    var usesBrandLogo = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Text(title)
-                .font(.system(size: 38, weight: .bold, design: .rounded))
-                .tracking(-1.0)
-                .foregroundStyle(lightStyle ? Color.white : Color.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            Group {
+                if usesBrandLogo {
+                    Image(wordmarkAsset)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 150, height: 42, alignment: .leading)
+                        .accessibilityLabel("Iumrah")
+                } else {
+                    Text(title)
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .tracking(-1.0)
+                        .foregroundStyle(lightStyle ? Color.white : Color.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+            }
 
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
                 Button {
+                    IumrahHaptics.selection()
                     chrome.navigate(to: .account)
                 } label: {
                     Image(systemName: "person.crop.circle")
@@ -45,6 +58,11 @@ struct IumrahRootPageTitle: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var wordmarkAsset: String {
+        if lightStyle { return "HeaderWordmarkDark" }
+        return colorScheme == .dark ? "HeaderWordmarkDark" : "HeaderWordmarkLight"
     }
 }
 
