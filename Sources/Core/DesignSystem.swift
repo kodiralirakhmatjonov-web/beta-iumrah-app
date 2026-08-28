@@ -103,6 +103,7 @@ struct IumrahPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(height: IumrahDesign.controlHeight)
             .foregroundStyle(Color.iumrahPrimaryButtonText)
@@ -118,6 +119,7 @@ struct IumrahSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(height: IumrahDesign.controlHeight)
             .foregroundStyle(.primary)

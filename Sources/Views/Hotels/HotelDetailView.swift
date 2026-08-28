@@ -292,7 +292,7 @@ struct HotelDetailView: View {
                     }
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, 0, for: .scrollContent)
+                .contentMargins(.horizontal, 4, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
             }
         }
@@ -357,8 +357,8 @@ struct HotelDetailView: View {
                 .disabled(isSavingSelection)
             }
         }
-        .padding(20)
-        .frame(minHeight: canSelectRooms ? 310 : 245, alignment: .topLeading)
+        .padding(24)
+        .frame(minHeight: canSelectRooms ? 326 : 266, alignment: .topLeading)
         .background(
             LinearGradient(
                 colors: tone(for: option.category),
@@ -400,7 +400,7 @@ struct HotelDetailView: View {
                     }
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, 0, for: .scrollContent)
+                .contentMargins(.horizontal, 4, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
             }
 
@@ -440,7 +440,7 @@ struct HotelDetailView: View {
                         .padding(.horizontal, 10)
                         .frame(height: 32)
                         .background(.black.opacity(0.42), in: Capsule())
-                        .padding(12)
+                        .padding(16)
                 }
             }
             .clipped()
@@ -491,7 +491,7 @@ struct HotelDetailView: View {
                     .disabled(isSavingSelection)
                 }
             }
-            .padding(18)
+            .padding(20)
         }
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
@@ -937,6 +937,7 @@ private struct RoomSelectButtonStyle: ButtonStyle {
         configuration.label
             .font(.headline)
             .foregroundStyle(selected ? Color.iumrahCareDark : Color.primary)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background(selected ? Color.iumrahCareLight.opacity(0.26) : Color.iumrahRaisedBackground)

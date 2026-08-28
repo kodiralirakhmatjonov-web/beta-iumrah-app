@@ -7,6 +7,33 @@ struct IumrahAccountProfile: Codable, Hashable {
     let lastName: String
     let phone: String
     let email: String
+    let telegram: String
+    let whatsapp: String
+
+    private enum CodingKeys: String, CodingKey {
+        case iumrahID, displayName, firstName, lastName, phone, email, telegram, whatsapp
+    }
+
+    init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        iumrahID = try box.decode(String.self, forKey: .iumrahID)
+        displayName = try box.decodeIfPresent(String.self, forKey: .displayName) ?? ""
+        firstName = try box.decodeIfPresent(String.self, forKey: .firstName) ?? ""
+        lastName = try box.decodeIfPresent(String.self, forKey: .lastName) ?? ""
+        phone = try box.decodeIfPresent(String.self, forKey: .phone) ?? ""
+        email = try box.decodeIfPresent(String.self, forKey: .email) ?? ""
+        telegram = try box.decodeIfPresent(String.self, forKey: .telegram) ?? ""
+        whatsapp = try box.decodeIfPresent(String.self, forKey: .whatsapp) ?? ""
+    }
+}
+
+struct IumrahAccountProfileUpdateRequest: Encodable {
+    let firstName: String
+    let lastName: String
+    let phone: String
+    let email: String
+    let telegram: String
+    let whatsapp: String
 }
 
 struct IumrahAccountSession: Codable, Hashable {

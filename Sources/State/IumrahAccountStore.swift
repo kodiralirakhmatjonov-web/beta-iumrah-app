@@ -63,6 +63,19 @@ final class IumrahAccountStore: ObservableObject {
         return response.account
     }
 
+    @discardableResult
+    func updateProfile(firstName: String, lastName: String, phone: String, email: String, telegram: String, whatsapp: String) async throws -> IumrahAccountProfile {
+        guard let token else { throw APIError.status(401) }
+        let profile = try await service.updateProfile(
+            .init(firstName: firstName, lastName: lastName, phone: phone, email: email, telegram: telegram, whatsapp: whatsapp),
+            token: token
+        )
+        account = profile
+        lastError = nil
+        IumrahAccountVault.save(.init(token: token, account: profile))
+        return profile
+    }
+
     func logout() async {
         if let token { await service.logout(token: token) }
         token = nil

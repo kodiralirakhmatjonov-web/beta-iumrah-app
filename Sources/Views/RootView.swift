@@ -9,107 +9,62 @@ struct RootView: View {
     @ObservedObject private var push = PushNotificationManager.shared
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                tabs
-                    .allowsHitTesting(!chrome.isDrawerOpen)
-                    .scaleEffect(chrome.isDrawerOpen ? 0.985 : 1, anchor: .trailing)
-                    .offset(x: chrome.isDrawerOpen ? min(geometry.size.width * 0.08, 32) : 0)
-
-                if chrome.isDrawerOpen {
-                    Color.black.opacity(0.30)
-                        .ignoresSafeArea()
-                        .onTapGesture { chrome.closeDrawer() }
-                        .transition(.opacity)
-
-                    SidebarDrawerView()
-                        .frame(width: min(max(geometry.size.width * 0.78, 286), 352))
-                        .frame(maxHeight: .infinity)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                        .gesture(
-                            DragGesture(minimumDistance: 20)
-                                .onEnded { value in
-                                    if value.translation.width < -48 {
-                                        chrome.closeDrawer()
-                                    }
-                                }
-                        )
+        tabs
+            .preferredColorScheme(settings.appearance.colorScheme)
+            .environmentObject(settings)
+            .environmentObject(chrome)
+            .environmentObject(journey)
+            .environmentObject(bookings)
+            .environmentObject(account)
+            .onChange(of: chrome.requestedTab) { _, newValue in
+                guard let newValue else { return }
+                chrome.currentTab = newValue
+                chrome.requestedTab = nil
+            }
+            .task {
+                await account.restore()
+                syncLocalProfileFromAccount()
+                bookings.setAccountToken(account.bearerToken)
+                if let token = account.bearerToken {
+                    await bookings.restoreAccountTrips(token: token)
+                    await linkLocalBookingsToAccount()
                 }
-            }
-            .animation(.spring(response: 0.36, dampingFraction: 0.88), value: chrome.isDrawerOpen)
-        }
-        .preferredColorScheme(settings.appearance.colorScheme)
-        .environmentObject(settings)
-        .environmentObject(chrome)
-        .environmentObject(journey)
-        .environmentObject(bookings)
-        .environmentObject(account)
-        .sheet(isPresented: $chrome.isProfileEditorPresented) {
-            ProfileSettingsView()
-                .environmentObject(settings)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $chrome.isAccountPresented) {
-            IumrahAccountView()
-                .environmentObject(account)
-                .environmentObject(bookings)
-                .environmentObject(settings)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
-        .onChange(of: chrome.requestedTab) { _, newValue in
-            guard let newValue else { return }
-            chrome.currentTab = newValue
-            chrome.requestedTab = nil
-        }
-        .onChange(of: chrome.isImmersiveMode) { _, immersive in
-            if immersive && chrome.isDrawerOpen {
-                chrome.closeDrawer()
-            }
-        }
-        .task {
-            await account.restore()
-            bookings.setAccountToken(account.bearerToken)
-            if let token = account.bearerToken {
-                await bookings.restoreAccountTrips(token: token)
-                await linkLocalBookingsToAccount()
-            }
-            await bookings.refreshAll()
-            await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
-            await syncPushSubscriptions()
-        }
-        .onChange(of: push.deviceToken) { _, _ in
-            Task { await syncPushSubscriptions() }
-        }
-        .onChange(of: bookings.sessions.map(\.id)) { _, _ in
-            Task {
-                await linkLocalBookingsToAccount()
+                await bookings.refreshAll()
                 await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
                 await syncPushSubscriptions()
             }
-        }
-        .onChange(of: account.iumrahID) { _, newValue in
-            bookings.setAccountToken(account.bearerToken)
-            guard newValue != nil, let token = account.bearerToken else { return }
-            Task {
-                await bookings.restoreAccountTrips(token: token)
-                await linkLocalBookingsToAccount()
-                await syncPushSubscriptions()
+            .onChange(of: push.deviceToken) { _, _ in
+                Task { await syncPushSubscriptions() }
             }
-        }
-        .onChange(of: settings.language.rawValue) { _, _ in
-            Task { await syncPushSubscriptions() }
-        }
-        .onChange(of: push.eventRevision) { _, _ in
-            Task {
-                await bookings.refreshAll()
-                if let bookingID = push.lastEvent?.bookingID,
-                   push.lastEvent?.type.hasPrefix("chat_") == true {
-                    _ = try? await bookings.loadChat(for: bookingID)
+            .onChange(of: bookings.sessions.map(\.id)) { _, _ in
+                Task {
+                    await linkLocalBookingsToAccount()
+                    await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                    await syncPushSubscriptions()
                 }
             }
-        }
+            .onChange(of: account.iumrahID) { _, newValue in
+                bookings.setAccountToken(account.bearerToken)
+                syncLocalProfileFromAccount()
+                guard newValue != nil, let token = account.bearerToken else { return }
+                Task {
+                    await bookings.restoreAccountTrips(token: token)
+                    await linkLocalBookingsToAccount()
+                    await syncPushSubscriptions()
+                }
+            }
+            .onChange(of: settings.language.rawValue) { _, _ in
+                Task { await syncPushSubscriptions() }
+            }
+            .onChange(of: push.eventRevision) { _, _ in
+                Task {
+                    await bookings.refreshAll()
+                    if let bookingID = push.lastEvent?.bookingID,
+                       push.lastEvent?.type.hasPrefix("chat_") == true {
+                        _ = try? await bookings.loadChat(for: bookingID)
+                    }
+                }
+            }
     }
 
     @MainActor
@@ -130,47 +85,44 @@ struct RootView: View {
         }
     }
 
+    @MainActor
+    private func syncLocalProfileFromAccount() {
+        guard let profile = account.account else { return }
+        if settings.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.firstName = profile.firstName
+        }
+        if settings.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.lastName = profile.lastName
+        }
+        if settings.telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.telegram = profile.telegram
+        }
+        if settings.whatsapp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.whatsapp = profile.whatsapp.isEmpty ? profile.phone : profile.whatsapp
+        }
+    }
+
     private var tabs: some View {
         TabView(selection: $chrome.currentTab) {
-            tabScreen {
-                HomeDashboardView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_home", settings.language), systemImage: "house")
-            }
-            .tag(AppTab.home)
+            tabScreen { HomeDashboardView() }
+                .tabItem { Label(L10n.text("tab_home", settings.language), systemImage: "house") }
+                .tag(AppTab.home)
 
-            tabScreen {
-                HotelsHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2")
-            }
-            .tag(AppTab.hotels)
+            tabScreen { HotelsHomeView() }
+                .tabItem { Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2") }
+                .tag(AppTab.hotels)
 
-            tabScreen {
-                BookingsHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase")
-            }
-            .tag(AppTab.booking)
+            tabScreen { BookingsHomeView() }
+                .tabItem { Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase") }
+                .tag(AppTab.booking)
 
-            tabScreen {
-                CareHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_care", settings.language), systemImage: "heart.fill")
-            }
-            .tag(AppTab.care)
+            tabScreen { CareHomeView() }
+                .tabItem { Label(L10n.text("tab_care", settings.language), systemImage: "heart.fill") }
+                .tag(AppTab.care)
 
-            tabScreen {
-                UmrahHomeView()
-            }
-            .tabItem {
-                Label(L10n.text("tab_umrah", settings.language), systemImage: "moon.stars")
-            }
-            .tag(AppTab.umrah)
+            tabScreen { IumrahAccountView() }
+                .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                .tag(AppTab.account)
         }
         .tint(.primary)
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)

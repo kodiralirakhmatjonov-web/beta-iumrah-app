@@ -34,6 +34,15 @@ struct IumrahAccountService {
         )
     }
 
+    func updateProfile(_ request: IumrahAccountProfileUpdateRequest, token: String) async throws -> IumrahAccountProfile {
+        let value: IumrahAccountSessionResponse = try await api.put(
+            "/api/catalog/hotels/client/account/profile",
+            body: request,
+            headers: ["Authorization": "Bearer \(token)"]
+        )
+        return value.account
+    }
+
     func trips(token: String) async throws -> [ClientTripSnapshot] {
         let value: IumrahAccountTripsResponse = try await api.get(
             "/api/catalog/hotels/client/trips",

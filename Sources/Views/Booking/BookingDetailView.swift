@@ -407,11 +407,10 @@ struct BookingDetailView: View {
                 if role == .madinah { showMadinahHotelChange = true }
                 else { showMakkahHotelChange = true }
             } label: {
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: "arrow.triangle.2.circlepath")
                     Text(L10n.text("booking_change_hotel", settings.language))
-                    Spacer()
-                    Image(systemName: "chevron.right")
+                    Spacer(minLength: 0)
                 }
             }
             .buttonStyle(IumrahSecondaryButtonStyle())
