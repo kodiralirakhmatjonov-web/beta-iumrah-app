@@ -95,7 +95,7 @@ struct PrimaryHotelView: View {
             return role == .makkah ? "Recommended AiUmra · Makkah" : "Recommended AiUmra · Madinah"
         case .russian:
             return role == .makkah ? "Recommended AiUmra для Мекки" : "Recommended AiUmra для Медины"
-        case .uzbekLatin:
+        case .uzbek:
             return role == .makkah ? "Recommended AiUmra · Makka" : "Recommended AiUmra · Madina"
         case .uzbekCyrillic:
             return role == .makkah ? "Recommended AiUmra · Макка" : "Recommended AiUmra · Мадина"
