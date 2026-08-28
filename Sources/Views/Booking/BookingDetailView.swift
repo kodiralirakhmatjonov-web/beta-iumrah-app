@@ -179,25 +179,50 @@ struct BookingDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if session.effectiveStatus == "PAYMENT_PENDING" {
+            if shouldShowCheckoutEntry(for: session) {
                 NavigationLink {
                     PilgrimCheckoutView(bookingID: bookingID)
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "person.text.rectangle.fill")
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(checkoutCTA).font(.headline)
-                            Text(checkoutCTASubtitle).font(.caption).opacity(0.72)
+                    HStack(spacing: 13) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.14))
+                                .frame(width: 42, height: 42)
+
+                            Image(systemName: "person.text.rectangle.fill")
+                                .font(.system(size: 18, weight: .semibold))
                         }
-                        Spacer()
-                        Image(systemName: "arrow.right").font(.headline)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(checkoutCTA)
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+
+                            Text(checkoutCTASubtitle)
+                                .font(.caption)
+                                .foregroundStyle(Color.white.opacity(0.72))
+                                .lineLimit(2)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.88))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 62)
-                    .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(Color.black)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(checkoutCTA)
             } else if ["BOOKING_CONFIRMED", "READY_TO_TRAVEL", "IN_TRIP"].contains(session.effectiveStatus) {
                 NavigationLink {
                     PilgrimCheckoutView(bookingID: bookingID)
@@ -218,6 +243,30 @@ struct BookingDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
+    }
+
+    private func shouldShowCheckoutEntry(for session: StoredBookingSession) -> Bool {
+        let candidates = [
+            session.effectiveStatus,
+            session.operationStatus ?? "",
+            session.booking.status
+        ]
+
+        return candidates.contains { raw in
+            let normalized = raw
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "-", with: "_")
+                .uppercased()
+
+            return [
+                "PAYMENT_PENDING",
+                "PENDING_PAYMENT",
+                "WAITING_PAYMENT",
+                "AWAITING_PAYMENT",
+                "PAYMENT_AND_DATA_PENDING",
+                "AWAITING_PAYMENT_AND_DATA"
+            ].contains(normalized)
+        }
     }
 
     private var checkoutCTA: String {
