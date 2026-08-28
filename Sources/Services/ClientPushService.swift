@@ -6,7 +6,7 @@ struct ClientPushService {
     func register(
         deviceToken: String,
         bookingID: String,
-        accessToken: String,
+        headers: [String: String],
         locale: String,
         environment: String = "production"
     ) async throws {
@@ -19,7 +19,7 @@ struct ClientPushService {
                 appBundleID: "com.iumrah.beta",
                 locale: locale
             ),
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
     }
 }

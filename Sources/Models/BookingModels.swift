@@ -218,17 +218,20 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var effectiveStatus: String {
         guard let operationStatus, !operationStatus.isEmpty else { return booking.status }
         switch operationStatus.lowercased() {
-        case "new": return "NEW"
-        case "availability_check": return "AVAILABILITY_CHECK"
+        case "new", "availability_check": return "AVAILABILITY_CHECK"
         case "payment_pending": return "PAYMENT_PENDING"
-        case "paid": return "PAID"
-        case "booking_confirmed": return "BOOKING_CONFIRMED"
-        case "documents_ready": return "DOCUMENTS_READY"
-        case "ready_to_travel": return "READY_TO_TRAVEL"
+        case "paid", "booking_confirmed": return "BOOKING_CONFIRMED"
+        case "documents_ready", "ready_to_travel": return "READY_TO_TRAVEL"
         case "in_trip": return "IN_TRIP"
         case "completed": return "COMPLETED"
         case "cancelled": return "CANCELLED"
-        default: return booking.status
+        default:
+            switch booking.status.uppercased() {
+            case "NEW", "AVAILABILITY_CHECK": return "AVAILABILITY_CHECK"
+            case "PAID", "BOOKING_CONFIRMED": return "BOOKING_CONFIRMED"
+            case "DOCUMENTS_READY", "READY_TO_TRAVEL": return "READY_TO_TRAVEL"
+            default: return booking.status
+            }
         }
     }
 }

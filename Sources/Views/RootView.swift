@@ -5,6 +5,7 @@ struct RootView: View {
     @StateObject private var chrome = AppChromeStore()
     @StateObject private var journey = JourneyStore()
     @StateObject private var bookings = BookingStore()
+    @StateObject private var account = IumrahAccountStore()
     @ObservedObject private var push = PushNotificationManager.shared
 
     var body: some View {
@@ -42,10 +43,19 @@ struct RootView: View {
         .environmentObject(chrome)
         .environmentObject(journey)
         .environmentObject(bookings)
+        .environmentObject(account)
         .sheet(isPresented: $chrome.isProfileEditorPresented) {
             ProfileSettingsView()
                 .environmentObject(settings)
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $chrome.isAccountPresented) {
+            IumrahAccountView()
+                .environmentObject(account)
+                .environmentObject(bookings)
+                .environmentObject(settings)
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
         .onChange(of: chrome.requestedTab) { _, newValue in
@@ -59,6 +69,12 @@ struct RootView: View {
             }
         }
         .task {
+            await account.restore()
+            bookings.setAccountToken(account.bearerToken)
+            if let token = account.bearerToken {
+                await bookings.restoreAccountTrips(token: token)
+                await linkLocalBookingsToAccount()
+            }
             await bookings.refreshAll()
             await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
             await syncPushSubscriptions()
@@ -68,7 +84,17 @@ struct RootView: View {
         }
         .onChange(of: bookings.sessions.map(\.id)) { _, _ in
             Task {
+                await linkLocalBookingsToAccount()
                 await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                await syncPushSubscriptions()
+            }
+        }
+        .onChange(of: account.iumrahID) { _, newValue in
+            bookings.setAccountToken(account.bearerToken)
+            guard newValue != nil, let token = account.bearerToken else { return }
+            Task {
+                await bookings.restoreAccountTrips(token: token)
+                await linkLocalBookingsToAccount()
                 await syncPushSubscriptions()
             }
         }
@@ -90,6 +116,18 @@ struct RootView: View {
     private func syncPushSubscriptions() async {
         guard let token = push.deviceToken, !token.isEmpty else { return }
         await bookings.syncPushSubscriptions(deviceToken: token, locale: settings.language.rawValue)
+    }
+
+    @MainActor
+    private func linkLocalBookingsToAccount() async {
+        guard account.isAuthenticated else { return }
+        for session in bookings.sessions {
+            let bookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !bookingToken.isEmpty else { continue }
+            if let canonicalID = try? await account.linkBooking(bookingID: session.id, bookingToken: bookingToken) {
+                bookings.applyCanonicalPilgrimID(canonicalID, to: session.id)
+            }
+        }
     }
 
     private var tabs: some View {

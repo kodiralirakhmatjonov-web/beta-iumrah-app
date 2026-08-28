@@ -17,11 +17,10 @@ struct BookingService {
 
 
 
-    func syncClientIdentity(id: String, accessToken: String, clientUserID: String, profile: BookingPilgrimProfile) async throws -> ClientTripResponse {
+    func syncBookingProfile(id: String, accessToken: String, profile: BookingPilgrimProfile) async throws -> ClientTripResponse {
         let response: ClientTripResponse = try await api.post(
             "/api/catalog/hotels/client/trips/\(id)/sync",
-            body: ClientIdentitySyncRequest(
-                clientUserID: clientUserID,
+            body: BookingProfileSyncRequest(
                 firstName: profile.firstName,
                 lastName: profile.lastName,
                 displayName: profile.displayName,
@@ -33,10 +32,10 @@ struct BookingService {
         return response
     }
 
-    func fetchOperationalTrip(id: String, accessToken: String) async throws -> ClientTripResponse {
+    func fetchOperationalTrip(id: String, headers: [String: String]) async throws -> ClientTripResponse {
         let response: ClientTripResponse = try await api.get(
             "/api/catalog/hotels/client/trips/\(id)",
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
         return response
     }
@@ -49,48 +48,81 @@ struct BookingService {
         room: HotelRoom?,
         roomCategory: IumrahRoomCategoryOption? = nil
     ) async throws -> BookingMutationResponse {
+        try await updateHotelSelection(
+            id: id,
+            headers: ["x-booking-token": accessToken],
+            role: role,
+            hotel: hotel,
+            room: room,
+            roomCategory: roomCategory
+        )
+    }
+
+    func updateHotelSelection(
+        id: String,
+        headers: [String: String],
+        role: HotelSelectionRole,
+        hotel: HotelSummary,
+        room: HotelRoom?,
+        roomCategory: IumrahRoomCategoryOption? = nil
+    ) async throws -> BookingMutationResponse {
         try await api.patch(
             "/api/package/booking/\(id)",
             body: BookingHotelUpdateRequest(role: role, hotel: hotel, room: room, roomCategory: roomCategory),
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
     }
 
     func updateHotelSelection(id: String, accessToken: String, role: HotelSelectionRole, snapshot: BookingHotelSelectionSnapshot) async throws -> BookingMutationResponse {
+        try await updateHotelSelection(id: id, headers: ["x-booking-token": accessToken], role: role, snapshot: snapshot)
+    }
+
+    func updateHotelSelection(id: String, headers: [String: String], role: HotelSelectionRole, snapshot: BookingHotelSelectionSnapshot) async throws -> BookingMutationResponse {
         try await api.patch(
             "/api/package/booking/\(id)",
             body: BookingHotelUpdateRequest(role: role, snapshot: snapshot),
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
     }
 
     func updateContacts(id: String, accessToken: String, telegram: String, whatsapp: String) async throws -> BookingMutationResponse {
+        try await updateContacts(id: id, headers: ["x-booking-token": accessToken], telegram: telegram, whatsapp: whatsapp)
+    }
+
+    func updateContacts(id: String, headers: [String: String], telegram: String, whatsapp: String) async throws -> BookingMutationResponse {
         try await api.patch(
             "/api/package/booking/\(id)/contact",
             body: BookingContactUpdateRequest(telegram: telegram, whatsapp: whatsapp),
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
     }
 
     func updateZiyarat(id: String, accessToken: String, makkah: Bool, madinah: Bool) async throws -> BookingMutationResponse {
+        try await updateZiyarat(id: id, headers: ["x-booking-token": accessToken], makkah: makkah, madinah: madinah)
+    }
+
+    func updateZiyarat(id: String, headers: [String: String], makkah: Bool, madinah: Bool) async throws -> BookingMutationResponse {
         try await api.patch(
             "/api/package/booking/\(id)/customization",
             body: BookingCustomizationUpdateRequest(ziyaratMakkah: makkah, ziyaratMadinah: madinah),
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
     }
 
     func deleteBooking(id: String, accessToken: String) async throws -> BookingMutationResponse {
+        try await deleteBooking(id: id, headers: ["x-booking-token": accessToken])
+    }
+
+    func deleteBooking(id: String, headers: [String: String]) async throws -> BookingMutationResponse {
         try await api.delete(
             "/api/catalog/hotels/client/bookings/\(id)",
-            headers: ["x-booking-token": accessToken]
+            headers: headers
         )
     }
 }
 
 
-private struct ClientIdentitySyncRequest: Encodable {
-    let clientUserID: String
+private struct BookingProfileSyncRequest: Encodable {
     let firstName: String
     let lastName: String
     let displayName: String

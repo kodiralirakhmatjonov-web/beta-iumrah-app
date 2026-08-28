@@ -1,0 +1,168 @@
+import Foundation
+
+struct IumrahAccountProfile: Codable, Hashable {
+    let iumrahID: String
+    let displayName: String
+    let firstName: String
+    let lastName: String
+    let phone: String
+    let email: String
+}
+
+struct IumrahAccountSession: Codable, Hashable {
+    let token: String
+    let expiresAt: String
+}
+
+struct IumrahAccountAuthResponse: Decodable {
+    let ok: Bool
+    let account: IumrahAccountProfile
+    let session: IumrahAccountSession
+}
+
+struct IumrahAccountSessionResponse: Decodable {
+    let ok: Bool
+    let account: IumrahAccountProfile
+}
+
+struct IumrahAccountLoginRequest: Encodable {
+    let iumrahID: String
+    let password: String
+}
+
+struct IumrahAccountActivateRequest: Encodable {
+    let bookingID: String
+    let password: String
+}
+
+struct IumrahAccountTripsResponse: Decodable {
+    let ok: Bool
+    let trips: [ClientTripSnapshot]
+}
+
+struct IumrahTravelerForm: Codable, Identifiable, Hashable {
+    var id: Int { position }
+    let position: Int
+    let travelerType: String
+    var firstName: String
+    var middleName: String
+    var lastName: String
+    var gender: String
+    var dateOfBirth: String
+    var placeOfBirth: String
+    var nationality: String
+    var residenceCountry: String
+    var passportNumber: String
+    var passportIssueDate: String
+    var passportExpiryDate: String
+    var passportIssuingCountry: String
+    var phone: String
+    var email: String
+    var emergencyName: String
+    var emergencyPhone: String
+    var emergencyRelation: String
+    let hasPassport: Bool
+    let completed: Bool
+}
+
+struct IumrahTravelerSaveRequest: Encodable {
+    let firstName: String
+    let middleName: String
+    let lastName: String
+    let gender: String
+    let dateOfBirth: String
+    let placeOfBirth: String
+    let nationality: String
+    let residenceCountry: String
+    let passportNumber: String
+    let passportIssueDate: String
+    let passportExpiryDate: String
+    let passportIssuingCountry: String
+    let phone: String
+    let email: String
+    let emergencyName: String
+    let emergencyPhone: String
+    let emergencyRelation: String
+
+    init(_ form: IumrahTravelerForm) {
+        firstName = form.firstName
+        middleName = form.middleName
+        lastName = form.lastName
+        gender = form.gender
+        dateOfBirth = form.dateOfBirth
+        placeOfBirth = form.placeOfBirth
+        nationality = form.nationality
+        residenceCountry = form.residenceCountry
+        passportNumber = form.passportNumber
+        passportIssueDate = form.passportIssueDate
+        passportExpiryDate = form.passportExpiryDate
+        passportIssuingCountry = form.passportIssuingCountry
+        phone = form.phone
+        email = form.email
+        emergencyName = form.emergencyName
+        emergencyPhone = form.emergencyPhone
+        emergencyRelation = form.emergencyRelation
+    }
+}
+
+struct IumrahTravelerSaveResponse: Decodable {
+    let ok: Bool
+    let traveler: IumrahTravelerForm
+}
+
+struct IumrahCheckoutPayment: Codable, Hashable {
+    let visaCardNumber: String
+    let visaHolder: String
+    let hasPaymeQR: Bool
+    let paymeQRURL: String?
+    let humoCardNumber: String
+    let humoHolder: String
+    let instructions: String
+}
+
+struct IumrahPaymentReceipt: Codable, Identifiable, Hashable {
+    let id: String
+    let paymentMethod: String
+    let note: String?
+    let reviewStatus: String
+    let createdAt: String
+}
+
+struct IumrahTravelDocument: Codable, Identifiable, Hashable {
+    let id: String
+    let documentKind: String
+    let title: String
+    let contentType: String
+    let createdAt: String
+    let url: String
+}
+
+struct IumrahCheckoutResponse: Decodable {
+    let ok: Bool
+    let iumrahID: String
+    let accountActive: Bool
+    let status: String
+    let travelers: [IumrahTravelerForm]
+    let payment: IumrahCheckoutPayment
+    let receipts: [IumrahPaymentReceipt]
+    let documents: [IumrahTravelDocument]
+}
+
+struct IumrahSimpleResponse: Decodable { let ok: Bool }
+struct IumrahReceiptResponse: Decodable { let ok: Bool; let id: String }
+
+struct IumrahAccountTripDetailResponse: Decodable {
+    let ok: Bool
+    let trip: ClientTripSnapshot
+    let booking: RemoteBooking
+    let assignment: ClientBookingAssignment?
+}
+
+struct IumrahAccountLinkBookingRequest: Encodable {
+    let bookingID: String
+}
+
+struct IumrahAccountLinkBookingResponse: Decodable {
+    let ok: Bool
+    let pilgrimID: String
+}

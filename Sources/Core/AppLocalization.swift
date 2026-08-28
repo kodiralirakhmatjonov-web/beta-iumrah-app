@@ -45,11 +45,13 @@ struct L10n {
     static func status(_ raw: String, _ language: AppSettingsStore.Language) -> String {
         let normalized = raw.uppercased()
         switch normalized {
-        case "AVAILABILITY_CHECK": return text("status_availability", language)
+        case "NEW", "AVAILABILITY_CHECK": return text("status_availability", language)
         case "PAYMENT_PENDING": return text("status_payment", language)
-        case "BOOKING_CONFIRMED": return text("status_confirmed", language)
-        case "READY_TO_TRAVEL": return text("status_ready", language)
+        case "PAID", "BOOKING_CONFIRMED": return text("status_confirmed", language)
+        case "DOCUMENTS_READY", "READY_TO_TRAVEL": return text("status_ready", language)
+        case "IN_TRIP": return text("status_in_trip", language)
         case "COMPLETED": return text("status_completed", language)
+        case "CANCELLED": return text("status_cancelled", language)
         default: return raw.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
@@ -250,11 +252,13 @@ struct L10n {
             "chat_retry": "Retry",
             "chat_you": "You",
             "chat_staff": "iumrah Care",
-            "status_availability": "Checking availability",
-            "status_payment": "Awaiting payment",
-            "status_confirmed": "Booking confirmed",
-            "status_ready": "Ready to travel",
+            "status_availability": "New request · Checking availability",
+            "status_payment": "Availability confirmed · Payment & pilgrim details",
+            "status_confirmed": "Paid · Booking confirmed",
+            "status_ready": "Documents ready · Ready to travel",
+            "status_in_trip": "Pilgrim is travelling",
             "status_completed": "Trip completed",
+            "status_cancelled": "Cancelled",
             "detail_booking": "Booking",
             "detail_updates": "Status updates automatically",
             "detail_chat_cta": "Chat with iumrah Care",
@@ -684,11 +688,13 @@ struct L10n {
             "chat_retry": "Повторить",
             "chat_you": "Вы",
             "chat_staff": "iumrah Care",
-            "status_availability": "Проверяем наличие",
-            "status_payment": "Ожидает оплаты",
-            "status_confirmed": "Бронирование подтверждено",
-            "status_ready": "Готово к поездке",
+            "status_availability": "Новая заявка · Проверка наличия",
+            "status_payment": "Наличие подтверждено · Оплата и данные паломников",
+            "status_confirmed": "Оплачено · Бронирование подтверждено",
+            "status_ready": "Документы готовы · Готово к поездке",
+            "status_in_trip": "Паломник в поездке",
             "status_completed": "Поездка завершена",
+            "status_cancelled": "Отменено",
             "detail_booking": "Бронирование",
             "detail_updates": "Статус обновляется автоматически",
             "detail_chat_cta": "Чат с iumrah Care",
@@ -1118,11 +1124,13 @@ struct L10n {
             "chat_retry": "Qayta urinish",
             "chat_you": "Siz",
             "chat_staff": "iumrah Care",
-            "status_availability": "Mavjudlik tekshirilmoqda",
-            "status_payment": "To‘lov kutilmoqda",
-            "status_confirmed": "Bron tasdiqlandi",
-            "status_ready": "Safarga tayyor",
+            "status_availability": "Yangi ariza · Mavjudlik tekshiruvi",
+            "status_payment": "Mavjudlik tasdiqlandi · To‘lov va ziyoratchi ma’lumotlari",
+            "status_confirmed": "To‘landi · Bron tasdiqlandi",
+            "status_ready": "Hujjatlar tayyor · Safarga tayyor",
+            "status_in_trip": "Ziyoratchi safarda",
             "status_completed": "Safar yakunlandi",
+            "status_cancelled": "Bekor qilindi",
             "detail_booking": "Bron",
             "detail_updates": "Holat avtomatik yangilanadi",
             "detail_chat_cta": "iumrah Care bilan chat",
@@ -1552,11 +1560,13 @@ struct L10n {
             "chat_retry": "Қайта уриниш",
             "chat_you": "Сиз",
             "chat_staff": "iumrah Care",
-            "status_availability": "Мавжудлик текширилмоқда",
-            "status_payment": "Тўлов кутилмоқда",
-            "status_confirmed": "Брон тасдиқланди",
-            "status_ready": "Сафарга тайёр",
+            "status_availability": "Янги ариза · Мавжудлик текшируви",
+            "status_payment": "Мавжудлик тасдиқланди · Тўлов ва зиёратчи маълумотлари",
+            "status_confirmed": "Тўланди · Брон тасдиқланди",
+            "status_ready": "Ҳужжатлар тайёр · Сафарга тайёр",
+            "status_in_trip": "Зиёратчи сафарда",
             "status_completed": "Сафар якунланди",
+            "status_cancelled": "Бекор қилинди",
             "detail_booking": "Брон",
             "detail_updates": "Ҳолат автоматик янгиланади",
             "detail_chat_cta": "iumrah Care билан чат",

@@ -178,9 +178,73 @@ struct BookingDetailView: View {
             Text(L10n.text("detail_updates", settings.language))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if session.effectiveStatus == "PAYMENT_PENDING" {
+                NavigationLink {
+                    PilgrimCheckoutView(bookingID: bookingID)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "person.text.rectangle.fill")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(checkoutCTA).font(.headline)
+                            Text(checkoutCTASubtitle).font(.caption).opacity(0.72)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.right").font(.headline)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 62)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            } else if ["BOOKING_CONFIRMED", "READY_TO_TRAVEL", "IN_TRIP"].contains(session.effectiveStatus) {
+                NavigationLink {
+                    PilgrimCheckoutView(bookingID: bookingID)
+                } label: {
+                    HStack {
+                        Label(tripDocumentsTitle, systemImage: "doc.text.fill")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .frame(height: 50)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
+    }
+
+    private var checkoutCTA: String {
+        switch settings.language {
+        case .russian: return "Заполнить данные и оплатить"
+        case .english: return "Complete details and pay"
+        case .uzbek: return "Ma’lumotlarni to‘ldirish va to‘lash"
+        case .uzbekCyrillic: return "Маълумотларни тўлдириш ва тўлаш"
+        }
+    }
+
+    private var checkoutCTASubtitle: String {
+        switch settings.language {
+        case .russian: return "iumrah ID · анкеты · реквизиты · чек"
+        case .english: return "iumrah ID · pilgrim forms · payment · receipt"
+        case .uzbek: return "iumrah ID · anketalar · to‘lov · chek"
+        case .uzbekCyrillic: return "iumrah ID · анкеталар · тўлов · чек"
+        }
+    }
+
+    private var tripDocumentsTitle: String {
+        switch settings.language {
+        case .russian: return "Данные и документы поездки"
+        case .english: return "Trip details and documents"
+        case .uzbek: return "Safar ma’lumotlari va hujjatlar"
+        case .uzbekCyrillic: return "Сафар маълумотлари ва ҳужжатлар"
+        }
     }
 
     private func bookingMetaCard(_ booking: RemoteBooking) -> some View {
@@ -977,7 +1041,9 @@ func statusIcon(_ status: String) -> String {
     case "BOOKING_CONFIRMED": return "checkmark.seal.fill"
     case "PAYMENT_PENDING": return "creditcard.fill"
     case "READY_TO_TRAVEL": return "airplane.circle.fill"
+    case "IN_TRIP": return "location.fill"
     case "COMPLETED": return "flag.checkered.circle.fill"
+    case "CANCELLED": return "xmark.circle.fill"
     default: return "clock.fill"
     }
 }

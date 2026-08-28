@@ -43,12 +43,34 @@ function bookingToken(request: Request) {
 }
 
 async function authorizedBooking(request: Request, id: string, db: BookingD1): Promise<BookingRow | null> {
+  if (!validBookingId(id)) return null;
+
   const token = bookingToken(request);
-  if (!validBookingId(id) || token.length < 24 || token.length > 128) return null;
-  const hash = await hashBookingToken(token);
-  return db.prepare(
-    "SELECT id, payload_json FROM bookings WHERE id = ?1 AND access_token_hash = ?2 LIMIT 1",
-  ).bind(id, hash).first<BookingRow>();
+  if (token.length >= 24 && token.length <= 128) {
+    const hash = await hashBookingToken(token);
+    const booking = await db.prepare(
+      "SELECT id, payload_json FROM bookings WHERE id = ?1 AND access_token_hash = ?2 LIMIT 1",
+    ).bind(id, hash).first<BookingRow>();
+    if (booking) return booking;
+  }
+
+  // After iumrah ID activation, the permanent account session becomes the canonical
+  // authorization for every trip. Validate ownership against HotelsWorker and only
+  // then read the booking row; the PackageEngine never sees account password data.
+  const authorization = request.headers.get("authorization")?.trim() ?? "";
+  if (!authorization.toLowerCase().startsWith("bearer ")) return null;
+  try {
+    const ownershipURL = new URL(`/api/catalog/hotels/client/trips/${encodeURIComponent(id)}`, request.url);
+    const response = await fetch(ownershipURL, {
+      method: "GET",
+      headers: { Authorization: authorization, Accept: "application/json" },
+      redirect: "manual",
+    });
+    if (!response.ok) return null;
+    return db.prepare("SELECT id, payload_json FROM bookings WHERE id = ?1 LIMIT 1").bind(id).first<BookingRow>();
+  } catch {
+    return null;
+  }
 }
 
 async function bookingChildTables(db: BookingD1) {

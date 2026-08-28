@@ -1,0 +1,808 @@
+import SwiftUI
+import PhotosUI
+import QuickLook
+import UniformTypeIdentifiers
+import UIKit
+
+struct PilgrimCheckoutView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var bookings: BookingStore
+    @EnvironmentObject private var account: IumrahAccountStore
+    @Environment(\.dismiss) private var dismiss
+
+    let bookingID: String
+
+    @State private var checkout: IumrahCheckoutResponse?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var password = ""
+    @State private var passwordConfirm = ""
+    @State private var loginPassword = ""
+    @State private var isSubmittingAccount = false
+    @State private var travelerEditor: IumrahTravelerForm?
+    @State private var paymentMethod = "visa"
+    @State private var receiptPhoto: PhotosPickerItem?
+    @State private var isUploadingReceipt = false
+    @State private var paymeQRImage: UIImage?
+    @State private var previewFile: IumrahPreviewFile?
+    @State private var isLoadingDocument = false
+
+    private let service = IumrahAccountService()
+    private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
+    private var isPaymentPending: Bool { checkout?.status == "payment_pending" }
+    private var accountMatchesTrip: Bool {
+        guard let checkout, let id = account.iumrahID else { return false }
+        return normalizedID(id) == normalizedID(checkout.iumrahID)
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
+                hero
+
+                if isLoading {
+                    loadingCard
+                } else if let checkout {
+                    if !checkout.accountActive {
+                        activationCard(checkout)
+                    } else if !accountMatchesTrip {
+                        loginCard(checkout)
+                    } else {
+                        progressCard(checkout)
+                        travelersCard(checkout)
+                        paymentCard(checkout)
+                        if !checkout.documents.isEmpty { documentsCard(checkout) }
+                    }
+                }
+
+                if let errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+                }
+            }
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 12)
+            .padding(.bottom, 48)
+        }
+        .background(Color.iumrahPageBackground)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .task { await loadCheckout() }
+        .sheet(item: $travelerEditor) { traveler in
+            TravelerFormEditorSheet(
+                bookingID: bookingID,
+                traveler: traveler,
+                language: settings.language,
+                onSaved: { Task { await loadCheckout(showLoader: false) } }
+            )
+            .environmentObject(account)
+        }
+        .sheet(item: $previewFile) { file in
+            NavigationStack {
+                QuickLookFilePreview(url: file.url)
+                    .ignoresSafeArea(edges: .bottom)
+                    .navigationTitle(file.title)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(tr("Done", "Готово", "Tayyor", "Тайёр")) { previewFile = nil }
+                        }
+                    }
+            }
+        }
+        .onChange(of: receiptPhoto) { _, item in
+            guard let item else { return }
+            Task { await uploadReceipt(item) }
+        }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                IumrahHaptics.soft(); dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .bold))
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tr("Pilgrim details & payment", "Данные и оплата", "Ma’lumotlar va to‘lov", "Маълумотлар ва тўлов"))
+                    .font(.headline)
+                if let id = checkout?.iumrahID ?? session?.displayPilgrimID {
+                    Text("iumrah ID \(normalizedID(id))")
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, IumrahDesign.pagePadding)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+    }
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(tr("Continue your booking", "Продолжите оформление", "Bronni davom ettiring", "Бронни давом эттиринг"))
+                        .font(.system(size: 29, weight: .bold, design: .rounded))
+                        .tracking(-0.5)
+                    Text(tr(
+                        "Create your iumrah ID password, complete every pilgrim form and attach the payment receipt.",
+                        "Создайте пароль для iumrah ID, заполните анкеты всех паломников и прикрепите чек оплаты.",
+                        "iumrah ID uchun parol yarating, barcha ziyoratchilar anketasini to‘ldiring va to‘lov chekini biriktiring.",
+                        "iumrah ID учун парол яратинг, барча зиёратчилар анкетасини тўлдиринг ва тўлов чекини бириктиринг."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                Image(systemName: "person.text.rectangle.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .frame(width: 50, height: 50)
+                    .background(Color.iumrahCareLight.opacity(0.16), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
+    }
+
+    private var loadingCard: some View {
+        HStack(spacing: 13) {
+            ProgressView()
+            Text(tr("Loading secure checkout…", "Загружаем защищённое оформление…", "Himoyalangan sahifa yuklanmoqda…", "Ҳимояланган саҳифа юкланмоқда…"))
+                .font(.subheadline.weight(.medium))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
+    }
+
+    private func activationCard(_ value: IumrahCheckoutResponse) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            stageHeader(number: "01", icon: "key.fill", title: tr("Activate your iumrah ID", "Активируйте iumrah ID", "iumrah ID ni faollashtiring", "iumrah ID ни фаоллаштиринг"))
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("iumrah ID")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(normalizedID(value.iumrahID))
+                    .font(.system(size: 38, weight: .bold, design: .monospaced))
+                    .tracking(3)
+                    .textSelection(.enabled)
+                Text(tr(
+                    "This permanent ID will be your login for iumrah. It does not change between trips.",
+                    "Это Ваш постоянный логин iumrah. ID не меняется от поездки к поездке.",
+                    "Bu iumrah uchun doimiy loginingiz. ID safarlar orasida o‘zgarmaydi.",
+                    "Бу iumrah учун доимий логинингиз. ID сафарлар орасида ўзгармайди."
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+            secureField(tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"), text: $password)
+            secureField(tr("Confirm password", "Повторите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"), text: $passwordConfirm)
+
+            HStack(spacing: 8) {
+                Image(systemName: "lock.shield.fill")
+                Text(tr("At least 8 characters. The password is never stored in plain text.", "Минимум 8 символов. Пароль не хранится в открытом виде.", "Kamida 8 belgi. Parol ochiq ko‘rinishda saqlanmaydi.", "Камида 8 белги. Парол очиқ кўринишда сақланмайди."))
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Button {
+                Task { await activateAccount(value) }
+            } label: {
+                HStack {
+                    if isSubmittingAccount { ProgressView().tint(.white) }
+                    Text(tr("Create password and continue", "Создать пароль и продолжить", "Parol yaratish va davom etish", "Парол яратиш ва давом этиш"))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(password.count < 8 || password != passwordConfirm || isSubmittingAccount || !isPaymentPending)
+        }
+        .iumrahCard()
+    }
+
+    private func loginCard(_ value: IumrahCheckoutResponse) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            stageHeader(number: "01", icon: "person.crop.circle.badge.checkmark", title: tr("Sign in to iumrah ID", "Войдите в iumrah ID", "iumrah ID ga kiring", "iumrah ID га киринг"))
+            Text(tr("This iumrah ID is already activated. Enter its password to continue.", "Этот iumrah ID уже активирован. Введите пароль, чтобы продолжить.", "Bu iumrah ID allaqachon faollashtirilgan. Davom etish uchun parolni kiriting.", "Бу iumrah ID аллақачон фаоллаштирилган. Давом этиш учун паролни киритинг."))
+                .font(.subheadline).foregroundStyle(.secondary)
+            HStack {
+                Text("iumrah ID")
+                Spacer()
+                Text(normalizedID(value.iumrahID)).font(.headline.monospaced())
+            }
+            .padding(15)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            secureField(tr("Password", "Пароль", "Parol", "Парол"), text: $loginPassword, newPassword: false)
+            Button {
+                Task { await login(value) }
+            } label: {
+                HStack {
+                    if isSubmittingAccount { ProgressView().tint(.white) }
+                    Text(tr("Sign in", "Войти", "Kirish", "Кириш"))
+                    Spacer(); Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(loginPassword.count < 8 || isSubmittingAccount)
+        }
+        .iumrahCard()
+    }
+
+    private func progressCard(_ value: IumrahCheckoutResponse) -> some View {
+        let complete = value.travelers.filter(\.completed).count
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tr("Booking readiness", "Готовность оформления", "Rasmiylashtirish holati", "Расмийлаштириш ҳолати"))
+                        .font(.headline)
+                    Text(L10n.status(value.status, settings.language))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(complete)/\(value.travelers.count)")
+                    .font(.headline.monospacedDigit())
+            }
+            ProgressView(value: Double(complete + (value.receipts.isEmpty ? 0 : 1)), total: Double(max(1, value.travelers.count + 1)))
+                .tint(Color.iumrahCareDark)
+            HStack(spacing: 8) {
+                readinessChip(tr("Account", "Аккаунт", "Akkaunt", "Аккаунт"), ready: value.accountActive)
+                readinessChip(tr("Pilgrims", "Анкеты", "Anketalar", "Анкеталар"), ready: complete == value.travelers.count)
+                readinessChip(tr("Receipt", "Чек", "Chek", "Чек"), ready: !value.receipts.isEmpty)
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func travelersCard(_ value: IumrahCheckoutResponse) -> some View {
+        VStack(alignment: .leading, spacing: 15) {
+            stageHeader(number: "02", icon: "person.2.fill", title: tr("Pilgrim details", "Данные паломников", "Ziyoratchilar ma’lumotlari", "Зиёратчилар маълумотлари"))
+            Text(tr("One secure form for every traveler in this booking.", "Для каждого участника поездки — отдельная защищённая анкета.", "Har bir sayohatchi uchun alohida himoyalangan anketa.", "Ҳар бир саёҳатчи учун алоҳида ҳимояланган анкета."))
+                .font(.subheadline).foregroundStyle(.secondary)
+
+            ForEach(value.travelers) { traveler in
+                Button {
+                    if isPaymentPending { travelerEditor = traveler }
+                } label: {
+                    HStack(spacing: 13) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .fill(traveler.completed ? Color.green.opacity(0.11) : Color.iumrahRaisedBackground)
+                            Image(systemName: traveler.completed ? "checkmark" : travelerIcon(traveler.travelerType))
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundStyle(traveler.completed ? .green : .primary)
+                        }
+                        .frame(width: 46, height: 46)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(travelerName(traveler))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(traveler.completed ? tr("Completed", "Анкета готова", "Anketa tayyor", "Анкета тайёр") : tr("Passport and travel details required", "Нужны данные и паспорт", "Ma’lumot va pasport kerak", "Маълумот ва паспорт керак"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: isPaymentPending ? "chevron.right" : "lock.fill")
+                            .font(.caption.weight(.bold)).foregroundStyle(.tertiary)
+                    }
+                    .padding(13)
+                    .background(Color.iumrahRaisedBackground.opacity(0.62), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func paymentCard(_ value: IumrahCheckoutResponse) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            stageHeader(number: "03", icon: "creditcard.fill", title: tr("Payment", "Оплата", "To‘lov", "Тўлов"))
+
+            if paymentOptions(value).isEmpty {
+                Label(tr("Payment details will appear after iumrah Business adds them.", "Реквизиты появятся после того, как iumrah Business их добавит.", "To‘lov rekvizitlari iumrah Business qo‘shgandan keyin paydo bo‘ladi.", "Тўлов реквизитлари iumrah Business қўшгандан кейин пайдо бўлади."), systemImage: "clock")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 8) {
+                    ForEach(paymentOptions(value), id: \.self) { method in
+                        Button {
+                            paymentMethod = method
+                            if method == "payme" { Task { await loadPaymeQR(value) } }
+                        } label: {
+                            Text(paymentTitle(method))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(paymentMethod == method ? Color.white : Color.primary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 40)
+                                .background(paymentMethod == method ? Color.black : Color.iumrahRaisedBackground, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                paymentDetails(value)
+
+                if !value.payment.instructions.isEmpty {
+                    Text(value.payment.instructions)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+
+                Divider()
+
+                if let receipt = value.receipts.first {
+                    HStack(spacing: 12) {
+                        Image(systemName: "doc.text.image.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .frame(width: 42, height: 42)
+                            .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .foregroundStyle(.green)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tr("Receipt attached", "Чек прикреплён", "Chek biriktirildi", "Чек бириктирилди"))
+                                .font(.subheadline.weight(.semibold))
+                            Text(receiptStatus(receipt.reviewStatus))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    }
+                } else if isPaymentPending {
+                    PhotosPicker(selection: $receiptPhoto, matching: .images) {
+                        HStack {
+                            if isUploadingReceipt { ProgressView().tint(.white) }
+                            Image(systemName: "paperclip")
+                            Text(tr("Attach payment receipt", "Прикрепить чек оплаты", "To‘lov chekini biriktirish", "Тўлов чекини бириктириш"))
+                            Spacer()
+                            Image(systemName: "arrow.up")
+                        }
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(isUploadingReceipt || paymentOptions(value).isEmpty)
+                }
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func documentsCard(_ value: IumrahCheckoutResponse) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            stageHeader(number: "04", icon: "doc.fill", title: tr("Travel documents", "Документы поездки", "Safar hujjatlari", "Сафар ҳужжатлари"))
+            Text(tr("Visas, vouchers and other files prepared for this trip.", "Визы, ваучеры и другие документы, подготовленные к поездке.", "Viza, vaucher va safar uchun tayyorlangan boshqa hujjatlar.", "Виза, ваучер ва сафар учун тайёрланган бошқа ҳужжатлар."))
+                .font(.subheadline).foregroundStyle(.secondary)
+            ForEach(value.documents) { document in
+                Button { Task { await openDocument(document) } } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: document.contentType == "application/pdf" ? "doc.richtext.fill" : "photo.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(document.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                            Text(documentKind(document.documentKind)).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if isLoadingDocument { ProgressView() } else { Image(systemName: "arrow.up.right").foregroundStyle(.tertiary) }
+                    }
+                    .padding(12)
+                    .background(Color.iumrahRaisedBackground.opacity(0.58), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .iumrahCard()
+    }
+
+    @ViewBuilder
+    private func paymentDetails(_ value: IumrahCheckoutResponse) -> some View {
+        switch paymentMethod {
+        case "payme":
+            VStack(spacing: 12) {
+                if let image = paymeQRImage {
+                    Image(uiImage: image)
+                        .resizable().scaledToFit()
+                        .padding(14)
+                        .frame(maxWidth: 260, maxHeight: 260)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 150)
+                        .task { await loadPaymeQR(value) }
+                }
+                Text(tr("Scan the QR in PayMe, then attach the receipt below.", "Отсканируйте QR в PayMe, затем прикрепите чек ниже.", "PayMe orqali QR ni skanerlang, so‘ng chekni biriktiring.", "PayMe орқали QR ни сканерланг, сўнг чекни бириктиринг."))
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+        case "humo":
+            paymentNumberBlock(title: "Humo", number: value.payment.humoCardNumber, holder: value.payment.humoHolder)
+        default:
+            paymentNumberBlock(title: "Visa", number: value.payment.visaCardNumber, holder: value.payment.visaHolder)
+        }
+    }
+
+    private func paymentNumberBlock(title: String, number: String, holder: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title).font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                    Text(groupedCard(number))
+                        .font(.system(size: 22, weight: .semibold, design: .monospaced))
+                        .minimumScaleFactor(0.78)
+                        .lineLimit(1)
+                    if !holder.isEmpty { Text(holder).font(.caption.weight(.medium)).foregroundStyle(.secondary) }
+                }
+                Spacer(minLength: 8)
+                Button {
+                    UIPasteboard.general.string = number
+                    IumrahHaptics.success()
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .frame(width: 42, height: 42)
+                        .background(Color.iumrahRaisedBackground, in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(15)
+        .background(Color.iumrahRaisedBackground.opacity(0.70), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func stageHeader(number: String, icon: String, title: String) -> some View {
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.iumrahRaisedBackground)
+                Image(systemName: icon).font(.system(size: 15, weight: .semibold))
+            }
+            .frame(width: 38, height: 38)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(number).font(.caption2.monospaced().weight(.bold)).foregroundStyle(.secondary)
+                Text(title).font(.headline)
+            }
+        }
+    }
+
+    private func secureField(_ title: String, text: Binding<String>, newPassword: Bool = true) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: "lock.fill").foregroundStyle(.secondary)
+            SecureField(title, text: text)
+                .textContentType(newPassword ? .newPassword : .password)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 52)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func readinessChip(_ title: String, ready: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: ready ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(ready ? .green : .secondary)
+            Text(title).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .font(.caption2.weight(.semibold))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.iumrahRaisedBackground, in: Capsule())
+    }
+
+    @MainActor
+    private func loadCheckout(showLoader: Bool = true) async {
+        guard let session else { return }
+        if showLoader { isLoading = true }
+        defer { isLoading = false }
+        do {
+            let headers = account.authorizationHeaders(bookingToken: session.accessToken)
+            let loaded = try await service.checkout(bookingID: bookingID, authorizationHeaders: headers)
+            checkout = loaded
+            errorMessage = nil
+            let options = paymentOptions(loaded)
+            if let first = options.first, !options.contains(paymentMethod) {
+                paymentMethod = first
+            }
+        } catch {
+            errorMessage = L10n.error(error, settings.language)
+        }
+    }
+
+    @MainActor
+    private func activateAccount(_ value: IumrahCheckoutResponse) async {
+        guard let session, !session.accessToken.isEmpty else { return }
+        isSubmittingAccount = true; errorMessage = nil
+        defer { isSubmittingAccount = false }
+        do {
+            _ = try await account.activate(bookingID: bookingID, bookingToken: session.accessToken, password: password)
+            bookings.setAccountToken(account.bearerToken)
+            if let id = account.iumrahID { bookings.applyCanonicalPilgrimID(id, to: bookingID) }
+            await loadCheckout(showLoader: false)
+            IumrahHaptics.success()
+        } catch APIError.server(_, let message) where message.uppercased().contains("ACCOUNT_ALREADY_ACTIVE") {
+            errorMessage = tr("This iumrah ID is already active. Sign in with its password.", "Этот iumrah ID уже активирован. Войдите с его паролем.", "Bu iumrah ID allaqachon faol. Parol bilan kiring.", "Бу iumrah ID аллақачон фаол. Парол билан киринг.")
+            checkout = IumrahCheckoutResponse(ok: value.ok, iumrahID: value.iumrahID, accountActive: true, status: value.status, travelers: value.travelers, payment: value.payment, receipts: value.receipts, documents: value.documents)
+        } catch {
+            errorMessage = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func login(_ value: IumrahCheckoutResponse) async {
+        isSubmittingAccount = true; errorMessage = nil
+        defer { isSubmittingAccount = false }
+        do {
+            _ = try await account.login(iumrahID: value.iumrahID, password: loginPassword)
+            bookings.setAccountToken(account.bearerToken)
+            if let token = account.bearerToken { await bookings.restoreAccountTrips(token: token) }
+            await loadCheckout(showLoader: false)
+            IumrahHaptics.success()
+        } catch {
+            errorMessage = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func uploadReceipt(_ item: PhotosPickerItem) async {
+        guard let token = account.bearerToken else { return }
+        isUploadingReceipt = true; errorMessage = nil
+        defer { isUploadingReceipt = false; receiptPhoto = nil }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else { throw URLError(.cannotDecodeContentData) }
+            let contentType = item.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
+            _ = try await service.uploadReceipt(bookingID: bookingID, method: paymentMethod, data: data, contentType: contentType, token: token)
+            await loadCheckout(showLoader: false)
+            IumrahHaptics.success()
+        } catch {
+            errorMessage = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func loadPaymeQR(_ value: IumrahCheckoutResponse) async {
+        guard value.payment.hasPaymeQR, let path = value.payment.paymeQRURL, let token = account.bearerToken else { return }
+        do {
+            let data = try await service.media(path: path, token: token)
+            paymeQRImage = UIImage(data: data)
+        } catch { errorMessage = L10n.error(error, settings.language) }
+    }
+
+    @MainActor
+    private func openDocument(_ document: IumrahTravelDocument) async {
+        guard let token = account.bearerToken else { return }
+        isLoadingDocument = true; errorMessage = nil
+        defer { isLoadingDocument = false }
+        do {
+            let data = try await service.media(path: document.url, token: token)
+            let ext = document.contentType == "application/pdf" ? "pdf" : document.contentType.contains("png") ? "png" : "jpg"
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("iumrah-\(document.id).\(ext)")
+            try data.write(to: url, options: .atomic)
+            previewFile = IumrahPreviewFile(id: document.id, title: document.title, url: url)
+        } catch { errorMessage = L10n.error(error, settings.language) }
+    }
+
+    private func paymentOptions(_ value: IumrahCheckoutResponse) -> [String] {
+        var result: [String] = []
+        if !value.payment.visaCardNumber.isEmpty { result.append("visa") }
+        if value.payment.hasPaymeQR { result.append("payme") }
+        if !value.payment.humoCardNumber.isEmpty { result.append("humo") }
+        return result
+    }
+
+    private func paymentTitle(_ value: String) -> String { value == "payme" ? "PayMe" : value == "humo" ? "Humo" : "Visa" }
+    private func receiptStatus(_ value: String) -> String {
+        switch value { case "approved": return tr("Verified", "Проверен", "Tekshirildi", "Текширилди"); case "rejected": return tr("Needs attention", "Нужно исправить", "Qayta yuklang", "Қайта юкланг"); default: return tr("Sent for verification", "Отправлен на проверку", "Tekshiruvga yuborildi", "Текширувга юборилди") }
+    }
+    private func travelerName(_ traveler: IumrahTravelerForm) -> String {
+        let name = [traveler.firstName, traveler.lastName].filter { !$0.isEmpty }.joined(separator: " ")
+        if !name.isEmpty { return name }
+        return "\(travelerType(traveler.travelerType)) · \(traveler.position)"
+    }
+    private func travelerType(_ value: String) -> String {
+        switch value { case "child": return tr("Child", "Ребёнок", "Bola", "Бола"); case "infant": return tr("Infant", "Младенец", "Chaqaloq", "Чақалоқ"); default: return tr("Adult", "Взрослый", "Katta", "Катта") }
+    }
+    private func travelerIcon(_ value: String) -> String { value == "infant" ? "figure.and.child.holdinghands" : value == "child" ? "figure.child" : "person.fill" }
+    private func documentKind(_ value: String) -> String { value == "visa" ? tr("Visa", "Виза", "Viza", "Виза") : value == "voucher" ? tr("Voucher", "Ваучер", "Vaucher", "Ваучер") : value == "ticket" ? tr("Ticket", "Билет", "Chipta", "Чипта") : value == "insurance" ? tr("Insurance", "Страховка", "Sug‘urta", "Суғурта") : tr("Document", "Документ", "Hujjat", "Ҳужжат") }
+    private func groupedCard(_ value: String) -> String {
+        let compact = value.replacingOccurrences(of: " ", with: "")
+        return stride(from: 0, to: compact.count, by: 4).map { offset in
+            let start = compact.index(compact.startIndex, offsetBy: offset)
+            let end = compact.index(start, offsetBy: min(4, compact.distance(from: start, to: compact.endIndex)))
+            return String(compact[start..<end])
+        }.joined(separator: " ")
+    }
+    private func normalizedID(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
+        guard !digits.isEmpty else { return value }
+        return String(repeating: "0", count: max(0, 6 - digits.count)) + String(digits.suffix(6))
+    }
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language { case .russian: return ru; case .english: return en; case .uzbek: return uz; case .uzbekCyrillic: return cyrl }
+    }
+}
+
+private struct TravelerFormEditorSheet: View {
+    @EnvironmentObject private var account: IumrahAccountStore
+    @Environment(\.dismiss) private var dismiss
+    let bookingID: String
+    let language: AppSettingsStore.Language
+    let onSaved: () -> Void
+
+    @State private var form: IumrahTravelerForm
+    @State private var passportPhoto: PhotosPickerItem?
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    private let service = IumrahAccountService()
+
+    init(bookingID: String, traveler: IumrahTravelerForm, language: AppSettingsStore.Language, onSaved: @escaping () -> Void) {
+        self.bookingID = bookingID; self.language = language; self.onSaved = onSaved
+        _form = State(initialValue: traveler)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    section(tr("Personal details", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"), icon: "person.fill") {
+                        field(tr("First name", "Имя", "Ism", "Исм"), $form.firstName)
+                        field(tr("Middle name", "Отчество / второе имя", "Otasining ismi", "Отасининг исми"), $form.middleName)
+                        field(tr("Last name", "Фамилия", "Familiya", "Фамилия"), $form.lastName)
+                        pickerRow(tr("Gender", "Пол", "Jins", "Жинс"), selection: $form.gender, values: [("male", tr("Male", "Мужской", "Erkak", "Эркак")), ("female", tr("Female", "Женский", "Ayol", "Аёл"))])
+                        field(tr("Date of birth · YYYY-MM-DD", "Дата рождения · ГГГГ-ММ-ДД", "Tug‘ilgan sana · YYYY-MM-DD", "Туғилган сана · YYYY-MM-DD"), $form.dateOfBirth)
+                        field(tr("Place of birth", "Место рождения", "Tug‘ilgan joy", "Туғилган жой"), $form.placeOfBirth)
+                        field(tr("Nationality", "Гражданство", "Fuqarolik", "Фуқаролик"), $form.nationality)
+                        field(tr("Country of residence", "Страна проживания", "Yashash mamlakati", "Яшаш мамлакати"), $form.residenceCountry)
+                    }
+
+                    section(tr("Passport", "Паспорт", "Pasport", "Паспорт"), icon: "passport.fill") {
+                        field(tr("Passport number", "Номер паспорта", "Pasport raqami", "Паспорт рақами"), $form.passportNumber)
+                        field(tr("Issue date · YYYY-MM-DD", "Дата выдачи · ГГГГ-ММ-ДД", "Berilgan sana · YYYY-MM-DD", "Берилган сана · YYYY-MM-DD"), $form.passportIssueDate)
+                        field(tr("Expiry date · YYYY-MM-DD", "Срок действия · ГГГГ-ММ-ДД", "Amal qilish muddati · YYYY-MM-DD", "Амал қилиш муддати · YYYY-MM-DD"), $form.passportExpiryDate)
+                        field(tr("Issuing country", "Страна выдачи", "Bergan davlat", "Берган давлат"), $form.passportIssuingCountry)
+
+                        PhotosPicker(selection: $passportPhoto, matching: .images) {
+                            HStack(spacing: 11) {
+                                Image(systemName: (passportPhoto != nil || form.hasPassport) ? "checkmark.circle.fill" : "camera.fill")
+                                    .foregroundStyle((passportPhoto != nil || form.hasPassport) ? .green : .primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text((passportPhoto != nil || form.hasPassport) ? tr("Passport photo attached", "Фото паспорта прикреплено", "Pasport rasmi biriktirildi", "Паспорт расми бириктирилди") : tr("Attach passport photo", "Прикрепить фото паспорта", "Pasport rasmini biriktirish", "Паспорт расмини бириктириш"))
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(tr("Clear photo of the information page", "Чёткое фото страницы с данными", "Ma’lumotlar sahifasining aniq rasmi", "Маълумотлар саҳифасининг аниқ расми"))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
+                            }
+                            .padding(13)
+                            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    section(tr("Contacts", "Контакты", "Aloqa", "Алоқа"), icon: "phone.fill") {
+                        field(tr("Phone / WhatsApp", "Телефон / WhatsApp", "Telefon / WhatsApp", "Телефон / WhatsApp"), $form.phone)
+                        field("Email", $form.email)
+                    }
+
+                    section(tr("Emergency contact", "Экстренный контакт", "Favqulodda aloqa", "Фавқулодда алоқа"), icon: "cross.case.fill") {
+                        field(tr("Full name", "Имя и фамилия", "Ism-familiya", "Исм-фамилия"), $form.emergencyName)
+                        field(tr("Phone", "Телефон", "Telefon", "Телефон"), $form.emergencyPhone)
+                        field(tr("Relationship", "Кем приходится", "Qarindoshlik", "Қариндошлик"), $form.emergencyRelation)
+                    }
+
+                    if let errorMessage {
+                        Text(errorMessage).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Button { Task { await save() } } label: {
+                        HStack {
+                            if isSaving { ProgressView().tint(.white) }
+                            Text(tr("Save pilgrim", "Сохранить анкету", "Anketani saqlash", "Анкетани сақлаш"))
+                            Spacer(); Image(systemName: "checkmark")
+                        }
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(!canSave || isSaving)
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 12)
+                .padding(.bottom, 40)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle(tr("Pilgrim \(form.position)", "Паломник \(form.position)", "Ziyoratchi \(form.position)", "Зиёратчи \(form.position)"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Close", "Закрыть", "Yopish", "Ёпиш")) { dismiss() } }
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        let required = [form.firstName, form.lastName, form.gender, form.dateOfBirth, form.placeOfBirth, form.nationality, form.residenceCountry, form.passportNumber, form.passportIssueDate, form.passportExpiryDate, form.passportIssuingCountry, form.phone, form.emergencyName, form.emergencyPhone, form.emergencyRelation]
+        return required.allSatisfy { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && (form.hasPassport || passportPhoto != nil)
+    }
+
+    private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 13) {
+            Label(title, systemImage: icon).font(.headline)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
+    }
+
+    private func field(_ title: String, _ text: Binding<String>) -> some View {
+        TextField(title, text: text)
+            .textInputAutocapitalization(.words)
+            .padding(.horizontal, 13)
+            .frame(minHeight: 48)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func pickerRow(_ title: String, selection: Binding<String>, values: [(String, String)]) -> some View {
+        HStack {
+            Text(title).font(.subheadline).foregroundStyle(.secondary)
+            Spacer()
+            Picker(title, selection: selection) { ForEach(values, id: \.0) { Text($0.1).tag($0.0) } }
+                .labelsHidden()
+        }
+        .padding(.horizontal, 13).frame(height: 48)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    @MainActor private func save() async {
+        guard let token = account.bearerToken else { return }
+        isSaving = true; errorMessage = nil
+        defer { isSaving = false }
+        do {
+            _ = try await service.saveTraveler(bookingID: bookingID, position: form.position, form: form, token: token)
+            if let passportPhoto, let data = try await passportPhoto.loadTransferable(type: Data.self) {
+                let type = passportPhoto.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
+                try await service.uploadPassport(bookingID: bookingID, position: form.position, data: data, contentType: type, token: token)
+            }
+            IumrahHaptics.success(); onSaved(); dismiss()
+        } catch {
+            errorMessage = error.localizedDescription; IumrahHaptics.error()
+        }
+    }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch language { case .russian: return ru; case .english: return en; case .uzbek: return uz; case .uzbekCyrillic: return cyrl }
+    }
+}
+
+private struct IumrahPreviewFile: Identifiable {
+    let id: String
+    let title: String
+    let url: URL
+}
+
+private struct QuickLookFilePreview: UIViewControllerRepresentable {
+    let url: URL
+    func makeCoordinator() -> Coordinator { Coordinator(url: url) }
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let controller = QLPreviewController(); controller.dataSource = context.coordinator; return controller
+    }
+    func updateUIViewController(_ uiViewController: QLPreviewController, context: Context) {}
+    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+        init(url: URL) { self.url = url }
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem { url as NSURL }
+    }
+}

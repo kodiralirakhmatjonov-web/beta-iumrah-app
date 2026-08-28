@@ -11,6 +11,7 @@ enum AppTab: Hashable {
 final class AppChromeStore: ObservableObject {
     @Published var isDrawerOpen = false
     @Published var isProfileEditorPresented = false
+    @Published var isAccountPresented = false
     @Published var requestedTab: AppTab?
     @Published var currentTab: AppTab = .home
     @Published var shouldStartTripBuilder = false

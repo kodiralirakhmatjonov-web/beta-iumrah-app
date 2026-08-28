@@ -40,45 +40,17 @@ enum BookingSessionVault {
     }
 }
 
-/// Stable, private identity for the person using this installation. It is never
-/// shown as a booking code; the server maps it to one permanent six-digit iumrah ID.
-enum ClientIdentityStore {
-    private static let service = "com.iumrah.beta.client-identity"
-    private static let account = "client-user-id"
-
-    static var id: String {
-        if let existing = load(), !existing.isEmpty { return existing }
-        let created = UUID().uuidString.lowercased()
-        save(created)
-        return created
-    }
-
-    private static func load() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    private static func save(_ value: String) {
-        guard let data = value.data(using: .utf8) else { return }
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        let update: [String: Any] = [kSecValueData as String: data]
-        if SecItemUpdate(base as CFDictionary, update as CFDictionary) == errSecSuccess { return }
-        var add = base
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        _ = SecItemAdd(add as CFDictionary, nil)
+/// One-time cleanup for the pre-account device identities. These values are no longer
+/// accepted as user identity: the permanent six-digit iumrah ID is the only account identity.
+enum LegacyClientIdentityCleanup {
+    static func purge() {
+        for account in ["client-user-id", "stable-client-id"] {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: "com.iumrah.beta.client-identity",
+                kSecAttrAccount as String: account,
+            ]
+            SecItemDelete(query as CFDictionary)
+        }
     }
 }

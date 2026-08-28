@@ -88,6 +88,25 @@ actor APIClient {
         return try decodeResponse(data: data, response: response)
     }
 
+    func put<T: Decodable, B: Encodable>(
+        _ path: String,
+        body: B,
+        headers: [String: String] = [:],
+        timeoutInterval: TimeInterval? = nil
+    ) async throws -> T {
+        let url = AppConfig.apiBaseURL.appending(path: path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        if let timeoutInterval { request.timeoutInterval = timeoutInterval }
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("iumrah-ios-beta/0.27", forHTTPHeaderField: "User-Agent")
+        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
+        request.httpBody = try encoder.encode(body)
+        let (data, response) = try await session.data(for: request)
+        return try decodeResponse(data: data, response: response)
+    }
+
     func patch<T: Decodable, B: Encodable>(
         _ path: String,
         body: B,

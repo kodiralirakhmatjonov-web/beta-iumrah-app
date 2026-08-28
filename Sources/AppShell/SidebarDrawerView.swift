@@ -3,6 +3,7 @@ import SwiftUI
 struct SidebarDrawerView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var chrome: AppChromeStore
+    @EnvironmentObject private var account: IumrahAccountStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -20,6 +21,18 @@ struct SidebarDrawerView: View {
 
                     Divider()
                         .padding(.vertical, 12)
+
+                    Button {
+                        chrome.isAccountPresented = true
+                        chrome.closeDrawer()
+                    } label: {
+                        settingsRow(
+                            title: "iumrah ID",
+                            value: account.iumrahID.map { "ID \($0)" } ?? accountSubtitle,
+                            icon: "person.crop.circle.badge.checkmark"
+                        )
+                    }
+                    .buttonStyle(.plain)
 
                     Menu {
                         Picker(L10n.text("language_section", settings.language), selection: $settings.language) {
@@ -171,6 +184,15 @@ struct SidebarDrawerView: View {
         }
         .buttonStyle(.plain)
         .padding(.top, 20)
+    }
+
+    private var accountSubtitle: String {
+        switch settings.language {
+        case .russian: return "Войти в единый аккаунт"
+        case .english: return "Sign in to your account"
+        case .uzbek: return "Yagona akkauntga kirish"
+        case .uzbekCyrillic: return "Ягона аккаунтга кириш"
+        }
     }
 
     private func navigationRow(_ tab: AppTab, title: String, icon: String, careAccent: Bool = false) -> some View {
