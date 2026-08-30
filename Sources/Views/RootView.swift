@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
+    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v1") private var hasCompletedOnboarding = false
     @StateObject private var settings = AppSettingsStore()
     @StateObject private var chrome = AppChromeStore()
     @StateObject private var journey = JourneyStore()
@@ -9,7 +10,7 @@ struct RootView: View {
     @ObservedObject private var push = PushNotificationManager.shared
 
     var body: some View {
-        tabs
+        rootContent
             .preferredColorScheme(settings.appearance.colorScheme)
             .environmentObject(settings)
             .environmentObject(chrome)
@@ -30,8 +31,10 @@ struct RootView: View {
                     await linkLocalBookingsToAccount()
                 }
                 await bookings.refreshAll()
-                await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
-                await syncPushSubscriptions()
+                if hasCompletedOnboarding {
+                    await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                    await syncPushSubscriptions()
+                }
             }
             .onChange(of: push.deviceToken) { _, _ in
                 Task { await syncPushSubscriptions() }
@@ -39,6 +42,7 @@ struct RootView: View {
             .onChange(of: bookings.sessions.map(\.id)) { _, _ in
                 Task {
                     await linkLocalBookingsToAccount()
+                    guard hasCompletedOnboarding else { return }
                     await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
                     await syncPushSubscriptions()
                 }
@@ -54,7 +58,15 @@ struct RootView: View {
                 }
             }
             .onChange(of: settings.language.rawValue) { _, _ in
+                guard hasCompletedOnboarding else { return }
                 Task { await syncPushSubscriptions() }
+            }
+            .onChange(of: hasCompletedOnboarding) { _, completed in
+                guard completed else { return }
+                Task {
+                    await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                    await syncPushSubscriptions()
+                }
             }
             .onChange(of: push.eventRevision) { _, _ in
                 Task {
@@ -100,6 +112,20 @@ struct RootView: View {
         if settings.whatsapp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             settings.whatsapp = profile.whatsapp.isEmpty ? profile.phone : profile.whatsapp
         }
+    }
+
+
+    private var rootContent: some View {
+        Group {
+            if hasCompletedOnboarding {
+                tabs
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+            } else {
+                OnboardingFlowView()
+                    .transition(.opacity.combined(with: .scale(scale: 1.015)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.28), value: hasCompletedOnboarding)
     }
 
     private var tabs: some View {

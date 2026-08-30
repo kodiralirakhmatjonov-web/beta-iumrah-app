@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import UIKit
 
 struct HomeVideoCarousel: View {
@@ -9,19 +10,18 @@ struct HomeVideoCarousel: View {
         let resource: String
     }
 
-    private let stories: [Story] = [
-        Story(id: "home-story-01", resource: "home-story-01"),
-        Story(id: "home-story-02", resource: "home-story-02"),
-        Story(id: "home-story-03", resource: "home-story-03"),
-        Story(id: "home-story-04", resource: "home-story-04"),
-        Story(id: "home-story-05", resource: "home-story-05"),
-        Story(id: "home-story-06", resource: "home-story-06"),
-        Story(id: "home-story-07", resource: "home-story-07"),
-        Story(id: "home-story-08", resource: "home-story-08")
-    ]
+    private var stories: [Story] {
+        (1...8).compactMap { index in
+            let resource = String(format: "home-story-%02d", index)
+            let exists = Bundle.main.url(forResource: resource, withExtension: "mp4") != nil
+                || Bundle.main.url(forResource: resource, withExtension: "mp4", subdirectory: "Animations") != nil
+            return exists ? Story(id: resource, resource: resource) : nil
+        }
+    }
 
     @State private var activeStoryID: String? = "home-story-01"
     @State private var isVisible = false
+    @State private var isMuted = true
 
     private var carouselHeight: CGFloat {
         min(max(UIScreen.main.bounds.height * 0.72, 460), 680)
@@ -29,8 +29,8 @@ struct HomeVideoCarousel: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = max(proxy.size.width * 0.92, 280)
-            let sideInset = max((proxy.size.width - cardWidth) / 2, 0)
+            let cardWidth = proxy.size.width
+            let sideInset: CGFloat = 0
 
             ZStack(alignment: .bottom) {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -41,8 +41,8 @@ struct HomeVideoCarousel: View {
                                 .id(story.id)
                                 .scrollTransition(.interactive, axis: .horizontal) { content, phase in
                                     content
-                                        .scaleEffect(phase.isIdentity ? 1 : 0.965)
-                                        .opacity(phase.isIdentity ? 1 : 0.84)
+                                        .scaleEffect(phase.isIdentity ? 1 : 0.985)
+                                        .opacity(phase.isIdentity ? 1 : 0.9)
                                 }
                         }
                     }
@@ -60,7 +60,7 @@ struct HomeVideoCarousel: View {
         .frame(height: carouselHeight)
         .onAppear {
             isVisible = true
-            if activeStoryID == nil {
+            if activeStoryID == nil || !stories.contains(where: { $0.id == activeStoryID }) {
                 activeStoryID = stories.first?.id
             }
         }
@@ -75,9 +75,28 @@ struct HomeVideoCarousel: View {
         LoopingVideoView(
             resource: story.resource,
             isPlaying: isVisible && scenePhase == .active && activeStoryID == story.id,
-            isMuted: true
+            isMuted: isMuted
         )
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            Button {
+                isMuted.toggle()
+                IumrahHaptics.soft()
+            } label: {
+                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 42, height: 42)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
+            .padding(16)
+            .opacity(activeStoryID == story.id ? 1 : 0.66)
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 34, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)

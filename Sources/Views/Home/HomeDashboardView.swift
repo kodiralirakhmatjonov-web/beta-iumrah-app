@@ -17,7 +17,7 @@ struct HomeDashboardView: View {
     private var marketingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true)
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25)
                 HomeVideoCarousel()
                 hero
                 confidenceStrip

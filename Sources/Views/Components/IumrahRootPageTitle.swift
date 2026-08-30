@@ -9,6 +9,7 @@ struct IumrahRootPageTitle: View {
     var showsMakkahTime = false
     var lightStyle = false
     var usesBrandLogo = false
+    var brandScale: CGFloat = 1.0
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -17,7 +18,7 @@ struct IumrahRootPageTitle: View {
                     Image(wordmarkAsset)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 180, height: 46, alignment: .leading)
+                        .frame(width: 180 * brandScale, height: 46 * brandScale, alignment: .leading)
                         .accessibilityLabel("Iumrah")
                 } else {
                     Text(title)
