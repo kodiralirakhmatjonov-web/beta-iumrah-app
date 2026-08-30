@@ -53,7 +53,7 @@ final class AppSettingsStore: ObservableObject {
     }
 
     @AppStorage("iumrah.appearance") private var appearanceRaw = Appearance.system.rawValue
-    @AppStorage("iumrah.language") private var languageRaw = Language.russian.rawValue
+    @AppStorage("iumrah.language") private var languageRaw = Language.uzbek.rawValue
     @AppStorage("iumrah.profile.firstName") var firstName = ""
     @AppStorage("iumrah.profile.lastName") var lastName = ""
     @AppStorage("iumrah.profile.telegram") var telegram = ""
@@ -63,7 +63,7 @@ final class AppSettingsStore: ObservableObject {
         didSet { appearanceRaw = appearance.rawValue }
     }
 
-    @Published var language: Language = .russian {
+    @Published var language: Language = .uzbek {
         didSet { languageRaw = language.rawValue }
     }
 

@@ -6,7 +6,8 @@ struct OnboardingFlowView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settings: AppSettingsStore
-    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v1") private var hasCompletedOnboarding = false
+    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v2") private var hasCompletedOnboarding = false
+    @AppStorage("iumrah.onboarding.seedDefaultLanguage.v2") private var hasSeededDefaultLanguage = false
 
     @State private var pageID: Int? = 0
     @State private var isMuted = true
@@ -19,7 +20,7 @@ struct OnboardingFlowView: View {
     @State private var introWordmarkOffset: CGFloat = 16
     @State private var introCaptionOpacity: Double = 0
 
-    private let pageCount = 4
+    private let pageCount = 5
 
     private var page: Int {
         min(max(pageID ?? 0, 0), pageCount - 1)
@@ -55,7 +56,13 @@ struct OnboardingFlowView: View {
             }
         }
         .statusBarHidden(showIntro || isFinishing)
-        .onAppear(perform: startIntroSequence)
+        .onAppear {
+            if !hasSeededDefaultLanguage {
+                settings.language = .uzbek
+                hasSeededDefaultLanguage = true
+            }
+            startIntroSequence()
+        }
         .onChange(of: pageID) { oldValue, newValue in
             guard oldValue != nil, newValue != nil, oldValue != newValue, !showIntro else { return }
             IumrahHaptics.selection()
@@ -76,6 +83,9 @@ struct OnboardingFlowView: View {
                 }
                 cinematicPage(index: 3, proxy: proxy) {
                     careScene(isActive: page == 3, size: proxy.size)
+                }
+                cinematicPage(index: 4, proxy: proxy) {
+                    closingScene(isActive: page == 4, size: proxy.size)
                 }
             }
             .scrollTargetLayout()
@@ -111,56 +121,35 @@ struct OnboardingFlowView: View {
     }
 
     private func topBar(topInset: CGFloat) -> some View {
-        ZStack {
-            Image(headerWordmarkAsset)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 190, height: 48)
-                .accessibilityHidden(true)
+        HStack {
+            Spacer()
 
-            HStack {
-                Button {
-                    guard page > 0 else { return }
-                    withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
-                        pageID = page - 1
-                    }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(page == 0 ? headerForeground.opacity(0.28) : headerForeground)
-                        .frame(width: 48, height: 48)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay {
-                            Circle().strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-                        }
-                }
-                .buttonStyle(.plain)
-                .disabled(page == 0)
-                .opacity(page == 0 ? 0.52 : 1)
-
-                Spacer()
-
-                if page < pageCount - 1 {
+            Menu {
+                ForEach(AppSettingsStore.Language.allCases) { language in
                     Button {
-                        finishOnboarding()
+                        settings.language = language
+                        IumrahHaptics.selection()
                     } label: {
-                        Text(L10n.text("onboarding_skip", settings.language))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(headerForeground.opacity(0.86))
-                            .padding(.horizontal, 15)
-                            .frame(height: 46)
-                            .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-                            .overlay {
-                                Capsule(style: .continuous)
-                                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                        HStack {
+                            Text(language.title)
+                            if settings.language == language {
+                                Spacer()
+                                Image(systemName: "checkmark")
                             }
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .transition(.opacity)
-                } else {
-                    Color.clear.frame(width: 96, height: 46)
                 }
+            } label: {
+                Image(systemName: "globe")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(headerForeground)
+                    .frame(width: 46, height: 46)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay {
+                        Circle().strokeBorder((page == 0 || page == 2 ? Color.white : Color.black).opacity(0.10), lineWidth: 1)
+                    }
             }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.top, topInset + 8)
@@ -169,7 +158,7 @@ struct OnboardingFlowView: View {
     }
 
     private func footer(bottomInset: CGFloat) -> some View {
-        VStack(spacing: 13) {
+        VStack(spacing: 12) {
             HStack(spacing: 6) {
                 ForEach(0..<pageCount, id: \.self) { index in
                     Capsule(style: .continuous)
@@ -179,6 +168,13 @@ struct OnboardingFlowView: View {
             }
             .animation(.snappy(duration: 0.24), value: page)
             .accessibilityHidden(true)
+
+            if page == pageCount - 1 {
+                Text(L10n.text("onboarding_bismillah", settings.language))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.secondary)
+                    .transition(.opacity)
+            }
 
             Button {
                 if page == pageCount - 1 {
@@ -438,6 +434,67 @@ struct OnboardingFlowView: View {
         }
     }
 
+    private func closingScene(isActive: Bool, size: CGSize) -> some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.iumrahPageBackground, Color.iumrahCareLight.opacity(0.10)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.iumrahCareLight.opacity(0.22))
+                .frame(width: 320, height: 320)
+                .blur(radius: 26)
+                .offset(x: 0, y: -60)
+
+            VStack(spacing: 18) {
+                Spacer(minLength: 60)
+
+                Image("OnboardingBrandIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 164, height: 164)
+                    .scaleEffect(isActive || reduceMotion ? 1 : 0.92)
+                    .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+                    .animation(.spring(response: 0.68, dampingFraction: 0.84), value: isActive)
+
+                VStack(spacing: 6) {
+                    Text("iumrah")
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                    Text("PROJECT")
+                        .font(.system(size: 12, weight: .semibold))
+                        .tracking(4)
+                        .foregroundStyle(Color.secondary)
+                }
+                .foregroundStyle(Color.primary)
+                .opacity(isActive ? 1 : 0.82)
+                .offset(y: isActive || reduceMotion ? 0 : 10)
+                .animation(.spring(response: 0.60, dampingFraction: 0.84).delay(0.03), value: isActive)
+
+                VStack(spacing: 10) {
+                    Text(L10n.text("onboarding_closing_headline", settings.language))
+                        .font(.system(size: 25, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color.primary)
+                    Text(L10n.text("onboarding_closing_message", settings.language))
+                        .font(.system(size: 17, weight: .regular, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color.secondary)
+                        .lineSpacing(3)
+                }
+                .padding(.horizontal, 28)
+                .opacity(isActive ? 1 : 0.76)
+                .offset(y: isActive || reduceMotion ? 0 : 12)
+                .animation(.spring(response: 0.62, dampingFraction: 0.86).delay(0.08), value: isActive)
+
+                Spacer()
+            }
+            .padding(.top, 70)
+            .padding(.bottom, 40)
+        }
+    }
+
     private var priceSpotlight: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(L10n.text("final_price", settings.language))
@@ -542,38 +599,39 @@ struct OnboardingFlowView: View {
 
     private var finishingOverlay: some View {
         ZStack {
-            Color.iumrahPageBackground.opacity(0.72)
+            Color.black.opacity(0.78)
                 .ignoresSafeArea()
 
             VStack(spacing: 14) {
                 Image("OnboardingBrandIcon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 90, height: 90)
+                    .frame(width: 118, height: 118)
+                    .shadow(color: .black.opacity(0.24), radius: 24, y: 12)
 
-                Image(wordmarkAsset)
+                Image("HeaderWordmarkDark")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 210, height: 54)
+                    .frame(width: 220, height: 56)
+
+                Text(L10n.text("onboarding_closing_headline", settings.language))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white)
+                    .padding(.top, 6)
+
+                Text(L10n.text("onboarding_closing_message", settings.language))
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white.opacity(0.78))
+                    .padding(.horizontal, 28)
             }
             .scaleEffect(isFinishing && !reduceMotion ? 1 : 0.98)
         }
     }
 
-    private var wordmarkAsset: String {
-        colorScheme == .dark ? "HeaderWordmarkDark" : "HeaderWordmarkLight"
-    }
-
-    private var headerUsesLightStyle: Bool {
-        page == 0 || page == 2
-    }
-
-    private var headerWordmarkAsset: String {
-        headerUsesLightStyle ? "HeaderWordmarkDark" : wordmarkAsset
-    }
-
     private var headerForeground: Color {
-        headerUsesLightStyle ? Color.white : Color.primary
+        (page == 0 || page == 2) ? .white : .primary
     }
 
     private func startIntroSequence() {
@@ -611,7 +669,7 @@ struct OnboardingFlowView: View {
             isFinishing = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.15) {
             hasCompletedOnboarding = true
         }
     }
@@ -621,7 +679,8 @@ struct OnboardingFlowView: View {
         case 0: return L10n.text("onboarding_welcome_kicker", settings.language)
         case 1: return L10n.text("onboarding_builder_kicker", settings.language)
         case 2: return L10n.text("onboarding_package_kicker", settings.language)
-        default: return L10n.text("onboarding_care_kicker", settings.language)
+        case 3: return L10n.text("onboarding_care_kicker", settings.language)
+        default: return L10n.text("onboarding_closing_kicker", settings.language)
         }
     }
 
@@ -630,7 +689,8 @@ struct OnboardingFlowView: View {
         case 0: return L10n.text("onboarding_welcome_title", settings.language)
         case 1: return L10n.text("onboarding_builder_title", settings.language)
         case 2: return L10n.text("onboarding_package_title", settings.language)
-        default: return L10n.text("onboarding_care_title", settings.language)
+        case 3: return L10n.text("onboarding_care_title", settings.language)
+        default: return L10n.text("onboarding_closing_title", settings.language)
         }
     }
 
@@ -639,7 +699,8 @@ struct OnboardingFlowView: View {
         case 0: return L10n.text("onboarding_welcome_body", settings.language)
         case 1: return L10n.text("onboarding_builder_body", settings.language)
         case 2: return L10n.text("onboarding_package_body", settings.language)
-        default: return L10n.text("onboarding_care_body", settings.language)
+        case 3: return L10n.text("onboarding_care_body", settings.language)
+        default: return L10n.text("onboarding_closing_body", settings.language)
         }
     }
 
@@ -648,7 +709,8 @@ struct OnboardingFlowView: View {
         case 0: return L10n.text("onboarding_welcome_footnote", settings.language)
         case 1: return L10n.text("onboarding_builder_footnote", settings.language)
         case 2: return L10n.text("onboarding_package_footnote", settings.language)
-        default: return L10n.text("onboarding_care_footnote", settings.language)
+        case 3: return L10n.text("onboarding_care_footnote", settings.language)
+        default: return L10n.text("onboarding_closing_footnote", settings.language)
         }
     }
 }
@@ -713,7 +775,7 @@ private struct OnboardingCinematicPage<Scene: View>: View {
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 14)
 
-                Spacer(minLength: 150)
+                Spacer(minLength: 190)
             }
         }
     }
@@ -746,12 +808,13 @@ private struct CinematicAmbientBackground: View {
         case 0: return Color.iumrahCareDark
         case 1: return Color.iumrahCareLight
         case 2: return Color.iumrahCareDark
-        default: return Color.iumrahCareLight
+        case 3: return Color.iumrahCareLight
+        default: return Color.iumrahCareDark
         }
     }
 
     private var secondaryColor: Color {
-        page == 2 ? Color.white : Color.iumrahCareDark
+page == 2 ? Color.white : (page == 4 ? Color.iumrahCareLight : Color.iumrahCareDark)
     }
 }
 
