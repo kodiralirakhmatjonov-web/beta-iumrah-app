@@ -152,6 +152,11 @@ struct FlightDetailsView: View {
                      ? L10n.format("flight_layover_airport_change", settings.language, resolvedAirport(layover.airport).displayCity)
                      : L10n.format("flight_layover_title", settings.language, resolvedAirport(layover.airport).displayCity))
                     .font(.subheadline.weight(.bold))
+                if let country = FlightReferenceCatalog.airportCountry(layover.airport.code) {
+                    Text("\(layover.airport.code) · \(country)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Text(durationText(layover.durationMinutes))
                     .font(.subheadline)
                 if layover.overnight {

@@ -66,10 +66,19 @@ final class FlightBotRunner {
 
         var best: [LiveFlightCandidate] = []
         var sawCandidateBlocks = false
+        var detailsExpanded = false
 
         while Date() < deadline {
             try Task.checkCancellation()
             try await detectChallengeIfNeeded()
+
+            if !detailsExpanded {
+                let clicked = (try? await evaluate(FlightBotScripts.expandCandidateDetails)) as? Int ?? 0
+                if clicked > 0 {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    detailsExpanded = true
+                }
+            }
 
             if let blocks = try? await evaluate(FlightBotScripts.extractCandidateBlocks) as? [String], !blocks.isEmpty {
                 sawCandidateBlocks = true

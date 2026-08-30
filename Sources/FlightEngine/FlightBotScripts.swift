@@ -101,11 +101,36 @@ enum FlightBotScripts {
     })()
     """
 
+    static let expandCandidateDetails = """
+    (() => {
+      const visible = el => {
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+      };
+      const labels = [
+        'flight details','details','view details','show details','itinerary details',
+        'подробнее о перелёте','подробнее','детали рейса','детали перелёта',
+        'reys tafsilotlari','tafsilotlar'
+      ];
+      let clicked = 0;
+      const controls = Array.from(document.querySelectorAll('button,[role=button],summary,a')).filter(visible);
+      for (const el of controls) {
+        if (clicked >= 12) break;
+        const text = (el.innerText || el.getAttribute('aria-label') || '').replace(/\\s+/g,' ').trim().toLowerCase();
+        if (!text || !labels.some(label => text === label || text.includes(label))) continue;
+        if (el.tagName === 'A' && el.target === '_blank') continue;
+        try { el.click(); clicked += 1; } catch (_) {}
+      }
+      return clicked;
+    })()
+    """
+
     static let extractCandidateBlocks = """
     (() => {
       const money = /(?:USD|US\\$|\\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\\s*[0-9][0-9\\s,.]*|[0-9][0-9\\s,.]*\\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
       const time = /\\b(?:[01]?\\d|2[0-3]):[0-5]\\d\\b/g;
-      const flight = /\\b[A-Z0-9]{2,3}[\\s-]?\\d{1,4}\\b/i;
+      const flight = /\\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\\s-]?\\d{1,4}\\b/i;
       const airport = /\\b[A-Z]{3}\\b/g;
       const visible = el => {
         const r = el.getBoundingClientRect();

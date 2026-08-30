@@ -23,8 +23,13 @@ struct HotelSelectionView: View {
     }
 
     private var filteredHotels: [HotelSummary] {
-        let exact = sourceHotels.filter { $0.stars == journey.trip.hotelStars }
-        return exact.isEmpty ? sourceHotels : exact
+        sourceHotels.sorted { lhs, rhs in
+            let lhsExact = lhs.stars == journey.trip.hotelStars
+            let rhsExact = rhs.stars == journey.trip.hotelStars
+            if lhsExact != rhsExact { return lhsExact && !rhsExact }
+            if lhs.stars != rhs.stars { return (lhs.stars ?? 0) > (rhs.stars ?? 0) }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
     }
 
     var body: some View {

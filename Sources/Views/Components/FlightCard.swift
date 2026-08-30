@@ -14,9 +14,12 @@ struct FlightCard: View {
                     Text(airlineLabel)
                         .font(.headline.weight(.semibold))
                     Text(flightNumbersLabel)
-                        .font(.caption)
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                    Text(departureDateLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
                 Spacer()
                 if isRecommended {
@@ -99,14 +102,33 @@ struct FlightCard: View {
         return FlightReferenceCatalog.airlineName(code: offer.primaryAirlineCode, fallback: offer.airline)
     }
 
+    private var departureDateLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = settings.language == .russian ? Locale(identifier: "ru_RU") : Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMM yyyy"
+        if let zone = offer.displaySegments.first?.origin.timeZoneIdentifier, let timeZone = TimeZone(identifier: zone) {
+            formatter.timeZone = timeZone
+        }
+        return formatter.string(from: offer.departureAt)
+    }
+
     private var flightNumbersLabel: String {
-        offer.flightNumbersSummary
+        let prefix: String
+        switch settings.language {
+        case .russian: prefix = "Рейс"
+        case .english: prefix = "Flight"
+        case .uzbek: prefix = "Reys"
+        case .uzbekCyrillic: prefix = "Рейс"
+        }
+        return "\(prefix) \(offer.flightNumbersSummary)"
     }
 
     private var stopLabel: String {
-        offer.stops == 0
-            ? L10n.text("flight_direct", settings.language)
-            : L10n.format("flight_stops", settings.language, offer.stops)
+        guard offer.stops > 0 else { return L10n.text("flight_direct", settings.language) }
+        let base = L10n.format("flight_stops", settings.language, offer.stops)
+        guard let layover = offer.layovers.first else { return base }
+        let country = FlightReferenceCatalog.airportCountry(layover.airport.code)
+        return [base, layover.airport.code, country].compactMap { $0 }.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -129,10 +151,12 @@ struct FlightCard: View {
     }
 
     private func layoverSummary(_ layover: FlightLayover) -> String {
+        let country = FlightReferenceCatalog.airportCountry(layover.airport.code)
+        let place = [layover.airport.displayCity, country].compactMap { $0 }.joined(separator: ", ")
         if layover.airportChange {
-            return L10n.format("flight_airport_change", settings.language, layover.airport.displayCity, durationText(layover.durationMinutes))
+            return L10n.format("flight_airport_change", settings.language, place, durationText(layover.durationMinutes))
         }
-        return L10n.format("flight_layover_summary", settings.language, layover.airport.displayCity, durationText(layover.durationMinutes))
+        return L10n.format("flight_layover_summary", settings.language, place, durationText(layover.durationMinutes))
     }
 
     private func durationText(_ minutes: Int) -> String {

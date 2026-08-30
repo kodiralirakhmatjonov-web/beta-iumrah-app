@@ -26,19 +26,20 @@ enum FlightTextParser {
         let times = matches(pattern: #"\b(?:[01]?\d|2[0-3]):[0-5]\d\b"#, in: normalizedBlock)
         guard times.count >= 2 else { return nil }
 
-        let rawFlightNumbers = matches(pattern: #"\b[A-Z0-9]{2,3}[\s-]?\d{1,4}\b"#, in: normalizedBlock.uppercased())
-        let currencyPrefixes: Set<String> = ["USD", "UZS", "EUR", "RUB", "SAR", "AED", "TRY", "KZT", "GBP"]
+        // A real flight number always has a carrier code containing at least one
+        // letter. Numeric fragments such as "23 2" or "24 9" are never accepted.
+        let rawFlightNumbers = matches(
+            pattern: #"\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\s-]?\d{1,4}\b"#,
+            in: normalizedBlock.uppercased()
+        )
         let flightNumbers = deduplicate(rawFlightNumbers.map(normalizeFlightNumber)).filter { number in
-            let firstToken = number.uppercased().split(separator: " ").first.map(String.init) ?? ""
-            guard !currencyPrefixes.contains(firstToken) else { return false }
-            let code = FlightReferenceCatalog.airlineCode(from: number)
-            guard let code, code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return false }
-            if FlightReferenceCatalog.airline(code: code) != nil || code == providerCode(provider.id) { return true }
-            return provider.id == .googleFlights || provider.id == .skyscanner
+            guard let code = FlightReferenceCatalog.airlineCode(from: number) else { return false }
+            return FlightReferenceCatalog.airline(code: code) != nil
         }
-        guard let primaryFlightNumber = flightNumbers.first else { return nil }
-        let primaryAirlineCode = FlightReferenceCatalog.airlineCode(from: primaryFlightNumber) ?? providerCode(provider.id)
-        let airline = inferredAirline(from: normalizedBlock, flightNumber: primaryFlightNumber, provider: provider)
+        guard let primaryFlightNumber = flightNumbers.first,
+              let primaryAirlineCode = FlightReferenceCatalog.airlineCode(from: primaryFlightNumber),
+              let airlineReference = FlightReferenceCatalog.airline(code: primaryAirlineCode) else { return nil }
+        let airline = airlineReference.name
 
         let inferredAirportCodes = airportSequence(
             from: normalizedBlock,
@@ -46,13 +47,20 @@ enum FlightTextParser {
             destination: request.destination,
             expectedSegments: max(1, flightNumbers.count)
         )
-        let declaredStops = inferredStops(from: normalizedBlock)
-        let segmentCount = resolvedSegmentCount(
-            flightNumbers: flightNumbers,
-            times: times,
-            airportCodes: inferredAirportCodes,
-            declaredStops: declaredStops
-        )
+        let explicitStops = inferredStops(from: normalizedBlock)
+        let evidenceStops = max(max(0, flightNumbers.count - 1), max(0, inferredAirportCodes.count - 2))
+        let stops = max(explicitStops ?? 0, evidenceStops)
+        guard stops <= 3 else { return nil }
+
+        // Never label an incomplete itinerary as direct. For a connection we
+        // require each segment number, the intermediate airport and both local
+        // times for every segment. If the provider has not exposed its details,
+        // this card is discarded instead of inventing data.
+        let segmentCount = stops + 1
+        guard flightNumbers.count >= segmentCount else { return nil }
+        guard inferredAirportCodes.count >= segmentCount + 1 else { return nil }
+        guard times.count >= segmentCount * 2 else { return nil }
+        if stops == 0, flightNumbers.count != 1 { return nil }
 
         let segments = buildSegments(
             block: normalizedBlock,
@@ -60,35 +68,15 @@ enum FlightTextParser {
             provider: provider,
             airline: airline,
             primaryAirlineCode: primaryAirlineCode,
-            flightNumbers: flightNumbers,
+            flightNumbers: Array(flightNumbers.prefix(segmentCount)),
             times: times,
             airportCodes: inferredAirportCodes,
             segmentCount: segmentCount
         )
-
-        let departure: Date
-        let arrival: Date
-        let duration: Int
-        let stops: Int
-
-        if let first = segments.first, let last = segments.last {
-            departure = first.departureAt
-            arrival = last.arrivalAt
-            duration = max(0, Int(arrival.timeIntervalSince(departure) / 60))
-            stops = max(declaredStops, segments.count - 1)
-        } else {
-            let calendar = Calendar.current
-            let day = calendar.startOfDay(for: request.date)
-            guard let parsedDeparture = combine(day: day, hhmm: times[0], airportCode: request.origin, fallbackCalendar: calendar) else { return nil }
-            var parsedArrival = combine(day: day, hhmm: times[1], airportCode: request.destination, fallbackCalendar: calendar) ?? parsedDeparture
-            while parsedArrival < parsedDeparture {
-                parsedArrival = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: parsedArrival) ?? parsedArrival
-            }
-            departure = parsedDeparture
-            arrival = parsedArrival
-            duration = max(0, Int(arrival.timeIntervalSince(departure) / 60))
-            stops = declaredStops
-        }
+        guard segments.count == segmentCount,
+              let departure = segments.first?.departureAt,
+              let arrival = segments.last?.arrivalAt,
+              let duration = explicitDurationMinutes(from: normalizedBlock) else { return nil }
 
         return LiveFlightCandidate(
             id: UUID().uuidString,
@@ -112,20 +100,6 @@ enum FlightTextParser {
             airlineCode: primaryAirlineCode,
             segments: segments
         )
-    }
-
-    private static func resolvedSegmentCount(
-        flightNumbers: [String],
-        times: [String],
-        airportCodes: [String],
-        declaredStops: Int
-    ) -> Int {
-        let fromFlights = flightNumbers.isEmpty ? 0 : flightNumbers.count
-        let fromTimes = times.count / 2
-        let fromAirports = max(0, airportCodes.count - 1)
-        let declared = declaredStops + 1
-        let candidates = [fromFlights, fromTimes, fromAirports, declared].filter { $0 > 0 }
-        return max(1, min(candidates.max() ?? 1, 4))
     }
 
     private static func buildSegments(
@@ -157,8 +131,9 @@ enum FlightTextParser {
         for index in 0..<segmentCount {
             let originCode = routeCodes[index]
             let destinationCode = routeCodes[index + 1]
-            let number = flightNumbers.indices.contains(index) ? flightNumbers[index] : (flightNumbers.first ?? providerCode(provider.id))
-            let code = FlightReferenceCatalog.airlineCode(from: number) ?? primaryAirlineCode
+            guard flightNumbers.indices.contains(index) else { return [] }
+            let number = flightNumbers[index]
+            guard let code = FlightReferenceCatalog.airlineCode(from: number), FlightReferenceCatalog.airline(code: code) != nil else { return [] }
             let segmentAirline = FlightReferenceCatalog.airlineName(code: code, fallback: airline)
 
             guard var departure = localDate(on: request.date, hhmm: times[index * 2], airportCode: originCode),
@@ -213,7 +188,7 @@ enum FlightTextParser {
             "FROM", "TO", "THE", "AND", "INT", "AIR", "MAX"
         ]
         let explicitCodes = matches(pattern: #"\b[A-Z]{3}\b"#, in: text.uppercased())
-            .filter { !ignored.contains($0) }
+            .filter { !ignored.contains($0) && FlightReferenceCatalog.airport($0) != nil }
         let mentionedCodes = FlightReferenceCatalog.airportMentions(in: text)
         let codes = explicitCodes.count >= 2 ? explicitCodes : mentionedCodes
         var sequence = collapseAdjacentDuplicates(codes)
@@ -294,25 +269,37 @@ enum FlightTextParser {
         if let reference = FlightReferenceCatalog.airline(code: code) { return reference.name }
         if provider.marketScope == .uzbekistanPriority || provider.marketScope == .regional { return provider.displayName }
 
-        // Never present a metasearch provider as if it were the airline.
-        if provider.id == .skyscanner || provider.id == .googleFlights {
-            return "Airline"
-        }
-        return provider.displayName
+        return FlightReferenceCatalog.airline(code: providerCode(provider.id))?.name ?? provider.displayName
     }
 
-    private static func inferredStops(from block: String) -> Int {
+    private static func inferredStops(from block: String) -> Int? {
         let lower = block.lowercased()
-        if lower.contains("nonstop") || lower.contains("non-stop") || lower.contains("direct") || lower.contains("прям") || lower.contains("to‘g‘ridan") { return 0 }
-        if let count = firstCapture(pattern: #"([1-9])\s*(?:stop|stops|пересад|to['’‘]?xtash)"#, in: lower), let value = Int(count) { return value }
-        let currencyPrefixes: Set<String> = ["USD", "UZS", "EUR", "RUB", "SAR", "AED", "TRY", "KZT", "GBP"]
-        let flightCount = deduplicate(matches(pattern: #"\b[A-Z0-9]{2,3}[\s-]?\d{1,4}\b"#, in: block.uppercased())
-            .map(normalizeFlightNumber)
-            .filter { number in
-                let firstToken = number.uppercased().split(separator: " ").first.map(String.init) ?? ""
-                return !currencyPrefixes.contains(firstToken) && FlightReferenceCatalog.airline(code: FlightReferenceCatalog.airlineCode(from: number)) != nil
-            }).count
-        return max(0, min(3, flightCount - 1))
+        if let count = firstCapture(pattern: #"([1-3])\s*(?:stop|stops|пересад(?:ка|ки|ок)?|to['’‘]?xtash)"#, in: lower),
+           let value = Int(count) {
+            return value
+        }
+        let directMarkers = ["nonstop", "non-stop", "0 stops", "0 stop", "direct flight", "прямой рейс", "без пересадок", "to‘g‘ridan-to‘g‘ri reys"]
+        if directMarkers.contains(where: { lower.contains($0) }) { return 0 }
+        return nil
+    }
+
+    private static func explicitDurationMinutes(from text: String) -> Int? {
+        let patterns = [
+            #"\b(\d{1,2})\s*h(?:r|rs|our|ours)?\s*(\d{1,2})?\s*m(?:in|ins|inute|inutes)?\b"#,
+            #"\b(\d{1,2})\s*ч(?:\.|ас(?:а|ов)?)?\s*(\d{1,2})?\s*м(?:\.|ин(?:ут)?)?\b"#,
+            #"\b(\d{1,2})\s*soat\s*(\d{1,2})?\s*daq(?:iqa)?\b"#
+        ]
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+            let ns = text as NSString
+            let range = NSRange(location: 0, length: ns.length)
+            guard let match = regex.firstMatch(in: text, range: range), match.numberOfRanges >= 2 else { continue }
+            let hours = match.range(at: 1).location == NSNotFound ? 0 : Int(ns.substring(with: match.range(at: 1))) ?? 0
+            let minutes = match.numberOfRanges > 2 && match.range(at: 2).location != NSNotFound ? Int(ns.substring(with: match.range(at: 2))) ?? 0 : 0
+            let total = hours * 60 + minutes
+            if total > 0 && total <= 72 * 60 { return total }
+        }
+        return nil
     }
 
     private static func inferredAircrafts(from text: String) -> [String] {

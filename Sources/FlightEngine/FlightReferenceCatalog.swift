@@ -42,7 +42,13 @@ enum FlightReferenceCatalog {
         "FS": .init(iata: "FS", name: "FlyArystan", websiteDomain: "flyarystan.com"),
         "SZ": .init(iata: "SZ", name: "Somon Air", websiteDomain: "somonair.com"),
         "W4": .init(iata: "W4", name: "Wizz Air Malta", websiteDomain: "wizzair.com"),
-        "EK": .init(iata: "EK", name: "Emirates", websiteDomain: "emirates.com")
+        "EK": .init(iata: "EK", name: "Emirates", websiteDomain: "emirates.com"),
+        "EY": .init(iata: "EY", name: "Etihad Airways", websiteDomain: "etihad.com"),
+        "WY": .init(iata: "WY", name: "Oman Air", websiteDomain: "omanair.com"),
+        "GF": .init(iata: "GF", name: "Gulf Air", websiteDomain: "gulfair.com"),
+        "KU": .init(iata: "KU", name: "Kuwait Airways", websiteDomain: "kuwaitairways.com"),
+        "MS": .init(iata: "MS", name: "EgyptAir", websiteDomain: "egyptair.com"),
+        "W6": .init(iata: "W6", name: "Wizz Air", websiteDomain: "wizzair.com")
     ]
 
     // Small offline enrichment layer for the routes that matter most to iumrah.
@@ -73,7 +79,11 @@ enum FlightReferenceCatalog {
         "GYD": .init(iata: "GYD", city: "Baku", name: "Heydar Aliyev International Airport", country: "Azerbaijan", timeZoneIdentifier: "Asia/Baku"),
         "ALA": .init(iata: "ALA", city: "Almaty", name: "Almaty International Airport", country: "Kazakhstan", timeZoneIdentifier: "Asia/Almaty"),
         "NQZ": .init(iata: "NQZ", city: "Astana", name: "Nursultan Nazarbayev International Airport", country: "Kazakhstan", timeZoneIdentifier: "Asia/Almaty"),
-        "DYU": .init(iata: "DYU", city: "Dushanbe", name: "Dushanbe International Airport", country: "Tajikistan", timeZoneIdentifier: "Asia/Dushanbe")
+        "DYU": .init(iata: "DYU", city: "Dushanbe", name: "Dushanbe International Airport", country: "Tajikistan", timeZoneIdentifier: "Asia/Dushanbe"),
+        "AUH": .init(iata: "AUH", city: "Abu Dhabi", name: "Zayed International Airport", country: "United Arab Emirates", timeZoneIdentifier: "Asia/Dubai"),
+        "MCT": .init(iata: "MCT", city: "Muscat", name: "Muscat International Airport", country: "Oman", timeZoneIdentifier: "Asia/Muscat"),
+        "BAH": .init(iata: "BAH", city: "Manama", name: "Bahrain International Airport", country: "Bahrain", timeZoneIdentifier: "Asia/Bahrain"),
+        "CAI": .init(iata: "CAI", city: "Cairo", name: "Cairo International Airport", country: "Egypt", timeZoneIdentifier: "Africa/Cairo")
     ]
 
     static func airline(code: String?) -> AirlineReference? {
@@ -108,6 +118,16 @@ enum FlightReferenceCatalog {
             matches.append((lower.distance(from: lower.startIndex, to: range.lowerBound), code))
         }
         return matches.sorted { $0.0 < $1.0 }.map(\.1)
+    }
+
+
+    static func airlineCode(fromName name: String) -> String? {
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return airlines.values.first(where: { $0.name.localizedCaseInsensitiveCompare(normalized) == .orderedSame })?.iata
+    }
+
+    static func airportCountry(_ code: String) -> String? {
+        airport(code)?.country
     }
 
     static func airlineCode(from flightNumber: String) -> String? {
