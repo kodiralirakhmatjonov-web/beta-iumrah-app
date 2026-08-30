@@ -153,7 +153,11 @@ struct OutboundFlightView: View {
         errorText = nil
         journey.errorMessage = nil
         do {
-            offers = try await journey.flightService.searchOutbound(trip: journey.trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+            let found = try await journey.flightService.searchOutbound(trip: journey.trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+            offers = found.filter(\.isVerifiedForBooking)
+            guard !offers.isEmpty else {
+                throw FlightPricingBridgeError.insufficientQuotedOptions(found: 0, minimum: 1)
+            }
             isLoading = false
             showingReadyAnimation = true
             IumrahHaptics.success()

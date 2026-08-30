@@ -1,14 +1,9 @@
 import Foundation
 
 enum FlightCandidateRequirement: String, Codable, Hashable {
-    /// Candidate is eligible to be shown to the pilgrim. Exact carrier flight
-    /// number, complete route/segment data, source-local times and fare are
-    /// mandatory. Fare-only or aggregator-only observations are never rendered.
+    /// Production flight discovery has one contract only: exact carrier flight
+    /// number, complete route/segments, source-local times and a real fare.
     case displayable
-
-    /// Candidate is used only as an internal reference fare while the opposite
-    /// direction is being priced. It is never rendered in the UI.
-    case pricingReference
 }
 
 struct FlightBotSearchRequest: Hashable, Codable {
@@ -130,27 +125,36 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
     /// Hard boundary between internal fare references and itineraries that may be
     /// rendered or persisted as the user's selected flight.
     var isDisplayableCandidate: Bool {
-        guard FlightReferenceCatalog.isVerifiedFlightNumber(flightNumber),
-              let airlineCode,
-              FlightReferenceCatalog.airline(code: airlineCode) != nil,
-              !airline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        // Aggregators and internal reference rows are categorically forbidden at
+        // the model boundary. A UI bug can therefore never turn Google Flights,
+        // Skyscanner or REF-* metadata into a purchasable itinerary.
+        guard !providerID.isAggregator,
+              let normalizedPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
+              let airlineCode = FlightReferenceCatalog.airlineCode(from: normalizedPrimary),
+              let canonicalAirline = FlightReferenceCatalog.airline(code: airlineCode),
+              airline.caseInsensitiveCompare(canonicalAirline.name) == .orderedSame,
               origin != destination,
               let segments,
               segments.count == stops + 1,
               !segments.isEmpty else { return false }
 
-        guard segments.first?.origin.code == origin,
+        guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == normalizedPrimary,
+              segments.first?.origin.code == origin,
               segments.last?.destination.code == destination else { return false }
 
         for (index, segment) in segments.enumerated() {
-            guard FlightReferenceCatalog.isVerifiedFlightNumber(segment.flightNumber),
-                  let code = segment.airlineCode,
-                  FlightReferenceCatalog.airline(code: code) != nil else { return false }
+            guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
+                  let code = FlightReferenceCatalog.airlineCode(from: normalized),
+                  let reference = FlightReferenceCatalog.airline(code: code),
+                  segment.airline.caseInsensitiveCompare(reference.name) == .orderedSame,
+                  segment.origin.code != segment.destination.code else { return false }
             if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
         }
 
         if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }
-        return connectionAirports?.count == stops
+        guard let connectionAirports, connectionAirports.count == stops else { return false }
+        let expectedConnections = segments.dropLast().map(\.destination.code)
+        return connectionAirports.map(\.code) == expectedConnections
     }
 }
 

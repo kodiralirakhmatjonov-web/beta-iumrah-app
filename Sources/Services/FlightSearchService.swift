@@ -70,9 +70,8 @@ struct BetaFlightSearchService: FlightSearchServicing {
     private func dayOffset(index: Int, flexibility: DateFlexibility) -> Int {
         switch flexibility {
         case .exact: return 0
-        case .plusMinusOne: return [-1, 0, 1, 0, -1, 1][index]
-        case .plusMinusTwo: return [-2, -1, 0, 1, 2, 0][index]
-        case .weekend: return [0, 0, 1, 1, 0, 1][index]
+        case .plusMinusOne, .plusMinusTwo: return [-2, -1, 0, 1, 2, 0][index]
+        case .weekend: return 0
         }
     }
 }

@@ -34,22 +34,6 @@ enum FlightTextParser {
         let normalizedBlock = block.replacingOccurrences(of: "\u{00a0}", with: " ")
         let times = extractTimes(from: normalizedBlock)
 
-        // The reference fare exists only so Package Engine can price the opposite
-        // leg while the user is still on the first flight screen. It deliberately
-        // carries no airline or flight number: a provider/aggregator name must never
-        // be able to leak into a user-facing itinerary.
-        if requirement == .pricingReference {
-            return parsePricingReference(
-                block: normalizedBlock,
-                provider: provider,
-                request: request,
-                sourceURL: sourceURL,
-                observedAt: observedAt,
-                fare: fare,
-                times: times
-            )
-        }
-
         guard times.count >= 2 else { return nil }
         guard hasRouteEvidence(in: normalizedBlock, origin: request.origin, destination: request.destination) else { return nil }
 
@@ -167,59 +151,6 @@ enum FlightTextParser {
             connectionAirports: connectionAirports.isEmpty ? nil : connectionAirports
         )
         return candidate.isDisplayableCandidate ? candidate : nil
-    }
-
-    private static func parsePricingReference(
-        block: String,
-        provider: FlightBotProvider,
-        request: FlightBotSearchRequest,
-        sourceURL: URL,
-        observedAt: Date,
-        fare: (amount: Decimal, currency: String, scope: FlightFareScope),
-        times: [String]
-    ) -> LiveFlightCandidate? {
-        let calendar = Calendar(identifier: .gregorian)
-        let departure: Date
-        var arrival: Date
-        if times.count >= 2,
-           let sourceDeparture = localDate(on: request.date, hhmm: times[0], airportCode: request.origin),
-           let sourceArrival = localDate(on: request.date, hhmm: times[1], airportCode: request.destination) {
-            departure = sourceDeparture
-            arrival = sourceArrival
-            while arrival < departure {
-                arrival = calendar.date(byAdding: .day, value: 1, to: arrival) ?? arrival
-            }
-        } else {
-            let start = calendar.startOfDay(for: request.date)
-            departure = calendar.date(byAdding: .hour, value: 12, to: start) ?? start
-            arrival = calendar.date(byAdding: .hour, value: 2, to: departure) ?? departure
-        }
-
-        // Internal-only fare observation. Empty carrier/number values are
-        // intentional and are rejected by every display bridge.
-        return LiveFlightCandidate(
-            id: UUID().uuidString,
-            providerID: provider.id,
-            providerName: provider.displayName,
-            direction: request.direction,
-            airline: "",
-            flightNumber: "",
-            origin: request.origin,
-            destination: request.destination,
-            departureAt: departure,
-            arrivalAt: arrival,
-            stops: 0,
-            durationMinutes: 0,
-            observedFare: fare.amount,
-            observedCurrency: fare.currency,
-            fareScope: fare.scope,
-            observedAt: observedAt,
-            sourceURL: sourceURL.absoluteString,
-            rawTextFingerprint: stableFingerprint(block),
-            airlineCode: nil,
-            segments: nil,
-            connectionAirports: nil
-        )
     }
 
     private static func hasRouteEvidence(in text: String, origin: String, destination: String) -> Bool {

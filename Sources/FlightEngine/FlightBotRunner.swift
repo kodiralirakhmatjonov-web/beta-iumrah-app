@@ -59,18 +59,21 @@ final class FlightBotRunner {
             timeoutInterval: max(4, timeoutSeconds)
         )
 
+        guard provider.isOfficialCarrierSource else { throw BotError.invalidPage }
+
         webView.load(urlRequest)
         try await waitForUsableDOM(deadline: deadline)
         _ = try? await evaluate(FlightBotScripts.dismissNonSearchOverlays)
         try? await Task.sleep(for: .milliseconds(220))
         try await detectChallengeIfNeeded()
 
-        if provider.id != .googleFlights && provider.id != .skyscanner {
-            _ = try? await evaluate(FlightBotScripts.submitSearch(provider: provider, request: request))
-            // Do not wait for a full navigation here. Most booking engines are SPAs
-            // and update the current document without ever reaching an idle state.
-            try await sleepIfTime(.milliseconds(650), deadline: deadline)
-        }
+        // Official airline booking engines are mostly SPAs with autocomplete and
+        // calendar popovers. Fill the form first, give suggestions time to hydrate,
+        // then commit the route/date and submit the nearest search form.
+        _ = try? await evaluate(FlightBotScripts.prepareSearch(provider: provider, request: request))
+        try await sleepIfTime(.milliseconds(420), deadline: deadline)
+        _ = try? await evaluate(FlightBotScripts.finalizeSearch(provider: provider, request: request))
+        try await sleepIfTime(.milliseconds(820), deadline: deadline)
 
         var best: [LiveFlightCandidate] = []
         var sawCandidateBlocks = false
@@ -81,9 +84,9 @@ final class FlightBotRunner {
             try await detectChallengeIfNeeded()
 
             // Exact flight numbers are often exposed only after opening itinerary
-            // details. Re-run the bounded expansion a few times because aggregator
-            // SPAs hydrate result rows progressively.
-            if requirement == .displayable && detailExpansionPasses < 3 {
+            // details. Re-run the bounded expansion because airline SPAs hydrate
+            // result rows progressively.
+            if detailExpansionPasses < 4 {
                 let clicked = (try? await evaluate(FlightBotScripts.expandCandidateDetails)) as? Int ?? 0
                 detailExpansionPasses += 1
                 if clicked > 0 {
@@ -91,11 +94,7 @@ final class FlightBotRunner {
                 }
             }
 
-            let extractionScript = requirement == .pricingReference
-                ? FlightBotScripts.extractPricingReferenceBlocks
-                : FlightBotScripts.extractCandidateBlocks
-
-            if let blocks = try? await evaluate(extractionScript) as? [String], !blocks.isEmpty {
+            if let blocks = try? await evaluate(FlightBotScripts.extractCandidateBlocks) as? [String], !blocks.isEmpty {
                 sawCandidateBlocks = true
                 let parsed = FlightTextParser.candidates(
                     blocks: blocks,
@@ -104,8 +103,8 @@ final class FlightBotRunner {
                     sourceURL: webView.url ?? url,
                     requirement: requirement
                 )
-                if parsed.count > best.count { best = parsed }
-                if requirement == .pricingReference, !best.isEmpty { break }
+                let verified = parsed.filter(\.isDisplayableCandidate)
+                if verified.count > best.count { best = verified }
                 if best.count >= 3 { break }
             }
 

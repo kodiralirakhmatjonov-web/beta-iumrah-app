@@ -14,8 +14,8 @@ final class FlightBotOrchestrator {
         var errorDescription: String? {
             switch self {
             case .noVerifiedResults(let blocked):
-                let blockedText = blocked.isEmpty ? "" : " Некоторые источники запросили дополнительную проверку: \(blocked.joined(separator: ", "))."
-                return "Поиск не успел получить ни одного подтверждённого варианта.\(blockedText)"
+                let blockedText = blocked.isEmpty ? "" : " Некоторые авиакомпании запросили дополнительную проверку: \(blocked.joined(separator: ", "))."
+                return "Не удалось получить рейс с подтверждённым номером и маршрутом.\(blockedText)"
             }
         }
     }
@@ -31,6 +31,12 @@ final class FlightBotOrchestrator {
         var attemptedKeys: Set<String>
         var challenges: [FlightBotChallenge]
         var updatedAt: Date
+    }
+
+    private struct SearchBatch {
+        let date: Date
+        let providers: [FlightBotProvider]
+        let isFlexibleCoverageBatch: Bool
     }
 
     static let shared = FlightBotOrchestrator()
@@ -52,115 +58,125 @@ final class FlightBotOrchestrator {
     ) async throws -> SearchResult {
         pruneCheckpoints()
 
+        // Production has one candidate contract only: a complete displayable
+        // itinerary with exact carrier flight numbers.
+        let effectiveRequirement: FlightCandidateRequirement = .displayable
         let hardMinimum = max(1, minimumResults ?? minimumTarget)
         let desired = max(hardMinimum, preferredResults ?? preferredTarget)
         let searchID = UUID().uuidString
         let requestedAt = Date()
         let deadline = requestedAt.addingTimeInterval(AppConfig.flightBotSearchHardTimeoutSeconds)
         let dates = FlightDatePlanner.dates(anchor: baseRequest.date, flexibility: flexibility)
-        let providers = FlightBotProviderRegistry.ordered(for: baseRequest.origin, destination: baseRequest.destination)
-        let checkpointKey = signature(for: baseRequest, flexibility: flexibility, requirement: requirement)
-        let existing = checkpoints[checkpointKey]
+        let providers = FlightBotProviderRegistry
+            .ordered(for: baseRequest.origin, destination: baseRequest.destination)
+            .filter(\.isOfficialCarrierSource)
 
-        var collected = (existing?.candidates ?? []).filter { candidate in
-            requirement == .pricingReference || candidate.isDisplayableCandidate
-        }
-        let possibleAttemptCount = max(1, dates.count * providers.count)
-        // “Continue search” resumes from the last untried provider/date. Once a full
-        // pass has genuinely exhausted every source, a later retry starts a fresh pass.
+        let checkpointKey = signature(for: baseRequest, flexibility: flexibility, requirement: effectiveRequirement)
+        let existing = checkpoints[checkpointKey]
+        var collected = (existing?.candidates ?? []).filter(\.isDisplayableCandidate)
         var attemptedKeys = existing?.attemptedKeys ?? []
-        if attemptedKeys.count >= possibleAttemptCount { attemptedKeys.removeAll() }
         var challenges = existing?.challenges ?? []
+
+        let batches = buildBatches(dates: dates, providers: providers, flexibility: flexibility)
+        let allAttemptKeys = Set(batches.flatMap { batch in
+            batch.providers.map { attemptKey(provider: $0, date: batch.date) }
+        })
+        if !allAttemptKeys.isEmpty, allAttemptKeys.isSubset(of: attemptedKeys) {
+            // “Continue search” after a complete pass starts another fresh pass but
+            // retains already verified candidates for deduplication/ranking.
+            attemptedKeys.removeAll()
+        }
+
         var succeeded = 0
         var started = 0
         var completedBatches = 0
+        let requiredFlexibleCoverageBatches = flexibility.isFlexibleDayRange ? dates.count : 0
+        var flexibleCoverageCompleted = 0
 
-        searchLoop: for date in dates {
+        searchLoop: for batch in batches {
             guard Date() < deadline else { break }
+
+            let untried = batch.providers.filter {
+                !attemptedKeys.contains(attemptKey(provider: $0, date: batch.date))
+            }
+            if untried.isEmpty {
+                if batch.isFlexibleCoverageBatch { flexibleCoverageCompleted += 1 }
+                continue
+            }
 
             let request = FlightBotSearchRequest(
                 direction: baseRequest.direction,
                 origin: baseRequest.origin,
                 destination: baseRequest.destination,
-                date: date,
+                date: batch.date,
                 adults: baseRequest.adults,
                 children: baseRequest.children,
                 infants: baseRequest.infants,
                 cabin: baseRequest.cabin
             )
 
-            for batchStart in stride(from: 0, to: providers.count, by: AppConfig.flightBotProviderBatchSize) {
-                guard Date() < deadline else { break searchLoop }
-
-                let batchEnd = min(providers.count, batchStart + AppConfig.flightBotProviderBatchSize)
-                let batch = Array(providers[batchStart..<batchEnd]).filter { provider in
-                    !attemptedKeys.contains(attemptKey(provider: provider, date: date))
-                }
-                guard !batch.isEmpty else { continue }
-                started += batch.count
-
-                let tasks: [(String, Task<ProviderAttempt, Never>)] = batch.map { provider in
-                    let key = attemptKey(provider: provider, date: date)
-                    return (key, Task { @MainActor in
-                        do {
-                            let remaining = max(3, deadline.timeIntervalSinceNow)
-                            let providerBudget = min(AppConfig.flightBotProviderTimeoutSeconds, remaining)
-                            let results = try await FlightBotRunner(
-                                provider: provider,
-                                request: request,
-                                requirement: requirement
-                            ).run(timeoutSeconds: providerBudget)
-                            return .candidates(results)
-                        } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
-                            return .challenge(challenge)
-                        } catch {
-                            return .failed
-                        }
-                    })
-                }
-
-                for (key, task) in tasks {
-                    attemptedKeys.insert(key)
-                    switch await task.value {
-                    case .candidates(let results):
-                        let accepted = requirement == .pricingReference
-                            ? results
-                            : results.filter(\.isDisplayableCandidate)
-                        if !accepted.isEmpty { succeeded += 1 }
-                        collected.append(contentsOf: accepted)
-                    case .challenge(let challenge):
-                        challenges.append(challenge)
-                    case .failed:
-                        break
+            started += untried.count
+            let tasks: [(String, Task<ProviderAttempt, Never>)] = untried.map { provider in
+                let key = attemptKey(provider: provider, date: batch.date)
+                return (key, Task { @MainActor in
+                    do {
+                        let remaining = max(3, deadline.timeIntervalSinceNow)
+                        let providerBudget = min(AppConfig.flightBotProviderTimeoutSeconds, remaining)
+                        let results = try await FlightBotRunner(
+                            provider: provider,
+                            request: request,
+                            requirement: effectiveRequirement
+                        ).run(timeoutSeconds: providerBudget)
+                        return .candidates(results)
+                    } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
+                        return .challenge(challenge)
+                    } catch {
+                        return .failed
                     }
-                }
+                })
+            }
 
-                checkpoints[checkpointKey] = SearchCheckpoint(
-                    candidates: collected,
-                    attemptedKeys: attemptedKeys,
-                    challenges: challenges,
-                    updatedAt: Date()
-                )
-
-                completedBatches += 1
-                let ranked = deduplicateAndRank(collected, anchor: baseRequest.date)
-
-                if requirement == .pricingReference, !ranked.isEmpty {
-                    break searchLoop
+            for (key, task) in tasks {
+                attemptedKeys.insert(key)
+                switch await task.value {
+                case .candidates(let results):
+                    let accepted = results.filter(\.isDisplayableCandidate)
+                    if !accepted.isEmpty { succeeded += 1 }
+                    collected.append(contentsOf: accepted)
+                case .challenge(let challenge):
+                    challenges.append(challenge)
+                case .failed:
+                    break
                 }
-                // A single exact itinerary is enough to avoid failing the user,
-                // but keep searching several provider batches so the visible list
-                // is not dominated by the first aggregator that responds.
-                if ranked.count >= desired || (ranked.count >= hardMinimum && completedBatches >= 4) {
-                    break searchLoop
-                }
+            }
+
+            completedBatches += 1
+            if batch.isFlexibleCoverageBatch { flexibleCoverageCompleted += 1 }
+
+            let ranked = deduplicateAndRank(collected, anchor: baseRequest.date, flexibility: flexibility)
+            checkpoints[checkpointKey] = SearchCheckpoint(
+                candidates: ranked,
+                attemptedKeys: attemptedKeys,
+                challenges: challenges,
+                updatedAt: Date()
+            )
+
+            // For ±1–2 days, always give the two highest-priority official carriers
+            // a chance on every candidate date before stopping. This is what makes
+            // cheaper flights one/two days earlier or later actually appear.
+            let coverageSatisfied = !flexibility.isFlexibleDayRange || flexibleCoverageCompleted >= requiredFlexibleCoverageBatches
+            guard coverageSatisfied else { continue }
+
+            if ranked.count >= desired { break searchLoop }
+            if ranked.count >= hardMinimum && completedBatches >= requiredFlexibleCoverageBatches + 3 {
+                break searchLoop
             }
         }
 
-        let eligible = requirement == .pricingReference
-            ? collected
-            : collected.filter(\.isDisplayableCandidate)
-        let final = Array(deduplicateAndRank(eligible, anchor: baseRequest.date).prefix(12))
+        let final = Array(
+            deduplicateAndRank(collected.filter(\.isDisplayableCandidate), anchor: baseRequest.date, flexibility: flexibility)
+                .prefix(16)
+        )
         let summary = FlightBotSearchSummary(
             searchID: searchID,
             requestedAt: requestedAt,
@@ -188,6 +204,43 @@ final class FlightBotOrchestrator {
         }
 
         return SearchResult(candidates: final, summary: summary, blockedChallenges: challenges)
+    }
+
+    private func buildBatches(
+        dates: [Date],
+        providers: [FlightBotProvider],
+        flexibility: DateFlexibility
+    ) -> [SearchBatch] {
+        guard !dates.isEmpty, !providers.isEmpty else { return [] }
+        let size = max(1, AppConfig.flightBotProviderBatchSize)
+
+        if flexibility.isFlexibleDayRange {
+            // Phase 1: top two official carriers on every day in [0,-1,+1,-2,+2].
+            // On Uzbekistan routes these are Uzbekistan Airways and Qanot Sharq.
+            let coverageCount = min(size, providers.count)
+            let coverageProviders = Array(providers.prefix(coverageCount))
+            var output = dates.map { SearchBatch(date: $0, providers: coverageProviders, isFlexibleCoverageBatch: true) }
+
+            // Phase 2: broaden the market, starting with the selected date and then
+            // the neighbouring dates in the same order as FlightDatePlanner.
+            let remaining = Array(providers.dropFirst(coverageCount))
+            for date in dates {
+                for start in stride(from: 0, to: remaining.count, by: size) {
+                    let end = min(remaining.count, start + size)
+                    output.append(SearchBatch(date: date, providers: Array(remaining[start..<end]), isFlexibleCoverageBatch: false))
+                }
+            }
+            return output
+        }
+
+        var output: [SearchBatch] = []
+        for date in dates {
+            for start in stride(from: 0, to: providers.count, by: size) {
+                let end = min(providers.count, start + size)
+                output.append(SearchBatch(date: date, providers: Array(providers[start..<end]), isFlexibleCoverageBatch: false))
+            }
+        }
+        return output
     }
 
     private func signature(
@@ -223,9 +276,13 @@ final class FlightBotOrchestrator {
         checkpoints = checkpoints.filter { $0.value.updatedAt >= cutoff }
     }
 
-    private func deduplicateAndRank(_ candidates: [LiveFlightCandidate], anchor: Date) -> [LiveFlightCandidate] {
+    private func deduplicateAndRank(
+        _ candidates: [LiveFlightCandidate],
+        anchor: Date,
+        flexibility: DateFlexibility
+    ) -> [LiveFlightCandidate] {
         var unique: [String: LiveFlightCandidate] = [:]
-        for candidate in candidates {
+        for candidate in candidates where candidate.isDisplayableCandidate {
             if let existing = unique[candidate.deduplicationKey] {
                 unique[candidate.deduplicationKey] = preferredSource(candidate, over: existing) ? candidate : existing
             } else {
@@ -236,10 +293,22 @@ final class FlightBotOrchestrator {
         return unique.values.sorted { lhs, rhs in
             let leftDay = abs(Calendar.current.startOfDay(for: lhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
             let rightDay = abs(Calendar.current.startOfDay(for: rhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
-            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
-            if leftDay != rightDay { return leftDay < rightDay }
-            if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {
-                return lhs.observedFare < rhs.observedFare
+
+            if flexibility.isFlexibleDayRange {
+                // When flexible dates are explicitly selected, fare becomes the
+                // primary ranking signal within the same currency; nearby date and
+                // fewer stops break ties.
+                if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {
+                    return lhs.observedFare < rhs.observedFare
+                }
+                if leftDay != rightDay { return leftDay < rightDay }
+                if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+            } else {
+                if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+                if leftDay != rightDay { return leftDay < rightDay }
+                if lhs.observedCurrency == rhs.observedCurrency && lhs.observedFare != rhs.observedFare {
+                    return lhs.observedFare < rhs.observedFare
+                }
             }
             return providerPriority(lhs.providerID) < providerPriority(rhs.providerID)
         }

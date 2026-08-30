@@ -15,10 +15,17 @@ enum FlightBotProviderID: String, CaseIterable, Codable, Hashable, Identifiable 
     case flydubai
     case airAstana
     case flyArystan
+
+    // Retained only for decoding old local checkpoints. Aggregators are not part
+    // of the production provider registry and can never generate a visible flight.
     case googleFlights
     case skyscanner
 
     var id: String { rawValue }
+
+    var isAggregator: Bool {
+        self == .googleFlights || self == .skyscanner
+    }
 }
 
 struct FlightBotProvider: Identifiable, Hashable {
@@ -35,43 +42,12 @@ struct FlightBotProvider: Identifiable, Hashable {
     let baseURL: URL
     let defaultFareScope: FlightFareScope
 
+    var isOfficialCarrierSource: Bool { !id.isAggregator }
+
     func searchURL(for request: FlightBotSearchRequest) -> URL {
-        switch id {
-        case .googleFlights:
-            let formatter = DateFormatter()
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = "yyyy-MM-dd"
-            let date = formatter.string(from: request.date)
-            let query = "Flights from \(request.origin) to \(request.destination) on \(date)"
-            var components = URLComponents(string: "https://www.google.com/travel/flights")!
-            components.queryItems = [
-                URLQueryItem(name: "hl", value: "en"),
-                URLQueryItem(name: "curr", value: "USD"),
-                URLQueryItem(name: "q", value: query)
-            ]
-            return components.url ?? baseURL
-
-        case .skyscanner:
-            let formatter = DateFormatter()
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = "yyMMdd"
-            let date = formatter.string(from: request.date)
-            let route = "https://www.skyscanner.com/transport/flights/\(request.origin.lowercased())/\(request.destination.lowercased())/\(date)/"
-            var components = URLComponents(string: route)!
-            components.queryItems = [
-                URLQueryItem(name: "adultsv2", value: String(max(1, request.adults))),
-                URLQueryItem(name: "childrenv2", value: String(request.children)),
-                URLQueryItem(name: "infants", value: String(request.infants)),
-                URLQueryItem(name: "cabinclass", value: request.cabin),
-                URLQueryItem(name: "currency", value: "USD")
-            ]
-            return components.url ?? baseURL
-
-        default:
-            return baseURL
-        }
+        // Production search intentionally opens the airline's own booking surface.
+        // No Google Flights/Skyscanner provider is registered below.
+        baseURL
     }
 }
 
@@ -81,28 +57,68 @@ enum FlightBotProviderRegistry {
     ]
     static let saudiAirportCodes: Set<String> = ["JED", "MED", "RUH", "DMM", "TIF"]
 
+    /// Production sources are official airline booking surfaces only. Aggregators
+    /// were removed because their DOM can expose provider names and fare-reference
+    /// rows without the exact operating flight number, which is unacceptable for
+    /// a booking product.
     static let providers: [FlightBotProvider] = [
-        FlightBotProvider(id: .uzbekistanAirways, displayName: "Uzbekistan Airways", marketScope: .uzbekistanPriority, priority: 10, baseURL: URL(string: "https://booking.uzairways.com/en/index.html?optdisable=1")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .qanotSharq, displayName: "Qanot Sharq", marketScope: .uzbekistanPriority, priority: 20, baseURL: URL(string: "https://booking.qanotsharq.com/websky_grs/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .centrumAir, displayName: "Centrum Air", marketScope: .uzbekistanPriority, priority: 30, baseURL: URL(string: "https://booking.centrum-air.com/ibe/C6/home/?language=en")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .silkAvia, displayName: "Silk Avia", marketScope: .uzbekistanPriority, priority: 40, baseURL: URL(string: "https://pss.silk-avia.com/ibe/search?lang=en")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .airSamarkand, displayName: "Air Samarkand", marketScope: .uzbekistanPriority, priority: 50, baseURL: URL(string: "https://booking.airsamarkand.com/en/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .flyKhiva, displayName: "Fly Khiva", marketScope: .uzbekistanPriority, priority: 60, baseURL: URL(string: "https://www.flykhiva.uz/en")!, defaultFareScope: .perPassenger),
+        FlightBotProvider(
+            id: .uzbekistanAirways,
+            displayName: "Uzbekistan Airways",
+            marketScope: .uzbekistanPriority,
+            priority: 10,
+            baseURL: URL(string: "https://booking.uzairways.com/")!,
+            defaultFareScope: .perPassenger
+        ),
+        FlightBotProvider(
+            id: .qanotSharq,
+            displayName: "Qanot Sharq",
+            marketScope: .uzbekistanPriority,
+            priority: 20,
+            baseURL: URL(string: "https://qanotsharq.com/en")!,
+            defaultFareScope: .perPassenger
+        ),
+        FlightBotProvider(
+            id: .centrumAir,
+            displayName: "Centrum Air",
+            marketScope: .uzbekistanPriority,
+            priority: 30,
+            baseURL: URL(string: "https://booking.centrum-air.com/ibe/C6/home/?language=en")!,
+            defaultFareScope: .perPassenger
+        ),
+        FlightBotProvider(
+            id: .airSamarkand,
+            displayName: "Air Samarkand",
+            marketScope: .uzbekistanPriority,
+            priority: 40,
+            baseURL: URL(string: "https://booking.airsamarkand.com/en/")!,
+            defaultFareScope: .perPassenger
+        ),
+        FlightBotProvider(
+            id: .flyKhiva,
+            displayName: "Fly Khiva",
+            marketScope: .uzbekistanPriority,
+            priority: 50,
+            baseURL: URL(string: "https://booking.flykhiva.uz/new/")!,
+            defaultFareScope: .perPassenger
+        ),
+        FlightBotProvider(
+            id: .silkAvia,
+            displayName: "Silk Avia",
+            marketScope: .uzbekistanPriority,
+            priority: 60,
+            baseURL: URL(string: "https://pss.silk-avia.com/ibe/search?lang=en")!,
+            defaultFareScope: .perPassenger
+        ),
 
-        // Regional sources are especially useful for Uzbekistan → Saudi Arabia
-        // itineraries and one-stop alternatives. They remain below direct Uzbek
-        // carriers so local inventory is searched first.
-        FlightBotProvider(id: .flynas, displayName: "flynas", marketScope: .regional, priority: 70, baseURL: URL(string: "https://www.flynas.com/en")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .saudia, displayName: "Saudia", marketScope: .regional, priority: 75, baseURL: URL(string: "https://www.saudia.com/")!, defaultFareScope: .perPassenger),
+        FlightBotProvider(id: .airArabia, displayName: "Air Arabia", marketScope: .regional, priority: 70, baseURL: URL(string: "https://www.airarabia.com/en")!, defaultFareScope: .perPassenger),
+        FlightBotProvider(id: .flydubai, displayName: "flydubai", marketScope: .regional, priority: 75, baseURL: URL(string: "https://www.flydubai.com/en/")!, defaultFareScope: .perPassenger),
         FlightBotProvider(id: .turkishAirlines, displayName: "Turkish Airlines", marketScope: .regional, priority: 80, baseURL: URL(string: "https://www.turkishairlines.com/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .airArabia, displayName: "Air Arabia", marketScope: .regional, priority: 85, baseURL: URL(string: "https://www.airarabia.com/en")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .jazeeraAirways, displayName: "Jazeera Airways", marketScope: .regional, priority: 90, baseURL: URL(string: "https://www.jazeeraairways.com/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .flydubai, displayName: "flydubai", marketScope: .regional, priority: 95, baseURL: URL(string: "https://www.flydubai.com/en/")!, defaultFareScope: .perPassenger),
+        FlightBotProvider(id: .jazeeraAirways, displayName: "Jazeera Airways", marketScope: .regional, priority: 85, baseURL: URL(string: "https://www.jazeeraairways.com/")!, defaultFareScope: .perPassenger),
+        FlightBotProvider(id: .saudia, displayName: "Saudia", marketScope: .regional, priority: 90, baseURL: URL(string: "https://www.saudia.com/")!, defaultFareScope: .perPassenger),
+        FlightBotProvider(id: .flynas, displayName: "flynas", marketScope: .regional, priority: 95, baseURL: URL(string: "https://www.flynas.com/en")!, defaultFareScope: .perPassenger),
         FlightBotProvider(id: .airAstana, displayName: "Air Astana", marketScope: .regional, priority: 100, baseURL: URL(string: "https://airastana.com/")!, defaultFareScope: .perPassenger),
         FlightBotProvider(id: .flyArystan, displayName: "FlyArystan", marketScope: .regional, priority: 105, baseURL: URL(string: "https://flyarystan.com/")!, defaultFareScope: .perPassenger),
-
-        FlightBotProvider(id: .googleFlights, displayName: "Google Flights", marketScope: .global, priority: 120, baseURL: URL(string: "https://www.google.com/travel/flights")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .skyscanner, displayName: "Skyscanner", marketScope: .global, priority: 130, baseURL: URL(string: "https://www.skyscanner.com/transport/flights")!, defaultFareScope: .perPassenger)
     ]
 
     static func ordered(for origin: String, destination: String? = nil) -> [FlightBotProvider] {
@@ -116,33 +132,28 @@ enum FlightBotProviderRegistry {
 
         let ids: [FlightBotProviderID]
         if domesticUzbekistan {
-            // Search the local market first, but put one broad discovery source in
-            // the first batch so a broken airline booking form cannot stall the UI.
-            ids = [
-                .uzbekistanAirways, .googleFlights, .qanotSharq, .skyscanner,
-                .centrumAir, .silkAvia, .airSamarkand, .flyKhiva,
-            ]
+            ids = [.uzbekistanAirways, .qanotSharq, .centrumAir, .silkAvia, .airSamarkand, .flyKhiva]
         } else if fromUzbekistan || toUzbekistan {
+            // Uzbek carriers get the first six slots for both directions. This is
+            // what makes TAS/SKD/etc. inventory visible before regional connections.
             ids = [
-                .uzbekistanAirways, .googleFlights, .qanotSharq, .skyscanner,
-                .airArabia, .flydubai, .turkishAirlines, .centrumAir,
-                .jazeeraAirways, .saudia, .airSamarkand, .flynas,
-                .airAstana, .flyArystan, .silkAvia, .flyKhiva,
+                .uzbekistanAirways, .qanotSharq, .centrumAir, .airSamarkand, .flyKhiva, .silkAvia,
+                .airArabia, .flydubai, .turkishAirlines, .jazeeraAirways,
+                .saudia, .flynas, .airAstana, .flyArystan,
             ]
         } else if saudiRoute {
             ids = [
-                .saudia, .googleFlights, .flynas, .skyscanner,
-                .turkishAirlines, .airArabia, .jazeeraAirways, .flydubai,
-                .uzbekistanAirways, .airAstana, .flyArystan,
+                .saudia, .flynas, .airArabia, .flydubai, .jazeeraAirways, .turkishAirlines,
+                .airAstana, .flyArystan, .uzbekistanAirways, .qanotSharq,
             ]
         } else {
             ids = [
-                .turkishAirlines, .googleFlights, .airArabia, .skyscanner,
-                .flydubai, .jazeeraAirways, .airAstana, .flyArystan,
-                .uzbekistanAirways,
+                .turkishAirlines, .airArabia, .flydubai, .jazeeraAirways,
+                .airAstana, .flyArystan, .saudia, .flynas,
+                .uzbekistanAirways, .qanotSharq,
             ]
         }
 
-        return ids.compactMap { byID[$0] }
+        return ids.compactMap { byID[$0] }.filter(\.isOfficialCarrierSource)
     }
 }

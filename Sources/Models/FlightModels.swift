@@ -211,14 +211,32 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     /// flight numbers and complete contiguous segments can be booked. Pricing
     /// references and aggregator placeholders are deliberately rejected here.
     var isVerifiedForBooking: Bool {
-        guard let segments, !segments.isEmpty, segments.count == stops + 1 else { return false }
+        let source = sourceLabel.lowercased()
+        guard !source.contains("google flights"),
+              !source.contains("skyscanner"),
+              !source.contains("ref-google"),
+              !source.contains("ref-skyscanner"),
+              let exactPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
+              let primaryCode = FlightReferenceCatalog.airlineCode(from: exactPrimary),
+              let primaryCarrier = FlightReferenceCatalog.airline(code: primaryCode),
+              airline.caseInsensitiveCompare(primaryCarrier.name) == .orderedSame,
+              let segments, !segments.isEmpty, segments.count == stops + 1 else { return false }
+
+        guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == exactPrimary else { return false }
         guard segments.allSatisfy({ segment in
-            FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) != nil &&
-            FlightReferenceCatalog.airline(code: FlightReferenceCatalog.airlineCode(from: segment.flightNumber)) != nil &&
-            segment.origin.code != segment.destination.code
+            guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
+                  let code = FlightReferenceCatalog.airlineCode(from: normalized),
+                  let carrier = FlightReferenceCatalog.airline(code: code) else { return false }
+            return segment.airline.caseInsensitiveCompare(carrier.name) == .orderedSame &&
+                   segment.origin.code != segment.destination.code
         }) else { return false }
         guard segments.first?.origin.code == origin, segments.last?.destination.code == destination else { return false }
         guard zip(segments, segments.dropFirst()).allSatisfy({ $0.destination.code == $1.origin.code }) else { return false }
+        if stops == 0, let connectionAirports, !connectionAirports.isEmpty { return false }
+        if stops > 0 {
+            guard let connectionAirports, connectionAirports.count == stops else { return false }
+            guard connectionAirports.map(\.code) == segments.dropLast().map(\.destination.code) else { return false }
+        }
         return !flightNumbersSummary.isEmpty && !airlinesSummary.isEmpty
     }
 }

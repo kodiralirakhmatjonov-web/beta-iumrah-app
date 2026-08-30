@@ -1,94 +1,205 @@
 import Foundation
 
 enum FlightBotScripts {
-    static func submitSearch(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
+    static func prepareSearch(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.calendar = Calendar(identifier: .gregorian)
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let isoDate = dateFormatter.string(from: request.date)
 
-        let escapedOrigin = jsEscape(request.origin)
-        let escapedDestination = jsEscape(request.destination)
-        let escapedDate = jsEscape(isoDate)
-
-        if provider.id == .googleFlights || provider.id == .skyscanner {
-            return "({ok:true, reason:'deep-link-provider'})"
-        }
+        let displayDateFormatter = DateFormatter()
+        displayDateFormatter.calendar = Calendar(identifier: .gregorian)
+        displayDateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        displayDateFormatter.dateFormat = "dd.MM.yyyy"
+        let displayDate = displayDateFormatter.string(from: request.date)
 
         return """
         (() => {
-          const origin = '\(escapedOrigin)';
-          const destination = '\(escapedDestination)';
-          const date = '\(escapedDate)';
+          const origin = '\(jsEscape(request.origin))';
+          const destination = '\(jsEscape(request.destination))';
+          const isoDate = '\(jsEscape(isoDate))';
+          const displayDate = '\(jsEscape(displayDate))';
           const adults = \(max(1, request.adults));
           const children = \(max(0, request.children));
           const infants = \(max(0, request.infants));
 
           const visible = el => {
+            if (!el) return false;
             const r = el.getBoundingClientRect();
             const s = getComputedStyle(el);
             return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
           };
-          const text = el => ((el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('placeholder') || '') + ' ' + (el.name || '') + ' ' + (el.id || '')).toLowerCase();
+          const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
+          const descriptor = el => {
+            const own = [el.getAttribute('aria-label'), el.getAttribute('placeholder'), el.getAttribute('name'), el.id, el.getAttribute('data-testid'), el.getAttribute('data-stid')].filter(Boolean).join(' ');
+            const label = el.labels && el.labels.length ? Array.from(el.labels).map(x => x.innerText || x.textContent || '').join(' ') : '';
+            const parent = clean(el.closest('label,.form-group,.field,.input-group,[class*=field],[class*=form]')?.innerText || '').slice(0, 180);
+            return clean(own + ' ' + label + ' ' + parent).toLowerCase();
+          };
           const setNativeValue = (el, value) => {
+            if (!el) return false;
             try { el.focus(); } catch (_) {}
             try {
               const proto = Object.getPrototypeOf(el);
               const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
               if (descriptor && descriptor.set) descriptor.set.call(el, value); else el.value = value;
-            } catch (_) { el.value = value; }
-            el.dispatchEvent(new Event('input', {bubbles:true}));
-            el.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true, key:'a'}));
-            el.dispatchEvent(new Event('change', {bubbles:true}));
+            } catch (_) { try { el.value = value; } catch (_) { return false; } }
+            for (const type of ['input','change','blur']) el.dispatchEvent(new Event(type, {bubbles:true}));
+            return true;
           };
-          const chooseVisibleSuggestion = value => {
-            const options = Array.from(document.querySelectorAll('[role=option], [role=listbox] li, .autocomplete li, .suggestions li, .dropdown-menu li')).filter(visible);
-            const match = options.find(el => (el.innerText || el.textContent || '').toUpperCase().includes(value.toUpperCase()));
-            if (match) { match.click(); return true; }
-            return false;
-          };
-
-          const controls = Array.from(document.querySelectorAll('input, select, textarea')).filter(visible);
-          const originWords = ['from','origin','departure','откуда','qayerdan','qayerda','jo\'nash','город вылета','uchish'];
-          const destWords = ['to','destination','arrival','куда','qayerga','yetib','город прилета','borish'];
-          const dateWords = ['date','depart','departure date','вылет','дата вылета','borish sanasi','jo\'nash sanasi','uchish sanasi'];
-
-          const findControl = words => controls.find(el => words.some(w => text(el).includes(w)));
           const setSelect = (el, value) => {
             if (!el || el.tagName !== 'SELECT') return false;
-            const option = Array.from(el.options).find(o => (o.value || '').toUpperCase() === value || (o.textContent || '').toUpperCase().includes(value));
+            const normalized = value.toUpperCase();
+            const option = Array.from(el.options || []).find(o =>
+              String(o.value || '').toUpperCase() === normalized ||
+              clean(o.textContent || '').toUpperCase().includes(normalized)
+            );
             if (!option) return false;
             el.value = option.value;
+            el.dispatchEvent(new Event('input', {bubbles:true}));
             el.dispatchEvent(new Event('change', {bubbles:true}));
             return true;
           };
 
-          const from = findControl(originWords);
-          const to = findControl(destWords);
-          const depart = findControl(dateWords) || controls.find(el => el.type === 'date');
-
-          if (from) { if (!setSelect(from, origin)) { setNativeValue(from, origin); chooseVisibleSuggestion(origin); } }
-          if (to) { if (!setSelect(to, destination)) { setNativeValue(to, destination); chooseVisibleSuggestion(destination); } }
-          if (depart) setNativeValue(depart, date);
-
-          const passengerHints = [
-            ['adult', adults], ['взрос', adults], ['child', children], ['дет', children], ['infant', infants], ['млад', infants]
-          ];
-          for (const [hint, value] of passengerHints) {
-            const el = controls.find(c => text(c).includes(hint));
-            if (el && ['INPUT','SELECT'].includes(el.tagName)) {
-              if (!setSelect(el, String(value))) setNativeValue(el, String(value));
+          // Force a one-way search. iumrah searches each direction separately so
+          // every returned card corresponds to one concrete itinerary/date.
+          const oneWayWords = ['one way','one-way','direct route','в одну сторону','только туда','bir tomonga','bir yo‘nalish','bir yonalish'];
+          const clickable = Array.from(document.querySelectorAll('button,[role=button],label,input[type=radio],input[type=checkbox]')).filter(visible);
+          for (const el of clickable) {
+            const t = clean((el.innerText || el.textContent || el.getAttribute('aria-label') || '')).toLowerCase();
+            if (oneWayWords.some(w => t.includes(w))) {
+              try { el.click(); } catch (_) {}
+              break;
             }
           }
 
-          const buttons = Array.from(document.querySelectorAll('button, input[type=submit], a')).filter(visible);
-          const search = buttons.find(el => {
-            const t = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().toLowerCase();
-            return ['search','find','поиск','найти','излаш','izlash','qidirish','search flight','search flights','find flights'].some(w => t.includes(w));
+          const controls = Array.from(document.querySelectorAll('input,select,textarea'));
+          const find = words => controls.find(el => words.some(w => descriptor(el).includes(w)));
+          const originWords = ['from','origin','departure airport','откуда','аэропорт вылета','qayerdan','jo\'nash','uchish'];
+          const destinationWords = ['to','destination','arrival airport','куда','аэропорт прилета','qayerga','yetib','borish'];
+          const dateWords = ['departure date','depart date','date','вылет','дата вылета','jo\'nash sanasi','uchish sanasi'];
+
+          const from = find(originWords);
+          const to = controls.find(el => el !== from && destinationWords.some(w => descriptor(el).includes(w)));
+          const dateControl = controls.find(el => el.type === 'date') || find(dateWords);
+
+          if (from) {
+            if (!setSelect(from, origin)) setNativeValue(from, origin);
+          }
+          if (to) {
+            if (!setSelect(to, destination)) setNativeValue(to, destination);
+          }
+          if (dateControl) {
+            const hint = descriptor(dateControl);
+            const value = dateControl.type === 'date' || /yyyy|year|date/.test(hint) ? isoDate : displayDate;
+            setNativeValue(dateControl, value);
+            // Booking engines often read a hidden ISO field next to the visible input.
+            const hidden = dateControl.parentElement?.querySelector('input[type=hidden]');
+            if (hidden) setNativeValue(hidden, isoDate);
+          }
+
+          const passengerValues = [
+            [['adult','взрос','kattalar'], adults],
+            [['child','children','дет','bolalar'], children],
+            [['infant','млад','chaqaloq'], infants]
+          ];
+          for (const [words, value] of passengerValues) {
+            const el = controls.find(c => words.some(w => descriptor(c).includes(w)));
+            if (!el) continue;
+            if (!setSelect(el, String(value))) setNativeValue(el, String(value));
+          }
+
+          return {ok:true, origin:!!from, destination:!!to, date:!!dateControl};
+        })()
+        """
+    }
+
+    static func finalizeSearch(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.calendar = Calendar(identifier: .gregorian)
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let isoDate = dateFormatter.string(from: request.date)
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.calendar = Calendar(identifier: .gregorian)
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.dateFormat = "d"
+        let day = dayFormatter.string(from: request.date)
+
+        return """
+        (() => {
+          const origin = '\(jsEscape(request.origin))';
+          const destination = '\(jsEscape(request.destination))';
+          const isoDate = '\(jsEscape(isoDate))';
+          const day = '\(jsEscape(day))';
+          const clean = value => (value || '').replace(/\\s+/g,' ').trim();
+          const visible = el => {
+            if (!el) return false;
+            const r = el.getBoundingClientRect();
+            const s = getComputedStyle(el);
+            return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+          };
+          const descriptor = el => clean([
+            el.getAttribute('aria-label'), el.getAttribute('placeholder'), el.getAttribute('name'), el.id,
+            el.labels && el.labels.length ? Array.from(el.labels).map(x => x.innerText || '').join(' ') : '',
+            el.closest('label,.form-group,.field,[class*=field]')?.innerText || ''
+          ].filter(Boolean).join(' ')).toLowerCase();
+
+          const controls = Array.from(document.querySelectorAll('input,select,textarea')).filter(visible);
+          const from = controls.find(el => /from|origin|откуда|qayerdan|jo'nash|uchish/.test(descriptor(el)));
+          const to = controls.find(el => el !== from && /to|destination|куда|qayerga|borish|arrival/.test(descriptor(el)));
+
+          const acceptSuggestion = (el, value) => {
+            if (!el) return false;
+            try { el.focus(); } catch (_) {}
+            const options = Array.from(document.querySelectorAll('[role=option],[role=listbox] li,.autocomplete li,.suggestions li,.dropdown-menu li,[class*=suggest] li,[class*=option]')).filter(visible);
+            const upper = value.toUpperCase();
+            const match = options.find(x => clean(x.innerText || x.textContent || x.getAttribute('aria-label') || '').toUpperCase().includes(upper));
+            if (match) { try { match.click(); return true; } catch (_) {} }
+            try {
+              el.dispatchEvent(new KeyboardEvent('keydown', {bubbles:true, key:'ArrowDown'}));
+              el.dispatchEvent(new KeyboardEvent('keydown', {bubbles:true, key:'Enter'}));
+            } catch (_) {}
+            return false;
+          };
+          acceptSuggestion(from, origin);
+          acceptSuggestion(to, destination);
+
+          // If a calendar popover is open, prefer machine-readable date attributes.
+          const dateCandidates = Array.from(document.querySelectorAll('[data-date],[datetime],[aria-label],button,[role=button]')).filter(visible);
+          const exactDate = dateCandidates.find(el => {
+            const machine = [el.getAttribute('data-date'), el.getAttribute('datetime'), el.getAttribute('aria-label')].filter(Boolean).join(' ');
+            return machine.includes(isoDate);
           });
-          if (search) { search.click(); return {ok:true, clicked:true}; }
-          return {ok:false, clicked:false, reason:'search-control-not-found'};
+          if (exactDate) { try { exactDate.click(); } catch (_) {} }
+          else {
+            const dayCell = dateCandidates.find(el => clean(el.innerText || el.textContent || '') === day && /calendar|date|day/i.test((el.className || '') + ' ' + (el.getAttribute('role') || '') + ' ' + (el.parentElement?.className || '')));
+            if (dayCell) { try { dayCell.click(); } catch (_) {} }
+          }
+
+          const searchWords = [
+            'search flights','search flight','search tickets','ticket search','search','find flights','find',
+            'поиск билетов','поиск','найти','найти рейсы','chipta olish','qidirish','izlash'
+          ];
+          const buttons = Array.from(document.querySelectorAll('button,input[type=submit],a,[role=button]')).filter(visible);
+          const search = buttons.find(el => {
+            const label = clean(el.innerText || el.value || el.getAttribute('aria-label') || '').toLowerCase();
+            return searchWords.some(w => label === w || label.includes(w));
+          });
+          if (search) { try { search.click(); return {ok:true, clicked:true}; } catch (_) {} }
+
+          // Final fallback: submitting the closest form is safer than clicking an
+          // unrelated CTA elsewhere on an airline home page.
+          const form = (to || from)?.closest('form');
+          if (form) {
+            try {
+              if (form.requestSubmit) form.requestSubmit(); else form.submit();
+              return {ok:true, submitted:true};
+            } catch (_) {}
+          }
+          return {ok:false, clicked:false};
         })()
         """
     }
@@ -100,7 +211,7 @@ enum FlightBotScripts {
         const st = getComputedStyle(el);
         return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
       };
-      const clean = value => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const clean = value => (value || '').replace(/\\s+/g, ' ').trim().toLowerCase();
       const exact = [
         'accept all','accept cookies','accept','i agree','agree','allow all','got it',
         'принять все','принять','согласен','разрешить все','хорошо',
@@ -138,7 +249,7 @@ enum FlightBotScripts {
         const s = getComputedStyle(el);
         return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
       };
-      const clean = value => (value || '').replace(/\s+/g,' ').trim();
+      const clean = value => (value || '').replace(/\\s+/g,' ').trim();
       const labels = [
         'flight details','details','view details','show details','itinerary details',
         'подробнее о перелёте','подробнее','детали рейса','детали перелёта',
@@ -177,49 +288,6 @@ enum FlightBotScripts {
     })()
     """#
 
-    static let extractPricingReferenceBlocks = #"""
-    (() => {
-      const clean = value => (value || '').replace(/\s+/g, ' ').trim();
-      const money = /(?:USD|US\$|\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\s*[0-9][0-9\s,.]*|[0-9][0-9\s,.]*\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/ig;
-      const output = [];
-      const seen = new Set();
-      const push = text => {
-        const value = clean(text);
-        if (value.length < 8 || value.length > 5200 || seen.has(value)) return;
-        if (!(value.match(money) || []).length) return;
-        seen.add(value);
-        output.push(value);
-      };
-
-      // Prefer compact visible result rows, but pricing-reference mode needs only
-      // a fresh fare observation. It must not fail the whole outbound screen just
-      // because the opposite-direction card hides exact times or flight numbers.
-      const nodes = Array.from(document.querySelectorAll(
-        '[data-testid="flight-card"],[data-testid*="itinerary"],[data-testid*="flight"],[data-stid*="flight"],article,li,[role=listitem]'
-      ));
-      for (const node of nodes) {
-        const rect = node.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) continue;
-        const text = clean(node.innerText || node.textContent || '');
-        if (text.length < 8 || text.length > 5200) continue;
-        if (money.test(text)) push(text);
-        money.lastIndex = 0;
-        if (output.length >= 30) break;
-      }
-
-      const body = clean(document.body?.innerText || document.body?.textContent || '');
-      money.lastIndex = 0;
-      let match;
-      let guard = 0;
-      while ((match = money.exec(body)) && guard++ < 80 && output.length < 48) {
-        const from = Math.max(0, match.index - 900);
-        const to = Math.min(body.length, match.index + 1300);
-        push(body.slice(from, to));
-      }
-      return output;
-    })()
-    """#
-
     static let extractCandidateBlocks = #"""
     (() => {
       const money = /(?:USD|US\$|\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\s*[0-9][0-9\s,.]*|[0-9][0-9\s,.]*\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
@@ -231,7 +299,7 @@ enum FlightBotScripts {
         const st = getComputedStyle(el);
         return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
       };
-      const clean = value => (value || '').replace(/\s+/g, ' ').trim();
+      const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
       const semanticText = node => {
         const parts = [node.innerText || '', node.textContent || ''];
         const descendants = Array.from(node.querySelectorAll('[aria-label],[title],[alt],[data-testid],[data-stid],[data-flight-number],[data-flight]')).slice(0, 520);

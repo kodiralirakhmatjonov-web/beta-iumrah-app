@@ -51,7 +51,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             direction: .outbound
         )
         try enforceMinimum(offers)
-        let ranked = rankForRecommendation(offers, anchor: trip.departureDate)
+        let ranked = rankForRecommendation(offers, anchor: trip.departureDate, flexibility: trip.flexibility)
         return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
     }
 
@@ -63,10 +63,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             throw FlightEngineAvailabilityError.realOutboundRequired
         }
 
-        // The first screen keeps internal fare-only return references. Those
-        // references are never eligible for the return-flight UI, regardless of
-        // how many accumulated in the checkpoint. Before rendering this screen we
-        // require a fresh list of fully identified itineraries with exact numbers.
+        // The initial round-trip session already contains only complete verified
+        // return itineraries. Continue the direct-airline search only when we want
+        // to enrich the list toward the four-option target.
         let visibleInbound = currentSession.inbound.filter(\.isDisplayableCandidate)
         if visibleInbound.count < AppConfig.flightBotTargetOptions {
             let refreshed = try await botService.refreshInbound(trip: trip)
@@ -94,7 +93,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             direction: .inbound
         )
         try enforceMinimum(offers)
-        let ranked = rankForRecommendation(offers, anchor: trip.returnDate)
+        let ranked = rankForRecommendation(offers, anchor: trip.returnDate, flexibility: trip.flexibility)
         return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
     }
 
@@ -172,23 +171,37 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             )
         }
 
-        return bridged.sorted {
-            if $0.totalPackagePrice != $1.totalPackagePrice {
-                return $0.totalPackagePrice < $1.totalPackagePrice
+        return bridged
+            .filter(\.isVerifiedForBooking)
+            .sorted {
+                if $0.totalPackagePrice != $1.totalPackagePrice {
+                    return $0.totalPackagePrice < $1.totalPackagePrice
+                }
+                if $0.stops != $1.stops { return $0.stops < $1.stops }
+                return $0.departureAt < $1.departureAt
             }
-            if $0.stops != $1.stops { return $0.stops < $1.stops }
-            return $0.departureAt < $1.departureAt
-        }
     }
 
-
-    private func rankForRecommendation(_ offers: [FlightOffer], anchor: Date) -> [FlightOffer] {
-        offers.sorted { lhs, rhs in
+    private func rankForRecommendation(
+        _ offers: [FlightOffer],
+        anchor: Date,
+        flexibility: DateFlexibility
+    ) -> [FlightOffer] {
+        offers.filter(\.isVerifiedForBooking).sorted { lhs, rhs in
             let leftDay = abs(Calendar.current.startOfDay(for: lhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
             let rightDay = abs(Calendar.current.startOfDay(for: rhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
-            if leftDay != rightDay { return leftDay < rightDay }
-            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
-            if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
+
+            if flexibility.isFlexibleDayRange {
+                // The user explicitly asked the engine to trade a nearby date for
+                // a better package price, so public package price ranks first.
+                if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
+                if leftDay != rightDay { return leftDay < rightDay }
+                if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+            } else {
+                if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+                if leftDay != rightDay { return leftDay < rightDay }
+                if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
+            }
             return lhs.departureAt < rhs.departureAt
         }
     }

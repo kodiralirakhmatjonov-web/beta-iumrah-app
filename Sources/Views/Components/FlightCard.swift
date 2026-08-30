@@ -15,8 +15,8 @@ struct FlightCard: View {
                         .font(.headline.weight(.semibold))
                     if !offer.flightNumbersSummary.isEmpty {
                         Text(flightNumbersLabel)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
                             .lineLimit(2)
                     }
                     Text(departureDateLabel)

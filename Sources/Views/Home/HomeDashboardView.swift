@@ -17,8 +17,7 @@ struct HomeDashboardView: View {
     private var marketingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25)
-                HomeVideoCarousel()
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true)
                 hero
                 confidenceStrip
                 philosophyCard
@@ -101,6 +100,10 @@ struct HomeDashboardView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.black.opacity(0.58))
                 }
+
+                Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
+                    .font(.caption.monospaced().weight(.bold))
+                    .foregroundStyle(Color.black.opacity(0.52))
             }
 
             Rectangle()

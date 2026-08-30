@@ -183,8 +183,8 @@ enum BookingDraftBuilder {
     private static func flexibleDays(_ value: DateFlexibility) -> Int {
         switch value {
         case .exact: return 0
-        case .plusMinusOne: return 1
-        case .plusMinusTwo, .weekend: return 2
+        case .plusMinusOne, .plusMinusTwo: return 2
+        case .weekend: return 0
         }
     }
 

@@ -119,7 +119,7 @@ struct FlightFareObservationRequest: Encodable {
         self.fareScope = candidate.fareScope.rawValue
         self.providerId = candidate.providerID.rawValue
         self.observedAt = Self.isoFormatter.string(from: candidate.observedAt)
-        self.travelDate = Self.dayFormatter.string(from: candidate.departureAt)
+        self.travelDate = Self.travelDate(for: candidate)
     }
 
     private static let isoFormatter: ISO8601DateFormatter = {
@@ -128,13 +128,17 @@ struct FlightFareObservationRequest: Encodable {
         return formatter
     }()
 
-    private static let dayFormatter: DateFormatter = {
+    private static func travelDate(for candidate: LiveFlightCandidate) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
+        // The fare belongs to the departure airport's local calendar day. Using
+        // the device timezone here can shift late-night departures by one day and
+        // make Package Engine pair the wrong flexible-date option.
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: candidate.origin) ?? TimeZone(secondsFromGMT: 0)
+        return formatter.string(from: candidate.departureAt)
+    }
 }
 
 struct FlightQuoteContextRequest: Encodable {

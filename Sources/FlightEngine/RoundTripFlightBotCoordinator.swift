@@ -34,11 +34,8 @@ final class RoundTripFlightBotCoordinator {
         let outboundRequest = makeOutboundRequest(trip: trip)
         let inboundRequest = makeInboundRequest(trip: trip)
 
-        // Keep browser pressure predictable on real iPhones. Running outbound,
-        // inbound and hotel-price WKWebViews at the same time could create 6–8
-        // concurrent browser processes and caused repeatable zero-result searches
-        // on memory-constrained devices. Search the visible outbound list first,
-        // then obtain one lightweight return-fare reference for package pricing.
+        // Both directions are now discovered as complete verified itineraries.
+        // There is no hidden fare-only / REF-* return candidate anymore.
         let outbound = try await FlightBotOrchestrator.shared.search(
             request: outboundRequest,
             flexibility: trip.flexibility,
@@ -47,10 +44,13 @@ final class RoundTripFlightBotCoordinator {
             preferredResults: AppConfig.flightBotPreferredOptions
         )
 
+        // The outbound screen needs one real return fare to price complete
+        // packages, not a full return list. Use the selected return date here;
+        // ReturnFlightView later expands to the user's ±1–2-day preference.
         let inbound = try await FlightBotOrchestrator.shared.search(
             request: inboundRequest,
-            flexibility: trip.flexibility,
-            requirement: .pricingReference,
+            flexibility: .exact,
+            requirement: .displayable,
             minimumResults: 1,
             preferredResults: 1
         )
@@ -58,8 +58,8 @@ final class RoundTripFlightBotCoordinator {
         return RoundTripFlightBotSession(
             id: UUID().uuidString,
             createdAt: Date(),
-            outbound: outbound.candidates,
-            inbound: inbound.candidates,
+            outbound: outbound.candidates.filter(\.isDisplayableCandidate),
+            inbound: inbound.candidates.filter(\.isDisplayableCandidate),
             outboundSummary: outbound.summary,
             inboundSummary: inbound.summary,
             challenges: outbound.blockedChallenges + inbound.blockedChallenges

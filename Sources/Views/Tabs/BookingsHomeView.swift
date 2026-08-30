@@ -145,6 +145,13 @@ struct BookingsHomeView: View {
                     .font(.headline)
             }
 
+            Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
+                .font(.caption.monospaced().weight(.bold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Color.iumrahRaisedBackground, in: Capsule())
+
             VStack(spacing: 11) {
                 overviewRow(icon: "airplane", title: routeTitle, value: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
                 overviewRow(icon: "calendar", title: dateTitle, value: "\(L10n.date(session.booking.input.startDate, settings.language)) – \(L10n.date(session.booking.input.endDate, settings.language))")
@@ -354,6 +361,9 @@ struct BookingsHomeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.travelerName ?? L10n.text("booking_your_trip", settings.language))
                         .font(.headline)
+                    Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
+                        .font(.caption.monospaced().weight(.bold))
+                        .foregroundStyle(Color.iumrahCareDark)
                     Text(L10n.status(session.effectiveStatus, settings.language))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)

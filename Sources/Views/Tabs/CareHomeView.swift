@@ -190,9 +190,12 @@ struct CareHomeView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                 HStack(spacing: 6) {
+                    Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
+                        .monospaced()
+                    Text("·")
                     Text(L10n.status(session.effectiveStatus, settings.language))
                 }
-                .font(.caption)
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             }
 
