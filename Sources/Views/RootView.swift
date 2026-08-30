@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
-    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v1") private var hasCompletedOnboarding = false
+    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v3") private var hasCompletedOnboarding = false
     @StateObject private var settings = AppSettingsStore()
     @StateObject private var chrome = AppChromeStore()
     @StateObject private var journey = JourneyStore()
