@@ -87,15 +87,13 @@ struct L10n {
         }
         if let orchestratorError = error as? FlightBotOrchestrator.OrchestratorError {
             switch orchestratorError {
-            case .insufficientResults(let found, let minimum, let blockedProviders):
+            case .noVerifiedResults(let blockedProviders):
                 if blockedProviders.isEmpty {
-                    return format("flight_error_insufficient", language, found, minimum)
+                    return text("flight_error_no_verified", language)
                 }
                 return format(
-                    "flight_error_insufficient_challenge",
+                    "flight_error_no_verified_challenge",
                     language,
-                    found,
-                    minimum,
                     blockedProviders.joined(separator: ", ")
                 )
             }
@@ -479,6 +477,8 @@ struct L10n {
             "error_server_named": "Server error: %@.",
             "flight_error_insufficient": "Only %d verified flight options were found; at least %d are required.",
             "flight_error_insufficient_challenge": "Only %d verified flight options were found; at least %d are required. Verification is required for: %@.",
+            "flight_error_no_verified": "No verified flight option was returned yet. Check your connection and continue the search.",
+            "flight_error_no_verified_challenge": "No verified flight option was returned yet. Some sources require verification: %@.",
             "flight_bot_invalid_page": "The airline page could not be prepared.",
             "flight_bot_challenge": "Human verification is required by %@.",
             "flight_bot_no_candidates": "The provider returned no readable flight options.",
@@ -915,6 +915,8 @@ struct L10n {
             "error_server_named": "Ошибка сервера: %@.",
             "flight_error_insufficient": "Найдено только %d подтверждённых вариантов перелёта; требуется минимум %d.",
             "flight_error_insufficient_challenge": "Найдено только %d подтверждённых вариантов; требуется минимум %d. Нужна проверка у: %@.",
+            "flight_error_no_verified": "Пока не получено ни одного подтверждённого рейса. Проверьте соединение и продолжите поиск.",
+            "flight_error_no_verified_challenge": "Пока не получено ни одного подтверждённого рейса. Некоторые источники требуют проверки: %@.",
             "flight_bot_invalid_page": "Не удалось подготовить страницу авиакомпании.",
             "flight_bot_challenge": "%@ запросил человеческую проверку.",
             "flight_bot_no_candidates": "Провайдер не вернул читаемых вариантов перелёта.",
@@ -1351,6 +1353,8 @@ struct L10n {
             "error_server_named": "Server xatosi: %@.",
             "flight_error_insufficient": "Faqat %d ta tasdiqlangan parvoz varianti topildi; kamida %d ta kerak.",
             "flight_error_insufficient_challenge": "Faqat %d ta tasdiqlangan variant topildi; kamida %d ta kerak. Quyidagilarda tekshiruv talab qilinadi: %@.",
+            "flight_error_no_verified": "Hozircha birorta tasdiqlangan reys olinmadi. Internet aloqasini tekshirib, qidiruvni davom ettiring.",
+            "flight_error_no_verified_challenge": "Hozircha birorta tasdiqlangan reys olinmadi. Ayrim manbalar tekshiruv talab qilmoqda: %@.",
             "flight_bot_invalid_page": "Aviakompaniya sahifasini tayyorlab bo‘lmadi.",
             "flight_bot_challenge": "%@ inson tekshiruvini talab qilmoqda.",
             "flight_bot_no_candidates": "Provayder o‘qib bo‘ladigan parvoz variantlarini qaytarmadi.",
@@ -1787,6 +1791,8 @@ struct L10n {
             "error_server_named": "Сервер хатоси: %@.",
             "flight_error_insufficient": "Фақат %d та тасдиқланган парвоз варианти топилди; камида %d та керак.",
             "flight_error_insufficient_challenge": "Фақат %d та тасдиқланган вариант топилди; камида %d та керак. Қуйидагиларда текширув талаб қилинади: %@.",
+            "flight_error_no_verified": "Ҳозирча бирорта тасдиқланган рейс олинмади. Интернет алоқасини текшириб, қидирувни давом эттиринг.",
+            "flight_error_no_verified_challenge": "Ҳозирча бирорта тасдиқланган рейс олинмади. Айрим манбалар текширув талаб қилмоқда: %@.",
             "flight_bot_invalid_page": "Авиакомпания саҳифасини тайёрлаб бўлмади.",
             "flight_bot_challenge": "%@ инсон текширувини талаб қилмоқда.",
             "flight_bot_no_candidates": "Провайдер ўқиб бўладиган парвоз вариантларини қайтармади.",
