@@ -1,10 +1,9 @@
 import Foundation
 
 enum FlightCandidateRequirement: String, Codable, Hashable {
-    /// Candidate is eligible to be shown to the pilgrim. Route/stop evidence,
-    /// carrier identity, fare and source local times are required. Exact flight
-    /// numbers are preserved when the source exposes them but a hidden number must
-    /// not erase an otherwise factual result card.
+    /// Candidate is eligible to be shown to the pilgrim. Exact carrier flight
+    /// number, complete route/segment data, source-local times and fare are
+    /// mandatory. Fare-only or aggregator-only observations are never rendered.
     case displayable
 
     /// Candidate is used only as an internal reference fare while the opposite
@@ -126,6 +125,32 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         let segmentKey = (segments ?? []).map { "\($0.flightNumber)-\($0.origin.code)-\($0.destination.code)" }.joined(separator: "+")
         let connectionKey = (connectionAirports ?? []).map(\.code).joined(separator: "+")
         return "\(airline.lowercased())|\(flightNumber.lowercased())|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)"
+    }
+
+    /// Hard boundary between internal fare references and itineraries that may be
+    /// rendered or persisted as the user's selected flight.
+    var isDisplayableCandidate: Bool {
+        guard FlightReferenceCatalog.isVerifiedFlightNumber(flightNumber),
+              let airlineCode,
+              FlightReferenceCatalog.airline(code: airlineCode) != nil,
+              !airline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              origin != destination,
+              let segments,
+              segments.count == stops + 1,
+              !segments.isEmpty else { return false }
+
+        guard segments.first?.origin.code == origin,
+              segments.last?.destination.code == destination else { return false }
+
+        for (index, segment) in segments.enumerated() {
+            guard FlightReferenceCatalog.isVerifiedFlightNumber(segment.flightNumber),
+                  let code = segment.airlineCode,
+                  FlightReferenceCatalog.airline(code: code) != nil else { return false }
+            if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
+        }
+
+        if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }
+        return connectionAirports?.count == stops
     }
 }
 

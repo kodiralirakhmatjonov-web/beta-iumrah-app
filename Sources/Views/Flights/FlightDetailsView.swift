@@ -72,9 +72,9 @@ struct FlightDetailsView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(FlightReferenceCatalog.airlineName(code: segment.airlineCode, fallback: segment.airline))
                             .font(.headline.weight(.semibold))
-                        if !segment.flightNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Text(segment.flightNumber)
-                                .font(.caption)
+                        if let exactNumber = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) {
+                            Text(flightNumberLabel(exactNumber))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -204,6 +204,15 @@ struct FlightDetailsView: View {
             Spacer()
         }
         .padding(.horizontal, 4)
+    }
+
+    private func flightNumberLabel(_ number: String) -> String {
+        switch settings.language {
+        case .russian: return "Рейс \(number)"
+        case .english: return "Flight \(number)"
+        case .uzbek: return "Reys \(number)"
+        case .uzbekCyrillic: return "Рейс \(number)"
+        }
     }
 
     private var routeSectionTitle: String {

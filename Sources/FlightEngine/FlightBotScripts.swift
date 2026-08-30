@@ -263,7 +263,9 @@ enum FlightBotScripts {
       const push = value => {
         const text = clean(value);
         if (text.length < 20 || text.length > 7600 || seen.has(text)) return;
-        if (!money.test(text) || (text.match(time) || []).length < 2) return;
+        // Display candidates must contain an actual carrier flight number. Fare-only
+        // blocks are handled by the separate pricing-reference extractor.
+        if (!money.test(text) || !flight.test(text) || (text.match(time) || []).length < 2) return;
         seen.add(text);
         output.push(text);
       };

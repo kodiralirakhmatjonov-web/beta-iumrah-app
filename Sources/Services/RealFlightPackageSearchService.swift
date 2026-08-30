@@ -63,11 +63,17 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
             throw FlightEngineAvailabilityError.realOutboundRequired
         }
 
-        // The first screen only needs one verified return candidate to calculate
-        // a complete package reference price. When the pilgrim actually opens
-        // return selection, expand that side to a full list if necessary.
-        if currentSession.inbound.count < AppConfig.flightBotTargetOptions {
+        // The first screen keeps internal fare-only return references. Those
+        // references are never eligible for the return-flight UI, regardless of
+        // how many accumulated in the checkpoint. Before rendering this screen we
+        // require a fresh list of fully identified itineraries with exact numbers.
+        let visibleInbound = currentSession.inbound.filter(\.isDisplayableCandidate)
+        if visibleInbound.count < AppConfig.flightBotTargetOptions {
             let refreshed = try await botService.refreshInbound(trip: trip)
+            let verified = refreshed.candidates.filter(\.isDisplayableCandidate)
+            guard !verified.isEmpty else {
+                throw FlightPricingBridgeError.insufficientQuotedOptions(found: 0, minimum: 1)
+            }
             currentSession = currentSession.replacingInbound(with: refreshed)
             self.session = currentSession
         }
@@ -139,9 +145,10 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         quotes: [PublicFlightOptionQuote],
         direction: FlightDirection
     ) throws -> [FlightOffer] {
-        let candidateMap = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
+        let visibleCandidates = candidates.filter(\.isDisplayableCandidate)
+        let candidateMap = Dictionary(uniqueKeysWithValues: visibleCandidates.map { ($0.id, $0) })
         let bridged = quotes.compactMap { quote -> FlightOffer? in
-            guard let candidate = candidateMap[quote.candidateId] else { return nil }
+            guard let candidate = candidateMap[quote.candidateId], candidate.isDisplayableCandidate else { return nil }
             return FlightOffer(
                 id: "real-\(direction.rawValue)-\(candidate.id)",
                 direction: direction,

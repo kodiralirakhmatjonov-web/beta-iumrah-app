@@ -17,8 +17,8 @@ struct FinalPackageView: View {
     private var canBook: Bool {
         journey.quote != nil &&
         journey.selectedHotel != nil &&
-        journey.selectedOutbound != nil &&
-        journey.selectedInbound != nil &&
+        journey.selectedOutbound?.isVerifiedForBooking == true &&
+        journey.selectedInbound?.isVerifiedForBooking == true &&
         (!needsMadinah || journey.selectedMadinahHotel != nil)
     }
 
@@ -348,6 +348,11 @@ struct FinalPackageView: View {
               let outbound = journey.selectedOutbound,
               let inbound = journey.selectedInbound,
               let quote = journey.quote else { return }
+        guard outbound.isVerifiedForBooking, inbound.isVerifiedForBooking else {
+            errorMessage = invalidFlightSelectionMessage
+            IumrahHaptics.error()
+            return
+        }
         if needsMadinah && journey.selectedMadinahHotel == nil { return }
 
         isSubmitting = true
@@ -383,6 +388,16 @@ struct FinalPackageView: View {
         } catch {
             errorMessage = L10n.error(error, settings.language)
             IumrahHaptics.error()
+        }
+    }
+
+
+    private var invalidFlightSelectionMessage: String {
+        switch settings.language {
+        case .russian: return "Перед бронированием выберите перелёты с подтверждёнными номерами всех рейсов."
+        case .english: return "Before booking, select flights with confirmed flight numbers for every segment."
+        case .uzbek: return "Bron qilishdan oldin barcha segmentlari tasdiqlangan reys raqamlariga ega parvozlarni tanlang."
+        case .uzbekCyrillic: return "Брон қилишдан олдин барча сегментлари тасдиқланган рейс рақамларига эга парвозларни танланг."
         }
     }
 

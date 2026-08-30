@@ -62,7 +62,9 @@ final class FlightBotOrchestrator {
         let checkpointKey = signature(for: baseRequest, flexibility: flexibility, requirement: requirement)
         let existing = checkpoints[checkpointKey]
 
-        var collected = existing?.candidates ?? []
+        var collected = (existing?.candidates ?? []).filter { candidate in
+            requirement == .pricingReference || candidate.isDisplayableCandidate
+        }
         let possibleAttemptCount = max(1, dates.count * providers.count)
         // “Continue search” resumes from the last untried provider/date. Once a full
         // pass has genuinely exhausted every source, a later retry starts a fresh pass.
@@ -121,8 +123,11 @@ final class FlightBotOrchestrator {
                     attemptedKeys.insert(key)
                     switch await task.value {
                     case .candidates(let results):
-                        if !results.isEmpty { succeeded += 1 }
-                        collected.append(contentsOf: results)
+                        let accepted = requirement == .pricingReference
+                            ? results
+                            : results.filter(\.isDisplayableCandidate)
+                        if !accepted.isEmpty { succeeded += 1 }
+                        collected.append(contentsOf: accepted)
                     case .challenge(let challenge):
                         challenges.append(challenge)
                     case .failed:
@@ -143,13 +148,19 @@ final class FlightBotOrchestrator {
                 if requirement == .pricingReference, !ranked.isEmpty {
                     break searchLoop
                 }
-                if ranked.count >= desired || (ranked.count >= hardMinimum && completedBatches >= 2) {
+                // A single exact itinerary is enough to avoid failing the user,
+                // but keep searching several provider batches so the visible list
+                // is not dominated by the first aggregator that responds.
+                if ranked.count >= desired || (ranked.count >= hardMinimum && completedBatches >= 4) {
                     break searchLoop
                 }
             }
         }
 
-        let final = Array(deduplicateAndRank(collected, anchor: baseRequest.date).prefix(12))
+        let eligible = requirement == .pricingReference
+            ? collected
+            : collected.filter(\.isDisplayableCandidate)
+        let final = Array(deduplicateAndRank(eligible, anchor: baseRequest.date).prefix(12))
         let summary = FlightBotSearchSummary(
             searchID: searchID,
             requestedAt: requestedAt,

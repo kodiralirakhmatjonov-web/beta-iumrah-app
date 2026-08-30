@@ -107,7 +107,26 @@ enum BookingDraftBuilder {
             destination: offer.destination,
             departureAt: isoDateTime.string(from: offer.departureAt),
             arrivalAt: isoDateTime.string(from: offer.arrivalAt),
-            source: offer.sourceLabel
+            source: offer.sourceLabel,
+            stops: offer.stops,
+            durationMinutes: offer.durationMinutes > 0 ? offer.durationMinutes : nil,
+            segments: offer.displaySegments.map { segment in
+                BookingGeneratorFlightSegmentSnapshot(
+                    airline: FlightReferenceCatalog.airlineName(code: segment.airlineCode, fallback: segment.airline),
+                    airlineCode: segment.airlineCode,
+                    flightNumber: segment.flightNumber,
+                    origin: segment.origin.code,
+                    destination: segment.destination.code,
+                    departureAt: isoDateTime.string(from: segment.departureAt),
+                    arrivalAt: isoDateTime.string(from: segment.arrivalAt),
+                    originTerminal: segment.origin.terminal,
+                    destinationTerminal: segment.destination.terminal,
+                    aircraft: segment.aircraft,
+                    operatingCarrier: segment.operatingCarrier,
+                    cabin: segment.cabin
+                )
+            },
+            connectionAirports: offer.connectionAirports?.map(\.code)
         )
     }
 

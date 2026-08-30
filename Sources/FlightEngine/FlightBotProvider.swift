@@ -119,25 +119,25 @@ enum FlightBotProviderRegistry {
             // Search the local market first, but put one broad discovery source in
             // the first batch so a broken airline booking form cannot stall the UI.
             ids = [
-                .googleFlights, .skyscanner, .uzbekistanAirways, .qanotSharq,
+                .uzbekistanAirways, .googleFlights, .qanotSharq, .skyscanner,
                 .centrumAir, .silkAvia, .airSamarkand, .flyKhiva,
             ]
         } else if fromUzbekistan || toUzbekistan {
             ids = [
-                .googleFlights, .skyscanner, .uzbekistanAirways, .qanotSharq,
-                .centrumAir, .airArabia, .flydubai, .turkishAirlines,
-                .airSamarkand, .silkAvia, .flyKhiva, .flynas,
-                .jazeeraAirways, .saudia, .airAstana, .flyArystan,
+                .uzbekistanAirways, .googleFlights, .qanotSharq, .skyscanner,
+                .airArabia, .flydubai, .turkishAirlines, .centrumAir,
+                .jazeeraAirways, .saudia, .airSamarkand, .flynas,
+                .airAstana, .flyArystan, .silkAvia, .flyKhiva,
             ]
         } else if saudiRoute {
             ids = [
-                .googleFlights, .skyscanner, .flynas, .saudia,
+                .saudia, .googleFlights, .flynas, .skyscanner,
                 .turkishAirlines, .airArabia, .jazeeraAirways, .flydubai,
-                .airAstana, .flyArystan, .uzbekistanAirways,
+                .uzbekistanAirways, .airAstana, .flyArystan,
             ]
         } else {
             ids = [
-                .googleFlights, .skyscanner, .turkishAirlines, .airArabia,
+                .turkishAirlines, .googleFlights, .airArabia, .skyscanner,
                 .flydubai, .jazeeraAirways, .airAstana, .flyArystan,
                 .uzbekistanAirways,
             ]

@@ -182,22 +182,44 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     }
 
     var primaryAirlineCode: String? {
-        airlineCode ?? displaySegments.first?.airlineCode
+        if let code = FlightReferenceCatalog.airlineCode(from: flightNumber) { return code }
+        for segment in displaySegments {
+            if let code = FlightReferenceCatalog.airlineCode(from: segment.flightNumber) { return code }
+        }
+        return nil
     }
 
     var flightNumbersSummary: String {
         var seen = Set<String>()
-        return displaySegments.map(\.flightNumber)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && seen.insert($0).inserted }
+        return displaySegments
+            .compactMap { FlightReferenceCatalog.normalizedVerifiedFlightNumber($0.flightNumber) }
+            .filter { seen.insert($0).inserted }
             .joined(separator: " · ")
     }
 
     var airlinesSummary: String {
         var seen = Set<String>()
-        return displaySegments.map { FlightReferenceCatalog.airlineName(code: $0.airlineCode, fallback: $0.airline) }
-            .filter { seen.insert($0).inserted }
-            .joined(separator: " + ")
+        let values = displaySegments.compactMap { segment -> String? in
+            guard let code = FlightReferenceCatalog.airlineCode(from: segment.flightNumber),
+                  let reference = FlightReferenceCatalog.airline(code: code) else { return nil }
+            return reference.name
+        }
+        return values.filter { seen.insert($0).inserted }.joined(separator: " + ")
+    }
+
+    /// Final client-side safety gate. Only an itinerary made of exact carrier
+    /// flight numbers and complete contiguous segments can be booked. Pricing
+    /// references and aggregator placeholders are deliberately rejected here.
+    var isVerifiedForBooking: Bool {
+        guard let segments, !segments.isEmpty, segments.count == stops + 1 else { return false }
+        guard segments.allSatisfy({ segment in
+            FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) != nil &&
+            FlightReferenceCatalog.airline(code: FlightReferenceCatalog.airlineCode(from: segment.flightNumber)) != nil &&
+            segment.origin.code != segment.destination.code
+        }) else { return false }
+        guard segments.first?.origin.code == origin, segments.last?.destination.code == destination else { return false }
+        guard zip(segments, segments.dropFirst()).allSatisfy({ $0.destination.code == $1.origin.code }) else { return false }
+        return !flightNumbersSummary.isEmpty && !airlinesSummary.isEmpty
     }
 }
 

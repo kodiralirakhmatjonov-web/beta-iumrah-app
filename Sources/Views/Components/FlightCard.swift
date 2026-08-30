@@ -107,7 +107,7 @@ struct FlightCard: View {
 
     private var airlineLabel: String {
         let normalized = offer.airline.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if normalized == "авиакомпания" || normalized == "airline" {
+        if ["авиакомпания", "airline", "google flights", "skyscanner"].contains(normalized) {
             return L10n.text("flight_airline_unknown", settings.language)
         }
         return FlightReferenceCatalog.airlineName(code: offer.primaryAirlineCode, fallback: offer.airline)

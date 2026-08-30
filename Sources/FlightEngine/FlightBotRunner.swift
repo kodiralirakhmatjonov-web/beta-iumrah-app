@@ -74,17 +74,20 @@ final class FlightBotRunner {
 
         var best: [LiveFlightCandidate] = []
         var sawCandidateBlocks = false
-        var detailsExpanded = false
+        var detailExpansionPasses = 0
 
         while Date() < deadline {
             try Task.checkCancellation()
             try await detectChallengeIfNeeded()
 
-            if !detailsExpanded {
+            // Exact flight numbers are often exposed only after opening itinerary
+            // details. Re-run the bounded expansion a few times because aggregator
+            // SPAs hydrate result rows progressively.
+            if requirement == .displayable && detailExpansionPasses < 3 {
                 let clicked = (try? await evaluate(FlightBotScripts.expandCandidateDetails)) as? Int ?? 0
+                detailExpansionPasses += 1
                 if clicked > 0 {
-                    try? await Task.sleep(for: .milliseconds(300))
-                    detailsExpanded = true
+                    try? await Task.sleep(for: .milliseconds(320))
                 }
             }
 

@@ -148,11 +148,29 @@ enum FlightReferenceCatalog {
         airport(code)?.country
     }
 
+    static func normalizedVerifiedFlightNumber(_ rawValue: String) -> String? {
+        let compact = rawValue
+            .uppercased()
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // A user-facing flight number must be an actual carrier designator plus
+        // one-to-four digits. Internal placeholders (REF-*, provider IDs, dates,
+        // prices, etc.) can never satisfy this contract.
+        guard compact.range(of: #"^[A-Z0-9]{2}[0-9]{1,4}$"#, options: .regularExpression) != nil else { return nil }
+        let code = String(compact.prefix(2))
+        guard airlines[code] != nil else { return nil }
+        return "\(code) \(compact.dropFirst(2))"
+    }
+
+    static func isVerifiedFlightNumber(_ rawValue: String) -> Bool {
+        normalizedVerifiedFlightNumber(rawValue) != nil
+    }
+
     static func airlineCode(from flightNumber: String) -> String? {
-        let compact = flightNumber.uppercased().replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: "")
-        guard compact.count >= 3 else { return nil }
-        let prefix = String(compact.prefix(2))
-        return prefix.range(of: #"^[A-Z0-9]{2}$"#, options: .regularExpression) == nil ? nil : prefix
+        guard let normalized = normalizedVerifiedFlightNumber(flightNumber) else { return nil }
+        return String(normalized.prefix(2))
     }
 
     static func aircraftName(from raw: String) -> String? {
