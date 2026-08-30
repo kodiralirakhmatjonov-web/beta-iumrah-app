@@ -591,7 +591,7 @@ struct OnboardingFlowView: View {
                     .frame(width: 106, height: 106)
                     .shadow(color: .black.opacity(0.14), radius: 22, y: 10)
 
-                Image(wordmarkAsset)
+                Image(colorScheme == .dark ? "HeaderWordmarkDark" : "HeaderWordmarkLight")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 202, height: 52)
