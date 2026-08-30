@@ -1,5 +1,4 @@
 import SwiftUI
-import Foundation
 import UIKit
 
 struct HomeVideoCarousel: View {
@@ -10,14 +9,16 @@ struct HomeVideoCarousel: View {
         let resource: String
     }
 
-    private var stories: [Story] {
-        (1...8).compactMap { index in
-            let resource = String(format: "home-story-%02d", index)
-            let exists = Bundle.main.url(forResource: resource, withExtension: "mp4") != nil
-                || Bundle.main.url(forResource: resource, withExtension: "mp4", subdirectory: "Animations") != nil
-            return exists ? Story(id: resource, resource: resource) : nil
-        }
-    }
+    private let stories: [Story] = [
+        Story(id: "home-story-01", resource: "home-story-01"),
+        Story(id: "home-story-02", resource: "home-story-02"),
+        Story(id: "home-story-03", resource: "home-story-03"),
+        Story(id: "home-story-04", resource: "home-story-04"),
+        Story(id: "home-story-05", resource: "home-story-05"),
+        Story(id: "home-story-06", resource: "home-story-06"),
+        Story(id: "home-story-07", resource: "home-story-07"),
+        Story(id: "home-story-08", resource: "home-story-08")
+    ]
 
     @State private var activeStoryID: String? = "home-story-01"
     @State private var isVisible = false
@@ -29,8 +30,8 @@ struct HomeVideoCarousel: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = proxy.size.width
-            let sideInset: CGFloat = 0
+            let cardWidth = max(proxy.size.width * 0.968, 290)
+            let sideInset = max((proxy.size.width - cardWidth) / 2, 0)
 
             ZStack(alignment: .bottom) {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -60,7 +61,7 @@ struct HomeVideoCarousel: View {
         .frame(height: carouselHeight)
         .onAppear {
             isVisible = true
-            if activeStoryID == nil || !stories.contains(where: { $0.id == activeStoryID }) {
+            if activeStoryID == nil {
                 activeStoryID = stories.first?.id
             }
         }
@@ -78,7 +79,7 @@ struct HomeVideoCarousel: View {
             isMuted: isMuted
         )
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .bottomTrailing) {
             Button {
                 isMuted.toggle()
                 IumrahHaptics.soft()
@@ -95,7 +96,7 @@ struct HomeVideoCarousel: View {
             }
             .buttonStyle(.plain)
             .padding(16)
-            .opacity(activeStoryID == story.id ? 1 : 0.66)
+            .opacity(activeStoryID == story.id ? 1 : 0.78)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 34, style: .continuous)
