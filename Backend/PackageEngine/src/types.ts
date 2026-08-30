@@ -16,7 +16,7 @@ export type FlightLegCost = {
 
 export type HotelCost = {
   amountUsd: number;
-  unit: "perRoomStay" | "perRoomNight";
+  unit: "totalStay" | "perRoomStay" | "perRoomNight";
   nights: number;
 };
 
@@ -73,6 +73,23 @@ export type InternalPricingResult = PublicPackageQuote & {
   };
 };
 
+
+export type HotelFareObservation = {
+  id?: string;
+  hotelId: string;
+  hotelName?: string;
+  city: "Makkah" | "Madinah" | string;
+  amount: number;
+  currency: string;
+  unit: "totalStay" | "perRoomStay" | "perRoomNight";
+  providerId: "booking" | "expedia" | string;
+  providerName?: string;
+  observedAt: string;
+  checkInDate: string;
+  checkOutDate: string;
+  sourceURL?: string;
+};
+
 export type ConsumerPackageQuoteRequest = {
   tier: PackageTier;
   hotelStars: number;
@@ -91,6 +108,10 @@ export type ConsumerPackageQuoteRequest = {
   primaryHotelIds?: {
     makkah?: string | null;
     madinah?: string | null;
+  };
+  hotelPriceObservations?: {
+    makkah?: HotelFareObservation[];
+    madinah?: HotelFareObservation[];
   };
   customization?: Partial<PackageCustomization>;
 };
@@ -146,5 +167,5 @@ export type PublicFlightOptionsQuoteResponse = {
   options: PublicFlightOptionQuote[];
   referenceReturnCandidateId?: string;
   fxAsOf?: string | null;
-  hotelPricingMode?: "configuredPrimary" | "legacyEstimate";
+  hotelPricingMode?: "liveProvider" | "configuredPrimary" | "legacyEstimate" | "mixed";
 };

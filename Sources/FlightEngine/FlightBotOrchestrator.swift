@@ -9,13 +9,13 @@ final class FlightBotOrchestrator {
     }
 
     enum OrchestratorError: LocalizedError {
-        case insufficientResults(found: Int, minimum: Int, blockedProviders: [String])
+        case noVerifiedResults(blockedProviders: [String])
 
         var errorDescription: String? {
             switch self {
-            case .insufficientResults(let found, let minimum, let blocked):
-                let blockedText = blocked.isEmpty ? "" : " Требуется проверка: \(blocked.joined(separator: ", "))."
-                return "Flight Engine нашёл \(found) подтверждённых вариантов; нужно минимум \(minimum).\(blockedText)"
+            case .noVerifiedResults(let blocked):
+                let blockedText = blocked.isEmpty ? "" : " Некоторые источники запросили дополнительную проверку: \(blocked.joined(separator: ", "))."
+                return "Поиск не успел получить ни одного подтверждённого варианта.\(blockedText)"
             }
         }
     }
@@ -26,29 +26,50 @@ final class FlightBotOrchestrator {
         case failed
     }
 
+    private struct SearchCheckpoint {
+        var candidates: [LiveFlightCandidate]
+        var attemptedKeys: Set<String>
+        var challenges: [FlightBotChallenge]
+        var updatedAt: Date
+    }
+
     static let shared = FlightBotOrchestrator()
 
     let minimumTarget = AppConfig.flightBotMinimumOptions
     let preferredTarget = AppConfig.flightBotPreferredOptions
+
+    private var checkpoints: [String: SearchCheckpoint] = [:]
+    private let checkpointLifetime: TimeInterval = 10 * 60
 
     private init() {}
 
     func search(
         request baseRequest: FlightBotSearchRequest,
         flexibility: DateFlexibility,
+        requirement: FlightCandidateRequirement = .displayable,
         minimumResults: Int? = nil,
         preferredResults: Int? = nil
     ) async throws -> SearchResult {
-        let requiredMinimum = max(1, minimumResults ?? minimumTarget)
-        let desired = max(requiredMinimum, preferredResults ?? preferredTarget)
+        pruneCheckpoints()
+
+        let hardMinimum = max(1, minimumResults ?? minimumTarget)
+        let desired = max(hardMinimum, preferredResults ?? preferredTarget)
+        let comfortTarget = min(desired, max(hardMinimum, AppConfig.flightBotTargetOptions))
         let searchID = UUID().uuidString
         let requestedAt = Date()
         let deadline = requestedAt.addingTimeInterval(AppConfig.flightBotSearchHardTimeoutSeconds)
         let dates = FlightDatePlanner.dates(anchor: baseRequest.date, flexibility: flexibility)
         let providers = FlightBotProviderRegistry.ordered(for: baseRequest.origin, destination: baseRequest.destination)
+        let checkpointKey = signature(for: baseRequest, flexibility: flexibility, requirement: requirement)
+        let existing = checkpoints[checkpointKey]
 
-        var collected: [LiveFlightCandidate] = []
-        var challenges: [FlightBotChallenge] = []
+        var collected = existing?.candidates ?? []
+        let possibleAttemptCount = max(1, dates.count * providers.count)
+        // “Continue search” resumes from the last untried provider/date. Once a full
+        // pass has genuinely exhausted every source, a later retry starts a fresh pass.
+        var attemptedKeys = existing?.attemptedKeys ?? []
+        if attemptedKeys.count >= possibleAttemptCount { attemptedKeys.removeAll() }
+        var challenges = existing?.challenges ?? []
         var succeeded = 0
         var started = 0
         var completedBatches = 0
@@ -71,26 +92,34 @@ final class FlightBotOrchestrator {
                 guard Date() < deadline else { break searchLoop }
 
                 let batchEnd = min(providers.count, batchStart + AppConfig.flightBotProviderBatchSize)
-                let batch = Array(providers[batchStart..<batchEnd])
+                let batch = Array(providers[batchStart..<batchEnd]).filter { provider in
+                    !attemptedKeys.contains(attemptKey(provider: provider, date: date))
+                }
+                guard !batch.isEmpty else { continue }
                 started += batch.count
 
-                let tasks: [Task<ProviderAttempt, Never>] = batch.map { provider in
-                    Task { @MainActor in
+                let tasks: [(String, Task<ProviderAttempt, Never>)] = batch.map { provider in
+                    let key = attemptKey(provider: provider, date: date)
+                    return (key, Task { @MainActor in
                         do {
                             let remaining = max(3, deadline.timeIntervalSinceNow)
                             let providerBudget = min(AppConfig.flightBotProviderTimeoutSeconds, remaining)
-                            let results = try await FlightBotRunner(provider: provider, request: request)
-                                .run(timeoutSeconds: providerBudget)
-                            return ProviderAttempt.candidates(results)
+                            let results = try await FlightBotRunner(
+                                provider: provider,
+                                request: request,
+                                requirement: requirement
+                            ).run(timeoutSeconds: providerBudget)
+                            return .candidates(results)
                         } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
-                            return ProviderAttempt.challenge(challenge)
+                            return .challenge(challenge)
                         } catch {
-                            return ProviderAttempt.failed
+                            return .failed
                         }
-                    }
+                    })
                 }
 
-                for task in tasks {
+                for (key, task) in tasks {
+                    attemptedKeys.insert(key)
                     switch await task.value {
                     case .candidates(let results):
                         if !results.isEmpty { succeeded += 1 }
@@ -102,14 +131,17 @@ final class FlightBotOrchestrator {
                     }
                 }
 
+                checkpoints[checkpointKey] = SearchCheckpoint(
+                    candidates: collected,
+                    attemptedKeys: attemptedKeys,
+                    challenges: challenges,
+                    updatedAt: Date()
+                )
+
                 completedBatches += 1
                 let ranked = deduplicateAndRank(collected, anchor: baseRequest.date)
 
-                // Never keep a pilgrim staring at a spinner just to move from 4–5
-                // good live options to 6. Once the minimum is reached after at least
-                // two provider batches, return immediately. If a single first batch
-                // already produced the preferred target, return even sooner.
-                if ranked.count >= desired || (ranked.count >= requiredMinimum && completedBatches >= 2) {
+                if ranked.count >= desired || (ranked.count >= comfortTarget && completedBatches >= 2) {
                     break searchLoop
                 }
             }
@@ -124,22 +156,58 @@ final class FlightBotOrchestrator {
             providersBlocked: challenges.count,
             rawCandidateCount: collected.count,
             deduplicatedCandidateCount: final.count,
-            minimumTarget: requiredMinimum,
+            minimumTarget: hardMinimum,
             preferredTarget: desired
         )
 
-        guard final.count >= requiredMinimum else {
-            if let challenge = challenges.first {
-                FlightBotChallengeCenter.shared.publish(challenge)
-            }
-            throw OrchestratorError.insufficientResults(
-                found: final.count,
-                minimum: requiredMinimum,
+        checkpoints[checkpointKey] = SearchCheckpoint(
+            candidates: final,
+            attemptedKeys: attemptedKeys,
+            challenges: challenges,
+            updatedAt: Date()
+        )
+
+        guard !final.isEmpty else {
+            if let challenge = challenges.first { FlightBotChallengeCenter.shared.publish(challenge) }
+            throw OrchestratorError.noVerifiedResults(
                 blockedProviders: Array(Set(challenges.map(\.providerName))).sorted()
             )
         }
 
         return SearchResult(candidates: final, summary: summary, blockedChallenges: challenges)
+    }
+
+    private func signature(
+        for request: FlightBotSearchRequest,
+        flexibility: DateFlexibility,
+        requirement: FlightCandidateRequirement
+    ) -> String {
+        let formatter = ISO8601DateFormatter()
+        return [
+            request.direction.rawValue,
+            request.origin,
+            request.destination,
+            formatter.string(from: Calendar.current.startOfDay(for: request.date)),
+            flexibility.rawValue,
+            String(request.adults),
+            String(request.children),
+            String(request.infants),
+            request.cabin,
+            requirement.rawValue
+        ].joined(separator: "|")
+    }
+
+    private func attemptKey(provider: FlightBotProvider, date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return "\(formatter.string(from: date))|\(provider.id.rawValue)"
+    }
+
+    private func pruneCheckpoints() {
+        let cutoff = Date().addingTimeInterval(-checkpointLifetime)
+        checkpoints = checkpoints.filter { $0.value.updatedAt >= cutoff }
     }
 
     private func deduplicateAndRank(_ candidates: [LiveFlightCandidate], anchor: Date) -> [LiveFlightCandidate] {

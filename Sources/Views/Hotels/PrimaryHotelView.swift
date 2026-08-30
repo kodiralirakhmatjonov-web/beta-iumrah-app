@@ -92,13 +92,13 @@ struct PrimaryHotelView: View {
     private func recommendedTitle(role: HotelSelectionRole) -> String {
         switch settings.language {
         case .english:
-            return role == .makkah ? "Recommended AiUmra · Makkah" : "Recommended AiUmra · Madinah"
+            return role == .makkah ? "iumrah Recommended · Makkah" : "iumrah Recommended · Madinah"
         case .russian:
-            return role == .makkah ? "Recommended AiUmra для Мекки" : "Recommended AiUmra для Медины"
+            return role == .makkah ? "Рекомендация iumrah · Мекка" : "Рекомендация iumrah · Медина"
         case .uzbek:
-            return role == .makkah ? "Recommended AiUmra · Makka" : "Recommended AiUmra · Madina"
+            return role == .makkah ? "iumrah tavsiyasi · Makka" : "iumrah tavsiyasi · Madina"
         case .uzbekCyrillic:
-            return role == .makkah ? "Recommended AiUmra · Макка" : "Recommended AiUmra · Мадина"
+            return role == .makkah ? "iumrah тавсияси · Макка" : "iumrah тавсияси · Мадина"
         }
     }
 
@@ -117,82 +117,98 @@ struct PrimaryHotelView: View {
     private func stayCard(hotel: HotelSummary, role: HotelSelectionRole, title: String, roomName: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             hotelImage(hotel)
-                .frame(height: 214)
+                .frame(height: 208)
+                .background(Color.iumrahRaisedBackground)
 
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 7) {
-                    Image(systemName: "sparkles")
-                    Text(title)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 9) {
+                    Label(title, systemImage: "sparkles")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.iumrahCareDark)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .padding(.horizontal, 12)
-                .frame(height: 34)
-                .background(Color.iumrahCareLight.opacity(0.12), in: Capsule())
-
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 8) {
-                            Text(FlowCopy.text(.primaryHotel, settings.language))
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.secondary)
-                            if let stars = hotel.stars {
-                                Text("\(stars)★")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Text(hotel.name)
-                            .font(.title3.weight(.bold))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                        .minimumScaleFactor(0.78)
                     Spacer(minLength: 8)
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.title2)
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(Color.iumrahCareLight)
                 }
 
-                if let roomName, !roomName.isEmpty {
-                    Label(roomName, systemImage: "bed.double.fill")
-                        .font(.subheadline.weight(.semibold))
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 7) {
+                        Text(FlowCopy.text(.primaryHotel, settings.language))
+                        if let stars = hotel.stars { Text("· \(stars)★") }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                    Text(hotel.name)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .tracking(-0.35)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 8) {
+                    Label(L10n.city(hotel.city, settings.language), systemImage: "mappin.and.ellipse")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                } else {
-                    Text(FlowCopy.text(.roomOptional, settings.language))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .frame(height: 31)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
+
+                    if let roomName, !roomName.isEmpty {
+                        Label(roomName, systemImage: "bed.double.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                            .padding(.horizontal, 10)
+                            .frame(height: 31)
+                            .background(Color.iumrahRaisedBackground, in: Capsule())
+                    }
                 }
 
                 HStack(spacing: 10) {
                     NavigationLink {
                         HotelDetailView(hotel: hotel, selectionFlow: true, selectionRole: role)
                     } label: {
-                        Label(FlowCopy.text(.viewHotel, settings.language), systemImage: "info.circle")
-                            .frame(maxWidth: .infinity)
+                        VStack(spacing: 5) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(FlowCopy.text(.viewHotel, settings.language))
+                                .font(.caption.weight(.bold))
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(SoftHotelActionButtonStyle())
 
                     NavigationLink {
                         HotelSelectionView(role: role)
                     } label: {
-                        Label(FlowCopy.text(.changeHotel, settings.language), systemImage: "arrow.triangle.2.circlepath")
-                            .frame(maxWidth: .infinity)
+                        VStack(spacing: 5) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(FlowCopy.text(.changeHotel, settings.language))
+                                .font(.caption.weight(.bold))
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(SoftHotelActionButtonStyle())
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 20)
+            .padding(18)
         }
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
         }
-        .shadow(color: .black.opacity(0.06), radius: 20, y: 9)
+        .shadow(color: .black.opacity(0.055), radius: 20, y: 9)
     }
 
     private func missingHotelCard(role: HotelSelectionRole) -> some View {
@@ -239,10 +255,10 @@ private struct SoftHotelActionButtonStyle: ButtonStyle {
         configuration.label
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 14)
-            .frame(height: 48)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, minHeight: 62)
             .background(Color.iumrahRaisedBackground.opacity(configuration.isPressed ? 0.72 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }

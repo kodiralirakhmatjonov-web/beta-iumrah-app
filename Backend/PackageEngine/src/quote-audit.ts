@@ -16,6 +16,7 @@ type QuoteAuditMetadata = {
 
 function hotelTotal(cost: HotelAuditInput | null | undefined, rooms: number) {
   if (!cost) return 0;
+  if (cost.unit === "totalStay") return Number(cost.amountUsd);
   return Number(cost.amountUsd) * Math.max(1, rooms) * (cost.unit === "perRoomNight" ? Math.max(1, cost.nights) : 1);
 }
 

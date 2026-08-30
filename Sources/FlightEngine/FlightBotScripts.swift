@@ -101,84 +101,159 @@ enum FlightBotScripts {
     })()
     """
 
-    static let expandCandidateDetails = """
+    static let expandCandidateDetails = #"""
     (() => {
       const visible = el => {
         const r = el.getBoundingClientRect();
         const s = getComputedStyle(el);
         return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
       };
+      const clean = value => (value || '').replace(/\s+/g,' ').trim();
       const labels = [
         'flight details','details','view details','show details','itinerary details',
         'подробнее о перелёте','подробнее','детали рейса','детали перелёта',
         'reys tafsilotlari','tafsilotlar'
       ];
+      const money = /(?:USD|US\$|\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\s*[0-9]/i;
+      const time = /\b(?:(?:[01]?\d|2[0-3]):[0-5]\d|(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM))\b/gi;
       let clicked = 0;
-      const controls = Array.from(document.querySelectorAll('button,[role=button],summary,a')).filter(visible);
+      const controls = Array.from(document.querySelectorAll('button,[role=button],summary,[aria-expanded],[aria-controls]')).filter(visible);
+
+      // First open explicit detail controls.
       for (const el of controls) {
-        if (clicked >= 12) break;
-        const text = (el.innerText || el.getAttribute('aria-label') || '').replace(/\\s+/g,' ').trim().toLowerCase();
-        if (!text || !labels.some(label => text === label || text.includes(label))) continue;
-        if (el.tagName === 'A' && el.target === '_blank') continue;
+        if (clicked >= 10) break;
+        const label = clean(el.innerText || el.getAttribute('aria-label') || '').toLowerCase();
+        if (!label || !labels.some(value => label === value || label.includes(value))) continue;
+        try { el.click(); clicked += 1; } catch (_) {}
+      }
+
+      // Some aggregators make the whole itinerary row expandable and expose no
+      // “details” label. Only click controls that advertise expansion semantics
+      // and already look like a flight result; never click purchase/select CTAs.
+      for (const el of controls) {
+        if (clicked >= 10) break;
+        const expanded = el.getAttribute('aria-expanded');
+        if (expanded === 'true') continue;
+        const testid = clean((el.getAttribute('data-testid') || '') + ' ' + (el.getAttribute('data-stid') || '')).toLowerCase();
+        const hasExpansionContract = expanded === 'false' || el.hasAttribute('aria-controls') || /flight|itinerary/.test(testid);
+        if (!hasExpansionContract) continue;
+        const label = clean(el.innerText || el.textContent || el.getAttribute('aria-label') || '');
+        const lower = label.toLowerCase();
+        if (/select|choose|book|buy|continue|выбрать|забронировать/.test(lower)) continue;
+        if (!money.test(label) || (label.match(time) || []).length < 2) continue;
         try { el.click(); clicked += 1; } catch (_) {}
       }
       return clicked;
     })()
-    """
+    """#
 
-    static let extractCandidateBlocks = """
+    static let extractCandidateBlocks = #"""
     (() => {
-      const money = /(?:USD|US\\$|\\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\\s*[0-9][0-9\\s,.]*|[0-9][0-9\\s,.]*\\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
-      const time = /\\b(?:[01]?\\d|2[0-3]):[0-5]\\d\\b/g;
-      const flight = /\\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\\s-]?\\d{1,4}\\b/i;
-      const airport = /\\b[A-Z]{3}\\b/g;
+      const money = /(?:USD|US\$|\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\s*[0-9][0-9\s,.]*|[0-9][0-9\s,.]*\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
+      const time = /\b(?:(?:[01]?\d|2[0-3]):[0-5]\d|(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM))\b/gi;
+      const flight = /\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\s-]?\d{1,4}\b/i;
+      const airport = /\b[A-Z]{3}\b/g;
       const visible = el => {
         const r = el.getBoundingClientRect();
-        const s = getComputedStyle(el);
-        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+        const st = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
       };
-      const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
+      const clean = value => (value || '').replace(/\s+/g, ' ').trim();
+      const semanticText = node => {
+        const parts = [node.innerText || '', node.textContent || ''];
+        const descendants = Array.from(node.querySelectorAll('[aria-label],[title],[alt],[data-testid],[data-stid],[data-flight-number],[data-flight]')).slice(0, 520);
+        for (const el of descendants) {
+          for (const attr of ['aria-label','title','alt','data-testid','data-stid','data-flight-number','data-flight']) {
+            const value = el.getAttribute(attr);
+            if (value) parts.push(value);
+          }
+          if (el.dataset) {
+            for (const [key, value] of Object.entries(el.dataset).slice(0, 12)) {
+              if (value && /flight|airline|airport|route|time|price|fare|segment/i.test(key)) parts.push(String(value));
+            }
+          }
+        }
+        return clean(parts.join(' ')).slice(0, 7200);
+      };
       const score = text => {
         const times = text.match(time) || [];
         const airports = text.match(airport) || [];
-        let value = times.length * 3 + airports.length * 2;
-        if (flight.test(text)) value += 5;
+        const flights = text.match(new RegExp(flight.source, 'ig')) || [];
+        let value = times.length * 3 + airports.length * 2 + flights.length * 7;
+        if (/nonstop|non-stop|direct|stop|layover|пересад|без пересад/i.test(text)) value += 4;
         if (/terminal|терминал|airbus|boeing|atr|embraer|operated by|выполняется/i.test(text)) value += 3;
         return value;
       };
 
-      const moneyNodes = Array.from(document.querySelectorAll('body *')).filter(el => {
-        if (!visible(el) || el.children.length > 2) return false;
-        return money.test(clean(el.innerText));
-      });
       const output = [];
       const seen = new Set();
+      const push = value => {
+        const text = clean(value);
+        if (text.length < 20 || text.length > 7600 || seen.has(text)) return;
+        if (!money.test(text) || (text.match(time) || []).length < 2) return;
+        seen.add(text);
+        output.push(text);
+      };
 
-      for (const leaf of moneyNodes) {
+      const candidates = Array.from(document.querySelectorAll(
+        '[data-testid="flight-card"],[data-testid*="itinerary"],[data-testid*="flight"],[data-stid*="flight"],[aria-expanded="true"],article,li,[role=listitem]'
+      )).filter(el => {
+        if (!visible(el)) return false;
+        if (el.children.length > 70) return false;
+        const t = clean(el.innerText || el.textContent || '');
+        return t.length >= 20 && t.length <= 5200 && money.test(t) && (t.match(time) || []).length >= 2;
+      });
+
+      for (const leaf of candidates) {
         let node = leaf;
         let chosen = null;
         let chosenScore = -1;
-        for (let depth = 0; depth < 9 && node; depth++, node = node.parentElement) {
-          const text = clean(node.innerText);
-          if (text.length < 25 || text.length > 3200 || !money.test(text)) continue;
-          const times = text.match(time) || [];
-          if (times.length < 2) continue;
+        for (let depth = 0; depth < 7 && node; depth++, node = node.parentElement) {
+          const text = semanticText(node);
+          if (text.length < 25 || text.length > 7200 || !money.test(text)) continue;
+          if ((text.match(time) || []).length < 2) continue;
           const currentScore = score(text);
           if (currentScore > chosenScore) {
             chosen = text;
             chosenScore = currentScore;
           }
-          if (times.length >= 4 && flight.test(text) && (text.match(airport) || []).length >= 3) break;
+          if (currentScore >= 20 && flight.test(text)) break;
         }
-        if (chosen && !seen.has(chosen)) {
-          seen.add(chosen);
-          output.push(chosen);
+        if (chosen) push(chosen);
+        if (output.length >= 48) break;
+      }
+
+      // Aggregators often keep exact flight numbers in collapsed/hidden DOM text.
+      // Recover a bounded context around each real-looking flight number and let
+      // the native parser validate the requested route, airline code and stops.
+      const full = clean(document.body?.textContent || '');
+      const globalFlight = new RegExp(flight.source, 'ig');
+      let match;
+      let guard = 0;
+      while ((match = globalFlight.exec(full)) && guard++ < 120 && output.length < 64) {
+        const from = Math.max(0, match.index - 1800);
+        const to = Math.min(full.length, match.index + 2600);
+        push(full.slice(from, to));
+      }
+
+      // JSON-LD / app-state payloads sometimes contain the only exact flight
+      // number. Do not parse the JSON in Swift; extract small source snippets here.
+      const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"],script[type="application/json"],script#__NEXT_DATA__')).slice(0, 30);
+      for (const script of scripts) {
+        const raw = clean(script.textContent || '');
+        if (!raw || raw.length > 800000) continue;
+        const re = new RegExp(flight.source, 'ig');
+        let m;
+        let count = 0;
+        while ((m = re.exec(raw)) && count++ < 20 && output.length < 72) {
+          const from = Math.max(0, m.index - 1600);
+          const to = Math.min(raw.length, m.index + 2200);
+          push(raw.slice(from, to));
         }
-        if (output.length >= 36) break;
       }
       return output;
     })()
-    """
+    """#
 
     private static func jsEscape(_ value: String) -> String {
         value

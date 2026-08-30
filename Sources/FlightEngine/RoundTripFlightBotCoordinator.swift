@@ -41,12 +41,14 @@ final class RoundTripFlightBotCoordinator {
         async let outboundTask = FlightBotOrchestrator.shared.search(
             request: outboundRequest,
             flexibility: trip.flexibility,
+            requirement: .displayable,
             minimumResults: AppConfig.flightBotMinimumOptions,
             preferredResults: AppConfig.flightBotPreferredOptions
         )
         async let inboundTask = FlightBotOrchestrator.shared.search(
             request: inboundRequest,
             flexibility: trip.flexibility,
+            requirement: .pricingReference,
             minimumResults: 1,
             preferredResults: 3
         )
@@ -68,6 +70,7 @@ final class RoundTripFlightBotCoordinator {
         try await FlightBotOrchestrator.shared.search(
             request: makeInboundRequest(trip: trip),
             flexibility: trip.flexibility,
+            requirement: .displayable,
             minimumResults: AppConfig.flightBotMinimumOptions,
             preferredResults: AppConfig.flightBotPreferredOptions
         )

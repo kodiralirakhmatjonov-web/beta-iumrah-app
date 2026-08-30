@@ -29,11 +29,17 @@ final class FlightBotRunner {
 
     private let provider: FlightBotProvider
     private let request: FlightBotSearchRequest
+    private let requirement: FlightCandidateRequirement
     private let webView: WKWebView
 
-    init(provider: FlightBotProvider, request: FlightBotSearchRequest) {
+    init(
+        provider: FlightBotProvider,
+        request: FlightBotSearchRequest,
+        requirement: FlightCandidateRequirement = .displayable
+    ) {
         self.provider = provider
         self.request = request
+        self.requirement = requirement
 
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -86,7 +92,8 @@ final class FlightBotRunner {
                     blocks: blocks,
                     provider: provider,
                     request: request,
-                    sourceURL: webView.url ?? url
+                    sourceURL: webView.url ?? url,
+                    requirement: requirement
                 )
                 if parsed.count > best.count { best = parsed }
                 if best.count >= 3 { break }

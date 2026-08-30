@@ -428,120 +428,133 @@ struct HotelDetailView: View {
                 if roomImages.isEmpty {
                     ZStack {
                         Color.iumrahRaisedBackground
-                        Image(systemName: "bed.double.fill")
-                            .font(.system(size: 40, weight: .light))
-                            .foregroundStyle(.secondary)
+                        VStack(spacing: 10) {
+                            Image(systemName: "bed.double.fill")
+                                .font(.system(size: 34, weight: .light))
+                            Text(FlowCopy.text(.hotelRooms, settings.language))
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(.secondary)
                     }
-                    .frame(height: 220)
+                    .frame(height: 196)
                 } else {
                     TabView(selection: roomImageSelectionBinding(for: room.id)) {
                         ForEach(Array(roomImages.enumerated()), id: \.offset) { index, image in
                             hotelImage(image.url)
-                                .frame(height: 220)
+                                .frame(height: 196)
                                 .tag(index)
                         }
                     }
-                    .frame(height: 220)
+                    .frame(height: 196)
                     .tabViewStyle(.page(indexDisplayMode: .never))
                 }
 
                 if roomImages.count > 1 {
-                    VStack(spacing: 10) {
+                    VStack {
                         HStack {
                             Spacer()
                             Label("\(roomImages.count)", systemImage: "photo.on.rectangle")
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 10)
-                                .frame(height: 32)
+                                .frame(height: 30)
                                 .background(.black.opacity(0.42), in: Capsule())
                         }
-
                         Spacer()
-
                         HStack(spacing: 5) {
                             ForEach(Array(roomImages.indices), id: \.self) { index in
-                                Circle()
-                                    .fill(index == (roomImageIndices[room.id] ?? 0) ? Color.white : Color.white.opacity(0.4))
-                                    .frame(width: 6, height: 6)
+                                Capsule()
+                                    .fill(index == (roomImageIndices[room.id] ?? 0) ? Color.white : Color.white.opacity(0.42))
+                                    .frame(width: index == (roomImageIndices[room.id] ?? 0) ? 13 : 5, height: 5)
                             }
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(.black.opacity(0.30), in: Capsule())
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(.black.opacity(0.28), in: Capsule())
                     }
-                    .padding(16)
+                    .padding(14)
+                    .allowsHitTesting(false)
                 }
             }
+            .frame(height: 196)
             .clipped()
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 11) {
                 HStack(alignment: .top, spacing: 10) {
                     Text(room.name)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .tracking(-0.25)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 6)
                     if selected {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.title3)
+                            .font(.system(size: 21, weight: .semibold))
                             .foregroundStyle(Color.iumrahCareLight)
                     }
                 }
+                .frame(minHeight: 50, alignment: .top)
 
-                HStack(spacing: 8) {
-                    if let guests = room.maxGuests {
-                        compactFact(icon: "person.2.fill", text: "\(guests)")
-                    }
-                    if let beds = cleanFact(room.beds) {
-                        compactFact(icon: "bed.double.fill", text: beds)
-                    }
-                    if let size = room.sizeM2 {
-                        compactFact(icon: "ruler", text: "\(Int(size)) m²")
-                    }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 7) { roomFacts(room) }
+                    VStack(alignment: .leading, spacing: 7) { roomFacts(room) }
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
+                Group {
                     if let cleanDescription {
                         Text(cleanDescription)
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
-                            .lineLimit(3)
+                            .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
-                        Text(" ")
-                            .font(.subheadline)
+                        Color.clear
                     }
                 }
-                .frame(minHeight: 74, alignment: .topLeading)
+                .frame(height: 36, alignment: .topLeading)
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 0)
 
                 if canSelectRooms {
                     Button { select(room) } label: {
-                        HStack {
+                        HStack(spacing: 10) {
                             Text(selected ? FlowCopy.text(.roomChosen, settings.language) : FlowCopy.text(.chooseRoom, settings.language))
-                            Spacer()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
+                            Spacer(minLength: 8)
                             Image(systemName: selected ? "checkmark" : "arrow.right")
+                                .font(.system(size: 14, weight: .bold))
                         }
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(RoomSelectButtonStyle(selected: selected))
                     .disabled(isSavingSelection)
+                    .padding(.top, 2)
                 }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, minHeight: 214, alignment: .topLeading)
+            .frame(height: canSelectRooms ? 218 : 158, alignment: .topLeading)
+            .padding(18)
         }
-        .frame(height: canSelectRooms ? 472 : 430, alignment: .topLeading)
         .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(selected ? Color.iumrahCareLight.opacity(0.68) : Color.primary.opacity(0.06), lineWidth: selected ? 1.4 : 0.6)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(selected ? Color.iumrahCareLight.opacity(0.62) : Color.primary.opacity(0.055), lineWidth: selected ? 1.2 : 0.6)
         }
-        .shadow(color: .black.opacity(0.055), radius: 16, y: 8)
+        .shadow(color: .black.opacity(0.05), radius: 14, y: 7)
+    }
+
+    @ViewBuilder
+    private func roomFacts(_ room: HotelRoom) -> some View {
+        if let guests = room.maxGuests {
+            compactFact(icon: "person.2.fill", text: "\(guests)")
+        }
+        if let beds = cleanFact(room.beds) {
+            compactFact(icon: "bed.double.fill", text: beds)
+        }
+        if let size = room.sizeM2 {
+            compactFact(icon: "ruler", text: "\(Int(size)) m²")
+        }
     }
 
     private func roomFactPill(icon: String, text: String) -> some View {
@@ -781,6 +794,7 @@ struct HotelDetailView: View {
                     try await bookings.updateHotelSelection(bookingID: bookingID, role: selectionRole, hotel: hotel, room: room, roomCategory: nil)
                     onSelectionSaved?()
                     IumrahHaptics.success()
+                    dismiss()
                 } catch {
                     selectedRoomID = nil
                     selectionError = L10n.error(error, settings.language)
@@ -795,7 +809,9 @@ struct HotelDetailView: View {
                 journey.chooseMadinahHotel(hotel)
                 journey.chooseMadinahRoom(room)
             }
-            IumrahHaptics.selection()
+            IumrahHaptics.success()
+            onSelectionSaved?()
+            dismiss()
         }
     }
 
@@ -813,6 +829,7 @@ struct HotelDetailView: View {
                     try await bookings.updateHotelSelection(bookingID: bookingID, role: selectionRole, hotel: hotel, room: nil, roomCategory: option)
                     onSelectionSaved?()
                     IumrahHaptics.success()
+                    dismiss()
                 } catch {
                     selectedRoomCategory = nil
                     selectionError = L10n.error(error, settings.language)
@@ -827,7 +844,9 @@ struct HotelDetailView: View {
                 journey.chooseMadinahHotel(hotel)
                 journey.chooseMadinahRoomCategory(option)
             }
-            IumrahHaptics.selection()
+            IumrahHaptics.success()
+            onSelectionSaved?()
+            dismiss()
         }
     }
 

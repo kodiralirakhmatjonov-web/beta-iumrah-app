@@ -79,7 +79,10 @@ struct FlightLayover: Identifiable, Hashable {
     init(previous: FlightSegment, next: FlightSegment) {
         id = "\(previous.id)-\(next.id)"
         airport = previous.destination
-        durationMinutes = max(0, Int(next.departureAt.timeIntervalSince(previous.arrivalAt) / 60))
+        // Do not manufacture layover duration from timezone arithmetic. The
+        // provider source remains authoritative; until it exposes an explicit
+        // layover duration, present only the verified transfer airport/country.
+        durationMinutes = 0
         airportChange = previous.destination.code != next.origin.code
         let calendar = Calendar(identifier: .gregorian)
         overnight = !calendar.isDate(previous.arrivalAt, inSameDayAs: next.departureAt)

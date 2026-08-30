@@ -1,7 +1,7 @@
 import { calculatePackageQuote } from "./pricing";
 import { quoteFlightOptions } from "./flight-options";
+import { resolveHotelCosts } from "./hotel-costs";
 import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
-import { legacyEstimatedHotelCost } from "./hotel-fallback";
 import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
 import { deleteAdminBooking, deletePilgrimBooking, updatePilgrimContact, updatePilgrimCustomization, updatePilgrimHotel } from "./booking-control";
 import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRoomCategories, listHotelRoomCategories } from "./room-categories";
@@ -39,69 +39,23 @@ function publicOnly(result: ReturnType<typeof calculatePackageQuote>): PublicPac
 
 async function resolveConsumerQuote(input: ConsumerPackageQuoteRequest, env: Env) {
   if (!env.HOTELS_DB) throw new Error("HOTELS_DB binding is not configured");
-
-  let makkahCost;
-  let madinahCost = null;
-
-  try {
-    const makkah = await resolvePrimaryHotel(
-      env.HOTELS_DB,
-      input.tier,
-      input.hotelStars,
-      "Makkah",
-      input.primaryHotelIds?.makkah,
-    );
-    makkahCost = {
-      amountUsd: Number(makkah.base_price_usd),
-      unit: makkah.price_unit,
-      nights: Math.max(1, input.nights.makkah),
-    } as const;
-
-    if (input.includeMadinah) {
-      const madinah = await resolvePrimaryHotel(
-        env.HOTELS_DB,
-        input.tier,
-        input.hotelStars,
-        "Madinah",
-        input.primaryHotelIds?.madinah,
-      );
-      madinahCost = {
-        amountUsd: Number(madinah.base_price_usd),
-        unit: madinah.price_unit,
-        nights: Math.max(1, input.nights.madinah),
-      } as const;
-    }
-  } catch {
-    makkahCost = legacyEstimatedHotelCost(
-      input.hotelStars,
-      "Makkah",
-      input.nights.makkah,
-      input.travelStartDate,
-    );
-    madinahCost = input.includeMadinah
-      ? legacyEstimatedHotelCost(
-          input.hotelStars,
-          "Madinah",
-          input.nights.madinah,
-          input.travelStartDate,
-        )
-      : null;
-  }
+  const { flights, ...context } = input;
+  const hotels = await resolveHotelCosts(context, env);
 
   const coreInput: PackageQuoteRequest = {
     tier: input.tier,
     includeMadinah: input.includeMadinah,
     totalDays: input.totalDays,
     travelers: input.travelers,
-    flights: input.flights,
+    flights,
     hotels: {
-      makkah: makkahCost,
-      madinah: madinahCost,
+      makkah: hotels.makkah,
+      madinah: hotels.madinah,
     },
     customization: input.customization,
   };
 
-  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12");
+  return calculatePackageQuote(coreInput, env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.14");
 }
 
 async function publicHealth(env: Env) {
@@ -109,7 +63,7 @@ async function publicHealth(env: Env) {
     return json({
       ok: true,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.14",
       hotelsDbConfigured: false,
       bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: 0,
@@ -148,7 +102,7 @@ async function publicHealth(env: Env) {
     return json({
       ok: true,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.14",
       hotelsDbConfigured: true,
       bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: count,
@@ -168,7 +122,7 @@ async function publicHealth(env: Env) {
     return json({
       ok: false,
       service: "iumrah-package-engine",
-      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.12",
+      pricingVersion: env.PRICING_VERSION ?? "iumrah-web-v1-beta-0.14",
       hotelsDbConfigured: true,
       bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: 0,

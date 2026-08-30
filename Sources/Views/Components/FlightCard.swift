@@ -146,6 +146,10 @@ struct FlightCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            Text(shortDateFormatter(for: airport?.timeZoneIdentifier).string(from: date ?? (isOrigin ? offer.departureAt : offer.arrivalAt)))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
         }
         .frame(minWidth: 82, alignment: trailing ? .trailing : .leading)
     }
@@ -153,18 +157,42 @@ struct FlightCard: View {
     private func layoverSummary(_ layover: FlightLayover) -> String {
         let country = FlightReferenceCatalog.airportCountry(layover.airport.code)
         let place = [layover.airport.displayCity, country].compactMap { $0 }.joined(separator: ", ")
-        if layover.airportChange {
-            return L10n.format("flight_airport_change", settings.language, place, durationText(layover.durationMinutes))
+        if layover.durationMinutes > 0 {
+            if layover.airportChange {
+                return L10n.format("flight_airport_change", settings.language, place, durationText(layover.durationMinutes))
+            }
+            return L10n.format("flight_layover_summary", settings.language, place, durationText(layover.durationMinutes))
         }
-        return L10n.format("flight_layover_summary", settings.language, place, durationText(layover.durationMinutes))
+        switch settings.language {
+        case .russian: return layover.airportChange ? "Смена аэропорта · \(place)" : "Пересадка · \(place)"
+        case .english: return layover.airportChange ? "Airport change · \(place)" : "Connection · \(place)"
+        case .uzbek: return layover.airportChange ? "Aeroport almashadi · \(place)" : "Ulanish · \(place)"
+        case .uzbekCyrillic: return layover.airportChange ? "Аэропорт алмашади · \(place)" : "Уланиш · \(place)"
+        }
     }
 
     private func durationText(_ minutes: Int) -> String {
+        if minutes <= 0 {
+            switch settings.language {
+            case .russian: return "Время по данным источника"
+            case .english: return "Duration from source"
+            case .uzbek: return "Vaqt manba ma’lumotida"
+            case .uzbekCyrillic: return "Вақт манба маълумотида"
+            }
+        }
         let hours = minutes / 60
         let mins = minutes % 60
         if hours == 0 { return L10n.format("flight_minutes_short", settings.language, mins) }
         if mins == 0 { return L10n.format("flight_hours_short", settings.language, hours) }
         return L10n.format("flight_duration_short", settings.language, hours, mins)
+    }
+
+    private func shortDateFormatter(for identifier: String?) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        formatter.dateFormat = "d MMM"
+        if let identifier, let timeZone = TimeZone(identifier: identifier) { formatter.timeZone = timeZone }
+        return formatter
     }
 
     private func timeFormatter(for identifier: String?) -> DateFormatter {

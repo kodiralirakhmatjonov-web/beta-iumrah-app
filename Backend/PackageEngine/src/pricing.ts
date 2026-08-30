@@ -59,6 +59,7 @@ function flightLegGroupCost(cost: FlightLegCost, travelers: Travelers) {
 
 function hotelCost(cost: HotelCost, rooms: number) {
   const nights = Math.max(1, Math.floor(cost.nights));
+  if (cost.unit === "totalStay") return cost.amountUsd;
   return cost.amountUsd * rooms * (cost.unit === "perRoomNight" ? nights : 1);
 }
 

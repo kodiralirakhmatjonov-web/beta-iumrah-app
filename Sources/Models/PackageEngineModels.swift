@@ -44,6 +44,11 @@ struct ConsumerPackageQuoteRequest: Encodable {
         let madinah: String?
     }
 
+    struct HotelPriceObservations: Encodable {
+        let makkah: [HotelPriceObservation]
+        let madinah: [HotelPriceObservation]
+    }
+
     let tier: String
     let hotelStars: Int
     let includeMadinah: Bool
@@ -53,6 +58,7 @@ struct ConsumerPackageQuoteRequest: Encodable {
     let travelStartDate: String
     let flights: Flights
     let primaryHotelIds: PrimaryHotelIDs
+    let hotelPriceObservations: HotelPriceObservations?
 }
 
 struct PublicPackageQuoteResponse: Decodable, Hashable {
@@ -149,6 +155,11 @@ struct FlightQuoteContextRequest: Encodable {
         let madinah: String?
     }
 
+    struct HotelPriceObservations: Encodable {
+        let makkah: [HotelPriceObservation]
+        let madinah: [HotelPriceObservation]
+    }
+
     let tier: String
     let hotelStars: Int
     let includeMadinah: Bool
@@ -157,8 +168,9 @@ struct FlightQuoteContextRequest: Encodable {
     let travelers: Travelers
     let travelStartDate: String
     let primaryHotelIds: PrimaryHotelIDs
+    let hotelPriceObservations: HotelPriceObservations?
 
-    init(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) {
+    init(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, hotelPrices: HotelPriceSearchSnapshot? = nil) {
         let stay = TripStayPlanner.breakdown(for: trip)
         self.tier = trip.packageTier.rawValue
         self.hotelStars = trip.hotelStars
@@ -171,6 +183,11 @@ struct FlightQuoteContextRequest: Encodable {
             makkah: makkahHotel.id,
             madinah: trip.scope == .makkahAndMadinah ? madinahHotel?.id : nil
         )
+        if let hotelPrices, hotelPrices.hasLiveRates {
+            self.hotelPriceObservations = .init(makkah: hotelPrices.makkah, madinah: hotelPrices.madinah)
+        } else {
+            self.hotelPriceObservations = nil
+        }
     }
 
     private static let dayFormatter: DateFormatter = {

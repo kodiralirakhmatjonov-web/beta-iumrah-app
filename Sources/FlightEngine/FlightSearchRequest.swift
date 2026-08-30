@@ -1,5 +1,16 @@
 import Foundation
 
+enum FlightCandidateRequirement: String, Codable, Hashable {
+    /// Candidate is eligible to be shown to the pilgrim. Exact flight number,
+    /// route/stop evidence and source local times are required. Duration is shown
+    /// only when the source explicitly provides it; it is never synthesized.
+    case displayable
+
+    /// Candidate is used only as an internal reference fare while the opposite
+    /// direction is being priced. It is never rendered in the UI.
+    case pricingReference
+}
+
 struct FlightBotSearchRequest: Hashable, Codable {
     let id: String
     let direction: FlightDirection

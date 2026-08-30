@@ -24,19 +24,23 @@ enum FlightEngineAvailabilityError: LocalizedError {
 final class RealFlightPackageSearchService: FlightSearchServicing {
     private let botService = OfficialFlightCandidateSearchService()
     private let packageEngine = RemotePackageEngineClient()
+    private let hotelPriceService = HotelLivePriceSearchService()
     private var session: RoundTripFlightBotSession?
     private var tripSignature: String?
     private var verifiedSignature: String?
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await ensureBackendReady(for: trip)
+        async let hotelPricesTask = hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
         let currentSession = try await sessionFor(trip: trip)
+        let hotelPrices = await hotelPricesTask
         let response = try await packageEngine.quoteOutboundOptions(
             trip: trip,
             makkahHotel: makkahHotel,
             madinahHotel: madinahHotel,
             outbound: currentSession.outbound,
-            inbound: currentSession.inbound
+            inbound: currentSession.inbound,
+            hotelPrices: hotelPrices
         )
 
         let offers = try bridge(
@@ -60,18 +64,20 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         // The first screen only needs one verified return candidate to calculate
         // a complete package reference price. When the pilgrim actually opens
         // return selection, expand that side to a full list if necessary.
-        if currentSession.inbound.count < AppConfig.flightBotMinimumOptions {
+        if currentSession.inbound.count < AppConfig.flightBotTargetOptions {
             let refreshed = try await botService.refreshInbound(trip: trip)
             currentSession = currentSession.replacingInbound(with: refreshed)
             self.session = currentSession
         }
 
+        let hotelPrices = await hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
         let response = try await packageEngine.quoteReturnOptions(
             trip: trip,
             makkahHotel: makkahHotel,
             madinahHotel: madinahHotel,
             selectedOutbound: selectedCandidate,
-            inbound: currentSession.inbound
+            inbound: currentSession.inbound,
+            hotelPrices: hotelPrices
         )
 
         let offers = try bridge(

@@ -48,7 +48,14 @@ enum FlightReferenceCatalog {
         "GF": .init(iata: "GF", name: "Gulf Air", websiteDomain: "gulfair.com"),
         "KU": .init(iata: "KU", name: "Kuwait Airways", websiteDomain: "kuwaitairways.com"),
         "MS": .init(iata: "MS", name: "EgyptAir", websiteDomain: "egyptair.com"),
-        "W6": .init(iata: "W6", name: "Wizz Air", websiteDomain: "wizzair.com")
+        "W6": .init(iata: "W6", name: "Wizz Air", websiteDomain: "wizzair.com"),
+        "5W": .init(iata: "5W", name: "Wizz Air Abu Dhabi", websiteDomain: "wizzair.com"),
+        "3L": .init(iata: "3L", name: "Air Arabia Abu Dhabi", websiteDomain: "airarabia.com"),
+        "F3": .init(iata: "F3", name: "flyadeal", websiteDomain: "flyadeal.com"),
+        "RJ": .init(iata: "RJ", name: "Royal Jordanian", websiteDomain: "rj.com"),
+        "OV": .init(iata: "OV", name: "SalamAir", websiteDomain: "salamair.com"),
+        "6E": .init(iata: "6E", name: "IndiGo", websiteDomain: "goindigo.in"),
+        "PK": .init(iata: "PK", name: "Pakistan International Airlines", websiteDomain: "piac.com.pk")
     ]
 
     // Small offline enrichment layer for the routes that matter most to iumrah.
@@ -83,7 +90,18 @@ enum FlightReferenceCatalog {
         "AUH": .init(iata: "AUH", city: "Abu Dhabi", name: "Zayed International Airport", country: "United Arab Emirates", timeZoneIdentifier: "Asia/Dubai"),
         "MCT": .init(iata: "MCT", city: "Muscat", name: "Muscat International Airport", country: "Oman", timeZoneIdentifier: "Asia/Muscat"),
         "BAH": .init(iata: "BAH", city: "Manama", name: "Bahrain International Airport", country: "Bahrain", timeZoneIdentifier: "Asia/Bahrain"),
-        "CAI": .init(iata: "CAI", city: "Cairo", name: "Cairo International Airport", country: "Egypt", timeZoneIdentifier: "Africa/Cairo")
+        "CAI": .init(iata: "CAI", city: "Cairo", name: "Cairo International Airport", country: "Egypt", timeZoneIdentifier: "Africa/Cairo"),
+        "DWC": .init(iata: "DWC", city: "Dubai", name: "Al Maktoum International Airport", country: "United Arab Emirates", timeZoneIdentifier: "Asia/Dubai"),
+        "AMM": .init(iata: "AMM", city: "Amman", name: "Queen Alia International Airport", country: "Jordan", timeZoneIdentifier: "Asia/Amman"),
+        "TBS": .init(iata: "TBS", city: "Tbilisi", name: "Tbilisi International Airport", country: "Georgia", timeZoneIdentifier: "Asia/Tbilisi"),
+        "FRU": .init(iata: "FRU", city: "Bishkek", name: "Manas International Airport", country: "Kyrgyzstan", timeZoneIdentifier: "Asia/Bishkek"),
+        "OSS": .init(iata: "OSS", city: "Osh", name: "Osh International Airport", country: "Kyrgyzstan", timeZoneIdentifier: "Asia/Bishkek"),
+        "IKA": .init(iata: "IKA", city: "Tehran", name: "Imam Khomeini International Airport", country: "Iran", timeZoneIdentifier: "Asia/Tehran"),
+        "ISB": .init(iata: "ISB", city: "Islamabad", name: "Islamabad International Airport", country: "Pakistan", timeZoneIdentifier: "Asia/Karachi"),
+        "DEL": .init(iata: "DEL", city: "Delhi", name: "Indira Gandhi International Airport", country: "India", timeZoneIdentifier: "Asia/Kolkata"),
+        "BOM": .init(iata: "BOM", city: "Mumbai", name: "Chhatrapati Shivaji Maharaj International Airport", country: "India", timeZoneIdentifier: "Asia/Kolkata"),
+        "DMM": .init(iata: "DMM", city: "Dammam", name: "King Fahd International Airport", country: "Saudi Arabia", timeZoneIdentifier: "Asia/Riyadh"),
+        "TIF": .init(iata: "TIF", city: "Taif", name: "Taif International Airport", country: "Saudi Arabia", timeZoneIdentifier: "Asia/Riyadh")
     ]
 
     static func airline(code: String?) -> AirlineReference? {

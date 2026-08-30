@@ -14,12 +14,19 @@ enum AppConfig {
     /// There is deliberately NO silent sandbox fallback in this mode. If a provider,
     /// CAPTCHA or Package Engine fails, the beta must expose that failure so we can tune it.
     static let flightEngineMode: FlightEngineMode = .officialWebBots
-    static let flightBotMinimumOptions = 4
+    // One verified option is enough to keep the journey moving; the engine still
+    // searches toward four-to-six options. A weak provider must never zero-out an
+    // otherwise usable search result.
+    static let flightBotMinimumOptions = 1
+    static let flightBotTargetOptions = 4
     static let flightBotPreferredOptions = 6
-    static let flightBotProviderBatchSize = 4
-    static let flightBotProviderTimeoutSeconds: Double = 11
-    static let flightBotSearchHardTimeoutSeconds: Double = 58
-    static let flightSearchScreenHardTimeoutSeconds: Double = 88
+    static let flightBotProviderBatchSize = 3
+    static let flightBotProviderTimeoutSeconds: Double = 18
+    static let flightBotSearchHardTimeoutSeconds: Double = 92
+    static let flightSearchScreenHardTimeoutSeconds: Double = 118
+
+    static let hotelPriceProviderTimeoutSeconds: Double = 17
+    static let hotelPriceSearchHardTimeoutSeconds: Double = 46
 
     static let packageHealthPath = "/api/package/health"
     static let packageQuotePath = "/api/package/quote"

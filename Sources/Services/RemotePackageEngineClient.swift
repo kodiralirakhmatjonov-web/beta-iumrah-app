@@ -42,7 +42,8 @@ struct RemotePackageEngineClient {
             travelers: .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms),
             travelStartDate: Self.dayFormatter.string(from: trip.departureDate),
             flights: .init(outbound: outbound, inbound: inbound),
-            primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID)
+            primaryHotelIds: .init(makkah: makkahHotelID, madinah: madinahHotelID),
+            hotelPriceObservations: nil
         )
         return try await api.post(AppConfig.packageQuotePath, body: request, timeoutInterval: 15)
     }
@@ -52,10 +53,11 @@ struct RemotePackageEngineClient {
         makkahHotel: HotelSummary,
         madinahHotel: HotelSummary?,
         outbound: [LiveFlightCandidate],
-        inbound: [LiveFlightCandidate]
+        inbound: [LiveFlightCandidate],
+        hotelPrices: HotelPriceSearchSnapshot? = nil
     ) async throws -> PublicFlightOptionsQuoteResponse {
         let request = OutboundFlightOptionsQuoteRequest(
-            context: .init(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel),
+            context: .init(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, hotelPrices: hotelPrices),
             outboundCandidates: try outbound.map { try FlightFareObservationRequest(candidate: $0) },
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )
@@ -67,10 +69,11 @@ struct RemotePackageEngineClient {
         makkahHotel: HotelSummary,
         madinahHotel: HotelSummary?,
         selectedOutbound: LiveFlightCandidate,
-        inbound: [LiveFlightCandidate]
+        inbound: [LiveFlightCandidate],
+        hotelPrices: HotelPriceSearchSnapshot? = nil
     ) async throws -> PublicFlightOptionsQuoteResponse {
         let request = ReturnFlightOptionsQuoteRequest(
-            context: .init(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel),
+            context: .init(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, hotelPrices: hotelPrices),
             selectedOutbound: try FlightFareObservationRequest(candidate: selectedOutbound),
             returnCandidates: try inbound.map { try FlightFareObservationRequest(candidate: $0) }
         )

@@ -76,7 +76,9 @@ struct FlightDetailsView: View {
                 Divider()
 
                 LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 13) {
-                    detailValue(titleKey: "flight_detail_duration", value: durationText(segment.durationMinutes))
+                    if segment.durationMinutes > 0 {
+                        detailValue(titleKey: "flight_detail_duration", value: durationText(segment.durationMinutes))
+                    }
                     detailValue(titleKey: "flight_detail_cabin", value: cabinLabel(segment.cabin))
                     if let aircraft = segment.aircraft {
                         detailValue(titleKey: "flight_detail_aircraft", value: aircraft)
@@ -157,8 +159,10 @@ struct FlightDetailsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Text(durationText(layover.durationMinutes))
-                    .font(.subheadline)
+                if layover.durationMinutes > 0 {
+                    Text(durationText(layover.durationMinutes))
+                        .font(.subheadline)
+                }
                 if layover.overnight {
                     Text(L10n.text("flight_layover_overnight", settings.language))
                         .font(.caption)
@@ -197,6 +201,14 @@ struct FlightDetailsView: View {
     }
 
     private func durationText(_ minutes: Int) -> String {
+        if minutes <= 0 {
+            switch settings.language {
+            case .russian: return "Время по данным источника"
+            case .english: return "Duration from source"
+            case .uzbek: return "Vaqt manba ma’lumotida"
+            case .uzbekCyrillic: return "Вақт манба маълумотида"
+            }
+        }
         let hours = minutes / 60
         let mins = minutes % 60
         if hours == 0 { return L10n.format("flight_minutes_short", settings.language, mins) }

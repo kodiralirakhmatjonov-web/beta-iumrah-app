@@ -27,7 +27,7 @@
     }
   ],
   "vars": {
-    "PRICING_VERSION": "iumrah-web-v1-beta-0.9",
+    "PRICING_VERSION": "iumrah-web-v1-beta-0.14",
     "CBU_FX_URL": "https://cbu.uz/en/arkhiv-kursov-valyut/json/",
     "AUTH_SESSION_URL": "https://iumrah.app/api/auth/staff/session"
   }
