@@ -18,6 +18,7 @@ struct HomeDashboardView: View {
         ScrollView {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true)
+                HomeVideoCarousel()
                 hero
                 confidenceStrip
                 philosophyCard
