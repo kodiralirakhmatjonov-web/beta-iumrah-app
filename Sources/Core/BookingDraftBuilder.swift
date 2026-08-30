@@ -29,7 +29,6 @@ enum BookingDraftBuilder {
             "ziyaratMakkah",
             includeMadinah ? "ziyaratMadinah" : nil,
             "care",
-            "esim",
         ].compactMap { $0 }
 
         let draft = BookingDraftRequest(
@@ -79,7 +78,7 @@ enum BookingDraftBuilder {
                 ziyaratMakkah: true,
                 ziyaratMadinah: includeMadinah,
                 meals: true,
-                esim: true
+                esim: false
             ),
             includedServices: services,
             hotelNames: .init(

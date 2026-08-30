@@ -33,12 +33,17 @@ struct BookingDetailView: View {
                     VStack(spacing: 16) {
                         statusHero(session)
                         bookingMetaCard(session.booking)
+                        BookingItineraryCalendarView(
+                            bookingID: session.id,
+                            startDate: session.booking.input.startDate,
+                            endDate: session.booking.input.endDate
+                        )
 
                         BookingFlightDisclosureCard(
                             title: L10n.text("booking_outbound_flight", settings.language),
                             route: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)",
                             date: session.booking.input.startDate,
-                            fallbackFlight: session.booking.flight,
+                            fallbackFlight: outboundFallback(session),
                             offer: session.outboundFlight,
                             isExpanded: $outboundExpanded
                         )
@@ -47,7 +52,7 @@ struct BookingDetailView: View {
                             title: L10n.text("booking_return_flight", settings.language),
                             route: "\(session.booking.route.returnOrigin) → \(session.booking.route.originCode)",
                             date: session.booking.input.endDate,
-                            fallbackFlight: session.booking.flight,
+                            fallbackFlight: inboundFallback(session),
                             offer: session.inboundFlight,
                             isExpanded: $inboundExpanded
                         )
@@ -70,6 +75,7 @@ struct BookingDetailView: View {
                         careAction
                         destructiveActions
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, IumrahDesign.pagePadding)
                     .padding(.top, 12)
                     .padding(.bottom, 56)
@@ -163,6 +169,22 @@ struct BookingDetailView: View {
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.vertical, 8)
         .background(.ultraThinMaterial)
+    }
+
+    private func outboundFallback(_ session: StoredBookingSession) -> String {
+        if let trace = session.booking.generatorTrace?.outbound {
+            let value = [trace.airline, trace.flightNumbers].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: " · ")
+            if !value.isEmpty { return value }
+        }
+        return session.booking.flight
+    }
+
+    private func inboundFallback(_ session: StoredBookingSession) -> String {
+        if let trace = session.booking.generatorTrace?.inbound {
+            let value = [trace.airline, trace.flightNumbers].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: " · ")
+            if !value.isEmpty { return value }
+        }
+        return session.booking.flight
     }
 
     private func statusHero(_ session: StoredBookingSession) -> some View {
@@ -634,28 +656,31 @@ struct BookingDetailView: View {
                         .font(.system(size: 20, weight: .bold, design: .rounded))
                     Text(L10n.text("booking_care_body", settings.language))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.76))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(L10n.text("booking_open_care", settings.language))
                         .font(.caption.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.92))
                         .padding(.top, 2)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "arrow.up.right")
                     .font(.headline.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.88))
             }
-            .padding(18)
+            .padding(20)
             .background(
                 LinearGradient(
-                    colors: [Color.iumrahCareLight.opacity(0.20), Color.iumrahCardBackground],
+                    colors: [Color.iumrahCareDark.opacity(0.96), Color.iumrahCareLight.opacity(0.92)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
+            .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .strokeBorder(Color.iumrahCareLight.opacity(0.24), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -728,6 +753,7 @@ struct BookingDetailView: View {
                 .background(Color.iumrahRaisedBackground, in: Circle())
             Text(text)
                 .font(.subheadline.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Image(systemName: "checkmark")
                 .font(.caption.weight(.bold))
@@ -753,6 +779,7 @@ struct BookingDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -941,7 +968,7 @@ private struct BookingFlightDisclosureCard: View {
                 }
             } label: {
                 HStack(spacing: 13) {
-                    AirlineLogoView(airlineCode: offer?.primaryAirlineCode, size: 42)
+                    AirlineLogoView(airlineCode: offer?.primaryAirlineCode ?? fallbackAirlineCode, size: 42)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title)
                             .font(.caption.weight(.bold))
@@ -988,6 +1015,13 @@ private struct BookingFlightDisclosureCard: View {
             }
         }
         .iumrahCard()
+    }
+
+    private var fallbackAirlineCode: String? {
+        let pattern = #"\b([A-Z0-9]{2})[\s-]?\d{1,4}\b"#
+        guard let range = fallbackFlight.uppercased().range(of: pattern, options: .regularExpression) else { return nil }
+        let match = String(fallbackFlight.uppercased()[range])
+        return FlightReferenceCatalog.airlineCode(from: match)
     }
 
     private func offerDetails(_ offer: FlightOffer) -> some View {

@@ -32,9 +32,11 @@ enum FlightTextParser {
             let firstToken = number.uppercased().split(separator: " ").first.map(String.init) ?? ""
             guard !currencyPrefixes.contains(firstToken) else { return false }
             let code = FlightReferenceCatalog.airlineCode(from: number)
-            return FlightReferenceCatalog.airline(code: code) != nil || code == providerCode(provider.id)
+            guard let code, code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return false }
+            if FlightReferenceCatalog.airline(code: code) != nil || code == providerCode(provider.id) { return true }
+            return provider.id == .googleFlights || provider.id == .skyscanner
         }
-        let primaryFlightNumber = flightNumbers.first ?? providerCode(provider.id)
+        guard let primaryFlightNumber = flightNumbers.first else { return nil }
         let primaryAirlineCode = FlightReferenceCatalog.airlineCode(from: primaryFlightNumber) ?? providerCode(provider.id)
         let airline = inferredAirline(from: normalizedBlock, flightNumber: primaryFlightNumber, provider: provider)
 

@@ -151,6 +151,7 @@ struct RemoteBooking: Codable, Identifiable, Hashable {
     let madinahHotelSelection: BookingHotelSelectionSnapshot?
     let customization: BookingCustomization?
     let includedServices: [String]?
+    let generatorTrace: BookingGeneratorTrace?
 }
 
 struct BookingInputRecord: Codable, Hashable {
@@ -185,6 +186,26 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     let attachmentURL: String?
     let createdAt: String
     let readByStaff: Bool?
+}
+
+struct BookingItineraryItem: Codable, Identifiable, Hashable {
+    let id: String
+    let bookingID: String
+    let dateLocal: String
+    let sortOrder: Int
+    let title: String
+    let subtitle: String
+    let icon: String
+    let location: String
+    let notes: String
+    let createdAt: String
+    let updatedAt: String
+}
+
+struct BookingItineraryResponse: Decodable {
+    let ok: Bool
+    let bookingID: String
+    let items: [BookingItineraryItem]
 }
 
 struct ClientTripResponse: Decodable {

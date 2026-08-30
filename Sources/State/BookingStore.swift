@@ -16,6 +16,7 @@ enum BookingStoreError: LocalizedError {
 final class BookingStore: ObservableObject {
     @Published private(set) var sessions: [StoredBookingSession] = []
     @Published private(set) var chats: [String: [ChatMessage]] = [:]
+    @Published private(set) var itineraries: [String: [BookingItineraryItem]] = [:]
 
     private let bookingService = BookingService()
     private let hotelCatalogService = HotelCatalogService()
@@ -273,6 +274,15 @@ final class BookingStore: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    func loadItinerary(for bookingID: String) async throws -> [BookingItineraryItem] {
+        guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
+        let headers = clientHeaders(for: session)
+        guard !headers.isEmpty else { throw APIError.missingBookingToken }
+        let items = try await bookingService.fetchItinerary(id: bookingID, headers: headers)
+        itineraries[bookingID] = items
+        return items
+    }
+
     func loadChat(for bookingID: String) async throws -> [ChatMessage] {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
         let headers = clientHeaders(for: session)
@@ -522,6 +532,7 @@ final class BookingStore: ObservableObject {
     private func purgeLocalBooking(id: String) {
         sessions.removeAll(where: { $0.id == id })
         chats[id] = nil
+        itineraries[id] = nil
     }
 
     private func isRemoteMissing(code: Int, message: String) -> Bool {

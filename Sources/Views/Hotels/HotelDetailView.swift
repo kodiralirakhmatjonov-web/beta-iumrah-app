@@ -24,6 +24,7 @@ struct HotelDetailView: View {
     @State private var isLoadingRoomCategories = false
     @State private var roomCategoryError: String?
     @State private var isSavingSelection = false
+    @State private var roomImageIndices: [String: Int] = [:]
     @State private var selectionError: String?
 
     private let service = HotelCatalogService()
@@ -235,7 +236,7 @@ struct HotelDetailView: View {
         if !detail.amenities.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
                 sectionTitle(FlowCopy.text(.amenities, settings.language))
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(detail.amenities, id: \.self) { amenity in
                         HStack(spacing: 10) {
                             Image(systemName: amenityIcon(amenity))
@@ -248,7 +249,7 @@ struct HotelDetailView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .padding(.horizontal, 11)
-                        .frame(minHeight: 54)
+                        .frame(minHeight: 50)
                         .background(Color.iumrahCardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                     }
@@ -290,9 +291,11 @@ struct HotelDetailView: View {
                                 .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 14)
                         }
                     }
+                    .padding(.horizontal, IumrahDesign.pagePadding)
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, 4, for: .scrollContent)
+                .padding(.horizontal, -IumrahDesign.pagePadding)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
             }
         }
@@ -398,9 +401,11 @@ struct HotelDetailView: View {
                                 .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 14)
                         }
                     }
+                    .padding(.horizontal, IumrahDesign.pagePadding)
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, 4, for: .scrollContent)
+                .padding(.horizontal, -IumrahDesign.pagePadding)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
             }
 
@@ -420,27 +425,53 @@ struct HotelDetailView: View {
 
         return VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topTrailing) {
-                if let first = roomImages.first {
-                    hotelImage(first.url)
-                        .frame(height: 210)
-                } else {
+                if roomImages.isEmpty {
                     ZStack {
                         Color.iumrahRaisedBackground
                         Image(systemName: "bed.double.fill")
                             .font(.system(size: 40, weight: .light))
                             .foregroundStyle(.secondary)
                     }
-                    .frame(height: 180)
+                    .frame(height: 220)
+                } else {
+                    TabView(selection: roomImageSelectionBinding(for: room.id)) {
+                        ForEach(Array(roomImages.enumerated()), id: \.offset) { index, image in
+                            hotelImage(image.url)
+                                .frame(height: 220)
+                                .tag(index)
+                        }
+                    }
+                    .frame(height: 220)
+                    .tabViewStyle(.page(indexDisplayMode: .never))
                 }
 
                 if roomImages.count > 1 {
-                    Label("\(roomImages.count)", systemImage: "photo.on.rectangle")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
+                    VStack(spacing: 10) {
+                        HStack {
+                            Spacer()
+                            Label("\(roomImages.count)", systemImage: "photo.on.rectangle")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .frame(height: 32)
+                                .background(.black.opacity(0.42), in: Capsule())
+                        }
+
+                        Spacer()
+
+                        HStack(spacing: 5) {
+                            ForEach(Array(roomImages.indices), id: \.self) { index in
+                                Circle()
+                                    .fill(index == (roomImageIndices[room.id] ?? 0) ? Color.white : Color.white.opacity(0.4))
+                                    .frame(width: 6, height: 6)
+                            }
+                        }
                         .padding(.horizontal, 10)
-                        .frame(height: 32)
-                        .background(.black.opacity(0.42), in: Capsule())
-                        .padding(16)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.30), in: Capsule())
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .padding(16)
                 }
             }
             .clipped()
@@ -449,6 +480,7 @@ struct HotelDetailView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Text(room.name)
                         .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     if selected {
@@ -470,13 +502,21 @@ struct HotelDetailView: View {
                     }
                 }
 
-                if let cleanDescription {
-                    Text(cleanDescription)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 8) {
+                    if let cleanDescription {
+                        Text(cleanDescription)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text(" ")
+                            .font(.subheadline)
+                    }
                 }
+                .frame(minHeight: 74, alignment: .topLeading)
+
+                Spacer(minLength: 12)
 
                 if canSelectRooms {
                     Button { select(room) } label: {
@@ -492,7 +532,9 @@ struct HotelDetailView: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: .infinity, minHeight: 214, alignment: .topLeading)
         }
+        .frame(height: canSelectRooms ? 472 : 430, alignment: .topLeading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
@@ -520,6 +562,13 @@ struct HotelDetailView: View {
             .padding(.horizontal, 10)
             .frame(height: 32)
             .background(Color.iumrahRaisedBackground, in: Capsule())
+    }
+
+    private func roomImageSelectionBinding(for roomID: String) -> Binding<Int> {
+        Binding(
+            get: { roomImageIndices[roomID] ?? 0 },
+            set: { roomImageIndices[roomID] = $0 }
+        )
     }
 
     private func categoryIcon(_ category: IumrahRoomCategory) -> String {

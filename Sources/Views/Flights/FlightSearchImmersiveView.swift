@@ -62,20 +62,24 @@ struct FlightSearchImmersiveView: View {
                     .scaledToFit()
                     .frame(width: 188)
                     .padding(.top, -20)
-                    .padding(.bottom, 26)
+                    .padding(.bottom, 22)
 
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     Text(state == .searching ? currentSearchMessage : L10n.text("flight_ready_title", settings.language))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 28)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.82)
+                        .padding(.horizontal, 24)
 
                     Text(state == .searching ? L10n.text("flight_wait_average", settings.language) : L10n.text("flight_ready_body", settings.language))
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.58))
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.62))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 36)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.82)
+                        .padding(.horizontal, 32)
                 }
 
                 Spacer(minLength: 70)

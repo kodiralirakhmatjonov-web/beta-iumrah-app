@@ -61,6 +61,7 @@ extension Color {
 struct IumrahCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
             .background(Color.iumrahCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))

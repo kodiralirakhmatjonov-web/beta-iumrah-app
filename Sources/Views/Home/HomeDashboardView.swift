@@ -10,14 +10,8 @@ struct HomeDashboardView: View {
     }
 
     var body: some View {
-        Group {
-            if let activeSession {
-                activeJourneyHome(activeSession)
-            } else {
-                marketingHome
-            }
-        }
-        .task { await bookings.refreshAll() }
+        marketingHome
+            .task { await bookings.refreshAll() }
     }
 
     private var marketingHome: some View {

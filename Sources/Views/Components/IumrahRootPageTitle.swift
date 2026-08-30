@@ -17,7 +17,7 @@ struct IumrahRootPageTitle: View {
                     Image(wordmarkAsset)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 150, height: 42, alignment: .leading)
+                        .frame(width: 180, height: 46, alignment: .leading)
                         .accessibilityLabel("Iumrah")
                 } else {
                     Text(title)

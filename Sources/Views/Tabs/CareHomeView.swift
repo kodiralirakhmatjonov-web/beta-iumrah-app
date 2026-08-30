@@ -116,7 +116,7 @@ struct CareHomeView: View {
         .background {
             ZStack {
                 LinearGradient(
-                    colors: [Color.iumrahCareDark, Color.iumrahCareLight],
+                    colors: [Color.iumrahCareDark.opacity(0.98), Color(red: 0.12, green: 0.33, blue: 0.23), Color.iumrahCareLight.opacity(0.92)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -190,10 +190,6 @@ struct CareHomeView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                 HStack(spacing: 6) {
-                    if let pilgrimID = session.displayPilgrimID {
-                        Text("ID \(pilgrimID)").monospaced()
-                        Text("·")
-                    }
                     Text(L10n.status(session.effectiveStatus, settings.language))
                 }
                 .font(.caption)
@@ -259,21 +255,22 @@ struct CareHomeView: View {
                 Spacer()
                 Text("iumrah Care")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.iumrahCareDark.opacity(0.72))
+                    .foregroundStyle(.white.opacity(0.74))
             }
             Text(L10n.text("care_promise_title", settings.language))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .tracking(-0.5)
+                .foregroundStyle(.white)
             Text(L10n.text("care_promise_body", settings.language))
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.78))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(22)
         .background {
             LinearGradient(
-                colors: [Color.iumrahCareLight.opacity(0.18), Color.iumrahCardBackground],
+                colors: [Color.iumrahCareDark.opacity(0.98), Color(red: 0.12, green: 0.33, blue: 0.23), Color.iumrahCareLight.opacity(0.90)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -281,7 +278,7 @@ struct CareHomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color.iumrahCareLight.opacity(0.14), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
         }
     }
 }

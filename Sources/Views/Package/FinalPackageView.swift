@@ -100,41 +100,79 @@ struct FinalPackageView: View {
     }
 
     private func premiumPriceCard(_ quote: PackageQuote) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
                 Label(L10n.text("final_price", settings.language), systemImage: "checkmark.seal.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.72))
                 Spacer()
-                Text("\(journey.trip.travelerCount)")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 10)
-                    .frame(height: 28)
-                    .background(Color.white.opacity(0.12), in: Capsule())
+                HStack(spacing: 6) {
+                    ForEach(0..<min(journey.trip.travelerCount, 3), id: \.self) { _ in
+                        Image(systemName: "person.fill")
+                            .font(.caption.weight(.bold))
+                    }
+                    Text("\(journey.trip.travelerCount)")
+                        .font(.caption.weight(.bold))
+                }
+                .padding(.horizontal, 11)
+                .frame(height: 30)
+                .background(Color.white.opacity(0.12), in: Capsule())
             }
 
             Text(money(quote.totalPackagePrice, quote.currency))
-                .font(.system(size: 44, weight: .bold, design: .rounded))
-                .tracking(-1.5)
-                .minimumScaleFactor(0.75)
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .tracking(-1.6)
+                .minimumScaleFactor(0.72)
                 .lineLimit(1)
 
             Text(L10n.text("final_price_note", settings.language))
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.68))
+
+            if journey.trip.travelerCount == 2 {
+                HStack(spacing: 10) {
+                    travelerSplitChip(amount: quote.pricePerPerson, currency: quote.currency)
+                    travelerSplitChip(amount: quote.pricePerPerson, currency: quote.currency)
+                }
+            } else {
+                HStack(spacing: 10) {
+                    Label(
+                        "\(journey.trip.travelerCount) × \(money(quote.pricePerPerson, quote.currency))",
+                        systemImage: "person.2.fill"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 42)
+                    .background(Color.white.opacity(0.10), in: Capsule())
+                }
+            }
         }
         .foregroundStyle(.white)
-        .padding(22)
+        .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             LinearGradient(
-                colors: [Color(red: 0.08, green: 0.17, blue: 0.15), Color(red: 0.04, green: 0.05, blue: 0.05)],
+                colors: [Color(red: 0.07, green: 0.19, blue: 0.16), Color(red: 0.03, green: 0.04, blue: 0.05)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 26, y: 12)
+    }
+
+    private func travelerSplitChip(amount: Decimal, currency: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.fill")
+                .font(.caption.weight(.bold))
+            Text(money(amount, currency))
+                .font(.subheadline.weight(.bold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .frame(height: 42)
+        .background(Color.white.opacity(0.10), in: Capsule())
     }
 
     private var includedServicesCard: some View {
@@ -163,7 +201,6 @@ struct FinalPackageView: View {
             includedRow(.guide, icon: "person.wave.2.fill")
             includedRow(.visa, icon: "doc.text.fill")
             includedRow(.meals, icon: "fork.knife")
-            includedRow(.esim, icon: "antenna.radiowaves.left.and.right")
         }
         .padding(20)
         .background(Color.iumrahCardBackground)

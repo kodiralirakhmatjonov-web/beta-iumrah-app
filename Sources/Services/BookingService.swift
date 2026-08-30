@@ -41,6 +41,17 @@ struct BookingService {
         return response
     }
 
+    func fetchItinerary(id: String, headers: [String: String]) async throws -> [BookingItineraryItem] {
+        let response: BookingItineraryResponse = try await api.get(
+            "/api/catalog/hotels/client/trips/\(id)/itinerary",
+            headers: headers
+        )
+        return response.items.sorted { lhs, rhs in
+            if lhs.dateLocal != rhs.dateLocal { return lhs.dateLocal < rhs.dateLocal }
+            return lhs.sortOrder < rhs.sortOrder
+        }
+    }
+
     func updateHotelSelection(
         id: String,
         accessToken: String,
