@@ -6,8 +6,7 @@ struct OnboardingFlowView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settings: AppSettingsStore
-    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v3") private var hasCompletedOnboarding = false
-    @AppStorage("iumrah.onboarding.seedDefaultLanguage.v3") private var hasSeededDefaultLanguage = false
+    let onComplete: () -> Void
 
     @State private var pageID: Int? = 0
     @State private var isMuted = true
@@ -35,16 +34,14 @@ struct OnboardingFlowView: View {
                 pager(proxy: proxy)
                     .ignoresSafeArea()
                     .opacity(showIntro ? 0 : (isFinishing ? 0.18 : 1))
-                    .scaleEffect(isFinishing && !reduceMotion ? 0.965 : 1)
-                    .blur(radius: isFinishing && !reduceMotion ? 8 : 0)
+                    .scaleEffect(isFinishing && !reduceMotion ? 0.975 : 1)
+                    .blur(radius: isFinishing && !reduceMotion ? 5 : 0)
 
-                topBar
-                    .safeAreaPadding(.top, 8)
+                topBar(topInset: proxy.safeAreaInsets.top)
                     .opacity(showIntro || isFinishing ? 0 : 1)
                     .zIndex(20)
 
-                footer
-                    .safeAreaPadding(.bottom, 8)
+                footer(bottomInset: proxy.safeAreaInsets.bottom)
                     .opacity(showIntro || isFinishing ? 0 : 1)
                     .zIndex(20)
 
@@ -56,21 +53,13 @@ struct OnboardingFlowView: View {
 
                 if isFinishing {
                     finishingOverlay
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                        .transition(.opacity)
                         .zIndex(40)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .ignoresSafeArea()
-        .statusBarHidden(showIntro || isFinishing)
-        .onAppear {
-            if !hasSeededDefaultLanguage {
-                settings.language = .uzbek
-                hasSeededDefaultLanguage = true
-            }
-            startIntroSequence()
-        }
+        .onAppear(perform: startIntroSequence)
         .onChange(of: pageID) { oldValue, newValue in
             guard oldValue != nil, newValue != nil, oldValue != newValue, !showIntro else { return }
             IumrahHaptics.selection()
@@ -116,6 +105,8 @@ struct OnboardingFlowView: View {
             title: pageTitle(index),
             bodyText: pageBody(index),
             footnote: pageFootnote(index),
+            bottomReserve: max(proxy.safeAreaInsets.bottom, 28) + 126,
+            showsCopy: index != pageCount - 1,
             scene: scene()
         )
         .frame(width: proxy.size.width, height: proxy.size.height)
@@ -128,7 +119,7 @@ struct OnboardingFlowView: View {
         }
     }
 
-    private var topBar: some View {
+    private func topBar(topInset: CGFloat) -> some View {
         HStack {
             Spacer()
 
@@ -151,22 +142,24 @@ struct OnboardingFlowView: View {
                 Image(systemName: "globe")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(headerForeground)
-                    .frame(width: 46, height: 46)
+                    .frame(width: 48, height: 48)
                     .background(.ultraThinMaterial, in: Circle())
                     .overlay {
                         Circle()
                             .strokeBorder((page == 0 || page == 2 ? Color.white : Color.black).opacity(0.10), lineWidth: 1)
                     }
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, IumrahDesign.pagePadding)
+        .padding(.horizontal, 22)
+        .padding(.top, max(topInset, 44) + 8)
         .frame(maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.22), value: page)
     }
 
-    private var footer: some View {
-        VStack(spacing: 12) {
+    private func footer(bottomInset: CGFloat) -> some View {
+        VStack(spacing: 11) {
             HStack(spacing: 6) {
                 ForEach(0..<pageCount, id: \.self) { index in
                     Capsule(style: .continuous)
@@ -179,7 +172,7 @@ struct OnboardingFlowView: View {
 
             if page == pageCount - 1 {
                 Text(L10n.text("onboarding_bismillah", settings.language))
-                    .font(.footnote.weight(.semibold))
+                    .font(.system(size: 13.5, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.secondary)
                     .transition(.opacity)
             }
@@ -200,15 +193,26 @@ struct OnboardingFlowView: View {
                     Image(systemName: page == pageCount - 1 ? "sparkles" : "arrow.right")
                         .font(.system(size: 15, weight: .semibold))
                 }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .frame(maxWidth: .infinity)
+                .frame(height: 58)
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .background(Color.iumrahPrimaryButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.10), radius: 14, y: 7)
             }
-            .buttonStyle(IumrahPrimaryButtonStyle())
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.bottom, 10)
+        .padding(.horizontal, 22)
         .padding(.top, 12)
+        .padding(.bottom, max(bottomInset, 28) + 12)
         .background {
             LinearGradient(
-                colors: [Color.iumrahPageBackground.opacity(0), Color.iumrahPageBackground.opacity(0.92), Color.iumrahPageBackground],
+                colors: [
+                    Color.iumrahPageBackground.opacity(0),
+                    Color.iumrahPageBackground.opacity(0.96),
+                    Color.iumrahPageBackground
+                ],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -226,79 +230,45 @@ struct OnboardingFlowView: View {
             )
 
             LinearGradient(
-                colors: [Color.black.opacity(0.34), Color.black.opacity(0.10), Color.black.opacity(0.58)],
+                colors: [Color.black.opacity(0.22), Color.black.opacity(0.06), Color.black.opacity(0.52)],
                 startPoint: .top,
                 endPoint: .bottom
             )
 
-            VStack(spacing: 0) {
-                HStack(alignment: .top) {
-                    HStack(spacing: 12) {
-                        Image("OnboardingBrandIcon")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 58, height: 58)
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+            HStack(spacing: 10) {
+                OnboardingGlassPill(
+                    title: L10n.text("city_makkah", settings.language),
+                    icon: "moon.stars.fill",
+                    lightText: true
+                )
+                OnboardingGlassPill(
+                    title: L10n.text("city_madinah", settings.language),
+                    icon: "sparkles",
+                    lightText: true
+                )
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("iumrah")
-                                .font(.system(size: 27, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("PROJECT")
-                                .font(.system(size: 9, weight: .semibold))
-                                .tracking(3)
-                                .foregroundStyle(.white.opacity(0.72))
+                Spacer(minLength: 8)
+
+                Button {
+                    isMuted.toggle()
+                    IumrahHaptics.soft()
+                } label: {
+                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay {
+                            Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
                         }
-                    }
-
-                    Spacer()
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 112)
-
-                Spacer()
-
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 10) {
-                        OnboardingGlassPill(title: L10n.text("city_makkah", settings.language), icon: "moon.stars.fill", lightText: true)
-                        OnboardingGlassPill(title: L10n.text("city_madinah", settings.language), icon: "sparkles", lightText: true)
-
-                        Spacer(minLength: 6)
-
-                        Button {
-                            isMuted.toggle()
-                            IumrahHaptics.soft()
-                        } label: {
-                            Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 42, height: 42)
-                                .background(.ultraThinMaterial, in: Circle())
-                                .overlay {
-                                    Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
-                                }
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    HStack(spacing: 7) {
-                        Image(systemName: "airplane")
-                        Text(L10n.text("onboarding_chip_flight", settings.language))
-                        Circle().frame(width: 4, height: 4)
-                        Text(L10n.text("onboarding_chip_hotel", settings.language))
-                        Circle().frame(width: 4, height: 4)
-                        Text(L10n.text("onboarding_chip_support", settings.language))
-                    }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.86))
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 34)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.plain)
+                .accessibilityLabel(isMuted ? "Sound off" : "Sound on")
             }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 34)
             .opacity(isActive ? 1 : 0.72)
-            .scaleEffect(isActive || reduceMotion ? 1 : 0.965)
+            .scaleEffect(isActive || reduceMotion ? 1 : 0.965, anchor: .bottom)
             .animation(.spring(response: 0.62, dampingFraction: 0.86), value: isActive)
         }
     }
@@ -445,7 +415,9 @@ struct OnboardingFlowView: View {
     }
 
     private func closingScene(isActive: Bool, size: CGSize) -> some View {
-        ZStack {
+        let compact = size.height < 760
+
+        return ZStack {
             LinearGradient(
                 colors: [Color.iumrahPageBackground, Color.iumrahCareLight.opacity(0.10)],
                 startPoint: .topLeading,
@@ -454,27 +426,27 @@ struct OnboardingFlowView: View {
 
             Circle()
                 .fill(Color.iumrahCareLight.opacity(0.22))
-                .frame(width: 320, height: 320)
+                .frame(width: compact ? 270 : 320, height: compact ? 270 : 320)
                 .blur(radius: 26)
-                .offset(x: 0, y: -60)
+                .offset(x: 0, y: compact ? -40 : -60)
 
-            VStack(spacing: 18) {
-                Spacer(minLength: 60)
+            VStack(spacing: compact ? 14 : 18) {
+                Spacer(minLength: compact ? 28 : 60)
 
                 Image("OnboardingBrandIcon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 164, height: 164)
+                    .frame(width: compact ? 138 : 164, height: compact ? 138 : 164)
                     .scaleEffect(isActive || reduceMotion ? 1 : 0.92)
                     .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
                     .animation(.spring(response: 0.68, dampingFraction: 0.84), value: isActive)
 
                 VStack(spacing: 6) {
                     Text("iumrah")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .font(.system(size: compact ? 33 : 38, weight: .bold, design: .rounded))
                     Text("PROJECT")
-                        .font(.system(size: 12, weight: .semibold))
-                        .tracking(4)
+                        .font(.system(size: compact ? 10 : 12, weight: .semibold))
+                        .tracking(compact ? 3.2 : 4)
                         .foregroundStyle(Color.secondary)
                 }
                 .foregroundStyle(Color.primary)
@@ -482,26 +454,26 @@ struct OnboardingFlowView: View {
                 .offset(y: isActive || reduceMotion ? 0 : 10)
                 .animation(.spring(response: 0.60, dampingFraction: 0.84).delay(0.03), value: isActive)
 
-                VStack(spacing: 10) {
+                VStack(spacing: 9) {
                     Text(L10n.text("onboarding_closing_headline", settings.language))
-                        .font(.system(size: 25, weight: .bold, design: .rounded))
+                        .font(.system(size: compact ? 22 : 25, weight: .bold, design: .rounded))
                         .multilineTextAlignment(.center)
                         .foregroundStyle(Color.primary)
                     Text(L10n.text("onboarding_closing_message", settings.language))
-                        .font(.system(size: 17, weight: .regular, design: .rounded))
+                        .font(.system(size: compact ? 15.5 : 17, weight: .regular, design: .rounded))
                         .multilineTextAlignment(.center)
                         .foregroundStyle(Color.secondary)
                         .lineSpacing(3)
                 }
-                .padding(.horizontal, 28)
+                .padding(.horizontal, compact ? 24 : 28)
                 .opacity(isActive ? 1 : 0.76)
                 .offset(y: isActive || reduceMotion ? 0 : 12)
                 .animation(.spring(response: 0.62, dampingFraction: 0.86).delay(0.08), value: isActive)
 
                 Spacer()
             }
-            .padding(.top, 70)
-            .padding(.bottom, 40)
+            .padding(.top, compact ? 40 : 70)
+            .padding(.bottom, compact ? 22 : 40)
         }
     }
 
@@ -609,32 +581,20 @@ struct OnboardingFlowView: View {
 
     private var finishingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.78)
+            Color.iumrahPageBackground
                 .ignoresSafeArea()
 
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
                 Image("OnboardingBrandIcon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 118, height: 118)
-                    .shadow(color: .black.opacity(0.24), radius: 24, y: 12)
+                    .frame(width: 106, height: 106)
+                    .shadow(color: .black.opacity(0.14), radius: 22, y: 10)
 
-                Image("HeaderWordmarkDark")
+                Image(wordmarkAsset)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 220, height: 56)
-
-                Text(L10n.text("onboarding_closing_headline", settings.language))
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.white)
-                    .padding(.top, 6)
-
-                Text(L10n.text("onboarding_closing_message", settings.language))
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.white.opacity(0.78))
-                    .padding(.horizontal, 28)
+                    .frame(width: 202, height: 52)
             }
             .scaleEffect(isFinishing && !reduceMotion ? 1 : 0.98)
         }
@@ -679,8 +639,8 @@ struct OnboardingFlowView: View {
             isFinishing = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.15) {
-            hasCompletedOnboarding = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) {
+            onComplete()
         }
     }
 
@@ -730,21 +690,25 @@ private struct OnboardingCinematicPage<Scene: View>: View {
     let title: String
     let bodyText: String
     let footnote: String
+    let bottomReserve: CGFloat
+    let showsCopy: Bool
     let scene: Scene
 
     var body: some View {
         GeometryReader { proxy in
-            let compact = proxy.size.height < 780
-            let footerReserve: CGFloat = compact ? 162 : 180
+            let availableHeight = max(proxy.size.height - bottomReserve, 430)
+            let compact = availableHeight < 650
             let copyLength = title.count + bodyText.count + footnote.count
-            let sceneRatio: CGFloat = {
-                if compact { return copyLength > 155 ? 0.46 : 0.49 }
-                if copyLength > 190 { return 0.48 }
-                if copyLength > 155 { return 0.50 }
-                return 0.54
+            let sceneFraction: CGFloat = {
+                if !showsCopy { return 1.0 }
+                if compact { return copyLength > 165 ? 0.48 : 0.52 }
+                if copyLength > 190 { return 0.54 }
+                if copyLength > 155 { return 0.57 }
+                return 0.60
             }()
-            let sceneHeight = min(max(proxy.size.height * sceneRatio, compact ? 350 : 390), proxy.size.height - footerReserve - 220)
-            let textHeight = max(proxy.size.height - sceneHeight - footerReserve, 220)
+            let sceneHeight = showsCopy
+                ? min(max(availableHeight * sceneFraction, compact ? 300 : 390), compact ? 390 : 475)
+                : availableHeight
 
             VStack(spacing: 0) {
                 scene
@@ -752,57 +716,61 @@ private struct OnboardingCinematicPage<Scene: View>: View {
                     .clipShape(
                         UnevenRoundedRectangle(
                             topLeadingRadius: 0,
-                            bottomLeadingRadius: 44,
-                            bottomTrailingRadius: 44,
+                            bottomLeadingRadius: showsCopy ? 44 : 0,
+                            bottomTrailingRadius: showsCopy ? 44 : 0,
                             topTrailingRadius: 0,
                             style: .continuous
                         )
                     )
                     .overlay(alignment: .bottom) {
-                        LinearGradient(
-                            colors: [Color.clear, Color.iumrahPageBackground.opacity(0.88), Color.iumrahPageBackground],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 118)
+                        if showsCopy {
+                            LinearGradient(
+                                colors: [Color.clear, Color.iumrahPageBackground.opacity(0.86), Color.iumrahPageBackground],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: 112)
+                        }
                     }
 
-                VStack(alignment: .leading, spacing: compact ? 9 : 11) {
-                    Text(kicker)
-                        .font(.system(size: 12.5, weight: .bold))
-                        .tracking(2.2)
-                        .foregroundStyle(Color.secondary)
+                if showsCopy {
+                    VStack(alignment: .leading, spacing: compact ? 9 : 11) {
+                        Text(kicker)
+                            .font(.system(size: 12.5, weight: .bold))
+                            .tracking(2.2)
+                            .foregroundStyle(Color.secondary)
 
-                    Text(title)
-                        .font(.system(size: compact ? 34 : 37, weight: .bold, design: .rounded))
-                        .tracking(-1.0)
-                        .foregroundStyle(Color.primary)
-                        .lineSpacing(0)
-                        .minimumScaleFactor(0.90)
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text(title)
+                            .font(.system(size: compact ? 33 : 36, weight: .bold, design: .rounded))
+                            .tracking(-0.95)
+                            .foregroundStyle(Color.primary)
+                            .lineSpacing(0)
+                            .minimumScaleFactor(0.90)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    Text(bodyText)
-                        .font(.system(size: compact ? 16.5 : 17.5, weight: .regular, design: .rounded))
-                        .foregroundStyle(Color.secondary)
-                        .lineSpacing(2)
-                        .minimumScaleFactor(0.92)
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text(bodyText)
+                            .font(.system(size: compact ? 16 : 17, weight: .regular, design: .rounded))
+                            .foregroundStyle(Color.secondary)
+                            .lineSpacing(2)
+                            .minimumScaleFactor(0.92)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    Text(footnote)
-                        .font(.system(size: compact ? 13 : 13.5, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.secondary.opacity(0.82))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.88)
-                        .padding(.top, 1)
+                        Text(footnote)
+                            .font(.system(size: compact ? 12.5 : 13.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.secondary.opacity(0.80))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.88)
+                            .padding(.top, 1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 22)
+                    .padding(.top, compact ? 10 : 12)
+
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: textHeight, alignment: .top)
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, compact ? 10 : 12)
-
-                Spacer(minLength: footerReserve)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            .frame(width: proxy.size.width, height: availableHeight, alignment: .top)
+            .padding(.bottom, bottomReserve)
         }
     }
 }

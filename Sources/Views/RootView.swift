@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
-    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v3") private var hasCompletedOnboarding = false
+    @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v4") private var hasCompletedOnboarding = false
     @StateObject private var settings = AppSettingsStore()
     @StateObject private var chrome = AppChromeStore()
     @StateObject private var journey = JourneyStore()
@@ -121,8 +121,12 @@ struct RootView: View {
                 tabs
                     .transition(.opacity.combined(with: .scale(scale: 0.985)))
             } else {
-                OnboardingFlowView()
-                    .transition(.opacity.combined(with: .scale(scale: 1.015)))
+                OnboardingFlowView {
+                    withAnimation(.easeInOut(duration: 0.34)) {
+                        hasCompletedOnboarding = true
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 1.015)))
             }
         }
         .animation(.easeInOut(duration: 0.28), value: hasCompletedOnboarding)
