@@ -91,7 +91,9 @@ struct OnboardingFlowView: View {
         proxy: GeometryProxy,
         @ViewBuilder scene: () -> Scene
     ) -> some View {
-        OnboardingCinematicPage(
+        let shouldReduceMotion = reduceMotion
+
+        return OnboardingCinematicPage(
             kicker: pageKicker(index),
             title: pageTitle(index),
             bodyText: pageBody(index),
@@ -103,8 +105,8 @@ struct OnboardingFlowView: View {
         .scrollTransition(.interactive, axis: .horizontal) { content, phase in
             content
                 .opacity(phase.isIdentity ? 1 : 0.58)
-                .scaleEffect(phase.isIdentity || reduceMotion ? 1 : 0.965)
-                .blur(radius: phase.isIdentity || reduceMotion ? 0 : 2.6)
+                .scaleEffect(phase.isIdentity || shouldReduceMotion ? 1 : 0.965)
+                .blur(radius: phase.isIdentity || shouldReduceMotion ? 0 : 2.6)
         }
     }
 

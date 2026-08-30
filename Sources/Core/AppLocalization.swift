@@ -85,20 +85,15 @@ struct L10n {
                 return format("flight_error_minimum", language, found, minimum)
             }
         }
-        if let orchestratorError = error as? FlightBotOrchestrator.OrchestratorError {
-            switch orchestratorError {
-            case .insufficientResults(let found, let minimum, let blockedProviders):
-                if blockedProviders.isEmpty {
-                    return format("flight_error_insufficient", language, found, minimum)
-                }
-                return format(
-                    "flight_error_insufficient_challenge",
-                    language,
-                    found,
-                    minimum,
-                    blockedProviders.joined(separator: ", ")
-                )
-            }
+        // Keep orchestration errors decoupled from FlightBotOrchestrator's nested
+        // error enum. That type changed across Flight Engine revisions, and a hard
+        // enum-case reference here can make unrelated UI updates fail to compile.
+        // The orchestrator already exposes a user-readable LocalizedError message.
+        if String(describing: type(of: error)).contains("OrchestratorError"),
+           let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription,
+           !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return description
         }
         if let botError = error as? FlightBotRunner.BotError {
             switch botError {
