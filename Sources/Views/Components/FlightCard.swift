@@ -13,10 +13,12 @@ struct FlightCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(airlineLabel)
                         .font(.headline.weight(.semibold))
-                    Text(flightNumbersLabel)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                    if !offer.flightNumbersSummary.isEmpty {
+                        Text(flightNumbersLabel)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                     Text(departureDateLabel)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -64,6 +66,15 @@ struct FlightCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath")
                     Text(layoverSummary(layover))
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            } else if let connection = offer.connectionAirports?.first {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.branch")
+                    Text(connectionSummary(connection))
                         .lineLimit(2)
                     Spacer(minLength: 0)
                 }
@@ -126,9 +137,15 @@ struct FlightCard: View {
     private var stopLabel: String {
         guard offer.stops > 0 else { return L10n.text("flight_direct", settings.language) }
         let base = L10n.format("flight_stops", settings.language, offer.stops)
-        guard let layover = offer.layovers.first else { return base }
-        let country = FlightReferenceCatalog.airportCountry(layover.airport.code)
-        return [base, layover.airport.code, country].compactMap { $0 }.joined(separator: " · ")
+        if let layover = offer.layovers.first {
+            let country = FlightReferenceCatalog.airportCountry(layover.airport.code)
+            return [base, layover.airport.code, country].compactMap { $0 }.joined(separator: " · ")
+        }
+        if let connection = offer.connectionAirports?.first {
+            let country = FlightReferenceCatalog.airportCountry(connection.code)
+            return [base, connection.code, country].compactMap { $0 }.joined(separator: " · ")
+        }
+        return base
     }
 
     @ViewBuilder
@@ -168,6 +185,18 @@ struct FlightCard: View {
         case .english: return layover.airportChange ? "Airport change · \(place)" : "Connection · \(place)"
         case .uzbek: return layover.airportChange ? "Aeroport almashadi · \(place)" : "Ulanish · \(place)"
         case .uzbekCyrillic: return layover.airportChange ? "Аэропорт алмашади · \(place)" : "Уланиш · \(place)"
+        }
+    }
+
+
+    private func connectionSummary(_ airport: FlightAirportSnapshot) -> String {
+        let country = FlightReferenceCatalog.airportCountry(airport.code)
+        let place = [airport.displayCity, country].compactMap { $0 }.joined(separator: ", ")
+        switch settings.language {
+        case .russian: return "Пересадка · \(place)"
+        case .english: return "Connection · \(place)"
+        case .uzbek: return "Ulanish · \(place)"
+        case .uzbekCyrillic: return "Уланиш · \(place)"
         }
     }
 

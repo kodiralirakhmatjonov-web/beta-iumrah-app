@@ -33,8 +33,12 @@ enum FlightTextParser {
 
         let normalizedBlock = block.replacingOccurrences(of: "\u{00a0}", with: " ")
         let times = extractTimes(from: normalizedBlock)
-        guard times.count >= 2 else { return nil }
 
+        // The opposite-direction pricing reference is never rendered. Requiring
+        // its card to expose flight number + exact times made the visible outbound
+        // search fail even when a usable fare was already on screen. A fresh fare
+        // is sufficient for this internal reference; its travel date remains the
+        // user-selected return date.
         if requirement == .pricingReference {
             return parsePricingReference(
                 block: normalizedBlock,
@@ -47,12 +51,16 @@ enum FlightTextParser {
             )
         }
 
+        guard times.count >= 2 else { return nil }
         guard hasRouteEvidence(in: normalizedBlock, origin: request.origin, destination: request.destination) else {
             return nil
         }
 
-        // A real flight number always has a carrier code containing at least one
-        // letter. Numeric fragments such as "23 2" or "24 9" are never accepted.
+        // Keep exact flight numbers whenever the source exposes them, but do not
+        // discard an otherwise factual itinerary card just because an aggregator
+        // hides the number behind a details panel. Numeric fragments such as
+        // “23 2” are still rejected because a real number must start with a known
+        // IATA carrier code.
         let rawFlightNumbers = matches(
             pattern: #"\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\s-]?\d{1,4}\b"#,
             in: normalizedBlock.uppercased()
@@ -61,74 +69,94 @@ enum FlightTextParser {
             guard let code = FlightReferenceCatalog.airlineCode(from: number) else { return false }
             return FlightReferenceCatalog.airline(code: code) != nil
         }
-        guard let primaryFlightNumber = flightNumbers.first,
-              let primaryAirlineCode = FlightReferenceCatalog.airlineCode(from: primaryFlightNumber),
+
+        let inferredAirlineName = inferredReferenceAirline(from: normalizedBlock, provider: provider)
+        let inferredAirlineCode = FlightReferenceCatalog.airlineCode(fromName: inferredAirlineName)
+        let primaryFlightNumber = flightNumbers.first ?? ""
+        let primaryAirlineCode = primaryFlightNumber.isEmpty
+            ? inferredAirlineCode
+            : FlightReferenceCatalog.airlineCode(from: primaryFlightNumber)
+        guard let primaryAirlineCode,
               let airlineReference = FlightReferenceCatalog.airline(code: primaryAirlineCode) else { return nil }
         let airline = airlineReference.name
 
+        let explicitStops = inferredStops(from: normalizedBlock)
+        let expectedSegments = max(1, max(flightNumbers.count, (explicitStops ?? 0) + 1))
         let inferredAirportCodes = airportSequence(
             from: normalizedBlock,
             origin: request.origin,
             destination: request.destination,
-            expectedSegments: max(1, flightNumbers.count)
+            expectedSegments: expectedSegments
         )
-        let explicitStops = inferredStops(from: normalizedBlock)
         let evidenceStops = max(max(0, flightNumbers.count - 1), max(0, inferredAirportCodes.count - 2))
-        // One confirmed flight number tied to the requested origin/destination is
-        // itself a factual single-leg itinerary. For connections we still require
-        // concrete stop/segment evidence; we never manufacture a transfer city.
-        let confirmedSingleLeg = flightNumbers.count == 1 && evidenceStops == 0
+        let confirmedSingleLeg = !primaryFlightNumber.isEmpty && flightNumbers.count == 1 && evidenceStops == 0
         guard explicitStops != nil || evidenceStops > 0 || confirmedSingleLeg else { return nil }
         let stops = max(explicitStops ?? 0, evidenceStops)
         guard stops <= 3 else { return nil }
 
-        // Direct flights are accepted with one confirmed flight number and the
-        // source departure/arrival times. Connections stay strict: every leg must
-        // expose its own flight number, intermediate airport and local times. This
-        // keeps transfer-city/country data factual without throwing away valid
-        // nonstop results merely because a provider omitted a duration label.
         let segmentCount = stops + 1
-        if stops == 0 {
-            guard flightNumbers.count >= 1, times.count >= 2 else { return nil }
+        let routeForDisplay: [String] = {
+            if stops == 0 { return [request.origin, request.destination] }
+            if inferredAirportCodes.count >= segmentCount + 1 {
+                return Array(inferredAirportCodes.prefix(segmentCount + 1))
+            }
+            return inferredAirportCodes
+        }()
+        if stops > 0, routeForDisplay.count < 3 { return nil }
+
+        // Build exact per-leg segments only when the source actually exposes all
+        // numbers and local leg times. Otherwise preserve the factual overall
+        // itinerary + explicit transfer airport(s) without inventing segment data.
+        var segments: [FlightSegment] = []
+        if flightNumbers.count >= segmentCount, times.count >= segmentCount * 2 {
+            let selectedFlightNumbers = Array(flightNumbers.prefix(segmentCount))
+            let detailedRoute = stops == 0 ? nil : routeCodesByFlightNumbers(
+                in: normalizedBlock,
+                flightNumbers: selectedFlightNumbers,
+                origin: request.origin,
+                destination: request.destination
+            )
+            let resolvedRoute = stops == 0 ? [request.origin, request.destination] : (detailedRoute ?? routeForDisplay)
+            let resolvedTimes = segmentTimes(
+                from: normalizedBlock,
+                flightNumbers: selectedFlightNumbers,
+                routeCodes: resolvedRoute,
+                fallback: times,
+                segmentCount: segmentCount
+            )
+            if resolvedTimes.count >= segmentCount * 2 {
+                segments = buildSegments(
+                    block: normalizedBlock,
+                    request: request,
+                    provider: provider,
+                    airline: airline,
+                    primaryAirlineCode: primaryAirlineCode,
+                    flightNumbers: selectedFlightNumbers,
+                    times: resolvedTimes,
+                    airportCodes: resolvedRoute,
+                    segmentCount: segmentCount
+                )
+            }
+        }
+
+        let departure: Date
+        let arrival: Date
+        if let first = segments.first?.departureAt, let last = segments.last?.arrivalAt {
+            departure = first
+            arrival = last
         } else {
-            guard flightNumbers.count >= segmentCount else { return nil }
-            guard times.count >= segmentCount * 2 else { return nil }
+            guard let sourceDeparture = localDate(on: request.date, hhmm: times.first!, airportCode: request.origin),
+                  var sourceArrival = localDate(on: request.date, hhmm: times.last!, airportCode: request.destination) else { return nil }
+            while sourceArrival < sourceDeparture {
+                sourceArrival = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: sourceArrival) ?? sourceArrival
+            }
+            departure = sourceDeparture
+            arrival = sourceArrival
         }
 
-        let selectedFlightNumbers = Array(flightNumbers.prefix(segmentCount))
-        let detailedRoute = stops == 0 ? nil : routeCodesByFlightNumbers(
-            in: normalizedBlock,
-            flightNumbers: selectedFlightNumbers,
-            origin: request.origin,
-            destination: request.destination
-        )
-        if stops > 0 {
-            guard (detailedRoute?.count ?? inferredAirportCodes.count) >= segmentCount + 1 else { return nil }
-        }
-        let resolvedRoute = stops == 0 ? [request.origin, request.destination] : (detailedRoute ?? inferredAirportCodes)
-        let resolvedTimes = segmentTimes(
-            from: normalizedBlock,
-            flightNumbers: selectedFlightNumbers,
-            routeCodes: resolvedRoute,
-            fallback: times,
-            segmentCount: segmentCount
-        )
-        guard resolvedTimes.count >= segmentCount * 2 else { return nil }
-
-        let segments = buildSegments(
-            block: normalizedBlock,
-            request: request,
-            provider: provider,
-            airline: airline,
-            primaryAirlineCode: primaryAirlineCode,
-            flightNumbers: selectedFlightNumbers,
-            times: resolvedTimes,
-            airportCodes: resolvedRoute,
-            segmentCount: segmentCount
-        )
-        guard segments.count == segmentCount,
-              let departure = segments.first?.departureAt,
-              let arrival = segments.last?.arrivalAt else { return nil }
+        let connectionAirports = stops > 0
+            ? routeForDisplay.dropFirst().dropLast().map { FlightAirportSnapshot(code: $0) }
+            : []
         let duration = explicitDurationMinutes(from: normalizedBlock) ?? 0
 
         return LiveFlightCandidate(
@@ -151,7 +179,8 @@ enum FlightTextParser {
             sourceURL: sourceURL.absoluteString,
             rawTextFingerprint: stableFingerprint(normalizedBlock),
             airlineCode: primaryAirlineCode,
-            segments: segments
+            segments: segments.isEmpty ? nil : segments,
+            connectionAirports: connectionAirports.isEmpty ? nil : connectionAirports
         )
     }
 
@@ -164,10 +193,24 @@ enum FlightTextParser {
         fare: (amount: Decimal, currency: String, scope: FlightFareScope),
         times: [String]
     ) -> LiveFlightCandidate? {
-        guard let departure = localDate(on: request.date, hhmm: times[0], airportCode: request.origin),
-              var arrival = localDate(on: request.date, hhmm: times[1], airportCode: request.destination) else { return nil }
-        while arrival < departure {
-            arrival = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: arrival) ?? arrival
+        let calendar = Calendar(identifier: .gregorian)
+        let departure: Date
+        var arrival: Date
+        if times.count >= 2,
+           let sourceDeparture = localDate(on: request.date, hhmm: times[0], airportCode: request.origin),
+           let sourceArrival = localDate(on: request.date, hhmm: times[1], airportCode: request.destination) {
+            departure = sourceDeparture
+            arrival = sourceArrival
+            while arrival < departure {
+                arrival = calendar.date(byAdding: .day, value: 1, to: arrival) ?? arrival
+            }
+        } else {
+            // Internal-only timestamp anchor. Package Engine uses the candidate's
+            // selected travel date and fare; this reference is never shown as a
+            // flight itinerary to the pilgrim.
+            let start = calendar.startOfDay(for: request.date)
+            departure = calendar.date(byAdding: .hour, value: 12, to: start) ?? start
+            arrival = calendar.date(byAdding: .hour, value: 2, to: departure) ?? departure
         }
 
         let routeCodes = airportSequence(from: block, origin: request.origin, destination: request.destination, expectedSegments: 1)

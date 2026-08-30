@@ -1,9 +1,10 @@
 import Foundation
 
 enum FlightCandidateRequirement: String, Codable, Hashable {
-    /// Candidate is eligible to be shown to the pilgrim. Exact flight number,
-    /// route/stop evidence and source local times are required. Duration is shown
-    /// only when the source explicitly provides it; it is never synthesized.
+    /// Candidate is eligible to be shown to the pilgrim. Route/stop evidence,
+    /// carrier identity, fare and source local times are required. Exact flight
+    /// numbers are preserved when the source exposes them but a hidden number must
+    /// not erase an otherwise factual result card.
     case displayable
 
     /// Candidate is used only as an internal reference fare while the opposite
@@ -72,6 +73,7 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
     let rawTextFingerprint: String
     let airlineCode: String?
     let segments: [FlightSegment]?
+    let connectionAirports: [FlightAirportSnapshot]?
 
     init(
         id: String,
@@ -93,7 +95,8 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         sourceURL: String,
         rawTextFingerprint: String,
         airlineCode: String? = nil,
-        segments: [FlightSegment]? = nil
+        segments: [FlightSegment]? = nil,
+        connectionAirports: [FlightAirportSnapshot]? = nil
     ) {
         self.id = id
         self.providerID = providerID
@@ -115,12 +118,14 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         self.rawTextFingerprint = rawTextFingerprint
         self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: flightNumber)
         self.segments = segments?.isEmpty == false ? segments : nil
+        self.connectionAirports = connectionAirports?.isEmpty == false ? connectionAirports : nil
     }
 
     var deduplicationKey: String {
         let epoch = Int(departureAt.timeIntervalSince1970 / 300)
         let segmentKey = (segments ?? []).map { "\($0.flightNumber)-\($0.origin.code)-\($0.destination.code)" }.joined(separator: "+")
-        return "\(airline.lowercased())|\(flightNumber.lowercased())|\(origin)|\(destination)|\(epoch)|\(segmentKey)"
+        let connectionKey = (connectionAirports ?? []).map(\.code).joined(separator: "+")
+        return "\(airline.lowercased())|\(flightNumber.lowercased())|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)"
     }
 }
 

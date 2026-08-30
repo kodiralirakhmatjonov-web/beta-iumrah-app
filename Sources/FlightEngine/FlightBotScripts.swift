@@ -93,6 +93,36 @@ enum FlightBotScripts {
         """
     }
 
+    static let dismissNonSearchOverlays = #"""
+    (() => {
+      const visible = el => {
+        const r = el.getBoundingClientRect();
+        const st = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
+      };
+      const clean = value => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const exact = [
+        'accept all','accept cookies','accept','i agree','agree','allow all','got it',
+        'принять все','принять','согласен','разрешить все','хорошо',
+        'barchasini qabul qilish','qabul qilish','roziman'
+      ];
+      let clicked = 0;
+      const controls = Array.from(document.querySelectorAll('button,[role=button],input[type=button],input[type=submit]')).filter(visible);
+      for (const el of controls) {
+        if (clicked >= 3) break;
+        const label = clean(el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '');
+        if (!label) continue;
+        const cookieContext = /cookie|consent|privacy|куки|файл|конфиденц|rozilik/i.test(
+          (el.closest('[role=dialog],dialog,[class*=cookie],[id*=cookie],[class*=consent],[id*=consent]')?.innerText || '')
+        );
+        if (exact.includes(label) || (cookieContext && /accept|agree|принять|соглас|qabul|rozi/.test(label))) {
+          try { el.click(); clicked += 1; } catch (_) {}
+        }
+      }
+      return clicked;
+    })()
+    """#
+
     static let detectChallenge = """
     (() => {
       const body = (document.body?.innerText || '').toLowerCase();
@@ -144,6 +174,49 @@ enum FlightBotScripts {
         try { el.click(); clicked += 1; } catch (_) {}
       }
       return clicked;
+    })()
+    """#
+
+    static let extractPricingReferenceBlocks = #"""
+    (() => {
+      const clean = value => (value || '').replace(/\s+/g, ' ').trim();
+      const money = /(?:USD|US\$|\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\s*[0-9][0-9\s,.]*|[0-9][0-9\s,.]*\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/ig;
+      const output = [];
+      const seen = new Set();
+      const push = text => {
+        const value = clean(text);
+        if (value.length < 8 || value.length > 5200 || seen.has(value)) return;
+        if (!(value.match(money) || []).length) return;
+        seen.add(value);
+        output.push(value);
+      };
+
+      // Prefer compact visible result rows, but pricing-reference mode needs only
+      // a fresh fare observation. It must not fail the whole outbound screen just
+      // because the opposite-direction card hides exact times or flight numbers.
+      const nodes = Array.from(document.querySelectorAll(
+        '[data-testid="flight-card"],[data-testid*="itinerary"],[data-testid*="flight"],[data-stid*="flight"],article,li,[role=listitem]'
+      ));
+      for (const node of nodes) {
+        const rect = node.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        const text = clean(node.innerText || node.textContent || '');
+        if (text.length < 8 || text.length > 5200) continue;
+        if (money.test(text)) push(text);
+        money.lastIndex = 0;
+        if (output.length >= 30) break;
+      }
+
+      const body = clean(document.body?.innerText || document.body?.textContent || '');
+      money.lastIndex = 0;
+      let match;
+      let guard = 0;
+      while ((match = money.exec(body)) && guard++ < 80 && output.length < 48) {
+        const from = Math.max(0, match.index - 900);
+        const to = Math.min(body.length, match.index + 1300);
+        push(body.slice(from, to));
+      }
+      return output;
     })()
     """#
 

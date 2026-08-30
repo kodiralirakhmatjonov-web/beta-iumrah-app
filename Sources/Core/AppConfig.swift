@@ -20,10 +20,10 @@ enum AppConfig {
     static let flightBotMinimumOptions = 1
     static let flightBotTargetOptions = 4
     static let flightBotPreferredOptions = 6
-    static let flightBotProviderBatchSize = 3
-    static let flightBotProviderTimeoutSeconds: Double = 18
-    static let flightBotSearchHardTimeoutSeconds: Double = 92
-    static let flightSearchScreenHardTimeoutSeconds: Double = 118
+    static let flightBotProviderBatchSize = 2
+    static let flightBotProviderTimeoutSeconds: Double = 16
+    static let flightBotSearchHardTimeoutSeconds: Double = 105
+    static let flightSearchScreenHardTimeoutSeconds: Double = 132
 
     static let hotelPriceProviderTimeoutSeconds: Double = 17
     static let hotelPriceSearchHardTimeoutSeconds: Double = 46

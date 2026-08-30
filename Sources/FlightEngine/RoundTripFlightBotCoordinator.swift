@@ -34,26 +34,26 @@ final class RoundTripFlightBotCoordinator {
         let outboundRequest = makeOutboundRequest(trip: trip)
         let inboundRequest = makeInboundRequest(trip: trip)
 
-        // Outbound and return-reference searches used to run sequentially. That
-        // doubled the spinner time before the first flight list could appear.
-        // Run them together: outbound needs a full list, while pricing only needs
-        // one verified return candidate as a reference at this stage.
-        async let outboundTask = FlightBotOrchestrator.shared.search(
+        // Keep browser pressure predictable on real iPhones. Running outbound,
+        // inbound and hotel-price WKWebViews at the same time could create 6–8
+        // concurrent browser processes and caused repeatable zero-result searches
+        // on memory-constrained devices. Search the visible outbound list first,
+        // then obtain one lightweight return-fare reference for package pricing.
+        let outbound = try await FlightBotOrchestrator.shared.search(
             request: outboundRequest,
             flexibility: trip.flexibility,
             requirement: .displayable,
             minimumResults: AppConfig.flightBotMinimumOptions,
             preferredResults: AppConfig.flightBotPreferredOptions
         )
-        async let inboundTask = FlightBotOrchestrator.shared.search(
+
+        let inbound = try await FlightBotOrchestrator.shared.search(
             request: inboundRequest,
             flexibility: trip.flexibility,
             requirement: .pricingReference,
             minimumResults: 1,
-            preferredResults: 3
+            preferredResults: 1
         )
-
-        let (outbound, inbound) = try await (outboundTask, inboundTask)
 
         return RoundTripFlightBotSession(
             id: UUID().uuidString,

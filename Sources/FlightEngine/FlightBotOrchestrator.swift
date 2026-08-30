@@ -54,7 +54,6 @@ final class FlightBotOrchestrator {
 
         let hardMinimum = max(1, minimumResults ?? minimumTarget)
         let desired = max(hardMinimum, preferredResults ?? preferredTarget)
-        let comfortTarget = min(desired, max(hardMinimum, AppConfig.flightBotTargetOptions))
         let searchID = UUID().uuidString
         let requestedAt = Date()
         let deadline = requestedAt.addingTimeInterval(AppConfig.flightBotSearchHardTimeoutSeconds)
@@ -141,7 +140,10 @@ final class FlightBotOrchestrator {
                 completedBatches += 1
                 let ranked = deduplicateAndRank(collected, anchor: baseRequest.date)
 
-                if ranked.count >= desired || (ranked.count >= comfortTarget && completedBatches >= 2) {
+                if requirement == .pricingReference, !ranked.isEmpty {
+                    break searchLoop
+                }
+                if ranked.count >= desired || (ranked.count >= hardMinimum && completedBatches >= 2) {
                     break searchLoop
                 }
             }

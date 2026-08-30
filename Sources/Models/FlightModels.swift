@@ -113,6 +113,7 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     let sourceCandidateID: String?
     let airlineCode: String?
     let segments: [FlightSegment]?
+    let connectionAirports: [FlightAirportSnapshot]?
 
     init(
         id: String,
@@ -132,7 +133,8 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         quoteId: String? = nil,
         sourceCandidateID: String? = nil,
         airlineCode: String? = nil,
-        segments: [FlightSegment]? = nil
+        segments: [FlightSegment]? = nil,
+        connectionAirports: [FlightAirportSnapshot]? = nil
     ) {
         self.id = id
         self.direction = direction
@@ -152,6 +154,7 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         self.sourceCandidateID = sourceCandidateID
         self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: flightNumber)
         self.segments = segments?.isEmpty == false ? segments : nil
+        self.connectionAirports = connectionAirports?.isEmpty == false ? connectionAirports : nil
     }
 
     var displaySegments: [FlightSegment] {
@@ -184,7 +187,10 @@ struct FlightOffer: Identifiable, Hashable, Codable {
 
     var flightNumbersSummary: String {
         var seen = Set<String>()
-        return displaySegments.map(\.flightNumber).filter { seen.insert($0).inserted }.joined(separator: " · ")
+        return displaySegments.map(\.flightNumber)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+            .joined(separator: " · ")
     }
 
     var airlinesSummary: String {

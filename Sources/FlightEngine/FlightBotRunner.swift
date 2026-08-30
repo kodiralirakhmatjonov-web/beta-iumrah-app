@@ -61,6 +61,8 @@ final class FlightBotRunner {
 
         webView.load(urlRequest)
         try await waitForUsableDOM(deadline: deadline)
+        _ = try? await evaluate(FlightBotScripts.dismissNonSearchOverlays)
+        try? await Task.sleep(for: .milliseconds(220))
         try await detectChallengeIfNeeded()
 
         if provider.id != .googleFlights && provider.id != .skyscanner {
@@ -86,7 +88,11 @@ final class FlightBotRunner {
                 }
             }
 
-            if let blocks = try? await evaluate(FlightBotScripts.extractCandidateBlocks) as? [String], !blocks.isEmpty {
+            let extractionScript = requirement == .pricingReference
+                ? FlightBotScripts.extractPricingReferenceBlocks
+                : FlightBotScripts.extractCandidateBlocks
+
+            if let blocks = try? await evaluate(extractionScript) as? [String], !blocks.isEmpty {
                 sawCandidateBlocks = true
                 let parsed = FlightTextParser.candidates(
                     blocks: blocks,
@@ -96,6 +102,7 @@ final class FlightBotRunner {
                     requirement: requirement
                 )
                 if parsed.count > best.count { best = parsed }
+                if requirement == .pricingReference, !best.isEmpty { break }
                 if best.count >= 3 { break }
             }
 

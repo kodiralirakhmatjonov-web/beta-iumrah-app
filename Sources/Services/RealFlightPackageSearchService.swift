@@ -31,9 +31,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await ensureBackendReady(for: trip)
-        async let hotelPricesTask = hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+        // Flight discovery owns the browser first. Hotel price bots start only
+        // after a usable round-trip flight session exists; otherwise iOS can be
+        // forced to keep too many WKWebViews alive at once and every source loses.
         let currentSession = try await sessionFor(trip: trip)
-        let hotelPrices = await hotelPricesTask
+        let hotelPrices = await hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
         let response = try await packageEngine.quoteOutboundOptions(
             trip: trip,
             makkahHotel: makkahHotel,
@@ -158,7 +160,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
                 quoteId: quote.quoteId,
                 sourceCandidateID: candidate.id,
                 airlineCode: candidate.airlineCode,
-                segments: candidate.segments
+                segments: candidate.segments,
+                connectionAirports: candidate.connectionAirports
             )
         }
 

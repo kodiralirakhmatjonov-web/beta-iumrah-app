@@ -17,6 +17,12 @@ struct FlightDetailsView: View {
                     }
                 }
 
+                if offer.layovers.isEmpty, let connections = offer.connectionAirports, !connections.isEmpty {
+                    ForEach(connections, id: \.code) { airport in
+                        connectionSection(airport)
+                    }
+                }
+
                 packagePriceSection
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
@@ -54,7 +60,9 @@ struct FlightDetailsView: View {
 
     private func segmentSection(_ segment: FlightSegment, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text(L10n.format("flight_segment_count", settings.language, index + 1, offer.displaySegments.count))
+            Text(offer.segments?.isEmpty == false
+                 ? L10n.format("flight_segment_count", settings.language, index + 1, offer.displaySegments.count)
+                 : routeSectionTitle)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
 
@@ -64,9 +72,11 @@ struct FlightDetailsView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(FlightReferenceCatalog.airlineName(code: segment.airlineCode, fallback: segment.airline))
                             .font(.headline.weight(.semibold))
-                        Text(segment.flightNumber)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if !segment.flightNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(segment.flightNumber)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                 }
@@ -174,6 +184,46 @@ struct FlightDetailsView: View {
         .padding(.horizontal, 4)
     }
 
+    private func connectionSection(_ airport: FlightAirportSnapshot) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.body.weight(.semibold))
+                .frame(width: 28, height: 28)
+                .background(Color.primary.opacity(0.06))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(connectionTitle(resolvedAirport(airport).displayCity))
+                    .font(.subheadline.weight(.bold))
+                if let country = FlightReferenceCatalog.airportCountry(airport.code) {
+                    Text("\(airport.code) · \(country)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var routeSectionTitle: String {
+        switch settings.language {
+        case .russian: return "Маршрут"
+        case .english: return "Itinerary"
+        case .uzbek: return "Yo‘nalish"
+        case .uzbekCyrillic: return "Йўналиш"
+        }
+    }
+
+    private func connectionTitle(_ city: String) -> String {
+        switch settings.language {
+        case .russian: return "Пересадка · \(city)"
+        case .english: return "Connection · \(city)"
+        case .uzbek: return "Ulanish · \(city)"
+        case .uzbekCyrillic: return "Уланиш · \(city)"
+        }
+    }
+
     private var packagePriceSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.text("flight_whole_package", settings.language))
@@ -238,7 +288,10 @@ struct FlightDetailsView: View {
 
     @MainActor
     private func enrichAirports() async {
-        let codes = Set(offer.displaySegments.flatMap { [$0.origin.code, $0.destination.code] })
+        let codes = Set(
+            offer.displaySegments.flatMap { [$0.origin.code, $0.destination.code] } +
+            (offer.connectionAirports ?? []).map(\.code)
+        )
         let service = AirportSearchService()
         for code in codes where enrichedAirports[code] == nil {
             do {
