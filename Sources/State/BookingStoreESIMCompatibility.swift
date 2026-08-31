@@ -5,21 +5,21 @@ import Foundation
 // the newer eSIM-aware BookingModels/HomeDashboard implementation.
 @MainActor
 private enum BookingESIMCompatibilityCache {
-    static var primaryByStore: [ObjectIdentifier: [String: ClientESIMProfile]] = [:]
+    static var profilesByStore: [ObjectIdentifier: [String: [ClientESIMProfile]]] = [:]
 
-    static func setPrimary(_ profile: ClientESIMProfile?, bookingID: String, store: BookingStore) {
+    static func setProfiles(_ profiles: [ClientESIMProfile], bookingID: String, store: BookingStore) {
         let storeID = ObjectIdentifier(store)
-        var values = primaryByStore[storeID] ?? [:]
-        if let profile {
-            values[bookingID] = profile
-        } else {
+        var values = profilesByStore[storeID] ?? [:]
+        if profiles.isEmpty {
             values.removeValue(forKey: bookingID)
+        } else {
+            values[bookingID] = profiles
         }
-        primaryByStore[storeID] = values
+        profilesByStore[storeID] = values
     }
 
-    static func primary(bookingID: String, store: BookingStore) -> ClientESIMProfile? {
-        primaryByStore[ObjectIdentifier(store)]?[bookingID]
+    static func profiles(bookingID: String, store: BookingStore) -> [ClientESIMProfile] {
+        profilesByStore[ObjectIdentifier(store)]?[bookingID] ?? []
     }
 }
 
@@ -32,11 +32,12 @@ extension ClientTripResponse {
 }
 
 extension BookingStore {
-    /// Refreshes the eSIM state from the existing authenticated operational-trip
-    /// endpoint. No separate paid API or additional backend is introduced here.
+    /// Refreshes the complete eSIM list from the existing authenticated
+    /// operational-trip endpoint. No separate paid API or additional backend
+    /// is introduced here.
     func loadESIMs(for bookingID: String) async throws {
         guard let session = booking(id: bookingID) else {
-            BookingESIMCompatibilityCache.setPrimary(nil, bookingID: bookingID, store: self)
+            BookingESIMCompatibilityCache.setProfiles([], bookingID: bookingID, store: self)
             return
         }
 
@@ -44,7 +45,7 @@ extension BookingStore {
         guard !token.isEmpty else {
             // Account-restored sessions may not have a local booking token.
             // Do not manufacture eSIM data in that case.
-            BookingESIMCompatibilityCache.setPrimary(nil, bookingID: bookingID, store: self)
+            BookingESIMCompatibilityCache.setProfiles([], bookingID: bookingID, store: self)
             return
         }
 
@@ -52,14 +53,20 @@ extension BookingStore {
             id: bookingID,
             headers: ["x-booking-token": token]
         )
-        BookingESIMCompatibilityCache.setPrimary(
-            response.esims?.first,
+        BookingESIMCompatibilityCache.setProfiles(
+            response.esims ?? [],
             bookingID: bookingID,
             store: self
         )
     }
 
+    /// Returns every eSIM profile associated with the booking.
+    func esimProfiles(for bookingID: String) -> [ClientESIMProfile] {
+        BookingESIMCompatibilityCache.profiles(bookingID: bookingID, store: self)
+    }
+
+    /// Convenience accessor used by compact cards and status surfaces.
     func primaryESIM(for bookingID: String) -> ClientESIMProfile? {
-        BookingESIMCompatibilityCache.primary(bookingID: bookingID, store: self)
+        esimProfiles(for: bookingID).first
     }
 }
