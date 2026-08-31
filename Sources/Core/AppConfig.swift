@@ -2,8 +2,6 @@ import Foundation
 
 enum AppConfig {
     enum FlightEngineMode: Equatable {
-        case sandbox
-        case automatic
         case officialWebBots
     }
 
@@ -20,7 +18,7 @@ enum AppConfig {
     static let flightBotMinimumOptions = 1
     static let flightBotTargetOptions = 4
     static let flightBotPreferredOptions = 6
-    static let flightBotProviderBatchSize = 1
+    static let flightBotProviderBatchSize = 2
     static let flightBotProviderTimeoutSeconds: Double = 12
     static let flightBotSearchHardTimeoutSeconds: Double = 165
     static let flightSearchScreenHardTimeoutSeconds: Double = 132
@@ -41,13 +39,7 @@ enum AppConfig {
     /// hotel stars and existing iumrah Hotels D1 catalog.
     static let usesLocalPrimaryHotelFallback = true
 
-    static var usesSandboxFlightSearch: Bool {
-        flightEngineMode == .sandbox
-    }
-
-    static var isStrictRealFlightTest: Bool {
-        flightEngineMode == .officialWebBots
-    }
+    static var isStrictRealFlightTest: Bool { true }
 
     static func absoluteURL(_ rawValue: String?) -> URL? {
         guard let rawValue, !rawValue.isEmpty else { return nil }

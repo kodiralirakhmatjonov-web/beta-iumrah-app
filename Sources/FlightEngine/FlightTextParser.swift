@@ -29,13 +29,15 @@ enum FlightTextParser {
         requirement: FlightCandidateRequirement,
         observedAt: Date
     ) -> LiveFlightCandidate? {
-        guard let fare = parseFare(block, provider: provider) else { return nil }
+        guard provider.acceptsSourceURL(sourceURL),
+              let fare = parseFare(block, provider: provider, request: request) else { return nil }
 
         let normalizedBlock = block.replacingOccurrences(of: "\u{00a0}", with: " ")
         let times = extractTimes(from: normalizedBlock)
 
         guard times.count >= 2 else { return nil }
         guard hasRouteEvidence(in: normalizedBlock, origin: request.origin, destination: request.destination) else { return nil }
+        guard hasDateEvidence(in: normalizedBlock, date: request.date) else { return nil }
 
         // Production contract: every itinerary shown to a pilgrim has an exact,
         // validated carrier flight number. We never synthesize one from Google
@@ -46,6 +48,7 @@ enum FlightTextParser {
         )
         let flightNumbers = deduplicate(rawFlightNumbers.compactMap(FlightReferenceCatalog.normalizedVerifiedFlightNumber))
         guard let primaryFlightNumber = flightNumbers.first,
+              provider.acceptsPrimaryFlightNumber(primaryFlightNumber),
               let primaryAirlineCode = FlightReferenceCatalog.airlineCode(from: primaryFlightNumber),
               let airlineReference = FlightReferenceCatalog.airline(code: primaryAirlineCode) else { return nil }
         let airline = airlineReference.name
@@ -152,6 +155,21 @@ enum FlightTextParser {
             connectionAirports: connectionAirports.isEmpty ? nil : connectionAirports
         )
         return candidate.isDisplayableCandidate ? candidate : nil
+    }
+
+    private static func hasDateEvidence(in text: String, date: Date) -> Bool {
+        let lower = text.lowercased()
+        let formats = ["yyyy-MM-dd", "dd.MM.yyyy", "dd/MM/yyyy", "d MMM yyyy", "d MMMM yyyy", "MMM d yyyy", "MMMM d yyyy"]
+        for localeID in ["en_US_POSIX", "ru_RU", "uz_Latn_UZ"] {
+            let formatter = DateFormatter()
+            formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.locale = Locale(identifier: localeID)
+            for format in formats {
+                formatter.dateFormat = format
+                if lower.contains(formatter.string(from: date).lowercased()) { return true }
+            }
+        }
+        return false
     }
 
     private static func hasRouteEvidence(in text: String, origin: String, destination: String) -> Bool {
@@ -422,7 +440,11 @@ enum FlightTextParser {
         return collapseAdjacentDuplicates(sequence)
     }
 
-    private static func parseFare(_ text: String, provider: FlightBotProvider) -> (amount: Decimal, currency: String, scope: FlightFareScope)? {
+    private static func parseFare(
+        _ text: String,
+        provider: FlightBotProvider,
+        request: FlightBotSearchRequest
+    ) -> (amount: Decimal, currency: String, scope: FlightFareScope)? {
         let patterns: [(String, String)] = [
             (#"\$\s*([0-9][0-9\s,.]*)"#, "USD"),
             (#"USD\s*([0-9][0-9\s,.]*)"#, "USD"),
@@ -442,24 +464,78 @@ enum FlightTextParser {
             (#"GBP\s*([0-9][0-9\s,.]*)"#, "GBP")
         ]
 
+        let lower = text.lowercased()
+        let promotionalMarkers = ["starting at", "fare from", "prices from", "price from", "dan boshlab"]
+        let russianPromo = lower.range(of: #"\bот\s+(?:USD|UZS|SAR|AED|RUB|EUR|GBP|[$€₽]|[0-9])"#, options: .regularExpression) != nil
+        guard !promotionalMarkers.contains(where: { lower.contains($0) }), !russianPromo else { return nil }
+
+        let totalMarkers = ["grand total", "total fare", "trip total", "booking total", "итого", "за всех", "jami"]
+        let explicitTotal = totalMarkers.contains(where: { lower.contains($0) }) ||
+            lower.range(of: #"(?:for|для|за)\s+\d+\s+(?:passengers?|travel(?:l)?ers?|pax|пассажир(?:а|ов)?)"#, options: .regularExpression) != nil
+        let explicitPerPassenger = ["per passenger", "per person", "/ person", "за пассажира", "на пассажира", "за человека"].contains(where: { lower.contains($0) })
+        let travelerCount = max(1, request.adults + request.children + request.infants)
+
+        let scope: FlightFareScope
+        if explicitTotal {
+            scope = .totalParty
+        } else if explicitPerPassenger {
+            // Child/infant fares can differ from an adult per-person fare. Until a
+            // provider exposes a real passenger breakdown, multiplying one shown
+            // fare would create a synthetic group price, so reject it.
+            guard request.children == 0, request.infants == 0 else { return nil }
+            scope = .perPassenger
+        } else {
+            // With exactly one traveler the observed amount is numerically the
+            // party total regardless of how the carrier labels it. For two or more
+            // travelers an unlabeled amount is ambiguous and must not enter pricing.
+            guard travelerCount == 1 else { return nil }
+            scope = .totalParty
+        }
+
         for (pattern, currency) in patterns {
             guard let capture = firstCapture(pattern: pattern, in: text) else { continue }
-            let normalized = capture.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: ",", with: "")
-            guard let decimal = Decimal(string: normalized), decimal > 0 else { continue }
-            let lower = text.lowercased()
-            let totalMarkers = ["total", "итого", "за всех", "total fare", "grand total", "jami"]
-            let passengerMarkers = ["per passenger", "per person", "/ person", "за пассажира", "на пассажира", "1 adult", "from "]
-            let scope: FlightFareScope
-            if totalMarkers.contains(where: { lower.contains($0) }) {
-                scope = .totalParty
-            } else if passengerMarkers.contains(where: { lower.contains($0) }) {
-                scope = .perPassenger
-            } else {
-                scope = provider.defaultFareScope
-            }
+            guard let decimal = normalizedMoneyDecimal(capture), decimal > 0 else { continue }
             return (decimal, currency, scope)
         }
         return nil
+    }
+
+
+    /// Airline booking surfaces mix decimal comma and grouped thousands. A blind
+    /// comma removal turns `560,25` into `56025`, which is unacceptable for a
+    /// fare component. Treat the last separator as decimal only when it has one
+    /// or two trailing digits; all preceding separators are grouping marks.
+    private static func normalizedMoneyDecimal(_ raw: String) -> Decimal? {
+        var value = raw
+            .replacingOccurrences(of: "\u{00a0}", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.range(of: #"^[0-9][0-9.,]*$"#, options: .regularExpression) != nil else { return nil }
+
+        let comma = value.lastIndex(of: ",")
+        let dot = value.lastIndex(of: ".")
+        let decimalSeparator: Character? = {
+            let candidate: String.Index?
+            switch (comma, dot) {
+            case let (c?, d?): candidate = c > d ? c : d
+            case let (c?, nil): candidate = c
+            case let (nil, d?): candidate = d
+            default: candidate = nil
+            }
+            guard let candidate else { return nil }
+            let trailing = value.distance(from: value.index(after: candidate), to: value.endIndex)
+            return (1...2).contains(trailing) ? value[candidate] : nil
+        }()
+
+        if let decimalSeparator, let decimalIndex = value.lastIndex(of: decimalSeparator) {
+            let whole = value[..<decimalIndex].filter { $0.isNumber }
+            let fraction = value[value.index(after: decimalIndex)...].filter { $0.isNumber }
+            guard !whole.isEmpty, !fraction.isEmpty else { return nil }
+            value = String(whole) + "." + String(fraction)
+        } else {
+            value = String(value.filter { $0.isNumber })
+        }
+        return Decimal(string: value, locale: Locale(identifier: "en_US_POSIX"))
     }
 
     private static func inferredStops(from block: String) -> Int? {

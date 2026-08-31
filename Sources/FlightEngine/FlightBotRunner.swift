@@ -70,6 +70,7 @@ final class FlightBotRunner {
 
         webView.load(urlRequest)
         try await waitForUsableDOM(deadline: deadline)
+        guard let loadedURL = webView.url, provider.acceptsSourceURL(loadedURL) else { throw BotError.invalidPage }
         _ = try? await evaluate(FlightBotScripts.dismissNonSearchOverlays)
         try? await Task.sleep(for: .milliseconds(220))
         try await detectChallengeIfNeeded()
@@ -78,9 +79,11 @@ final class FlightBotRunner {
         // one (Qanot Sharq/WebSky). Other airline SPAs still use the hardened
         // form automation. This avoids needlessly rewriting a valid direct query.
         if !provider.usesDirectSearchURL {
-            _ = try? await evaluate(FlightBotScripts.prepareSearch(provider: provider, request: request))
+            guard let prepared = try? await evaluate(FlightBotScripts.prepareSearch(provider: provider, request: request)) as? [String: Any],
+                  prepared["ok"] as? Bool == true else { throw BotError.invalidPage }
             try await sleepIfTime(.milliseconds(420), deadline: deadline)
-            _ = try? await evaluate(FlightBotScripts.finalizeSearch(provider: provider, request: request))
+            guard let finalized = try? await evaluate(FlightBotScripts.finalizeSearch(provider: provider, request: request)) as? [String: Any],
+                  finalized["ok"] as? Bool == true else { throw BotError.invalidPage }
         }
         try await sleepIfTime(.milliseconds(820), deadline: deadline)
 
@@ -92,6 +95,7 @@ final class FlightBotRunner {
         while Date() < deadline {
             try Task.checkCancellation()
             try await detectChallengeIfNeeded()
+            guard let currentURL = webView.url, provider.acceptsSourceURL(currentURL) else { throw BotError.invalidPage }
 
             if !contextVerified,
                let state = try? await evaluate(FlightBotScripts.verifySearchContext(request: request)) as? [String: Any] {
@@ -114,17 +118,27 @@ final class FlightBotRunner {
             }
 
             var extractionBlocks: [String] = []
-            if let domBlocks = try? await evaluate(FlightBotScripts.extractCandidateBlocks) as? [String] {
+            if let domBlocks = try? await evaluate(FlightBotScripts.extractCandidateBlocks(provider: provider, request: request)) as? [String] {
                 extractionBlocks.append(contentsOf: domBlocks)
             }
-            if let networkBlocks = try? await evaluate(FlightBotScripts.extractNetworkCandidateBlocks(request: request)) as? [String] {
+            if let networkBlocks = try? await evaluate(FlightBotScripts.extractNetworkCandidateBlocks(provider: provider, request: request)) as? [String] {
                 extractionBlocks.append(contentsOf: networkBlocks)
             }
 
             if !extractionBlocks.isEmpty {
                 sawCandidateBlocks = true
+                // The page-level search context has already been independently
+                // verified above. Some airline result cards omit the date from
+                // each individual row, so carry that verified date into the parser
+                // instead of weakening the parser's wrong-date rejection rule.
+                let dateFormatter = DateFormatter()
+                dateFormatter.calendar = Calendar(identifier: .gregorian)
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                let verifiedDate = dateFormatter.string(from: request.date)
+                let contextualBlocks = extractionBlocks.map { "Verified search date: \(verifiedDate)\n\($0)" }
                 let parsed = FlightTextParser.candidates(
-                    blocks: extractionBlocks,
+                    blocks: contextualBlocks,
                     provider: provider,
                     request: request,
                     sourceURL: webView.url ?? url,

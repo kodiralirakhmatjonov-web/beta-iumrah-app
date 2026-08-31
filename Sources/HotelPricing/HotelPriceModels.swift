@@ -25,6 +25,62 @@ struct HotelPriceObservation: Identifiable, Codable, Hashable {
     let checkInDate: String
     let checkOutDate: String
     let sourceURL: String
+    let roomId: String?
+    let roomName: String?
+
+    func isUsable(
+        for hotel: HotelSummary,
+        city expectedCity: String,
+        window: TripStayWindow,
+        roomId expectedRoomId: String?,
+        now: Date = Date()
+    ) -> Bool {
+        guard amount > 0, hotelId == hotel.id else { return false }
+        guard hotelName.trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare(hotel.name.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame else { return false }
+        guard city.caseInsensitiveCompare(expectedCity) == .orderedSame else { return false }
+        guard Self.supportedCurrencies.contains(currency.uppercased()) else { return false }
+        guard checkInDate == Self.dayFormatter.string(from: window.checkIn),
+              checkOutDate == Self.dayFormatter.string(from: window.checkOut) else { return false }
+        guard let observed = Self.parseObservedAt(observedAt) else { return false }
+        let age = now.timeIntervalSince(observed)
+        guard age >= -5 * 60, age <= 20 * 60 else { return false }
+        guard let url = URL(string: sourceURL), url.scheme?.lowercased() == "https",
+              let host = url.host?.lowercased(), providerId.accepts(host: host) else { return false }
+        if let expectedRoomId {
+            guard roomId == expectedRoomId, roomName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return false }
+        }
+        return true
+    }
+
+    private static let supportedCurrencies: Set<String> = ["USD", "EUR", "SAR", "AED", "GBP"]
+    private static func parseObservedAt(_ value: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) { return date }
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        return standard.date(from: value)
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+}
+
+private extension HotelPriceProviderID {
+    func accepts(host: String) -> Bool {
+        switch self {
+        case .booking:
+            return host == "booking.com" || host.hasSuffix(".booking.com")
+        case .expedia:
+            return host == "expedia.com" || host.hasSuffix(".expedia.com")
+        }
+    }
 }
 
 struct HotelPriceSearchSnapshot: Codable, Hashable {
@@ -45,6 +101,8 @@ struct HotelPriceSearchRequest: Hashable {
     let children: Int
     let infants: Int
     let rooms: Int
+    let selectedRoomId: String?
+    let selectedRoomName: String?
 
     var totalHotelGuests: Int {
         // Search engines require child ages for exact child pricing. Until the trip

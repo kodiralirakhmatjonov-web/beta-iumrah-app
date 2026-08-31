@@ -114,13 +114,13 @@ struct FlightSearchFailureView: View {
     private var bodyText: String {
         switch settings.language {
         case .russian:
-            return "Генератор проверяет рейсы, выбранные отели и цены более чем в 10 сервисах. При нестабильном соединении отдельный источник может не успеть ответить. Проверьте интернет и нажмите «Продолжить поиск»."
+            return "Генератор проверяет официальные источники рейсов и цены выбранных отелей. При нестабильном соединении отдельный источник может не успеть ответить. Проверьте интернет и нажмите «Продолжить поиск»."
         case .english:
-            return "The generator checks flights, your selected hotels and prices across more than 10 services. With an unstable connection, an individual source may not respond in time. Check your connection and continue the search."
+            return "The generator checks official flight sources and prices for your selected hotels. With an unstable connection, an individual source may not respond in time. Check your connection and continue the search."
         case .uzbek:
-            return "Generator reyslar, tanlangan mehmonxonalar va narxlarni 10 dan ortiq servisda tekshiradi. Internet beqaror bo‘lsa, ayrim manbalar vaqtida javob bermasligi mumkin. Ulanishni tekshirib, qidiruvni davom ettiring."
+            return "Generator rasmiy parvoz manbalari va tanlangan mehmonxonalar narxlarini tekshiradi. Internet beqaror bo‘lsa, ayrim manbalar vaqtida javob bermasligi mumkin. Ulanishni tekshirib, qidiruvni davom ettiring."
         case .uzbekCyrillic:
-            return "Генератор рейслар, танланган меҳмонхоналар ва нархларни 10 дан ортиқ сервисда текширади. Интернет беқарор бўлса, айрим манбалар вақтида жавоб бермаслиги мумкин. Уланишни текшириб, қидирувни давом эттиринг."
+            return "Генератор расмий парвоз манбалари ва танланган меҳмонхоналар нархларини текширади. Интернет беқарор бўлса, айрим манбалар вақтида жавоб бермаслиги мумкин. Уланишни текшириб, қидирувни давом эттиринг."
         }
     }
 
@@ -135,10 +135,10 @@ struct FlightSearchFailureView: View {
 
     private var sourcesLabel: String {
         switch settings.language {
-        case .russian: return "10+ источников"
-        case .english: return "10+ sources"
-        case .uzbek: return "10+ manba"
-        case .uzbekCyrillic: return "10+ манба"
+        case .russian: return "Официальные источники"
+        case .english: return "Official sources"
+        case .uzbek: return "Rasmiy manbalar"
+        case .uzbekCyrillic: return "Расмий манбалар"
         }
     }
 
@@ -162,10 +162,10 @@ struct FlightSearchFailureView: View {
 
     private var technicalLabel: String {
         switch settings.language {
-        case .russian: return "Техническая информация"
-        case .english: return "Technical details"
-        case .uzbek: return "Texnik ma’lumot"
-        case .uzbekCyrillic: return "Техник маълумот"
+        case .russian: return "Подробнее"
+        case .english: return "Details"
+        case .uzbek: return "Batafsil"
+        case .uzbekCyrillic: return "Батафсил"
         }
     }
 }

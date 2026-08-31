@@ -16,14 +16,17 @@ export type FlightBotSearchArgs = {
 
 type FareScope = "perPassenger" | "group";
 
+type ServerMode = "uzbekistanForm" | "deviceOnly";
+
 type OfficialCarrierBot = {
   id: string;
   label: string;
   priority: number;
   airlineCodes: string[];
+  officialHosts: string[];
   startURL: string;
   fareScope: FareScope;
-  directSearchURL?: (args: FlightBotSearchArgs) => string;
+  serverMode: ServerMode;
 };
 
 type BotFetchResult = {
@@ -32,9 +35,6 @@ type BotFetchResult = {
   body: string;
   contentType: string;
 };
-
-const UZBEK_AIRPORTS = new Set(["TAS", "SKD", "BHK", "UGC", "NMA", "FEG", "NCU", "TMJ", "KSQ", "AZN", "NAV"]);
-const SAUDI_AIRPORTS = new Set(["JED", "MED", "RUH", "DMM", "TIF"]);
 
 const AIRLINES: Record<string, string> = {
   HY: "Uzbekistan Airways",
@@ -59,69 +59,54 @@ const BOTS: OfficialCarrierBot[] = [
     label: "Uzbekistan Airways",
     priority: 10,
     airlineCodes: ["HY"],
+    officialHosts: ["booking.uzairways.com"],
     startURL: "https://booking.uzairways.com/",
     fareScope: "perPassenger",
+    serverMode: "uzbekistanForm",
   },
   {
     id: "qanotSharq",
     label: "Qanot Sharq",
     priority: 20,
     airlineCodes: ["HH"],
+    officialHosts: ["booking.qanotsharq.com"],
     startURL: "https://booking.qanotsharq.com/websky_grs/",
     fareScope: "perPassenger",
-    directSearchURL: (args) => {
-      const p = new URLSearchParams({
-        "origin-city-code[0]": args.origin,
-        "destination-city-code[0]": args.destination,
-        "date[0]": toDDMMYYYY(args.travelDate),
-        segmentsCount: "1",
-        adultsAmount: String(Math.max(1, args.travelers.adults)),
-        childrenAmount: String(Math.max(0, args.travelers.children)),
-        infantsWithoutSeatAmount: String(Math.max(0, args.travelers.infants)),
-        infantsWithSeatAmount: "0",
-        searchGroupId: "standard",
-        lang: "en",
-      });
-      return `https://booking.qanotsharq.com/websky_grs/?${p.toString()}`;
-    },
+    serverMode: "deviceOnly",
   },
-  { id: "centrumAir", label: "Centrum Air", priority: 30, airlineCodes: ["C6"], startURL: "https://booking.centrum-air.com/ibe/C6/home/?language=en", fareScope: "perPassenger" },
-  { id: "airSamarkand", label: "Air Samarkand", priority: 40, airlineCodes: ["9S"], startURL: "https://booking.airsamarkand.com/en/", fareScope: "perPassenger" },
-  { id: "flyKhiva", label: "Fly Khiva", priority: 50, airlineCodes: ["FK"], startURL: "https://booking.flykhiva.uz/new/", fareScope: "perPassenger" },
-  { id: "silkAvia", label: "Silk Avia", priority: 60, airlineCodes: ["US"], startURL: "https://pss.silk-avia.com/ibe/search?lang=en", fareScope: "perPassenger" },
-  { id: "airArabia", label: "Air Arabia", priority: 70, airlineCodes: ["G9"], startURL: "https://www.airarabia.com/en", fareScope: "perPassenger" },
-  { id: "flydubai", label: "flydubai", priority: 75, airlineCodes: ["FZ"], startURL: "https://www.flydubai.com/en/", fareScope: "perPassenger" },
-  { id: "turkishAirlines", label: "Turkish Airlines", priority: 80, airlineCodes: ["TK"], startURL: "https://www.turkishairlines.com/", fareScope: "perPassenger" },
-  { id: "jazeeraAirways", label: "Jazeera Airways", priority: 85, airlineCodes: ["J9"], startURL: "https://www.jazeeraairways.com/", fareScope: "perPassenger" },
-  { id: "saudia", label: "Saudia", priority: 90, airlineCodes: ["SV"], startURL: "https://www.saudia.com/", fareScope: "perPassenger" },
-  { id: "flynas", label: "flynas", priority: 95, airlineCodes: ["XY"], startURL: "https://www.flynas.com/en", fareScope: "perPassenger" },
-  { id: "airAstana", label: "Air Astana", priority: 100, airlineCodes: ["KC"], startURL: "https://airastana.com/", fareScope: "perPassenger" },
-  { id: "flyArystan", label: "FlyArystan", priority: 105, airlineCodes: ["FS"], startURL: "https://flyarystan.com/", fareScope: "perPassenger" },
+  {
+    id: "centrumAir",
+    label: "Centrum Air",
+    priority: 30,
+    airlineCodes: ["C6"],
+    officialHosts: ["booking.centrum-air.com"],
+    startURL: "https://booking.centrum-air.com/ibe/C6/home/?language=en",
+    fareScope: "perPassenger",
+    serverMode: "deviceOnly",
+  },
+  {
+    id: "airSamarkand",
+    label: "Air Samarkand",
+    priority: 40,
+    airlineCodes: ["9S"],
+    officialHosts: ["booking.airsamarkand.com"],
+    startURL: "https://booking.airsamarkand.com/en/",
+    fareScope: "perPassenger",
+    serverMode: "deviceOnly",
+  },
 ];
 
 function validAirport(value: string) { return /^[A-Z]{3}$/.test(value); }
 function validDate(value: string) { return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)); }
-function toDDMMYYYY(day: string) { const [y, m, d] = day.split("-"); return `${d}.${m}.${y}`; }
 function travelerCount(t: Travelers) { return Math.max(1, t.adults + t.children + t.infants); }
 
-function orderedBots(origin: string, destination: string) {
-  const fromUz = UZBEK_AIRPORTS.has(origin);
-  const toUz = UZBEK_AIRPORTS.has(destination);
-  const saudi = SAUDI_AIRPORTS.has(origin) || SAUDI_AIRPORTS.has(destination);
-  const score = (bot: OfficialCarrierBot) => {
-    if (fromUz || toUz) return bot.priority;
-    if (saudi) {
-      const regionalBoost = ["saudia", "flynas", "airArabia", "flydubai", "jazeeraAirways", "turkishAirlines"].indexOf(bot.id);
-      return regionalBoost >= 0 ? regionalBoost : 100 + bot.priority;
-    }
-    return bot.priority;
-  };
-  return [...BOTS].sort((a, b) => score(a) - score(b));
+function orderedBots(_origin: string, _destination: string) {
+  return [...BOTS].filter((bot) => bot.serverMode !== "deviceOnly").sort((a, b) => a.priority - b.priority);
 }
 
 function cacheKey(args: Omit<FlightBotSearchArgs, "searchId" | "direction" | "dateOffset">) {
   const t = args.travelers;
-  return ["official-bots-v1", args.origin, args.destination, args.travelDate, `a${t.adults}`, `c${t.children}`, `i${t.infants}`].join("|");
+  return ["official-bots-v2-specialized", args.origin, args.destination, args.travelDate, `a${t.adults}`, `c${t.children}`, `i${t.infants}`].join("|");
 }
 
 async function getCached(env: Env, key: string): Promise<InternalFlightCandidate[] | null> {
@@ -180,6 +165,25 @@ function searchableText(raw: string) {
     .trim();
 }
 
+function normalizeMoneyToken(raw: string) {
+  const compact = raw.replace(/[\s\u00a0\u202f]/g, "");
+  if (!/^\d[\d.,]*$/.test(compact)) return NaN;
+  const lastDot = compact.lastIndexOf(".");
+  const lastComma = compact.lastIndexOf(",");
+  const separatorIndex = Math.max(lastDot, lastComma);
+  if (separatorIndex < 0) return Number(compact);
+
+  const trailingDigits = compact.length - separatorIndex - 1;
+  // A final separator followed by one/two digits is a decimal mark. Everything
+  // before it is grouping. Otherwise all separators are treated as grouping.
+  if (trailingDigits >= 1 && trailingDigits <= 2) {
+    const integerPart = compact.slice(0, separatorIndex).replace(/[.,]/g, "");
+    const decimalPart = compact.slice(separatorIndex + 1).replace(/[.,]/g, "");
+    return Number(`${integerPart}.${decimalPart}`);
+  }
+  return Number(compact.replace(/[.,]/g, ""));
+}
+
 function moneyMatches(text: string) {
   const out: { amount: number; currency: string; index: number }[] = [];
   const patterns: Array<[RegExp, string]> = [
@@ -199,8 +203,7 @@ function moneyMatches(text: string) {
   for (const [regex, currency] of patterns) {
     let m: RegExpExecArray | null;
     while ((m = regex.exec(text)) && out.length < 40) {
-      const normalized = m[1].replace(/\s/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "");
-      const amount = Number(normalized);
+      const amount = normalizeMoneyToken(m[1]);
       if (Number.isFinite(amount) && amount > 0) out.push({ amount, currency, index: m.index });
     }
   }
@@ -225,15 +228,20 @@ function localISO(day: string, hhmm: string) {
 }
 
 function knownFlightNumbers(text: string, allowedCodes: string[]) {
-  const allowed = new Set(allowedCodes);
+  const allowed = [...new Set(allowedCodes.map((code) => code.toUpperCase()))]
+    .filter((code) => /^[A-Z0-9]{2}$/.test(code) && AIRLINES[code]);
+  if (!allowed.length) return [];
+  const escaped = allowed.map((code) => code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
   const values: { code: string; number: string; index: number }[] = [];
-  const regex = /\b([A-Z0-9]{2,3})[\s-]?(\d{1,4}[A-Z]?)\b/gi;
+  // The carrier code is supplied by the provider adapter, never inferred from a
+  // generic 2–3 character token. This correctly parses both `HY335` and `HY 335`
+  // and prevents dates/currencies/numeric fragments from becoming flight IDs.
+  const regex = new RegExp(`\\b(${escaped})[\\s-]?(\\d{1,4}[A-Z]?)\\b`, "gi");
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) && values.length < 30) {
     const code = match[1].toUpperCase();
-    if (!allowed.has(code) || !AIRLINES[code]) continue;
     const number = `${code}${match[2].toUpperCase()}`;
-    if (!/^[A-Z0-9]{2,3}\d{1,4}[A-Z]?$/.test(number)) continue;
+    if (!/^[A-Z0-9]{2}\d{1,4}[A-Z]?$/.test(number)) continue;
     values.push({ code, number, index: match.index });
   }
   return values;
@@ -265,7 +273,7 @@ function looksLikeChallenge(text: string) {
   return /(captcha|cloudflare ray id|verify you are human|human verification|access denied|bot detection|robot check)/i.test(text);
 }
 
-function formSearchRequest(html: string, baseURL: string, args: FlightBotSearchArgs): { url: string; init: RequestInit } | null {
+function uzbekistanAirwaysSearchRequest(html: string, baseURL: string, args: FlightBotSearchArgs): { url: string; init: RequestInit } | null {
   const forms = [...html.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)].slice(0, 20);
   const originKeys = /(origin|from|departure.*(?:airport|city|station)|dep.*code)/i;
   const destinationKeys = /(destination|to|arrival.*(?:airport|city|station)|arr.*code)/i;
@@ -319,24 +327,71 @@ async function fetchText(url: string, init: RequestInit = {}): Promise<{ body: s
   return { body, contentType: response.headers.get("content-type") || "", finalURL: response.url || url };
 }
 
-async function fetchProvider(bot: OfficialCarrierBot, args: FlightBotSearchArgs): Promise<BotFetchResult[]> {
-  const results: BotFetchResult[] = [];
-  const firstURL = bot.directSearchURL ? bot.directSearchURL(args) : bot.startURL;
-  const first = await fetchText(firstURL);
-  results.push({ provider: bot, url: first.finalURL, body: first.body, contentType: first.contentType });
-  if (bot.directSearchURL) return results;
-  const next = formSearchRequest(first.body, first.finalURL, args);
-  if (!next || next.url === first.finalURL) return results;
+function trustedProviderURL(bot: Pick<OfficialCarrierBot, "officialHosts">, value: string) {
   try {
-    const second = await fetchText(next.url, next.init);
-    results.push({ provider: bot, url: second.finalURL, body: second.body, contentType: second.contentType });
-  } catch {}
+    const host = new URL(value).hostname.toLowerCase();
+    return bot.officialHosts.some((trusted) => host === trusted || host.endsWith(`.${trusted}`));
+  } catch { return false; }
+}
+
+function dateEvidence(text: string, travelDate: string) {
+  const [year, month, day] = travelDate.split("-");
+  const tokens = [travelDate, `${day}.${month}.${year}`, `${day}/${month}/${year}`];
+  const date = new Date(`${travelDate}T00:00:00Z`);
+  if (Number.isFinite(date.getTime())) {
+    for (const locale of ["en-US", "ru-RU", "uz-UZ"]) {
+      const shortMonth = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(date);
+      const longMonth = new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" }).format(date);
+      tokens.push(`${Number(day)} ${shortMonth} ${year}`, `${Number(day)} ${longMonth} ${year}`);
+      tokens.push(new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date));
+      tokens.push(new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date));
+    }
+  }
+  const lower = text.toLowerCase();
+  return tokens.some((token) => lower.includes(token.toLowerCase()));
+}
+
+type ObservedFareScope = "totalParty" | "perPassenger";
+
+function inferObservedFareScope(text: string, travelers: Travelers): ObservedFareScope | null {
+  const lower = text.toLowerCase();
+  if (["starting at", "fare from", "prices from", "price from", "dan boshlab"].some((x) => lower.includes(x))) return null;
+  if (/\bот\s+(?:USD|UZS|SAR|AED|RUB|EUR|GBP|[$€₽]|[0-9])/i.test(text)) return null;
+
+  const explicitTotal = ["grand total", "total fare", "trip total", "booking total", "итого", "за всех", "jami"].some((x) => lower.includes(x))
+    || /(?:for|для|за)\s+\d+\s+(?:passengers?|travel(?:l)?ers?|pax|пассажир(?:а|ов)?)/i.test(text);
+  if (explicitTotal) return "totalParty";
+
+  const perPassenger = ["per passenger", "per person", "/ person", "за пассажира", "на пассажира", "за человека"].some((x) => lower.includes(x));
+  if (perPassenger) {
+    if (travelers.children > 0 || travelers.infants > 0) return null;
+    return "perPassenger";
+  }
+
+  return travelerCount(travelers) === 1 ? "totalParty" : null;
+}
+
+async function fetchProvider(bot: OfficialCarrierBot, args: FlightBotSearchArgs): Promise<BotFetchResult[]> {
+  if (bot.serverMode === "deviceOnly") return [];
+
+  // Uzbekistan Airways has its own first-party route form. We inspect only that
+  // carrier's booking page and submit only a form that contains origin,
+  // destination and departure-date fields. This is not a cross-airline crawler.
+  const first = await fetchText(bot.startURL);
+  if (!trustedProviderURL(bot, first.finalURL)) return [];
+  const results: BotFetchResult[] = [{ provider: bot, url: first.finalURL, body: first.body, contentType: first.contentType }];
+  const next = uzbekistanAirwaysSearchRequest(first.body, first.finalURL, args);
+  if (!next || next.url === first.finalURL) return results;
+  const second = await fetchText(next.url, next.init);
+  if (!trustedProviderURL(bot, second.finalURL)) return results;
+  results.push({ provider: bot, url: second.finalURL, body: second.body, contentType: second.contentType });
   return results;
 }
 
+
 export async function normalizeOfficialCarrierText(
   raw: string,
-  bot: Pick<OfficialCarrierBot, "id" | "label" | "airlineCodes" | "fareScope" | "startURL">,
+  bot: Pick<OfficialCarrierBot, "id" | "label" | "airlineCodes" | "fareScope" | "startURL" | "officialHosts">,
   args: FlightBotSearchArgs,
   env: Env,
 ): Promise<InternalFlightCandidate[]> {
@@ -348,6 +403,7 @@ export async function normalizeOfficialCarrierText(
 
   for (let index = 0; index < windows.length && candidates.length < 6; index++) {
     const block = windows[index];
+    if (!dateEvidence(block, args.travelDate)) continue;
     const flights = knownFlightNumbers(block, bot.airlineCodes);
     if (flights.length !== 1) continue; // Strict v1: only direct flights with unambiguous segment identity.
     const ts = times(block);
@@ -355,19 +411,25 @@ export async function normalizeOfficialCarrierText(
     const money = moneyMatches(block);
     if (!money.length) continue;
     const duration = durationMinutes(block);
-    if (duration <= 0) continue; // Never invent duration from local clocks across time zones.
     const fare = money.find((m) => Math.abs(m.index - flights[0].index) < 2200) ?? money[0];
     let usd: number;
     try { usd = (await normalizeToUsd(fare.amount, fare.currency, env)).amountUsd; }
     catch { continue; }
-    const groupFareUsd = bot.fareScope === "group" ? usd : usd * pax;
+    const observedScope = inferObservedFareScope(block, args.travelers);
+    if (!observedScope) continue;
+    const groupFareUsd = observedScope === "totalParty" ? usd : usd * pax;
     if (!Number.isFinite(groupFareUsd) || groupFareUsd <= 0) continue;
     const departureAt = localISO(args.travelDate, ts[0].value);
     let arrivalDay = args.travelDate;
     const [dh, dm] = ts[0].value.split(":").map(Number);
     const [ah, am] = ts[1].value.split(":").map(Number);
-    if (ah * 60 + am < dh * 60 + dm && duration > 360) {
-      const d = new Date(`${args.travelDate}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); arrivalDay = d.toISOString().slice(0, 10);
+    if (ah * 60 + am < dh * 60 + dm) {
+      // Without an explicit duration we cannot know whether the result is an
+      // overnight arrival or a timezone effect. Reject instead of inventing a day.
+      if (duration <= 0) continue;
+      if (duration > 360) {
+        const d = new Date(`${args.travelDate}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); arrivalDay = d.toISOString().slice(0, 10);
+      }
     }
     const arrivalAt = localISO(arrivalDay, ts[1].value);
     const flight = flights[0];
@@ -430,6 +492,15 @@ async function searchOneProvider(env: Env, bot: OfficialCarrierBot, args: Flight
 
 export function officialCarrierBotIds() { return BOTS.map((bot) => bot.id); }
 
+export function officialCarrierBotCapabilities() {
+  return BOTS.map((bot) => ({
+    id: bot.id,
+    serverMode: bot.serverMode,
+    airlineCodes: [...bot.airlineCodes],
+    officialHosts: [...bot.officialHosts],
+  }));
+}
+
 export async function searchOfficialCarrierProvider(
   env: Env,
   providerId: string,
@@ -440,6 +511,7 @@ export async function searchOfficialCarrierProvider(
   }
   const bot = BOTS.find((item) => item.id === providerId);
   if (!bot) throw new Error("UNKNOWN_FLIGHT_PROVIDER");
+  if (bot.serverMode === "deviceOnly") return { candidates: [], fromCache: false };
   const baseKey = cacheKey(args);
   const key = `${baseKey}|provider:${providerId}`;
   const cached = await getCached(env, key);
@@ -480,4 +552,4 @@ export async function searchOfficialCarrierBots(env: Env, args: FlightBotSearchA
   return { candidates: deduped, fromCache: false, attemptedProviders: bots.length, successfulProviders };
 }
 
-export function officialCarrierBotCount() { return BOTS.length; }
+export function officialCarrierBotCount() { return BOTS.filter((bot) => bot.serverMode !== "deviceOnly").length; }

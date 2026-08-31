@@ -97,7 +97,9 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         self.providerName = providerName
         self.direction = direction
         self.airline = airline
-        self.flightNumber = flightNumber
+        let normalizedFlightNumber = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber)
+            ?? flightNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.flightNumber = normalizedFlightNumber
         self.origin = origin.uppercased()
         self.destination = destination.uppercased()
         self.departureAt = departureAt
@@ -110,16 +112,20 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         self.observedAt = observedAt
         self.sourceURL = sourceURL
         self.rawTextFingerprint = rawTextFingerprint
-        self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: flightNumber)
+        self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: normalizedFlightNumber)
         self.segments = segments?.isEmpty == false ? segments : nil
         self.connectionAirports = connectionAirports?.isEmpty == false ? connectionAirports : nil
     }
 
     var deduplicationKey: String {
+        let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber) ?? flightNumber.uppercased()
         let epoch = Int(departureAt.timeIntervalSince1970 / 300)
-        let segmentKey = (segments ?? []).map { "\($0.flightNumber)-\($0.origin.code)-\($0.destination.code)" }.joined(separator: "+")
+        let segmentKey = (segments ?? []).map { segment in
+            let number = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) ?? segment.flightNumber.uppercased()
+            return "\(number)-\(segment.origin.code)-\(segment.destination.code)"
+        }.joined(separator: "+")
         let connectionKey = (connectionAirports ?? []).map(\.code).joined(separator: "+")
-        return "\(airline.lowercased())|\(flightNumber.lowercased())|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)"
+        return "\(normalized)|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)".lowercased()
     }
 
     /// Hard boundary between internal fare references and itineraries that may be
@@ -129,11 +135,20 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         // the model boundary. A UI bug can therefore never turn Google Flights,
         // Skyscanner or REF-* metadata into a purchasable itinerary.
         guard !providerID.isAggregator,
+              let provider = FlightBotProviderRegistry.providers.first(where: { $0.id == providerID }),
               let normalizedPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
+              provider.acceptsPrimaryFlightNumber(normalizedPrimary),
               let airlineCode = FlightReferenceCatalog.airlineCode(from: normalizedPrimary),
               let canonicalAirline = FlightReferenceCatalog.airline(code: airlineCode),
               airline.caseInsensitiveCompare(canonicalAirline.name) == .orderedSame,
+              observedFare > 0,
+              fareScope != .unknown,
+              observedCurrency.range(of: "^[A-Za-z]{3}$", options: .regularExpression) != nil,
+              let source = URL(string: sourceURL), provider.acceptsSourceURL(source),
+              Date().timeIntervalSince(observedAt) >= -5 * 60,
+              Date().timeIntervalSince(observedAt) <= 30 * 60,
               origin != destination,
+              departureAt < arrivalAt,
               let segments,
               segments.count == stops + 1,
               !segments.isEmpty else { return false }
@@ -144,10 +159,12 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
 
         for (index, segment) in segments.enumerated() {
             guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
+                  provider.acceptsPrimaryFlightNumber(normalized),
                   let code = FlightReferenceCatalog.airlineCode(from: normalized),
                   let reference = FlightReferenceCatalog.airline(code: code),
                   segment.airline.caseInsensitiveCompare(reference.name) == .orderedSame,
-                  segment.origin.code != segment.destination.code else { return false }
+                  segment.origin.code != segment.destination.code,
+                  segment.departureAt < segment.arrivalAt else { return false }
             if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
         }
 

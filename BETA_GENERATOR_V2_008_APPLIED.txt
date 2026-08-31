@@ -1,0 +1,14 @@
+BETA_GENERATOR_V2_008_APPLIED
+
+Generator / Flight Engine hardening:
+- single-package progressive flow preserved; local pricing formula unchanged
+- first four official airline adapters only; no Amadeus/GDS/paid flight APIs
+- ambiguous multi-passenger fare scope fails closed instead of multiplying an unlabeled amount
+- promotional “from” fares are rejected
+- Qanot/Centrum/Air Samarkand stay device-assisted until first-party server contracts are proven
+- Uzbekistan Airways remains server-first with dedicated device fallback
+- bounded two-provider WKWebView search surfaces verified candidates without waiting for a slower provider
+- return prewarm survives a flexible outbound-date choice; hotel prices reverify on authoritative date changes
+- exact selected hotel room/category requires visible provider-card evidence
+- hotel prices require explicit stay-total or per-night semantics; provider brand is never treated as price semantics
+- decimal-comma and mixed grouping are normalized without inflating fares

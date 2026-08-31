@@ -35,7 +35,7 @@ final class JourneyStore: ObservableObject {
     init() {
         self.hotelService = HotelCatalogService()
         self.flightService = AutomaticFlightSearchService()
-        self.quoteService = BetaPackageQuoteService()
+        self.quoteService = LocalOnlyPackageQuoteService()
     }
 
     init(
@@ -155,19 +155,19 @@ final class JourneyStore: ObservableObject {
             selectedRoomCategory = nil
         }
         selectedHotel = hotel
-        invalidateFlightAndQuoteSelection()
+        invalidateHotelPriceAndQuote()
     }
 
     func chooseRoom(_ room: HotelRoom?) {
         selectedRoom = room
         if room != nil { selectedRoomCategory = nil }
-        quote = nil
+        invalidateHotelPriceAndQuote()
     }
 
     func chooseRoomCategory(_ category: IumrahRoomCategoryOption?) {
         selectedRoomCategory = category
         if category != nil { selectedRoom = nil }
-        quote = nil
+        invalidateHotelPriceAndQuote()
     }
 
     /// Flight search may return ±1/±2 day options. Once the pilgrim selects one,
@@ -185,6 +185,7 @@ final class JourneyStore: ObservableObject {
         let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
         if !Calendar.current.isDate(selectedDay, inSameDayAs: trip.departureDate) {
             trip.departureDate = selectedDay
+            (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
         }
     }
 
@@ -198,6 +199,7 @@ final class JourneyStore: ObservableObject {
         let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
         if selectedDay > trip.departureDate, !Calendar.current.isDate(selectedDay, inSameDayAs: trip.returnDate) {
             trip.returnDate = selectedDay
+            (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
         }
     }
 
@@ -207,29 +209,28 @@ final class JourneyStore: ObservableObject {
             selectedMadinahRoomCategory = nil
         }
         selectedMadinahHotel = hotel
-        invalidateFlightAndQuoteSelection()
+        invalidateHotelPriceAndQuote()
     }
 
     func chooseMadinahRoom(_ room: HotelRoom?) {
         selectedMadinahRoom = room
         if room != nil { selectedMadinahRoomCategory = nil }
-        quote = nil
+        invalidateHotelPriceAndQuote()
     }
 
     func chooseMadinahRoomCategory(_ category: IumrahRoomCategoryOption?) {
         selectedMadinahRoomCategory = category
         if category != nil { selectedMadinahRoom = nil }
-        quote = nil
+        invalidateHotelPriceAndQuote()
     }
 
-    private func invalidateFlightAndQuoteSelection() {
-        selectedOutbound = nil
-        selectedInbound = nil
+
+    private func invalidateHotelPriceAndQuote() {
         quote = nil
         hotelPriceSnapshot = nil
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
-        (flightService as? AutomaticFlightSearchService)?.invalidateSession()
+        (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
     }
 
     var hasFinalGeneratorQuote: Bool {
@@ -259,7 +260,11 @@ final class JourneyStore: ObservableObject {
                 hotelPriceSnapshot = await components.ensureHotelPrices(
                     trip: trip,
                     makkahHotel: hotel,
-                    madinahHotel: selectedMadinahHotel
+                    madinahHotel: selectedMadinahHotel,
+                    makkahRoomId: selectedRoom?.id ?? selectedRoomCategory?.id,
+                    makkahRoomName: selectedRoom?.name ?? selectedRoomCategory?.displayName,
+                    madinahRoomId: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
+                    madinahRoomName: selectedMadinahRoom?.name ?? selectedMadinahRoomCategory?.displayName
                 )
             }
             let outboundUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
@@ -305,48 +310,57 @@ final class JourneyStore: ObservableObject {
         roomID: String?,
         observations: [HotelPriceObservation]
     ) async throws -> LocalHotelPriceComponent {
-        let stay = TripStayPlanner.breakdown(for: trip)
-        let nights = city == "Makkah" ? stay.makkahNights : stay.madinahNights
-
-        // A concrete room must never inherit a generic cheapest-room web fare.
-        // Use only its configured component rate unless a future provider returns
-        // explicit room identity in HotelPriceObservation.
-        if roomID == nil {
-            let live = observations
-                .filter { $0.hotelId == hotel.id && $0.amount > 0 }
-                .sorted { $0.amount < $1.amount }
-            for observation in live {
-                do {
-                    let usd = try await LocalFXRateService.shared.usd(observation.amount, currency: observation.currency)
-                    guard let unit = LocalHotelPriceComponent.Unit(rawValue: observation.unit.rawValue) else { continue }
-                    return LocalHotelPriceComponent(
-                        amountUsd: usd,
-                        unit: unit,
-                        nights: max(1, nights),
-                        hotelId: hotel.id,
-                        roomId: nil,
-                        source: observation.providerName
-                    )
-                } catch { continue }
-            }
-        }
-
-        do {
-            let configured = try await packageEngine.configuredHotelComponentPrice(hotelID: hotel.id, roomID: roomID)
-            guard configured.amount > 0, let unit = LocalHotelPriceComponent.Unit(rawValue: configured.unit) else {
-                throw LocalPricingError.missingHotelPrice(city)
-            }
-            return LocalHotelPriceComponent(
-                amountUsd: configured.amount,
-                unit: unit,
-                nights: max(1, nights),
-                hotelId: hotel.id,
-                roomId: configured.roomId,
-                source: configured.source
-            )
-        } catch {
+        let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
+        let window: TripStayWindow
+        if city == "Makkah" {
+            window = windows.makkah
+        } else if let madinah = windows.madinah {
+            window = madinah
+        } else {
             throw LocalPricingError.missingHotelPrice(city)
         }
+
+        let bedOccupants = max(1, trip.adults + trip.children)
+        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / 4.0)))
+        let effectiveRooms = max(trip.rooms, minimumRooms)
+        var verified: [(component: LocalHotelPriceComponent, totalUsd: Decimal)] = []
+
+        for observation in observations where observation.isUsable(
+            for: hotel,
+            city: city,
+            window: window,
+            roomId: roomID
+        ) {
+            do {
+                let usd = try await LocalFXRateService.shared.usd(observation.amount, currency: observation.currency)
+                guard usd > 0, let unit = LocalHotelPriceComponent.Unit(rawValue: observation.unit.rawValue) else { continue }
+                let component = LocalHotelPriceComponent(
+                    amountUsd: usd,
+                    unit: unit,
+                    nights: max(1, window.nights),
+                    hotelId: hotel.id,
+                    roomId: roomID,
+                    source: observation.providerName
+                )
+                let totalUsd: Decimal
+                switch unit {
+                case .totalStay: totalUsd = usd
+                case .perRoomStay: totalUsd = usd * Decimal(effectiveRooms)
+                case .perRoomNight: totalUsd = usd * Decimal(effectiveRooms) * Decimal(max(1, window.nights))
+                }
+                if totalUsd > 0 { verified.append((component, totalUsd)) }
+            } catch {
+                continue
+            }
+        }
+
+        guard let best = verified.min(by: { $0.totalUsd < $1.totalUsd }) else {
+            // Never substitute package_primary_hotels or an estimated room rate for
+            // a failed current-price check. Final package pricing is allowed only
+            // after an official live hotel surface confirms this exact stay/room.
+            throw LocalPricingError.missingHotelPrice(city)
+        }
+        return best.component
     }
 
     private func travelCalendarDay(for date: Date, airportCode: String) -> Date {

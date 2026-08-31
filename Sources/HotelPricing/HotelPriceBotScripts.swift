@@ -9,17 +9,24 @@ enum HotelPriceBotScripts {
     })()
     """
 
-    static func extractExactHotel(provider: HotelPriceProvider, hotelName: String) -> String {
+    static func extractExactHotel(provider: HotelPriceProvider, hotelName: String, roomName: String?) -> String {
         let escapedName = jsEscape(hotelName)
+        let escapedRoom = jsEscape(roomName ?? "")
         let providerID = provider.id.rawValue
         return """
         (() => {
           const provider = '\(providerID)';
           const wanted = '\(escapedName)';
+          const wantedRoom = '\(escapedRoom)';
           const clean = v => (v || '').replace(/\\s+/g,' ').trim();
           const normalize = v => clean(v).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,' ');
           const stop = new Set(['hotel','hotels','makkah','mecca','madinah','medina','the','al','by','and','resort','apartments','hotel']);
           const targetTokens = normalize(wanted).split(' ').filter(t => t.length > 2 && !stop.has(t));
+          const normalizedWantedRoom = normalize(wantedRoom);
+          const roomStop = new Set(['room','rooms','guest','guests','bed','beds']);
+          const roomTokens = normalizedWantedRoom.split(' ').filter(t => t.length > 2 && !roomStop.has(t));
+          const categoryTerms = ['single','double','triple','quadruple','family','suite','deluxe','executive','superior','standard','king','queen','twin'];
+          const requiredCategoryTerms = categoryTerms.filter(t => normalizedWantedRoom.split(' ').includes(t));
           const visible = el => {
             const r = el.getBoundingClientRect();
             const s = getComputedStyle(el);
@@ -45,6 +52,18 @@ enum HotelPriceBotScripts {
             const body = clean(card.innerText || '');
             const score = Math.max(similarity(title), similarity(body) * 0.86);
             if (score < 0.62 || !money.test(body)) continue;
+            let roomEvidence = true;
+            if (wantedRoom) {
+              const normalizedBody = normalize(body);
+              // The internal iumrah room ID is not a Booking/Expedia inventory ID.
+              // We only correlate it after the selected human-readable category is
+              // actually visible on the priced provider card.
+              const exactPhrase = normalizedWantedRoom.length > 0 && normalizedBody.includes(normalizedWantedRoom);
+              const distinctiveMatch = roomTokens.length >= 2 && roomTokens.every(token => normalizedBody.includes(token));
+              const categoryMatch = requiredCategoryTerms.length > 0 && requiredCategoryTerms.every(token => normalizedBody.includes(token));
+              roomEvidence = exactPhrase || distinctiveMatch || categoryMatch;
+              if (!roomEvidence) continue;
+            }
 
             let priceText = '';
             let metaText = '';
@@ -64,7 +83,7 @@ enum HotelPriceBotScripts {
 
             if (!best || score > bestScore) {
               bestScore = score;
-              best = { title, priceText, metaText, body: body.slice(0, 4200), url: location.href, score };
+              best = { title, priceText, metaText, body: body.slice(0, 4200), url: location.href, score, roomEvidence };
             }
           }
           return best ? JSON.stringify(best) : '';

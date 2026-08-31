@@ -249,8 +249,8 @@ struct OutboundFlightView: View {
 
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {
         var map: [String: FlightOffer] = [:]
-        for offer in lhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) { map[offer.sourceCandidateID ?? offer.id] = offer }
-        for offer in rhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) { map[offer.sourceCandidateID ?? offer.id] = offer }
+        for offer in lhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) { map[offer.deduplicationKey] = offer }
+        for offer in rhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) { map[offer.deduplicationKey] = offer }
         return Array(map.values)
     }
 

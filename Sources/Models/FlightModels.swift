@@ -56,8 +56,10 @@ struct FlightSegment: Identifiable, Hashable, Codable {
     ) {
         self.id = id
         self.airline = airline
-        self.airlineCode = airlineCode?.uppercased()
-        self.flightNumber = flightNumber
+        let normalizedFlightNumber = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber)
+            ?? flightNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: normalizedFlightNumber)
+        self.flightNumber = normalizedFlightNumber
         self.origin = origin
         self.destination = destination
         self.departureAt = departureAt
@@ -174,6 +176,20 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         self.fareSourceURL = fareSourceURL?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? fareSourceURL : nil
     }
 
+    /// Stable itinerary identity shared with LiveFlightCandidate. Server and
+    /// device discovery can assign different source IDs to the same physical
+    /// flight; UI deduplication must therefore use flight/route/time/segments.
+    var deduplicationKey: String {
+        let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber) ?? flightNumber.uppercased()
+        let epoch = Int(departureAt.timeIntervalSince1970 / 300)
+        let segmentKey = (segments ?? []).map { segment in
+            let number = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) ?? segment.flightNumber.uppercased()
+            return "\(number)-\(segment.origin.code)-\(segment.destination.code)"
+        }.joined(separator: "+")
+        let connectionKey = (connectionAirports ?? []).map(\.code).joined(separator: "+")
+        return "\(normalized)|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)".lowercased()
+    }
+
     var displaySegments: [FlightSegment] {
         if let segments, !segments.isEmpty { return segments }
         let code = airlineCode ?? FlightReferenceCatalog.airlineCode(from: flightNumber)
@@ -237,15 +253,28 @@ struct FlightOffer: Identifiable, Hashable, Codable {
               let primaryCode = FlightReferenceCatalog.airlineCode(from: exactPrimary),
               let primaryCarrier = FlightReferenceCatalog.airline(code: primaryCode),
               airline.caseInsensitiveCompare(primaryCarrier.name) == .orderedSame,
+              let fareAmount, fareAmount > 0,
+              let fareScope, fareScope != .unknown,
+              let fareObservedAt,
+              Date().timeIntervalSince(fareObservedAt) >= -5 * 60,
+              Date().timeIntervalSince(fareObservedAt) <= 30 * 60,
+              let fareSourceURL, let fareSource = URL(string: fareSourceURL),
+              let provider = FlightBotProviderRegistry.providers.first(where: { $0.displayName.caseInsensitiveCompare(sourceLabel) == .orderedSame }),
+              provider.acceptsSourceURL(fareSource),
+              provider.acceptsPrimaryFlightNumber(exactPrimary),
+              currency.range(of: "^[A-Za-z]{3}$", options: .regularExpression) != nil,
+              departureAt < arrivalAt,
               let segments, !segments.isEmpty, segments.count == stops + 1 else { return false }
 
         guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == exactPrimary else { return false }
         guard segments.allSatisfy({ segment in
             guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
+                  provider.acceptsPrimaryFlightNumber(normalized),
                   let code = FlightReferenceCatalog.airlineCode(from: normalized),
                   let carrier = FlightReferenceCatalog.airline(code: code) else { return false }
             return segment.airline.caseInsensitiveCompare(carrier.name) == .orderedSame &&
-                   segment.origin.code != segment.destination.code
+                   segment.origin.code != segment.destination.code &&
+                   segment.departureAt < segment.arrivalAt
         }) else { return false }
         guard segments.first?.origin.code == origin, segments.last?.destination.code == destination else { return false }
         guard zip(segments, segments.dropFirst()).allSatisfy({ $0.destination.code == $1.origin.code }) else { return false }

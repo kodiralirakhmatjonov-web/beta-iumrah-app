@@ -35,25 +35,57 @@ struct FlightBotProvider: Identifiable, Hashable {
         case global
     }
 
+    enum ExecutionProfile: String, Hashable {
+        /// Uzbekistan Airways' own booking form. Server may submit the first-party
+        /// route form; iPhone keeps a dedicated WebKit adapter as a fallback.
+        case uzbekistanBooking
+        /// Qanot Sharq exposes a stable first-party WebSky deep-search URL, but
+        /// the production result surface requires JavaScript. It therefore runs
+        /// in WKWebView rather than being misrepresented as a server HTTP bot.
+        case qanotWebSky
+        /// Centrum's IBE currently presents interactive anti-bot verification,
+        /// therefore production discovery is device-assisted only.
+        case centrumIBEDevice
+        /// Air Samarkand's booking frontend is sessionful; production discovery is
+        /// kept on the persistent device WebKit session until a stable HTTP contract
+        /// is verified independently.
+        case airSamarkandSessionDevice
+    }
+
     let id: FlightBotProviderID
     let displayName: String
     let marketScope: MarketScope
     let priority: Int
     let baseURL: URL
     let defaultFareScope: FlightFareScope
+    let airlineCodes: Set<String>
+    let officialHosts: Set<String>
+    let executionProfile: ExecutionProfile
+    let supportsServerSearch: Bool
+    let supportsDeviceSearch: Bool
 
     var isOfficialCarrierSource: Bool { !id.isAggregator }
 
-    /// Some official booking engines expose a stable first-party search URL.
-    /// Using it is materially more reliable than simulating taps on a marketing
-    /// homepage. Providers without a documented route keep the form automation.
     var usesDirectSearchURL: Bool {
-        id == .qanotSharq
+        executionProfile == .qanotWebSky
+    }
+
+    func acceptsSourceURL(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        return officialHosts.contains { trusted in
+            host == trusted || host.hasSuffix(".\(trusted)")
+        }
+    }
+
+    func acceptsPrimaryFlightNumber(_ value: String) -> Bool {
+        guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(value),
+              let code = FlightReferenceCatalog.airlineCode(from: normalized) else { return false }
+        return airlineCodes.contains(code.uppercased())
     }
 
     func searchURL(for request: FlightBotSearchRequest) -> URL {
-        switch id {
-        case .qanotSharq:
+        switch executionProfile {
+        case .qanotWebSky:
             var components = URLComponents(string: "https://booking.qanotsharq.com/websky_grs/")!
             let formatter = DateFormatter()
             formatter.calendar = Calendar(identifier: .gregorian)
@@ -73,8 +105,6 @@ struct FlightBotProvider: Identifiable, Hashable {
             ]
             return components.url ?? baseURL
         default:
-            // Production search opens the airline's own booking surface.
-            // No Google Flights/Skyscanner provider is registered here.
             return baseURL
         }
     }
@@ -86,10 +116,9 @@ enum FlightBotProviderRegistry {
     ]
     static let saudiAirportCodes: Set<String> = ["JED", "MED", "RUH", "DMM", "TIF"]
 
-    /// Production sources are official airline booking surfaces only. Aggregators
-    /// were removed because their DOM can expose provider names and fare-reference
-    /// rows without the exact operating flight number, which is unacceptable for
-    /// a booking product.
+    /// Production registry intentionally contains only the first four carriers.
+    /// Future provider IDs remain Codable for old checkpoints, but they are not
+    /// searched until each booking engine has its own validated adapter.
     static let providers: [FlightBotProvider] = [
         FlightBotProvider(
             id: .uzbekistanAirways,
@@ -97,15 +126,25 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 10,
             baseURL: URL(string: "https://booking.uzairways.com/")!,
-            defaultFareScope: .perPassenger
+            defaultFareScope: .perPassenger,
+            airlineCodes: ["HY"],
+            officialHosts: ["booking.uzairways.com"],
+            executionProfile: .uzbekistanBooking,
+            supportsServerSearch: true,
+            supportsDeviceSearch: true
         ),
         FlightBotProvider(
             id: .qanotSharq,
             displayName: "Qanot Sharq",
             marketScope: .uzbekistanPriority,
             priority: 20,
-            baseURL: URL(string: "https://qanotsharq.com/en")!,
-            defaultFareScope: .perPassenger
+            baseURL: URL(string: "https://booking.qanotsharq.com/websky_grs/")!,
+            defaultFareScope: .perPassenger,
+            airlineCodes: ["HH"],
+            officialHosts: ["booking.qanotsharq.com"],
+            executionProfile: .qanotWebSky,
+            supportsServerSearch: false,
+            supportsDeviceSearch: true
         ),
         FlightBotProvider(
             id: .centrumAir,
@@ -113,7 +152,12 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 30,
             baseURL: URL(string: "https://booking.centrum-air.com/ibe/C6/home/?language=en")!,
-            defaultFareScope: .perPassenger
+            defaultFareScope: .perPassenger,
+            airlineCodes: ["C6"],
+            officialHosts: ["booking.centrum-air.com"],
+            executionProfile: .centrumIBEDevice,
+            supportsServerSearch: false,
+            supportsDeviceSearch: true
         ),
         FlightBotProvider(
             id: .airSamarkand,
@@ -121,68 +165,26 @@ enum FlightBotProviderRegistry {
             marketScope: .uzbekistanPriority,
             priority: 40,
             baseURL: URL(string: "https://booking.airsamarkand.com/en/")!,
-            defaultFareScope: .perPassenger
-        ),
-        FlightBotProvider(
-            id: .flyKhiva,
-            displayName: "Fly Khiva",
-            marketScope: .uzbekistanPriority,
-            priority: 50,
-            baseURL: URL(string: "https://booking.flykhiva.uz/new/")!,
-            defaultFareScope: .perPassenger
-        ),
-        FlightBotProvider(
-            id: .silkAvia,
-            displayName: "Silk Avia",
-            marketScope: .uzbekistanPriority,
-            priority: 60,
-            baseURL: URL(string: "https://pss.silk-avia.com/ibe/search?lang=en")!,
-            defaultFareScope: .perPassenger
-        ),
-
-        FlightBotProvider(id: .airArabia, displayName: "Air Arabia", marketScope: .regional, priority: 70, baseURL: URL(string: "https://www.airarabia.com/en")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .flydubai, displayName: "flydubai", marketScope: .regional, priority: 75, baseURL: URL(string: "https://www.flydubai.com/en/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .turkishAirlines, displayName: "Turkish Airlines", marketScope: .regional, priority: 80, baseURL: URL(string: "https://www.turkishairlines.com/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .jazeeraAirways, displayName: "Jazeera Airways", marketScope: .regional, priority: 85, baseURL: URL(string: "https://www.jazeeraairways.com/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .saudia, displayName: "Saudia", marketScope: .regional, priority: 90, baseURL: URL(string: "https://www.saudia.com/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .flynas, displayName: "flynas", marketScope: .regional, priority: 95, baseURL: URL(string: "https://www.flynas.com/en")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .airAstana, displayName: "Air Astana", marketScope: .regional, priority: 100, baseURL: URL(string: "https://airastana.com/")!, defaultFareScope: .perPassenger),
-        FlightBotProvider(id: .flyArystan, displayName: "FlyArystan", marketScope: .regional, priority: 105, baseURL: URL(string: "https://flyarystan.com/")!, defaultFareScope: .perPassenger),
+            defaultFareScope: .perPassenger,
+            airlineCodes: ["9S"],
+            officialHosts: ["booking.airsamarkand.com"],
+            executionProfile: .airSamarkandSessionDevice,
+            supportsServerSearch: false,
+            supportsDeviceSearch: true
+        )
     ]
 
     static func ordered(for origin: String, destination: String? = nil) -> [FlightBotProvider] {
-        let from = origin.uppercased()
-        let to = destination?.uppercased()
-        let fromUzbekistan = uzbekistanAirportCodes.contains(from)
-        let toUzbekistan = to.map(uzbekistanAirportCodes.contains) ?? false
-        let domesticUzbekistan = fromUzbekistan && toUzbekistan
-        let saudiRoute = saudiAirportCodes.contains(from) || (to.map(saudiAirportCodes.contains) ?? false)
-        let byID = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
+        // The first production milestone is deliberately narrow: these four
+        // provider-specific adapters are attempted in stable priority order.
+        providers.sorted { $0.priority < $1.priority }
+    }
 
-        let ids: [FlightBotProviderID]
-        if domesticUzbekistan {
-            ids = [.uzbekistanAirways, .qanotSharq, .centrumAir, .silkAvia, .airSamarkand, .flyKhiva]
-        } else if fromUzbekistan || toUzbekistan {
-            // Uzbek carriers get the first six slots for both directions. This is
-            // what makes TAS/SKD/etc. inventory visible before regional connections.
-            ids = [
-                .uzbekistanAirways, .qanotSharq, .centrumAir, .airSamarkand, .flyKhiva, .silkAvia,
-                .airArabia, .flydubai, .turkishAirlines, .jazeeraAirways,
-                .saudia, .flynas, .airAstana, .flyArystan,
-            ]
-        } else if saudiRoute {
-            ids = [
-                .saudia, .flynas, .airArabia, .flydubai, .jazeeraAirways, .turkishAirlines,
-                .airAstana, .flyArystan, .uzbekistanAirways, .qanotSharq,
-            ]
-        } else {
-            ids = [
-                .turkishAirlines, .airArabia, .flydubai, .jazeeraAirways,
-                .airAstana, .flyArystan, .saudia, .flynas,
-                .uzbekistanAirways, .qanotSharq,
-            ]
-        }
+    static func serverProviders(for origin: String, destination: String? = nil) -> [FlightBotProvider] {
+        ordered(for: origin, destination: destination).filter(\.supportsServerSearch)
+    }
 
-        return ids.compactMap { byID[$0] }.filter(\.isOfficialCarrierSource)
+    static func deviceProviders(for origin: String, destination: String? = nil) -> [FlightBotProvider] {
+        ordered(for: origin, destination: destination).filter(\.supportsDeviceSearch)
     }
 }

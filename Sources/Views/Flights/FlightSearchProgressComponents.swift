@@ -256,26 +256,22 @@ struct FlightResultRowModel: Identifiable {
         let verifiedCandidates = candidates.filter(\.isDisplayableCandidate)
         let verifiedOffers = offers.filter(\.isVerifiedForBooking)
 
-        var offerByCandidate: [String: FlightOffer] = [:]
+        var offerByItinerary: [String: FlightOffer] = [:]
         for offer in verifiedOffers {
-            guard let id = offer.sourceCandidateID else { continue }
-            // Repricing the same candidate may emit a newer quote with the same
-            // source ID. Keep the latest value instead of risking a duplicate-key
-            // trap while SwiftUI is rendering the live list.
-            offerByCandidate[id] = offer
+            offerByItinerary[offer.deduplicationKey] = offer
         }
 
         var output = verifiedCandidates.map { candidate in
             FlightResultRowModel(
                 id: candidate.id,
                 candidate: candidate,
-                offer: offerByCandidate[candidate.id]
+                offer: offerByItinerary[candidate.deduplicationKey]
             )
         }
-        let candidateIDs = Set(verifiedCandidates.map(\.id))
+        let candidateKeys = Set(verifiedCandidates.map(\.deduplicationKey))
         output.append(contentsOf: verifiedOffers.compactMap { offer in
-            guard let candidateID = offer.sourceCandidateID, !candidateIDs.contains(candidateID) else { return nil }
-            return FlightResultRowModel(id: candidateID, candidate: nil, offer: offer)
+            guard !candidateKeys.contains(offer.deduplicationKey) else { return nil }
+            return FlightResultRowModel(id: offer.sourceCandidateID ?? offer.id, candidate: nil, offer: offer)
         })
         return output.sorted { lhs, rhs in
             let calendar = Calendar.current

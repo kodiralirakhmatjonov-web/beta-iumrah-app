@@ -2,6 +2,8 @@ import Foundation
 
 enum FlightBotScripts {
     static func prepareSearch(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
+        let vocabulary = searchVocabulary(for: provider)
+        let surfaceSignatures = searchSurfaceSignatures(for: provider)
         let dateFormatter = DateFormatter()
         dateFormatter.calendar = Calendar(identifier: .gregorian)
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -37,6 +39,7 @@ enum FlightBotScripts {
           const adults = \(max(1, request.adults));
           const children = \(max(0, request.children));
           const infants = \(max(0, request.infants));
+          const surfaceSignatures = \(jsNestedArray(surfaceSignatures));
 
           const visible = el => {
             if (!el) return false;
@@ -45,6 +48,9 @@ enum FlightBotScripts {
             return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
           };
           const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
+          const pageText = clean(document.body?.innerText || '').toLowerCase();
+          const surfaceOK = surfaceSignatures.some(group => group.every(token => pageText.includes(token)));
+          if (!surfaceOK) return {ok:false, reason:'unexpected-provider-surface'};
           const descriptor = el => {
             const own = [el.getAttribute('aria-label'), el.getAttribute('placeholder'), el.getAttribute('name'), el.id, el.getAttribute('data-testid'), el.getAttribute('data-stid')].filter(Boolean).join(' ');
             const label = el.labels && el.labels.length ? Array.from(el.labels).map(x => x.innerText || x.textContent || '').join(' ') : '';
@@ -78,7 +84,7 @@ enum FlightBotScripts {
 
           // Force a one-way search. iumrah searches each direction separately so
           // every returned card corresponds to one concrete itinerary/date.
-          const oneWayWords = ['one way','one-way','direct route','в одну сторону','только туда','bir tomonga','bir yo‘nalish','bir yonalish'];
+          const oneWayWords = \(jsArray(vocabulary.oneWayWords));
           const clickable = Array.from(document.querySelectorAll('button,[role=button],label,input[type=radio],input[type=checkbox]')).filter(visible);
           for (const el of clickable) {
             const t = clean((el.innerText || el.textContent || el.getAttribute('aria-label') || '')).toLowerCase();
@@ -90,9 +96,9 @@ enum FlightBotScripts {
 
           const controls = Array.from(document.querySelectorAll('input,select,textarea')).filter(visible);
           const find = words => controls.find(el => words.some(w => descriptor(el).includes(w)));
-          const originWords = ['from','origin','departure airport','откуда','аэропорт вылета','qayerdan',"jo'nash",'uchish'];
-          const destinationWords = ['to','destination','arrival airport','куда','аэропорт прилета','qayerga','yetib','borish'];
-          const dateWords = ['departure date','depart date','date','вылет','дата вылета',"jo'nash sanasi",'uchish sanasi','ketish'];
+          const originWords = \(jsArray(vocabulary.originWords));
+          const destinationWords = \(jsArray(vocabulary.destinationWords));
+          const dateWords = \(jsArray(vocabulary.dateWords));
           const passengerWords = /adult|child|infant|passenger|взрос|дет|млад|пассаж|kattalar|bolalar|chaqaloq|yo['’]?lovchi/;
           const routeControls = controls.filter(el => {
             const d = descriptor(el);
@@ -106,9 +112,13 @@ enum FlightBotScripts {
             return el.getAttribute('role') === 'combobox';
           });
 
-          const from = find(originWords) || routeControls[0];
-          const to = controls.find(el => el !== from && destinationWords.some(w => descriptor(el).includes(w))) || routeControls.find(el => el !== from);
-          const dateControl = controls.find(el => el.type === 'date') || find(dateWords);
+          const from = find(originWords);
+          const to = controls.find(el => el !== from && destinationWords.some(w => descriptor(el).includes(w)));
+          const dateButtons = Array.from(document.querySelectorAll('button,[role=button]')).filter(visible);
+          const dateControl = controls.find(el => el.type === 'date') || find(dateWords) || dateButtons.find(el => {
+            const label = clean(el.innerText || el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
+            return dateWords.some(word => label.includes(word));
+          });
 
           if (from) {
             if (!setSelect(from, origin)) setNativeValue(from, origin);
@@ -117,15 +127,13 @@ enum FlightBotScripts {
             if (!setSelect(to, destination)) setNativeValue(to, destination);
           }
           if (dateControl) {
-            const hint = descriptor(dateControl);
-            const value = dateControl.type === 'date' || /yyyy|year|date/.test(hint) ? isoDate : displayDate;
-            setNativeValue(dateControl, value);
-            // Booking engines often read a hidden ISO field next to the visible input.
-            const hidden = dateControl.parentElement?.querySelector('input[type=hidden]');
-            if (hidden) setNativeValue(hidden, isoDate);
-            // Custom calendars are frequently readonly text controls. Open the
-            // calendar after setting its backing value so finalizeSearch can click
-            // the exact requested date if the SPA ignores synthetic input events.
+            if (dateControl.tagName === 'INPUT' || dateControl.tagName === 'SELECT' || dateControl.tagName === 'TEXTAREA') {
+              const hint = descriptor(dateControl);
+              const value = dateControl.type === 'date' || /yyyy|year|date/.test(hint) ? isoDate : displayDate;
+              setNativeValue(dateControl, value);
+              const hidden = dateControl.parentElement?.querySelector('input[type=hidden]');
+              if (hidden) setNativeValue(hidden, isoDate);
+            }
             if (dateControl.type !== 'date') { try { dateControl.click(); } catch (_) {} }
           }
 
@@ -140,12 +148,14 @@ enum FlightBotScripts {
             if (!setSelect(el, String(value))) setNativeValue(el, String(value));
           }
 
-          return {ok:true, origin:!!from, destination:!!to, date:!!dateControl};
+          return {ok:!!from && !!to && !!dateControl, origin:!!from, destination:!!to, date:!!dateControl};
         })()
         """
     }
 
     static func finalizeSearch(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
+        let vocabulary = searchVocabulary(for: provider)
+        let surfaceSignatures = searchSurfaceSignatures(for: provider)
         let dateFormatter = DateFormatter()
         dateFormatter.calendar = Calendar(identifier: .gregorian)
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -191,7 +201,11 @@ enum FlightBotScripts {
           const russianLongDate = '\(jsEscape(russianLongDate))';
           const englishMonthYear = '\(jsEscape(englishMonthYear))';
           const russianMonthYear = '\(jsEscape(russianMonthYear))';
+          const surfaceSignatures = \(jsNestedArray(surfaceSignatures));
           const clean = value => (value || '').replace(/\\s+/g,' ').trim();
+          const pageText = clean(document.body?.innerText || '').toLowerCase();
+          const surfaceOK = surfaceSignatures.some(group => group.every(token => pageText.includes(token)));
+          if (!surfaceOK) return {ok:false, reason:'unexpected-provider-surface'};
           const visible = el => {
             if (!el) return false;
             const r = el.getBoundingClientRect();
@@ -216,8 +230,11 @@ enum FlightBotScripts {
             }
             return el.getAttribute('role') === 'combobox';
           });
-          const from = controls.find(el => /from|origin|откуда|qayerdan|jo['’]?nash|uchish/.test(descriptor(el))) || routeControls[0];
-          const to = controls.find(el => el !== from && /to|destination|куда|qayerga|borish|arrival/.test(descriptor(el))) || routeControls.find(el => el !== from);
+          const originWords = \(jsArray(vocabulary.originWords));
+          const destinationWords = \(jsArray(vocabulary.destinationWords));
+          const from = controls.find(el => originWords.some(word => descriptor(el).includes(word)));
+          const to = controls.find(el => el !== from && destinationWords.some(word => descriptor(el).includes(word)));
+          if (!from || !to) return {ok:false, reason:'route-controls-not-found'};
 
           const acceptSuggestion = (el, value) => {
             if (!el) return false;
@@ -265,10 +282,7 @@ enum FlightBotScripts {
             if (dayCell) { try { dayCell.click(); } catch (_) {} }
           }
 
-          const searchWords = [
-            'search flights','search flight','search tickets','ticket search','find flights',
-            'поиск билетов','найти рейсы','поиск рейсов','chipta olish','reys qidirish','qidirish','izlash'
-          ];
+          const searchWords = \(jsArray(vocabulary.searchWords));
           const form = (to || from)?.closest('form');
           const allButtons = Array.from(document.querySelectorAll('button,input[type=submit],a,[role=button]')).filter(visible);
           const formButtons = form ? Array.from(form.querySelectorAll('button,input[type=submit],[role=button]')).filter(visible) : [];
@@ -277,17 +291,13 @@ enum FlightBotScripts {
             return searchWords.some(w => label === w || label.includes(w));
           };
           const search = formButtons.find(buttonMatches) || allButtons.find(buttonMatches);
-          if (search) { try { search.click(); return {ok:true, clicked:true}; } catch (_) {} }
-
-          // Final fallback: submitting the closest route form is safer than
-          // clicking a generic site-search CTA elsewhere on an airline homepage.
-          if (form) {
-            try {
-              if (form.requestSubmit) form.requestSubmit(); else form.submit();
-              return {ok:true, submitted:true};
-            } catch (_) {}
+          if (search) {
+            try { search.click(); return {ok:true, clicked:true}; } catch (_) {}
           }
-          return {ok:false, clicked:false};
+          // Never submit an arbitrary nearest form. If the provider's explicit
+          // search CTA cannot be identified, fail this adapter rather than risk
+          // turning an unrelated form or stale page into a flight candidate.
+          return {ok:false, clicked:false, reason:'search-control-not-found'};
         })()
         """
     }
@@ -433,115 +443,115 @@ enum FlightBotScripts {
     })()
     """#
 
-    static let extractCandidateBlocks = #"""
-    (() => {
-      const money = /(?:USD|US\$|\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\s*[0-9][0-9\s,.]*|[0-9][0-9\s,.]*\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
-      const time = /\b(?:(?:[01]?\d|2[0-3]):[0-5]\d|(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM))\b/gi;
-      const flight = /\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\s-]?\d{1,4}\b/i;
-      const airport = /\b[A-Z]{3}\b/g;
-      const visible = el => {
-        const r = el.getBoundingClientRect();
-        const st = getComputedStyle(el);
-        return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
-      };
-      const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
-      const semanticText = node => {
-        const parts = [node.innerText || '', node.textContent || ''];
-        const descendants = Array.from(node.querySelectorAll('[aria-label],[title],[alt],[data-testid],[data-stid],[data-flight-number],[data-flight]')).slice(0, 520);
-        for (const el of descendants) {
-          for (const attr of ['aria-label','title','alt','data-testid','data-stid','data-flight-number','data-flight']) {
-            const value = el.getAttribute(attr);
-            if (value) parts.push(value);
+    static func extractCandidateBlocks(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
+        let carrierPattern = provider.airlineCodes.sorted().map(jsRegexEscape).joined(separator: "|")
+        let selectors = resultContainerSelectors(for: provider).joined(separator: ",")
+        return """
+        (() => {
+          const money = /(?:USD|US\\$|\\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)\\s*[0-9][0-9\\s,.]*|[0-9][0-9\\s,.]*\\s*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP|€|₽|so['’]?m|сум)/i;
+          const time = /\\b(?:(?:[01]?\\d|2[0-3]):[0-5]\\d|(?:0?[1-9]|1[0-2]):[0-5]\\d\\s*(?:AM|PM))\\b/gi;
+          const flight = new RegExp('\\\\b(?:\(carrierPattern))[\\\\s-]?\\\\d{1,4}\\\\b', 'i');
+          const airport = /\\b[A-Z]{3}\\b/g;
+          const origin = '\(jsEscape(request.origin.uppercased()))';
+          const destination = '\(jsEscape(request.destination.uppercased()))';
+          const visible = el => {
+            const r = el.getBoundingClientRect();
+            const st = getComputedStyle(el);
+            return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
+          };
+          const clean = value => (value || '').replace(/\\s+/g, ' ').trim();
+          const routeOK = text => {
+            const upper = text.toUpperCase();
+            return upper.includes(origin) && upper.includes(destination);
+          };
+          const semanticText = node => {
+            const parts = [node.innerText || '', node.textContent || ''];
+            const descendants = Array.from(node.querySelectorAll('[aria-label],[title],[alt],[data-testid],[data-stid],[data-flight-number],[data-flight]')).slice(0, 520);
+            for (const el of descendants) {
+              for (const attr of ['aria-label','title','alt','data-testid','data-stid','data-flight-number','data-flight']) {
+                const value = el.getAttribute(attr);
+                if (value) parts.push(value);
+              }
+              if (el.dataset) {
+                for (const [key, value] of Object.entries(el.dataset).slice(0, 12)) {
+                  if (value && /flight|airline|airport|route|time|price|fare|segment/i.test(key)) parts.push(String(value));
+                }
+              }
+            }
+            return clean(parts.join(' ')).slice(0, 7200);
+          };
+          const score = text => {
+            const times = text.match(time) || [];
+            const airports = text.match(airport) || [];
+            const flights = text.match(new RegExp(flight.source, 'ig')) || [];
+            let value = times.length * 3 + airports.length * 2 + flights.length * 7;
+            if (/nonstop|non-stop|direct|stop|layover|пересад|без пересад/i.test(text)) value += 4;
+            if (/terminal|терминал|airbus|boeing|atr|embraer|operated by|выполняется/i.test(text)) value += 3;
+            return value;
+          };
+
+          const output = [];
+          const seen = new Set();
+          const push = value => {
+            const text = clean(value);
+            if (text.length < 20 || text.length > 7600 || seen.has(text)) return;
+            if (!routeOK(text) || !money.test(text) || !flight.test(text) || (text.match(time) || []).length < 2) return;
+            seen.add(text);
+            output.push(text);
+          };
+
+          // Every carrier has its own bounded result-container profile. We share
+          // extraction mechanics, but never scan arbitrary money/time cards for a
+          // different airline designator.
+          const candidates = Array.from(document.querySelectorAll('\(jsEscape(selectors))')).filter(el => {
+            if (!visible(el) || el.children.length > 90) return false;
+            const text = clean(el.innerText || el.textContent || '');
+            return text.length >= 20 && text.length <= 5600 && routeOK(text) && money.test(text) && flight.test(text) && (text.match(time) || []).length >= 2;
+          });
+
+          for (const leaf of candidates) {
+            let node = leaf;
+            let chosen = null;
+            let chosenScore = -1;
+            for (let depth = 0; depth < 6 && node; depth++, node = node.parentElement) {
+              const text = semanticText(node);
+              if (text.length < 25 || text.length > 7200 || !routeOK(text) || !money.test(text) || !flight.test(text)) continue;
+              if ((text.match(time) || []).length < 2) continue;
+              const currentScore = score(text);
+              if (currentScore > chosenScore) { chosen = text; chosenScore = currentScore; }
+              if (currentScore >= 20) break;
+            }
+            if (chosen) push(chosen);
+            if (output.length >= 40) break;
           }
-          if (el.dataset) {
-            for (const [key, value] of Object.entries(el.dataset).slice(0, 12)) {
-              if (value && /flight|airline|airport|route|time|price|fare|segment/i.test(key)) parts.push(String(value));
+
+          const full = clean(document.body?.textContent || '');
+          const globalFlight = new RegExp(flight.source, 'ig');
+          let match;
+          let guard = 0;
+          while ((match = globalFlight.exec(full)) && guard++ < 80 && output.length < 52) {
+            const from = Math.max(0, match.index - 1700);
+            const to = Math.min(full.length, match.index + 2500);
+            push(full.slice(from, to));
+          }
+
+          const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"],script[type="application/json"],script#__NEXT_DATA__')).slice(0, 24);
+          for (const script of scripts) {
+            const raw = clean(script.textContent || '');
+            if (!raw || raw.length > 800000) continue;
+            const re = new RegExp(flight.source, 'ig');
+            let m;
+            let count = 0;
+            while ((m = re.exec(raw)) && count++ < 16 && output.length < 60) {
+              const from = Math.max(0, m.index - 1500);
+              const to = Math.min(raw.length, m.index + 2100);
+              push(raw.slice(from, to));
             }
           }
-        }
-        return clean(parts.join(' ')).slice(0, 7200);
-      };
-      const score = text => {
-        const times = text.match(time) || [];
-        const airports = text.match(airport) || [];
-        const flights = text.match(new RegExp(flight.source, 'ig')) || [];
-        let value = times.length * 3 + airports.length * 2 + flights.length * 7;
-        if (/nonstop|non-stop|direct|stop|layover|пересад|без пересад/i.test(text)) value += 4;
-        if (/terminal|терминал|airbus|boeing|atr|embraer|operated by|выполняется/i.test(text)) value += 3;
-        return value;
-      };
-
-      const output = [];
-      const seen = new Set();
-      const push = value => {
-        const text = clean(value);
-        if (text.length < 20 || text.length > 7600 || seen.has(text)) return;
-        // Display candidates must contain an actual carrier flight number. Fare-only
-        // blocks are handled by the separate pricing-reference extractor.
-        if (!money.test(text) || !flight.test(text) || (text.match(time) || []).length < 2) return;
-        seen.add(text);
-        output.push(text);
-      };
-
-      const candidates = Array.from(document.querySelectorAll(
-        '[data-testid="flight-card"],[data-testid*="itinerary"],[data-testid*="flight"],[data-stid*="flight"],[aria-expanded="true"],article,li,[role=listitem]'
-      )).filter(el => {
-        if (!visible(el)) return false;
-        if (el.children.length > 70) return false;
-        const t = clean(el.innerText || el.textContent || '');
-        return t.length >= 20 && t.length <= 5200 && money.test(t) && (t.match(time) || []).length >= 2;
-      });
-
-      for (const leaf of candidates) {
-        let node = leaf;
-        let chosen = null;
-        let chosenScore = -1;
-        for (let depth = 0; depth < 7 && node; depth++, node = node.parentElement) {
-          const text = semanticText(node);
-          if (text.length < 25 || text.length > 7200 || !money.test(text)) continue;
-          if ((text.match(time) || []).length < 2) continue;
-          const currentScore = score(text);
-          if (currentScore > chosenScore) {
-            chosen = text;
-            chosenScore = currentScore;
-          }
-          if (currentScore >= 20 && flight.test(text)) break;
-        }
-        if (chosen) push(chosen);
-        if (output.length >= 48) break;
-      }
-
-      // Aggregators often keep exact flight numbers in collapsed/hidden DOM text.
-      // Recover a bounded context around each real-looking flight number and let
-      // the native parser validate the requested route, airline code and stops.
-      const full = clean(document.body?.textContent || '');
-      const globalFlight = new RegExp(flight.source, 'ig');
-      let match;
-      let guard = 0;
-      while ((match = globalFlight.exec(full)) && guard++ < 120 && output.length < 64) {
-        const from = Math.max(0, match.index - 1800);
-        const to = Math.min(full.length, match.index + 2600);
-        push(full.slice(from, to));
-      }
-
-      // JSON-LD / app-state payloads sometimes contain the only exact flight
-      // number. Do not parse the JSON in Swift; extract small source snippets here.
-      const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"],script[type="application/json"],script#__NEXT_DATA__')).slice(0, 30);
-      for (const script of scripts) {
-        const raw = clean(script.textContent || '');
-        if (!raw || raw.length > 800000) continue;
-        const re = new RegExp(flight.source, 'ig');
-        let m;
-        let count = 0;
-        while ((m = re.exec(raw)) && count++ < 20 && output.length < 72) {
-          const from = Math.max(0, m.index - 1600);
-          const to = Math.min(raw.length, m.index + 2200);
-          push(raw.slice(from, to));
-        }
-      }
-      return output;
-    })()
-    """#
+          return output;
+        })()
+        """
+    }
 
     /// Captures bounded JSON/text responses from airline booking engines. Many
     /// modern booking sites render only a simplified card in the DOM while the
@@ -607,21 +617,31 @@ enum FlightBotScripts {
     })();
     """#
 
-    static func extractNetworkCandidateBlocks(request: FlightBotSearchRequest) -> String {
-        let origin = jsEscape(request.origin)
-        let destination = jsEscape(request.destination)
+    static func extractNetworkCandidateBlocks(provider: FlightBotProvider, request: FlightBotSearchRequest) -> String {
+        let origin = jsEscape(request.origin.uppercased())
+        let destination = jsEscape(request.destination.uppercased())
+        let carrierPattern = provider.airlineCodes.sorted().map(jsRegexEscape).joined(separator: "|")
+        let trustedHosts = jsArray(provider.officialHosts.sorted())
         return """
         (() => {
           const origin = '\(origin)';
           const destination = '\(destination)';
+          const trustedHosts = \(trustedHosts);
           const entries = Array.isArray(window.__iumrahFlightNetworkPayloads) ? window.__iumrahFlightNetworkPayloads : [];
-          const flight = /\\b(?:[A-Z][A-Z0-9]|[0-9][A-Z])[\\s-]?\\d{1,4}\\b/i;
+          const flight = new RegExp('\\b(?:\(carrierPattern))[\\s-]?\\d{1,4}\\b', 'i');
           const money = /(?:USD|US\\$|\\$|UZS|EUR|€|RUB|₽|SAR|AED|TRY|KZT|GBP)[\\s:\\"']*[0-9]|[0-9][0-9\\s,.]*[\\s:\\"']*(?:USD|UZS|EUR|RUB|SAR|AED|TRY|KZT|GBP)/i;
           const time = /(?:[01]?\\d|2[0-3]):[0-5]\\d/;
           const clean = value => String(value || '').replace(/\\s+/g, ' ').trim();
+          const trustedURL = value => {
+            try {
+              const host = new URL(String(value || ''), location.href).hostname.toLowerCase();
+              return trustedHosts.some(trusted => host === trusted || host.endsWith('.' + trusted));
+            } catch (_) { return false; }
+          };
           const out = [];
           const seen = new Set();
           for (const entry of entries.slice(-36)) {
+            if (!trustedURL(entry?.url)) continue;
             const raw = clean(entry?.body || '');
             if (!raw || raw.length > 450000) continue;
             const upper = raw.toUpperCase();
@@ -631,9 +651,9 @@ enum FlightBotScripts {
             const re = new RegExp(flight.source, 'ig');
             let match;
             let count = 0;
-            while ((match = re.exec(raw)) && count++ < 28 && out.length < 56) {
-              const snippetStart = Math.max(0, match.index - 2200);
-              const snippetEnd = Math.min(raw.length, match.index + 3600);
+            while ((match = re.exec(raw)) && count++ < 24 && out.length < 48) {
+              const snippetStart = Math.max(0, match.index - 2100);
+              const snippetEnd = Math.min(raw.length, match.index + 3400);
               const snippet = clean(raw.slice(snippetStart, snippetEnd));
               const snippetUpper = snippet.toUpperCase();
               if (!snippetUpper.includes(origin) || !snippetUpper.includes(destination) || !money.test(snippet)) continue;
@@ -646,6 +666,113 @@ enum FlightBotScripts {
           return out;
         })()
         """
+    }
+
+    private static func resultContainerSelectors(for provider: FlightBotProvider) -> [String] {
+        let shared = [
+            "[data-testid=flight-card]", "[data-testid*=itinerary]", "[data-testid*=flight]",
+            "[data-stid*=flight]", "article", "[role=listitem]"
+        ]
+        switch provider.executionProfile {
+        case .uzbekistanBooking:
+            return shared + ["[class*=flight]", "[class*=segment]", "[class*=route]", "[class*=fare]"]
+        case .qanotWebSky:
+            return shared + ["[class*=websky]", "[class*=flight]", "[class*=segment]", "[class*=route]", "[class*=fare]"]
+        case .centrumIBEDevice:
+            return shared + ["[class*=ibe]", "[class*=journey]", "[class*=flight]", "[class*=segment]", "[class*=fare]"]
+        case .airSamarkandSessionDevice:
+            return shared + ["[class*=travelshop]", "[class*=ibe]", "[class*=flight]", "[class*=segment]", "[class*=route]", "[class*=fare]"]
+        }
+    }
+
+    private static func jsRegexEscape(_ value: String) -> String {
+        value.replacingOccurrences(
+            of: #"[\\.^$|?*+()\[\]{}]"#,
+            with: #"\\$0"#,
+            options: .regularExpression
+        )
+    }
+
+    private struct SearchVocabulary {
+        let oneWayWords: [String]
+        let originWords: [String]
+        let destinationWords: [String]
+        let dateWords: [String]
+        let searchWords: [String]
+    }
+
+    /// Provider-specific vocabulary is deliberately explicit. The DOM mechanics
+    /// are shared, but every production carrier adapter defines the controls it is
+    /// allowed to target on that carrier's own booking surface.
+    private static func searchVocabulary(for provider: FlightBotProvider) -> SearchVocabulary {
+        switch provider.executionProfile {
+        case .uzbekistanBooking:
+            return .init(
+                oneWayWords: ["direct route", "one way", "прямой рейс", "toʻgʻridan-toʻgʻri qatnov"],
+                originWords: ["from", "откуда", "qayerdan"],
+                destinationWords: ["to", "куда", "qayerga"],
+                dateWords: ["select date", "departure date", "выберите дату", "sanani tanlang"],
+                searchWords: ["ticket search", "поиск авиабилетов", "izlash"]
+            )
+        case .qanotWebSky:
+            return .init(
+                oneWayWords: ["one way"],
+                originWords: ["origin"],
+                destinationWords: ["destination"],
+                dateWords: ["date"],
+                searchWords: ["search"]
+            )
+        case .centrumIBEDevice:
+            return .init(
+                oneWayWords: ["one way", "one-way"],
+                originWords: ["from", "origin"],
+                destinationWords: ["to", "destination"],
+                dateWords: ["departure date", "depart date", "date"],
+                searchWords: ["search", "continue search"]
+            )
+        case .airSamarkandSessionDevice:
+            return .init(
+                oneWayWords: ["one way", "one-way", "в одну сторону"],
+                originWords: ["from", "origin", "откуда"],
+                destinationWords: ["to", "destination", "куда"],
+                dateWords: ["departure date", "date", "дата вылета"],
+                searchWords: ["search", "поиск", "izlash"]
+            )
+        }
+    }
+
+    private static func searchSurfaceSignatures(for provider: FlightBotProvider) -> [[String]] {
+        switch provider.executionProfile {
+        case .uzbekistanBooking:
+            return [
+                ["make a route", "ticket search"],
+                ["составить маршрут", "поиск"],
+                ["yo'nalish", "chipta"]
+            ]
+        case .qanotWebSky:
+            return [["please enable javascript"], ["origin-city-code", "destination-city-code"]]
+        case .centrumIBEDevice:
+            return [
+                ["flight search", "one way"],
+                ["enter captcha", "flight search results"],
+                ["from", "to", "search"]
+            ]
+        case .airSamarkandSessionDevice:
+            // Current first-party Bitrix/Travelshop booking surface exposes these
+            // exact labels. A generic page containing money/times is not enough.
+            return [
+                ["route type", "one way", "round trip", "adults"],
+                ["тип маршрута", "в одну сторону", "взросл"]
+            ]
+        }
+    }
+
+    private static func jsNestedArray(_ values: [[String]]) -> String {
+        "[" + values.map(jsArray).joined(separator: ",") + "]"
+    }
+
+    private static func jsArray(_ values: [String]) -> String {
+        "[" + values.map { "'\(jsEscape($0))'" }.joined(separator: ",") + "]"
     }
 
     private static func jsEscape(_ value: String) -> String {

@@ -108,10 +108,22 @@ struct FinalPackageView: View {
             }
 
             if !isCalculatingPrice {
-                Button(retryPricingTitle) {
-                    Task { await recalculatePrice() }
+                VStack(spacing: 10) {
+                    Button(retryPricingTitle) {
+                        Task { await recalculatePrice() }
+                    }
+                    .buttonStyle(IumrahSecondaryButtonStyle())
+
+                    if isHotelVerificationFailure {
+                        NavigationLink {
+                            PrimaryHotelView()
+                        } label: {
+                            Text(changeHotelTitle)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(IumrahSecondaryButtonStyle())
+                    }
                 }
-                .buttonStyle(IumrahSecondaryButtonStyle())
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,6 +172,19 @@ struct FinalPackageView: View {
         case .english: return "Your selected flights are preserved. Retry only the price verification; the flight search does not need to restart."
         case .uzbek: return "Tanlangan reyslar saqlanadi. Faqat narx tekshiruvini qaytaring — reyslarni qayta qidirish shart emas."
         case .uzbekCyrillic: return "Танланган рейслар сақланади. Фақат нарх текширувини қайтаринг — рейсларни қайта қидириш шарт эмас."
+        }
+    }
+
+    private var isHotelVerificationFailure: Bool {
+        journey.errorMessage?.localizedCaseInsensitiveContains("Primary Hotel") == true
+    }
+
+    private var changeHotelTitle: String {
+        switch settings.language {
+        case .russian: return "Изменить отель"
+        case .english: return "Change hotel"
+        case .uzbek: return "Mehmonxonani o‘zgartirish"
+        case .uzbekCyrillic: return "Меҳмонхонани ўзгартириш"
         }
     }
 

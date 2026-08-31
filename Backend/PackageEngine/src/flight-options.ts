@@ -78,17 +78,7 @@ const ALLOWED_PROVIDER_IDS = new Set([
   "uzbekistanAirways",
   "qanotSharq",
   "centrumAir",
-  "silkAvia",
   "airSamarkand",
-  "flyKhiva",
-  "flynas",
-  "saudia",
-  "turkishAirlines",
-  "airArabia",
-  "jazeeraAirways",
-  "flydubai",
-  "airAstana",
-  "flyArystan",
 ]);
 
 function validateObservation(observation: FlightFareObservation) {

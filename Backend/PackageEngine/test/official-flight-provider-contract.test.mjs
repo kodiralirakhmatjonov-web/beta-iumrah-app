@@ -11,8 +11,6 @@ for (const required of [
   "qanotSharq",
   "centrumAir",
   "airSamarkand",
-  "flyKhiva",
-  "silkAvia",
 ]) {
   assert.ok(providers.includes(required), `missing official Uzbek carrier provider: ${required}`);
 }
@@ -21,3 +19,7 @@ assert.ok(!providers.includes("googleFlights"), "Google Flights must never enter
 assert.ok(!providers.includes("skyscanner"), "Skyscanner must never enter package pricing");
 
 console.log("official flight provider contract OK");
+
+for (const future of ["flyKhiva", "silkAvia", "flynas", "saudia", "turkishAirlines", "airArabia", "jazeeraAirways", "flydubai", "airAstana", "flyArystan"]) {
+  assert.ok(!providers.includes(future), `uncertified provider must not enter production pricing boundary: ${future}`);
+}

@@ -10,40 +10,79 @@ final class HotelLivePriceSearchService {
     private var cache: [String: CacheEntry] = [:]
     private let cacheLifetime: TimeInterval = 12 * 60
 
-    func search(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async -> HotelPriceSearchSnapshot {
-        let key = signature(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+    func search(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String? = nil,
+        makkahRoomName: String? = nil,
+        madinahRoomId: String? = nil,
+        madinahRoomName: String? = nil
+    ) async -> HotelPriceSearchSnapshot {
+        let key = signature(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            makkahRoomId: makkahRoomId,
+            makkahRoomName: makkahRoomName,
+            madinahRoomId: madinahRoomId,
+            madinahRoomName: madinahRoomName
+        )
         if let cached = cache[key], Date().timeIntervalSince(cached.createdAt) < cacheLifetime { return cached.value }
 
-        let requests = makeRequests(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
-        // Keep only two hotel WKWebViews active at once (Booking + Expedia).
-        // Flight search already runs several provider web sessions in parallel;
-        // launching four additional hotel WebViews on smaller iPhones can trigger
-        // WebKit process eviction. Makkah and Madinah therefore run one after the
-        // other while both hotel providers still race in parallel for each city.
-        let makkah = await searchHotel(requests.makkah)
-        let madinah = await searchHotelIfPresent(requests.madinah)
-        let snapshot = HotelPriceSearchSnapshot(makkah: makkah, madinah: madinah)
+        let requests = makeRequests(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            makkahRoomId: makkahRoomId,
+            makkahRoomName: makkahRoomName,
+            madinahRoomId: madinahRoomId,
+            madinahRoomName: madinahRoomName
+        )
+        let values = await searchHotelsProgressively(makkah: requests.makkah, madinah: requests.madinah)
+        let snapshot = HotelPriceSearchSnapshot(makkah: values.makkah, madinah: values.madinah)
         cache[key] = CacheEntry(createdAt: Date(), value: snapshot)
         return snapshot
     }
 
 
-    private func searchHotelIfPresent(_ request: HotelPriceSearchRequest?) async -> [HotelPriceObservation] {
-        guard let request else { return [] }
-        return await searchHotel(request)
+    /// Verifies Makkah and Madinah concurrently without allowing more than two
+    /// hotel WKWebViews at once on smaller iPhones. Each provider is one round:
+    /// Booking checks both cities in parallel, then Expedia checks both cities.
+    /// This preserves cross-provider comparison while removing the old city-by-city
+    /// serialization that delayed Madinah verification.
+    private func searchHotelsProgressively(
+        makkah: HotelPriceSearchRequest,
+        madinah: HotelPriceSearchRequest?
+    ) async -> (makkah: [HotelPriceObservation], madinah: [HotelPriceObservation]) {
+        guard let madinah else {
+            return (await searchHotel(makkah), [])
+        }
+
+        let deadline = Date().addingTimeInterval(AppConfig.hotelPriceSearchHardTimeoutSeconds)
+        var makkahValues: [HotelPriceObservation] = []
+        var madinahValues: [HotelPriceObservation] = []
+
+        for provider in HotelPriceProviderRegistry.providers {
+            guard Date() < deadline else { break }
+            async let makkahValue = search(provider: provider, request: makkah, deadline: deadline)
+            async let madinahValue = search(provider: provider, request: madinah, deadline: deadline)
+            let pair = await (makkahValue, madinahValue)
+            if let value = pair.0 { makkahValues.append(value) }
+            if let value = pair.1 { madinahValues.append(value) }
+        }
+
+        return (
+            makkahValues.sorted { $0.amount < $1.amount },
+            madinahValues.sorted { $0.amount < $1.amount }
+        )
     }
 
     private func searchHotel(_ request: HotelPriceSearchRequest) async -> [HotelPriceObservation] {
         let deadline = Date().addingTimeInterval(AppConfig.hotelPriceSearchHardTimeoutSeconds)
         let tasks = HotelPriceProviderRegistry.providers.map { provider in
-            Task { @MainActor () -> HotelPriceObservation? in
-                guard Date() < deadline else { return nil }
-                do {
-                    let budget = min(AppConfig.hotelPriceProviderTimeoutSeconds, max(6, deadline.timeIntervalSinceNow))
-                    return try await HotelPriceBotRunner(provider: provider, request: request).run(timeoutSeconds: budget)
-                } catch {
-                    return nil
-                }
+            Task { @MainActor in
+                await self.search(provider: provider, request: request, deadline: deadline)
             }
         }
         var values: [HotelPriceObservation] = []
@@ -53,7 +92,29 @@ final class HotelLivePriceSearchService {
         return values.sorted { $0.amount < $1.amount }
     }
 
-    private func makeRequests(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) -> (makkah: HotelPriceSearchRequest, madinah: HotelPriceSearchRequest?) {
+    private func search(
+        provider: HotelPriceProvider,
+        request: HotelPriceSearchRequest,
+        deadline: Date
+    ) async -> HotelPriceObservation? {
+        guard Date() < deadline else { return nil }
+        do {
+            let budget = min(AppConfig.hotelPriceProviderTimeoutSeconds, max(6, deadline.timeIntervalSinceNow))
+            return try await HotelPriceBotRunner(provider: provider, request: request).run(timeoutSeconds: budget)
+        } catch {
+            return nil
+        }
+    }
+
+    private func makeRequests(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String?,
+        makkahRoomName: String?,
+        madinahRoomId: String?,
+        madinahRoomName: String?
+    ) -> (makkah: HotelPriceSearchRequest, madinah: HotelPriceSearchRequest?) {
         let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
 
         let makkah = HotelPriceSearchRequest(
@@ -64,7 +125,9 @@ final class HotelLivePriceSearchService {
             adults: trip.adults,
             children: trip.children,
             infants: trip.infants,
-            rooms: trip.rooms
+            rooms: trip.rooms,
+            selectedRoomId: makkahRoomId,
+            selectedRoomName: makkahRoomName
         )
 
         let madinah: HotelPriceSearchRequest?
@@ -77,7 +140,9 @@ final class HotelLivePriceSearchService {
                 adults: trip.adults,
                 children: trip.children,
                 infants: trip.infants,
-                rooms: trip.rooms
+                rooms: trip.rooms,
+                selectedRoomId: madinahRoomId,
+                selectedRoomName: madinahRoomName
             )
         } else {
             madinah = nil
@@ -85,11 +150,23 @@ final class HotelLivePriceSearchService {
         return (makkah, madinah)
     }
 
-    private func signature(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) -> String {
+    private func signature(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String?,
+        makkahRoomName: String?,
+        madinahRoomId: String?,
+        madinahRoomName: String?
+    ) -> String {
         let formatter = ISO8601DateFormatter()
         return [
             makkahHotel.id,
+            makkahRoomId ?? "-",
+            makkahRoomName ?? "-",
             madinahHotel?.id ?? "-",
+            madinahRoomId ?? "-",
+            madinahRoomName ?? "-",
             formatter.string(from: trip.departureDate),
             formatter.string(from: trip.returnDate),
             String(trip.adults), String(trip.children), String(trip.infants), String(trip.rooms)

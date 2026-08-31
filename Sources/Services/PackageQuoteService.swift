@@ -5,29 +5,17 @@ protocol PackageQuoteServicing {
     func quote(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer, inbound: FlightOffer) async throws -> PackageQuote
 }
 
+enum PackageQuoteServiceError: LocalizedError {
+    case localPricingRequired
+
+    var errorDescription: String? {
+        "Final package pricing is calculated only by LocalPackagePricingEngine after verified flight and hotel costs are available."
+    }
+}
+
 @MainActor
-struct BetaPackageQuoteService: PackageQuoteServicing {
+struct LocalOnlyPackageQuoteService: PackageQuoteServicing {
     func quote(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer, inbound: FlightOffer) async throws -> PackageQuote {
-        try await Task.sleep(for: .milliseconds(450))
-
-        if let exactTotal = inbound.packageTotalPrice, inbound.quoteId != nil {
-            return PackageQuote(
-                totalPackagePrice: exactTotal,
-                pricePerPerson: inbound.totalPackagePrice,
-                currency: inbound.currency,
-                isEstimated: false,
-                quoteId: inbound.quoteId
-            )
-        }
-
-        let travelers = max(1, trip.travelerCount)
-        let blendedPerPerson = max(outbound.totalPackagePrice, inbound.totalPackagePrice)
-        return PackageQuote(
-            totalPackagePrice: blendedPerPerson * Decimal(travelers),
-            pricePerPerson: blendedPerPerson,
-            currency: inbound.currency,
-            isEstimated: true,
-            quoteId: nil
-        )
+        throw PackageQuoteServiceError.localPricingRequired
     }
 }

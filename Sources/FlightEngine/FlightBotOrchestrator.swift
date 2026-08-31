@@ -56,6 +56,8 @@ final class FlightBotOrchestrator {
         minimumResults: Int? = nil,
         preferredResults: Int? = nil,
         maxProviderAttempts: Int? = nil,
+        allowedProviderIDs: Set<FlightBotProviderID>? = nil,
+        onProvider: (@MainActor (FlightBotProvider) -> Void)? = nil,
         onProgress: (@MainActor ([LiveFlightCandidate]) async -> Void)? = nil
     ) async throws -> SearchResult {
         pruneCheckpoints()
@@ -70,8 +72,10 @@ final class FlightBotOrchestrator {
         let deadline = requestedAt.addingTimeInterval(AppConfig.flightBotSearchHardTimeoutSeconds)
         let dates = FlightDatePlanner.dates(anchor: baseRequest.date, flexibility: flexibility)
         let providers = FlightBotProviderRegistry
-            .ordered(for: baseRequest.origin, destination: baseRequest.destination)
-            .filter(\.isOfficialCarrierSource)
+            .deviceProviders(for: baseRequest.origin, destination: baseRequest.destination)
+            .filter { provider in
+                provider.isOfficialCarrierSource && (allowedProviderIDs?.contains(provider.id) ?? true)
+            }
 
         let checkpointKey = signature(for: baseRequest, flexibility: flexibility, requirement: effectiveRequirement)
         let existing = checkpoints[checkpointKey]
@@ -92,7 +96,12 @@ final class FlightBotOrchestrator {
         var succeeded = 0
         var started = 0
         var completedBatches = 0
-        let requiredFlexibleCoverageBatches = flexibility.isFlexibleDayRange ? dates.count * min(2, providers.count) : 0
+        let requiredFlexibleCoverageBatches: Int = {
+            guard flexibility.isFlexibleDayRange, !dates.isEmpty, !providers.isEmpty else { return 0 }
+            // One exact-date bounded batch plus one priority-carrier batch for each
+            // alternate date is sufficient coverage before early stopping.
+            return dates.count
+        }()
         var flexibleCoverageCompleted = 0
 
         searchLoop: for batch in batches {
@@ -126,6 +135,7 @@ final class FlightBotOrchestrator {
             let tasks: [(String, Task<ProviderAttempt, Never>)] = untried.map { provider in
                 let key = attemptKey(provider: provider, date: batch.date)
                 return (key, Task { @MainActor in
+                    onProvider?(provider)
                     do {
                         let remaining = max(3, deadline.timeIntervalSinceNow)
                         let providerBudget = min(AppConfig.flightBotProviderTimeoutSeconds, remaining)
@@ -134,6 +144,12 @@ final class FlightBotOrchestrator {
                             request: request,
                             requirement: effectiveRequirement
                         ).run(timeoutSeconds: providerBudget)
+                        let accepted = results.filter(\.isDisplayableCandidate)
+                        if !accepted.isEmpty, let onProgress {
+                            // Do not wait for a slower provider in the same bounded
+                            // batch before the first verified airline card appears.
+                            await onProgress(accepted)
+                        }
                         return .candidates(results)
                     } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
                         return .challenge(challenge)
@@ -229,21 +245,34 @@ final class FlightBotOrchestrator {
         let size = max(1, AppConfig.flightBotProviderBatchSize)
 
         if flexibility.isFlexibleDayRange {
-            // Progressive flexible-date plan. The selected date is always checked
-            // first, then -1/+1/-2/+2. On every date the first two official
-            // carriers get a dedicated attempt before the broader market. Keeping
-            // those attempts separate also guarantees a single WKWebView per batch.
+            // Exact-date coverage comes first for every reviewed carrier. This
+            // prevents a third carrier (for example Air Samarkand) from waiting
+            // behind ten ±1/±2 attempts. After exact coverage, nearby dates keep
+            // the authoritative 0,-1,+1,-2,+2 order and prioritise the first two
+            // carrier adapters before broader fallback coverage.
             let priorityCoverageCount = min(2, providers.count)
             var output: [SearchBatch] = []
 
-            for date in dates {
-                for provider in providers.prefix(priorityCoverageCount) {
-                    output.append(SearchBatch(date: date, providers: [provider], isFlexibleCoverageBatch: true))
+            if let exactDate = dates.first {
+                for start in stride(from: 0, to: providers.count, by: size) {
+                    let end = min(providers.count, start + size)
+                    output.append(SearchBatch(
+                        date: exactDate,
+                        providers: Array(providers[start..<end]),
+                        isFlexibleCoverageBatch: start < priorityCoverageCount
+                    ))
+                }
+            }
+
+            for date in dates.dropFirst() {
+                let priority = Array(providers.prefix(priorityCoverageCount))
+                if !priority.isEmpty {
+                    output.append(SearchBatch(date: date, providers: priority, isFlexibleCoverageBatch: true))
                 }
             }
 
             let remaining = Array(providers.dropFirst(priorityCoverageCount))
-            for date in dates {
+            for date in dates.dropFirst() {
                 for start in stride(from: 0, to: remaining.count, by: size) {
                     let end = min(remaining.count, start + size)
                     output.append(SearchBatch(date: date, providers: Array(remaining[start..<end]), isFlexibleCoverageBatch: false))

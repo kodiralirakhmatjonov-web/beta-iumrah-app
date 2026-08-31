@@ -67,9 +67,17 @@ struct ServerFlightComponentCandidate: Decodable {
 
     func liveCandidate() -> LiveFlightCandidate? {
         guard let provider = FlightBotProviderID(rawValue: providerId), !provider.isAggregator,
+              let providerConfig = FlightBotProviderRegistry.providers.first(where: { $0.id == provider }),
+              providerConfig.supportsServerSearch,
+              providerConfig.acceptsPrimaryFlightNumber(flightNumber),
+              let sourceURL, let trustedSource = URL(string: sourceURL), providerConfig.acceptsSourceURL(trustedSource),
               let departure = ServerPackageDateParser.dateTime(departureAt, airportCode: origin),
               let arrival = ServerPackageDateParser.dateTime(arrivalAt, airportCode: destination),
-              let fare = fareAmountUsd, fare > 0 else { return nil }
+              Self.localDay(departure, airportCode: origin) == travelDate,
+              currency.uppercased() == "USD",
+              let fare = fareAmountUsd, fare > 0,
+              let fareScope, ["totalParty", "perPassenger"].contains(fareScope),
+              let observedAt, let observed = Self.isoDate(observedAt) else { return nil }
         let normalizedSegments = segments.compactMap { item -> FlightSegment? in
             guard let dep = ServerPackageDateParser.dateTime(item.departureAt, airportCode: item.origin),
                   let arr = ServerPackageDateParser.dateTime(item.arrivalAt, airportCode: item.destination),
@@ -92,12 +100,11 @@ struct ServerFlightComponentCandidate: Decodable {
         }
         guard normalizedSegments.count == segments.count, normalizedSegments.count == stops + 1 else { return nil }
         let scope: FlightFareScope = fareScope == "totalParty" ? .totalParty : .perPassenger
-        let observed = observedAt.flatMap(Self.isoDate) ?? Date()
         let connections = normalizedSegments.dropLast().map(\.destination)
         let value = LiveFlightCandidate(
             id: "server:\(id)",
             providerID: provider,
-            providerName: sourceLabel,
+            providerName: providerConfig.displayName,
             direction: direction == "inbound" ? .inbound : .outbound,
             airline: FlightReferenceCatalog.airlineName(code: airlineCode, fallback: airline),
             flightNumber: flightNumber,
@@ -111,13 +118,22 @@ struct ServerFlightComponentCandidate: Decodable {
             observedCurrency: "USD",
             fareScope: scope,
             observedAt: observed,
-            sourceURL: sourceURL ?? "https://iumrah.app",
+            sourceURL: sourceURL,
             rawTextFingerprint: "server-\(providerId)-\(flightNumber)-\(travelDate)",
             airlineCode: airlineCode,
             segments: normalizedSegments,
             connectionAirports: connections
         )
         return value.isDisplayableCandidate ? value : nil
+    }
+
+    private static func localDay(_ value: Date, airportCode: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airportCode)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: value)
     }
 
     private static func isoDate(_ value: String) -> Date? {
