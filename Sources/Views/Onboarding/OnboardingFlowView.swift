@@ -33,33 +33,37 @@ struct OnboardingFlowView: View {
             let safeBottom = max(proxy.safeAreaInsets.bottom, windowInsets.bottom)
 
             ZStack {
-                CinematicAmbientBackground(page: page)
-                    .ignoresSafeArea()
-
-                pager(proxy: proxy)
-                    .ignoresSafeArea()
-                    .opacity(showIntro ? 0 : (isFinishing ? 0.18 : 1))
-                    .scaleEffect(isFinishing && !reduceMotion ? 0.975 : 1)
-                    .blur(radius: isFinishing && !reduceMotion ? 5 : 0)
-
-                topBar(topInset: safeTop)
-                    .opacity(showIntro || isFinishing ? 0 : 1)
-                    .zIndex(20)
-
-                footer(bottomInset: safeBottom)
-                    .opacity(showIntro || isFinishing ? 0 : 1)
-                    .zIndex(20)
-
+                // IMPORTANT: do not mount the cinematic pager underneath the launch intro.
+                // Opacity(0) still causes SwiftUI to build/layout the whole hierarchy, including
+                // video-backed scenes. On first launch that work can starve the MainActor long
+                // enough for the intro dismissal task to appear permanently stuck.
                 if showIntro {
                     introOverlay
                         .transition(.opacity)
                         .zIndex(30)
-                }
+                } else {
+                    CinematicAmbientBackground(page: page)
+                        .ignoresSafeArea()
 
-                if isFinishing {
-                    finishingOverlay
-                        .transition(.opacity)
-                        .zIndex(40)
+                    pager(proxy: proxy)
+                        .ignoresSafeArea()
+                        .opacity(isFinishing ? 0.18 : 1)
+                        .scaleEffect(isFinishing && !reduceMotion ? 0.975 : 1)
+                        .blur(radius: isFinishing && !reduceMotion ? 5 : 0)
+
+                    topBar(topInset: safeTop)
+                        .opacity(isFinishing ? 0 : 1)
+                        .zIndex(20)
+
+                    footer(bottomInset: safeBottom)
+                        .opacity(isFinishing ? 0 : 1)
+                        .zIndex(20)
+
+                    if isFinishing {
+                        finishingOverlay
+                            .transition(.opacity)
+                            .zIndex(40)
+                    }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -540,7 +544,7 @@ struct OnboardingFlowView: View {
             Color.black
                 .ignoresSafeArea()
 
-            OnboardingIntroLineField(reduceMotion: reduceMotion)
+            OnboardingIntroLineField()
                 .opacity(0.72)
                 .ignoresSafeArea()
 
@@ -706,14 +710,13 @@ struct OnboardingFlowView: View {
 }
 
 private struct OnboardingIntroLineField: View {
-    let reduceMotion: Bool
-
     var body: some View {
-        TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 : 1.0 / 24.0)) { context in
-            let t = reduceMotion ? 0.0 : context.date.timeIntervalSinceReferenceDate
-
-            Canvas { canvas, size in
-                let origin = CGPoint(x: size.width * 0.5, y: size.height * 0.84)
+        // Keep launch rendering deliberately lightweight. A TimelineView here used to force
+        // continuous 24 fps redraws while the hidden onboarding pager was also being prepared.
+        // The line field stays visually identical at rest; motion begins only in onboarding.
+        Canvas { canvas, size in
+            let t = 0.0
+            let origin = CGPoint(x: size.width * 0.5, y: size.height * 0.84)
                 let lines: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
                     (-0.42, 0.16, -0.34, -0.40), (-0.34, 0.08, -0.26, -0.52),
                     (-0.27, 0.14, -0.18, -0.36), (-0.20, 0.05, -0.12, -0.58),
@@ -745,7 +748,6 @@ private struct OnboardingIntroLineField: View {
 
                     let glow = CGRect(x: end.x - 3.2, y: end.y - 3.2, width: 6.4, height: 6.4)
                     canvas.fill(Path(ellipseIn: glow), with: .color(.white.opacity(0.78)))
-                }
             }
         }
         .allowsHitTesting(false)

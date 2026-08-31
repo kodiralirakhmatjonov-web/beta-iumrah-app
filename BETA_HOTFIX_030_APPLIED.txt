@@ -1,0 +1,7 @@
+BETA HOTFIX 030 — onboarding launch deadlock fix
+
+- The cinematic pager is no longer mounted invisibly underneath the intro splash.
+- Heavy onboarding/video scenes are created only after the intro has been dismissed.
+- The splash line field no longer runs a continuous TimelineView redraw loop during launch.
+- Preserves the existing onboarding design, pages, navigation, localization, videos, backend and app architecture.
+- Built on top of BETA_HOTFIX_029.

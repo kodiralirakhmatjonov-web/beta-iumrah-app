@@ -1,20 +1,17 @@
 {
-  "name": "iumrah-beta-update-029-splash-onboarding-hotfix",
+  "patch": "iumrah-beta-update-030-onboarding-launch-deadlock-fix",
+  "based_on": "BETA_HOTFIX_029",
+  "purpose": "Prevent first-launch intro from starving its own dismissal by deferring the heavy onboarding hierarchy.",
   "files": [
     {
-      "path": "BETA_HOTFIX_029_APPLIED.txt",
-      "sha256": "1d93f81861ae423ddcf8c006d3bf42b7ad8a57479883c102a03e4a2c0fc69ab7",
-      "bytes": 512
-    },
-    {
-      "path": "Sources/Views/RootView.swift",
-      "sha256": "ac86abadb65203fbec7a96d290ecfc1901d5a5d939a304390fcfa51468db6a81",
-      "bytes": 7755
-    },
-    {
       "path": "Sources/Views/Onboarding/OnboardingFlowView.swift",
-      "sha256": "d8fd99603fa4eb6e747581a512352c16e36831dbbe67f732bedad70b0fe573c2",
-      "bytes": 54606
+      "sha256": "378b1e94ce5f6777513d608bcbf03a06bd803fa3edcefe5a7e54a7c01bcb6e4c",
+      "bytes": 55073
+    },
+    {
+      "path": "BETA_HOTFIX_030_APPLIED.txt",
+      "sha256": "71c318b74828db162d56b1751143c035a95f6612a64be0058b7c20f0f66e0619",
+      "bytes": 461
     }
   ]
 }
