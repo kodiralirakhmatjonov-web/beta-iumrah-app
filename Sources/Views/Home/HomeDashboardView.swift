@@ -25,6 +25,7 @@ struct HomeDashboardView: View {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25)
                 HomeVideoCarousel()
+                flightsHomeCard
                 hero
                 confidenceStrip
                 philosophyCard
@@ -245,6 +246,25 @@ struct HomeDashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint(session.displayPilgrimID.map { "ID \($0)" } ?? "")
+    }
+
+    private var flightsHomeCard: some View {
+        NavigationLink {
+            IumrahFlightsView()
+        } label: {
+            Image("IumrahFlightsHomeCard")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.18), radius: 24, y: 12)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("iumrah Flights")
     }
 
     private var hero: some View {

@@ -1,0 +1,16 @@
+BETA_UI_035_APPLIED
+
+Update: iumrah Flights premium product surface.
+Base: repository state with BETA_UI_034_APPLIED.
+
+Changes:
+- Adds the supplied iumrah Flights 16:9 artwork as a tappable premium card on Home.
+- Adds a dedicated native SwiftUI iumrah Flights page with an Apple MapKit 3D globe, geodesic TAS -> JED route presentation, dark iOS visual language, and iOS 26 Liquid Glass where available with the existing fallback.
+- Adds active-trip access gating. Public visitors can see the product presentation, but flight lookup stays locked unless a booked trip is in BOOKING_CONFIRMED, READY_TO_TRAVEL, or IN_TRIP state.
+- For eligible trips, the lookup searches only flights already attached to that iumrah trip; it does not expose a public flight-tracker surface.
+- Adds a real local-notification demo button using the existing iOS notification permission flow. The demo notification is clearly presented as a sample and is delivered by the app itself.
+- Adds an iumrah Friends presentation showing which trip milestones loved ones may see when sharing is enabled.
+- Reuses existing booking/session models and does not change pricing, package generation, backend contracts, signing, workflows, or airport-globe logic.
+
+Important backend note:
+The supplied client repository does not contain an AeroDataBox client or a flight-status endpoint contract. This update therefore does not invent a new backend/API route or embed any external API key. Existing flight-status infrastructure remains untouched; this patch builds the product/UI layer safely on top of the current repository.

@@ -1,27 +1,42 @@
 {
-  "patch": "iumrah-beta-update-034-airport-globe",
-  "purpose": "Add a native Apple MapKit globe airport picker while preserving the existing text airport search and application architecture.",
+  "patch": "iumrah-beta-update-035-iumrah-flights",
+  "purpose": "Add the premium iumrah Flights home card and product page with native Apple globe presentation, active-trip-only flight access, notification demo, and iumrah Friends journey-status presentation while preserving backend and pricing architecture.",
   "files": [
     {
-      "path": "BETA_UI_034_APPLIED.txt",
-      "sha256": "4466ff796037a08e7be02da56f45508ca3032698edf85c937ae560a1a229dfcd",
-      "bytes": 764
+      "path": "BETA_UI_035_APPLIED.txt",
+      "sha256": "7a10ed99de7c7be1caa512edc9b848fb38661eaa8d9c0de1320cb0519173862b",
+      "bytes": 1589
     },
     {
-      "path": "Sources/Core/AppLocalization.swift",
-      "sha256": "4df7469229bafe3802025b761814b6d67e2a16745618e087fe489b171dfd3c8c",
-      "bytes": 159844
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "783cbd3870469075f17733747e2b54fac0ff3ac562e0ac8dca7eb6272219a84f",
+      "bytes": 24593
     },
     {
-      "path": "Sources/Views/Airports/AirportGlobePickerView.swift",
-      "sha256": "3fa229a14561c324ed88e7f3a3f44f831ab495ef783d48e10138d3198386b06a",
-      "bytes": 14905
+      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
+      "sha256": "8c57f8f4e6eaaedead702dacbd1d12243fef9f1648530b2fdf6eb5ede005164b",
+      "bytes": 55715
     },
     {
-      "path": "Sources/Views/Airports/AirportPickerView.swift",
-      "sha256": "bd9dca0bf7b3319f9899855135f40e84ed675aba29d57999cb808f62afcb5062",
-      "bytes": 6846
+      "path": "Resources/Assets.xcassets/IumrahFlightsHomeCard.imageset/Contents.json",
+      "sha256": "317917abc3be642bf4ebd81924732166ef2598d648adb5a96eca1029c01ac279",
+      "bytes": 196
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahFlightsHomeCard.imageset/iumrah-flights-home-card.jpg",
+      "sha256": "e23da795396817e178578317cc978c099c6c655960c35f1b9232ee38c9b8d5d7",
+      "bytes": 287226
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahFlightsWordmark.imageset/Contents.json",
+      "sha256": "cb059d451ddca2f13f63bb8076509a9e9d6656c2d67b7dc0879099977e6913f7",
+      "bytes": 195
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahFlightsWordmark.imageset/iumrah-flights-wordmark.png",
+      "sha256": "f95f80b41a7c00664a9523c845fbaeef28212d1b02b3ff62f0e3e002744e533a",
+      "bytes": 363874
     }
   ],
-  "based_on": "BETA_HOTFIX_033_APPLIED"
+  "based_on": "BETA_UI_034_APPLIED"
 }
