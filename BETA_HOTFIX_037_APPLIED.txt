@@ -1,0 +1,14 @@
+BETA_HOTFIX_037_APPLIED
+
+Build hotfix for the flight-search facade after UI update 036.
+
+Fix:
+- Adds AutomaticFlightSearchService.invalidateSession().
+- The method forwards to RealFlightPackageSearchService.invalidateSession().
+- Resolves JourneyStore compile errors at the two existing invalidation call sites.
+
+Scope:
+- No pricing changes.
+- No flight search behavior changes beyond restoring the intended cache/session invalidation path.
+- No changes to the native connectivity indicator from update 036.
+- No backend, signing, workflow, navigation, or package-engine changes.

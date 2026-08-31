@@ -428,4 +428,11 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
         if AppConfig.usesSandboxFlightSearch { return try await sandbox.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate) }
         return try await real.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
     }
+
+    /// Clears the cached real-flight search session when trip or hotel inputs change.
+    /// JourneyStore talks to the automatic facade, so the facade must forward this
+    /// lifecycle operation to the real engine as well as the normal search calls.
+    func invalidateSession() {
+        real.invalidateSession()
+    }
 }
