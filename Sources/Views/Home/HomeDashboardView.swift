@@ -270,40 +270,61 @@ struct HomeDashboardView: View {
     }
 
     private var flightsWorldFooter: some View {
-        VStack(spacing: 0) {
+        let pageBackground = Color.iumrahPageBackground
+
+        return VStack(spacing: 0) {
             Text("From the world to Mecca")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .tracking(-0.7)
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
                 .padding(.top, 34)
-                .padding(.bottom, 12)
+                .padding(.bottom, 8)
                 .allowsHitTesting(false)
 
-            ZStack(alignment: .top) {
+            ZStack {
                 IumrahInteractiveGlobe(presentation: .worldToMakkah)
-                    .frame(height: 380)
+                    .frame(height: 390)
+                    // Fade the complete MapKit surface itself, including its black sky,
+                    // so no rectangular map boundary survives against Home's background.
+                    .mask {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.00),
+                                .init(color: .white.opacity(0.16), location: 0.08),
+                                .init(color: .white, location: 0.25),
+                                .init(color: .white, location: 0.73),
+                                .init(color: .white.opacity(0.20), location: 0.93),
+                                .init(color: .clear, location: 1.00)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
 
+                // A second two-sided blend uses the exact Home page background color.
+                // This keeps the transition seamless in both light and dark appearance.
                 LinearGradient(
                     stops: [
-                        .init(color: .black, location: 0.00),
-                        .init(color: .black.opacity(0.58), location: 0.12),
-                        .init(color: .clear, location: 0.32),
-                        .init(color: .clear, location: 0.76),
-                        .init(color: .black.opacity(0.62), location: 1.00)
+                        .init(color: pageBackground, location: 0.00),
+                        .init(color: pageBackground.opacity(0.82), location: 0.07),
+                        .init(color: .clear, location: 0.24),
+                        .init(color: .clear, location: 0.74),
+                        .init(color: pageBackground.opacity(0.78), location: 0.93),
+                        .init(color: pageBackground, location: 1.00)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 .allowsHitTesting(false)
             }
-            .frame(height: 330)
+            .frame(height: 350)
             .clipped()
             .padding(.bottom, 84)
         }
         .frame(maxWidth: .infinity)
-        .background(Color.black)
+        .background(pageBackground)
         .padding(.horizontal, -IumrahDesign.pagePadding)
     }
 

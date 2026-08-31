@@ -94,60 +94,62 @@ struct IumrahFlightsView: View {
     // MARK: - Hero
 
     private var globeHero: some View {
-        ZStack(alignment: .top) {
-            Color.black
-
-            IumrahInteractiveGlobe(presentation: .flightRoute)
-                .frame(height: 520)
-
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.00),
-                    .init(color: .clear, location: 0.38),
-                    .init(color: .black.opacity(0.16), location: 0.54),
-                    .init(color: .black.opacity(0.76), location: 0.73),
-                    .init(color: .black, location: 0.91)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 560)
-            .allowsHitTesting(false)
-
+        VStack(spacing: 0) {
+            // Keep the supplied transparent wordmark at the very beginning of the page,
+            // independently from the globe camera content.
             Image("IumrahFlightsWordmark")
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: 330)
+                .frame(maxWidth: 340)
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
                 .shadow(color: .black.opacity(0.42), radius: 18, y: 8)
                 .accessibilityLabel("iumrah Flights")
                 .allowsHitTesting(false)
 
-            VStack(spacing: 18) {
-                Spacer(minLength: 0)
+            ZStack(alignment: .bottom) {
+                IumrahInteractiveGlobe(presentation: .flightRoute)
+                    .frame(height: 520)
 
-                VStack(spacing: 8) {
-                    Text(IumrahFlightsCopy.text(.heroTitle, settings.language))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .tracking(-1.0)
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.00),
+                        .init(color: .clear, location: 0.40),
+                        .init(color: .black.opacity(0.15), location: 0.56),
+                        .init(color: .black.opacity(0.74), location: 0.77),
+                        .init(color: .black, location: 0.96)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 560)
+                .allowsHitTesting(false)
 
-                    Text(IumrahFlightsCopy.text(.heroBody, settings.language))
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.68))
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: 18) {
+                    VStack(spacing: 8) {
+                        Text(IumrahFlightsCopy.text(.heroTitle, settings.language))
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .tracking(-1.0)
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+
+                        Text(IumrahFlightsCopy.text(.heroBody, settings.language))
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.68))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    accessBadge
                 }
-
-                accessBadge
+                .padding(.horizontal, 22)
+                .padding(.bottom, 18)
+                .allowsHitTesting(false)
             }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 18)
-            .allowsHitTesting(false)
+            .frame(height: 590)
+            .clipped()
         }
-        .frame(height: 680)
         .background(Color.black)
     }
 

@@ -1,0 +1,4 @@
+iumrah Beta UI update 040 applied.
+- Flights wordmark is pinned to the beginning of the Flights page, above the interactive globe.
+- Home world globe now fades into the exact page background at both top and bottom edges.
+- Interactive MapKit pan/zoom/rotate behavior is preserved.

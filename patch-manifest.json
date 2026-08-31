@@ -1,32 +1,22 @@
 {
-  "patch": "iumrah-beta-update-039-interactive-flights-globes",
-  "purpose": "Use the supplied transparent iumrah Flights wordmark, make the Flights hero globe natively interactive with pan/zoom/rotate and a smooth globe-to-content fade, move the Home iumrah Flights card to the end, and add an interactive half-globe footer with “From the world to Mecca”.",
+  "patch": "iumrah-beta-update-040-flights-hero-home-globe-blend",
+  "purpose": "Move the transparent iumrah Flights wordmark to the beginning of the Flights page and blend the Home interactive globe into the Home background with two-sided top/bottom gradients.",
   "files": [
     {
-      "path": "BETA_UI_039_APPLIED.txt",
-      "sha256": "c5d56b1fe9813442f3eb3a70bde907f25d417067e213534f78417584bf985b08",
-      "bytes": 205
-    },
-    {
-      "path": "Sources/Views/Flights/IumrahInteractiveGlobe.swift",
-      "sha256": "f8fd9d4d0e5f059cc058cd2502dbf8ba19cc36df3e9e2580f81d958b41dea768",
-      "bytes": 5033
+      "path": "BETA_UI_040_APPLIED.txt",
+      "sha256": "cab14009ab8b708ea7ed2732ec0cf707ff3edbd010cf41fe89f2e3cdd67c17c3",
+      "bytes": 281
     },
     {
       "path": "Sources/Views/Flights/IumrahFlightsView.swift",
-      "sha256": "bde4a0e7041f916a293fadae40c990fada770efe44d724bfab5ecccd51d68c37",
-      "bytes": 54037
+      "sha256": "068234381cf99f7e678a3c180522ff4ab82df311bf868e0946dc4f89d4e2f818",
+      "bytes": 54369
     },
     {
       "path": "Sources/Views/Home/HomeDashboardView.swift",
-      "sha256": "a8b6823b526fa79b2f3507cfe913c83af369187976dc63743012e4263e13948c",
-      "bytes": 26137
-    },
-    {
-      "path": "Resources/Assets.xcassets/IumrahFlightsWordmark.imageset/iumrah-flights-wordmark.png",
-      "sha256": "d76926c677f8c58d9ef79dd45978c387c67fab46e67c5521cf7df4c287c921bf",
-      "bytes": 311691
+      "sha256": "4a4a9d1ffdbc79e7154a95090c0154f26cd56e2c4aa88ffab0a40501dca237f1",
+      "bytes": 27360
     }
   ],
-  "based_on": "BETA_HOTFIX_038_APPLIED"
+  "based_on": "BETA_UI_039_APPLIED"
 }
