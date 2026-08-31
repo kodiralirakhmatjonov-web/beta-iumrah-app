@@ -1,0 +1,16 @@
+BETA_HOTFIX_038_APPLIED
+
+Purpose:
+- Fix the remaining Swift compile errors exposed after Hotfix 037.
+- Align AppLocalization with the current FlightEngineAvailabilityError cases used by Generator V2.
+- Restore the BookingDraftBuilder flexible-day integer conversion required by BookingInput.
+
+Scope:
+- Sources/Core/AppLocalization.swift
+- Sources/Core/BookingDraftBuilder.swift
+
+Preserved:
+- Native connectivity indicator from Update 036.
+- Flight session invalidation fix from Hotfix 037.
+- Existing Generator V2 pricing and package architecture.
+- Backend, signing and GitHub workflow files are untouched.

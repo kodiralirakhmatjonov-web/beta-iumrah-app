@@ -65,14 +65,10 @@ struct L10n {
         }
         if let flightError = error as? FlightEngineAvailabilityError {
             switch flightError {
-            case .packageEngineUnavailable:
-                return text("flight_error_service", language)
-            case .makkahPricingMissing:
-                return text("flight_error_makkah", language)
-            case .madinahPricingMissing:
-                return text("flight_error_madinah", language)
             case .realOutboundRequired:
                 return text("flight_error_outbound", language)
+            case .noVerifiedFlights:
+                return text("flight_bot_no_candidates", language)
             }
         }
         if let pricingError = error as? FlightPricingBridgeError {

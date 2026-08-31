@@ -180,6 +180,17 @@ enum BookingDraftBuilder {
         )
     }
 
+    private static func flexibleDays(_ flexibility: DateFlexibility) -> Int {
+        switch flexibility {
+        case .exact, .weekend:
+            return 0
+        case .plusMinusOne:
+            return 1
+        case .plusMinusTwo:
+            return 2
+        }
+    }
+
     private static func day(_ date: Date) -> String {
         formatter.string(from: date)
     }

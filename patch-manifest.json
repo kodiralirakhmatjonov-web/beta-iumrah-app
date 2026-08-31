@@ -1,17 +1,22 @@
 {
-  "patch": "iumrah-beta-update-037-flight-session-hotfix",
-  "purpose": "Fix the iumrah Beta Swift build by exposing the existing real flight-engine session invalidation through AutomaticFlightSearchService, matching JourneyStore call sites.",
+  "patch": "iumrah-beta-update-038-generator-v2-compile-hotfix",
+  "purpose": "Fix remaining iumrah Beta Swift compile failures by aligning localization with the current FlightEngineAvailabilityError enum and restoring BookingDraftBuilder flexible-day conversion.",
   "files": [
     {
-      "path": "BETA_HOTFIX_037_APPLIED.txt",
-      "sha256": "e3de04ef54b61605ba8041cff1af4487a925336e103c6f61f5d2a2a7057001d0",
-      "bytes": 580
+      "path": "BETA_HOTFIX_038_APPLIED.txt",
+      "sha256": "6b753af9e4a97b69cb044b5b2dd20f7b1f8097ea3ca3b41932f23d9a4b5992e9",
+      "bytes": 608
     },
     {
-      "path": "Sources/Services/RealFlightPackageSearchService.swift",
-      "sha256": "e6cc4958d0a68a6d5449ef61c66b2e893d5945e92fcb213d6963310b6430f3d4",
-      "bytes": 20985
+      "path": "Sources/Core/AppLocalization.swift",
+      "sha256": "027c2cb035dccaa6b14d9bf152f19b3a7e65ece3c3d8250577feb0e501374d9f",
+      "bytes": 159637
+    },
+    {
+      "path": "Sources/Core/BookingDraftBuilder.swift",
+      "sha256": "55b4f2c55d8be1608f68c68786a3f7077dfaa6d36717b607c8a3061f47a8e882",
+      "bytes": 8999
     }
   ],
-  "based_on": "BETA_UI_036_APPLIED"
+  "based_on": "BETA_HOTFIX_037_APPLIED"
 }
