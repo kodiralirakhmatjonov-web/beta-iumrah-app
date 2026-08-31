@@ -1,0 +1,6 @@
+iumrah Beta hotfix 041 — flight session compile restore
+
+Fixes the simulator/TestFlight compile failure reported after UI update 040:
+JourneyStore.swift:149:59: value of type 'AutomaticFlightSearchService' has no member 'invalidateSession'
+
+The automatic flight-search facade now exposes invalidateSession() and forwards it to the existing real-flight service. No UI, pricing, backend, signing, project or workflow files are changed.

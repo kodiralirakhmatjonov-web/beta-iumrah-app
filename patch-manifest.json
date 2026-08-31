@@ -1,22 +1,17 @@
 {
-  "patch": "iumrah-beta-update-040-flights-hero-home-globe-blend",
-  "purpose": "Move the transparent iumrah Flights wordmark to the beginning of the Flights page and blend the Home interactive globe into the Home background with two-sided top/bottom gradients.",
+  "patch": "iumrah-beta-update-041-flight-session-compile-hotfix",
+  "purpose": "Restore AutomaticFlightSearchService.invalidateSession() after the update 040 build exposed a repository state missing the forwarding method required by JourneyStore.",
   "files": [
     {
-      "path": "BETA_UI_040_APPLIED.txt",
-      "sha256": "cab14009ab8b708ea7ed2732ec0cf707ff3edbd010cf41fe89f2e3cdd67c17c3",
-      "bytes": 281
+      "path": "BETA_HOTFIX_041_APPLIED.txt",
+      "sha256": "0ac218b59d35db33d35e0fee089d677ad503fba2950b19a6d6b15740cfffac79",
+      "bytes": 436
     },
     {
-      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
-      "sha256": "068234381cf99f7e678a3c180522ff4ab82df311bf868e0946dc4f89d4e2f818",
-      "bytes": 54369
-    },
-    {
-      "path": "Sources/Views/Home/HomeDashboardView.swift",
-      "sha256": "4a4a9d1ffdbc79e7154a95090c0154f26cd56e2c4aa88ffab0a40501dca237f1",
-      "bytes": 27360
+      "path": "Sources/Services/RealFlightPackageSearchService.swift",
+      "sha256": "e6cc4958d0a68a6d5449ef61c66b2e893d5945e92fcb213d6963310b6430f3d4",
+      "bytes": 20985
     }
   ],
-  "based_on": "BETA_UI_039_APPLIED"
+  "based_on": "BETA_UI_040_APPLIED"
 }
