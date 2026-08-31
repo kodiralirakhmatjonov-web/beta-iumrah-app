@@ -1,0 +1,5 @@
+iumrah Beta hotfix 029
+Fixes the first-launch cinematic intro getting stuck before onboarding.
+The intro now uses a view-scoped Swift concurrency sequence instead of delayed main-queue callbacks, while startup account/booking network restoration is deferred until onboarding is complete.
+Also tightens compact onboarding layout reserves for long localized copy to prevent footer/copy collisions on shorter iPhones.
+No backend, Package Engine, signing, workflow, booking contract, or navigation contract changes.

@@ -8,6 +8,7 @@ struct RootView: View {
     @StateObject private var bookings = BookingStore()
     @StateObject private var account = IumrahAccountStore()
     @ObservedObject private var push = PushNotificationManager.shared
+    @State private var hasBootstrappedAfterOnboarding = false
 
     var body: some View {
         rootContent
@@ -23,20 +24,13 @@ struct RootView: View {
                 chrome.requestedTab = nil
             }
             .task {
-                await account.restore()
-                syncLocalProfileFromAccount()
-                bookings.setAccountToken(account.bearerToken)
-                if let token = account.bearerToken {
-                    await bookings.restoreAccountTrips(token: token)
-                    await linkLocalBookingsToAccount()
-                }
-                await bookings.refreshAll()
-                if hasCompletedOnboarding {
-                    await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
-                    await syncPushSubscriptions()
-                }
+                guard hasCompletedOnboarding else { return }
+                await bootstrapAfterOnboardingIfNeeded()
+                await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                await syncPushSubscriptions()
             }
             .onChange(of: push.deviceToken) { _, _ in
+                guard hasCompletedOnboarding else { return }
                 Task { await syncPushSubscriptions() }
             }
             .onChange(of: bookings.sessions.map(\.id)) { _, _ in
@@ -64,11 +58,13 @@ struct RootView: View {
             .onChange(of: hasCompletedOnboarding) { _, completed in
                 guard completed else { return }
                 Task {
+                    await bootstrapAfterOnboardingIfNeeded()
                     await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
                     await syncPushSubscriptions()
                 }
             }
             .onChange(of: push.eventRevision) { _, _ in
+                guard hasCompletedOnboarding else { return }
                 Task {
                     await bookings.refreshAll()
                     if let bookingID = push.lastEvent?.bookingID,
@@ -77,6 +73,25 @@ struct RootView: View {
                     }
                 }
             }
+    }
+
+    @MainActor
+    private func bootstrapAfterOnboardingIfNeeded() async {
+        guard !hasBootstrappedAfterOnboarding else { return }
+        hasBootstrappedAfterOnboarding = true
+
+        // Keep the cinematic first launch independent from account/network restoration.
+        // This prevents stale sessions or slow network calls from competing with the intro.
+        await account.restore()
+        syncLocalProfileFromAccount()
+        bookings.setAccountToken(account.bearerToken)
+
+        if let token = account.bearerToken {
+            await bookings.restoreAccountTrips(token: token)
+            await linkLocalBookingsToAccount()
+        }
+
+        await bookings.refreshAll()
     }
 
     @MainActor

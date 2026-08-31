@@ -65,7 +65,9 @@ struct OnboardingFlowView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .ignoresSafeArea()
-        .onAppear(perform: startIntroSequence)
+        .task {
+            await runIntroSequence()
+        }
         .onChange(of: pageID) { oldValue, newValue in
             guard oldValue != nil, newValue != nil, oldValue != newValue, !showIntro else { return }
             IumrahHaptics.selection()
@@ -602,7 +604,8 @@ struct OnboardingFlowView: View {
         (page == 0 || page == 2) ? .white : .primary
     }
 
-    private func startIntroSequence() {
+    @MainActor
+    private func runIntroSequence() async {
         guard showIntro else { return }
 
         withAnimation(.spring(response: 0.52, dampingFraction: 0.84)) {
@@ -610,19 +613,35 @@ struct OnboardingFlowView: View {
             introWordmarkOpacity = 1
             introWordmarkOffset = 0
         }
-        withAnimation(.easeOut(duration: 0.28).delay(0.10)) {
+        withAnimation(.easeOut(duration: 0.26)) {
             introCaptionOpacity = 0.88
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.35) {
-            withAnimation(.easeInOut(duration: 0.26)) {
-                introCaptionOpacity = 0
-                introWordmarkOpacity = 0
-                introIconOpacity = 0
-            }
-            withAnimation(.easeInOut(duration: 0.32).delay(0.02)) {
-                showIntro = false
-            }
+        // A view-scoped async sequence is deterministic and is cancelled automatically
+        // when onboarding disappears. It avoids a detached main-queue callback being
+        // starved by first-launch restoration work.
+        do {
+            try await Task.sleep(nanoseconds: 1_050_000_000)
+        } catch {
+            return
+        }
+        guard showIntro, !Task.isCancelled else { return }
+
+        withAnimation(.easeInOut(duration: 0.22)) {
+            introCaptionOpacity = 0
+            introWordmarkOpacity = 0
+            introIconOpacity = 0
+        }
+
+        do {
+            try await Task.sleep(nanoseconds: 230_000_000)
+        } catch {
+            return
+        }
+        guard showIntro, !Task.isCancelled else { return }
+
+        withAnimation(.easeInOut(duration: 0.24)) {
+            showIntro = false
         }
     }
 
@@ -634,7 +653,13 @@ struct OnboardingFlowView: View {
             isFinishing = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) {
+        Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 620_000_000)
+            } catch {
+                return
+            }
+            guard isFinishing, !Task.isCancelled else { return }
             onComplete()
         }
     }
@@ -743,13 +768,17 @@ private struct OnboardingCinematicPage<Scene: View>: View {
             let copyLength = title.count + bodyText.count + footnote.count
             let sceneFraction: CGFloat = {
                 if !showsCopy { return 1.0 }
-                if compact { return copyLength > 165 ? 0.50 : 0.54 }
+                if compact {
+                    if copyLength > 175 { return 0.46 }
+                    if copyLength > 145 { return 0.49 }
+                    return 0.52
+                }
                 if copyLength > 190 { return 0.56 }
                 if copyLength > 155 { return 0.59 }
                 return 0.62
             }()
             let sceneHeight = showsCopy
-                ? min(max(availableHeight * sceneFraction, compact ? 314 : 404), compact ? 408 : 496)
+                ? min(max(availableHeight * sceneFraction, compact ? 286 : 404), compact ? 392 : 496)
                 : availableHeight
 
             VStack(spacing: 0) {
