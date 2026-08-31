@@ -14,10 +14,10 @@ struct OnboardingFlowView: View {
     @State private var showIntro = true
     @State private var isFinishing = false
 
-    @State private var introIconOpacity: Double = 0
-    @State private var introIconScale: CGFloat = 0.82
-    @State private var introWordmarkOpacity: Double = 0
-    @State private var introWordmarkOffset: CGFloat = 16
+    @State private var introIconOpacity: Double = 1
+    @State private var introIconScale: CGFloat = 0.94
+    @State private var introWordmarkOpacity: Double = 0.84
+    @State private var introWordmarkOffset: CGFloat = 8
     @State private var introCaptionOpacity: Double = 0
 
     private let pageCount = 5
@@ -192,30 +192,38 @@ struct OnboardingFlowView: View {
                     }
                 }
             } label: {
-                Text(page == pageCount - 1
-                     ? L10n.text("onboarding_start", settings.language)
-                     : L10n.text("onboarding_next", settings.language))
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 52)
+                HStack(spacing: 9) {
+                    Text(page == pageCount - 1
+                         ? L10n.text("onboarding_start", settings.language)
+                         : L10n.text("onboarding_next", settings.language))
+                    Image(systemName: page == pageCount - 1 ? "sparkles" : "arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            .buttonBorderShape(.roundedRectangle(radius: 18))
             .controlSize(.large)
-            .tint(.blue)
+            .tint(.black)
         }
-        .padding(.horizontal, 22)
-        .padding(.bottom, max(bottomInset, 20) + 6)
+        .padding(.horizontal, 26)
+        .padding(.bottom, max(bottomInset, 20) + 8)
         .frame(maxHeight: .infinity, alignment: .bottom)
     }
 
     private func welcomeScene(isActive: Bool, size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
-            LoopingVideoView(
-                resource: "home-story-02",
-                isPlaying: scenePhase == .active && !showIntro && !isFinishing && page == 0,
-                isMuted: isMuted
-            )
+            Color.black
+
+            if !showIntro && page == 0 {
+                LoopingVideoView(
+                    resource: "home-story-02",
+                    isPlaying: scenePhase == .active && !isFinishing,
+                    isMuted: isMuted
+                )
+                .transition(.opacity)
+            }
 
             LinearGradient(
                 colors: [Color.black.opacity(0.22), Color.black.opacity(0.06), Color.black.opacity(0.52)],
@@ -304,12 +312,17 @@ struct OnboardingFlowView: View {
 
     private func packageScene(isActive: Bool, size: CGSize) -> some View {
         ZStack {
-            LoopingVideoView(
-                resource: "flight-search",
-                isPlaying: scenePhase == .active && !showIntro && !isFinishing && page == 2,
-                isMuted: true
-            )
-            .opacity(0.54)
+            Color.black
+
+            if !showIntro && page == 2 {
+                LoopingVideoView(
+                    resource: "flight-search",
+                    isPlaying: scenePhase == .active && !isFinishing,
+                    isMuted: true
+                )
+                .opacity(0.54)
+                .transition(.opacity)
+            }
 
             LinearGradient(
                 colors: [Color.black.opacity(0.18), Color.iumrahCareDark.opacity(0.62), Color.black.opacity(0.78)],
@@ -525,16 +538,12 @@ struct OnboardingFlowView: View {
             Color.black
                 .ignoresSafeArea()
 
-            LoopingVideoView(
-                resource: "flight-search",
-                isPlaying: scenePhase == .active && showIntro,
-                isMuted: true
-            )
-            .opacity(0.62)
-            .ignoresSafeArea()
+            OnboardingIntroLineField(reduceMotion: reduceMotion)
+                .opacity(0.72)
+                .ignoresSafeArea()
 
             LinearGradient(
-                colors: [Color.black.opacity(0.18), Color.black.opacity(0.48), Color.black.opacity(0.78)],
+                colors: [Color.black.opacity(0.04), Color.black.opacity(0.22), Color.black.opacity(0.54)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -596,25 +605,22 @@ struct OnboardingFlowView: View {
     private func startIntroSequence() {
         guard showIntro else { return }
 
-        withAnimation(.spring(response: 0.62, dampingFraction: 0.82)) {
-            introIconOpacity = 1
+        withAnimation(.spring(response: 0.52, dampingFraction: 0.84)) {
             introIconScale = 1
-        }
-        withAnimation(.easeOut(duration: 0.40).delay(0.18)) {
             introWordmarkOpacity = 1
             introWordmarkOffset = 0
         }
-        withAnimation(.easeOut(duration: 0.34).delay(0.34)) {
-            introCaptionOpacity = 0.9
+        withAnimation(.easeOut(duration: 0.28).delay(0.10)) {
+            introCaptionOpacity = 0.88
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.65) {
-            withAnimation(.easeInOut(duration: 0.34)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.35) {
+            withAnimation(.easeInOut(duration: 0.26)) {
                 introCaptionOpacity = 0
                 introWordmarkOpacity = 0
                 introIconOpacity = 0
             }
-            withAnimation(.easeInOut(duration: 0.42).delay(0.04)) {
+            withAnimation(.easeInOut(duration: 0.32).delay(0.02)) {
                 showIntro = false
             }
         }
@@ -671,6 +677,53 @@ struct OnboardingFlowView: View {
         case 3: return L10n.text("onboarding_care_footnote", settings.language)
         default: return L10n.text("onboarding_closing_footnote", settings.language)
         }
+    }
+}
+
+private struct OnboardingIntroLineField: View {
+    let reduceMotion: Bool
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 : 1.0 / 24.0)) { context in
+            let t = reduceMotion ? 0.0 : context.date.timeIntervalSinceReferenceDate
+
+            Canvas { canvas, size in
+                let origin = CGPoint(x: size.width * 0.5, y: size.height * 0.84)
+                let lines: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
+                    (-0.42, 0.16, -0.34, -0.40), (-0.34, 0.08, -0.26, -0.52),
+                    (-0.27, 0.14, -0.18, -0.36), (-0.20, 0.05, -0.12, -0.58),
+                    (-0.13, 0.10, -0.06, -0.43), (-0.07, 0.03, -0.02, -0.62),
+                    (0.05, 0.04, 0.10, -0.55), (0.12, 0.12, 0.18, -0.38),
+                    (0.19, 0.04, 0.27, -0.60), (0.27, 0.10, 0.35, -0.44),
+                    (0.34, 0.02, 0.42, -0.53), (0.42, 0.12, 0.48, -0.34)
+                ]
+
+                for (index, line) in lines.enumerated() {
+                    let phase = CGFloat(sin(t * 0.55 + Double(index) * 0.73))
+                    let end = CGPoint(
+                        x: size.width * (0.5 + line.2) + phase * 12,
+                        y: size.height * (0.84 + line.3)
+                    )
+                    let c1 = CGPoint(
+                        x: origin.x + size.width * line.0 * 0.38 + phase * 8,
+                        y: origin.y - size.height * 0.18
+                    )
+                    let c2 = CGPoint(
+                        x: size.width * (0.5 + line.2 * 0.75) - phase * 9,
+                        y: size.height * (0.84 + line.3 * 0.62)
+                    )
+
+                    var path = Path()
+                    path.move(to: origin)
+                    path.addCurve(to: end, control1: c1, control2: c2)
+                    canvas.stroke(path, with: .color(.white.opacity(0.18)), lineWidth: 1.2)
+
+                    let glow = CGRect(x: end.x - 3.2, y: end.y - 3.2, width: 6.4, height: 6.4)
+                    canvas.fill(Path(ellipseIn: glow), with: .color(.white.opacity(0.78)))
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 
