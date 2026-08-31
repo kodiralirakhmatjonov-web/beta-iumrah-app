@@ -1,0 +1,12 @@
+iumrah Beta hotfix 042
+
+Build-contract repair based on failing TestFlight simulator build at repository commit 620d29066ee8d338bf4ec33da23145b9b535ae0b.
+
+Fixes:
+- GeneratorComponentProviding conformance updated to the room-aware hotel pricing contract.
+- Removed stale BetaFlightSearchService / usesSandboxFlightSearch facade path; current production config uses official WebBots only.
+- Added invalidateHotelPrices forwarding required by JourneyStore.
+- Preserved invalidateSession forwarding.
+- Made hotel prewarm/cache signatures room-aware so a generic prewarm cannot be reused as a selected-room final price.
+
+No backend, signing, workflow, Flights UI or connectivity UI files are changed.

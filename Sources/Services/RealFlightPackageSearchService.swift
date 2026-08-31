@@ -25,8 +25,10 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     private var activeSignature: String?
     private var cachedInbound: [LiveFlightCandidate] = []
     private var cachedHotels: HotelPriceSearchSnapshot?
+    private var cachedHotelSignature: String?
     private var inboundPrewarmTask: Task<[LiveFlightCandidate], Never>?
     private var hotelPriceTask: Task<HotelPriceSearchSnapshot, Never>?
+    private var hotelPriceTaskSignature: String?
 
     var currentHotelPriceSnapshot: HotelPriceSearchSnapshot? { cachedHotels }
 
@@ -168,28 +170,78 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         return final
     }
 
-    func ensureHotelPrices(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async -> HotelPriceSearchSnapshot {
+    func ensureHotelPrices(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String?,
+        makkahRoomName: String?,
+        madinahRoomId: String?,
+        madinahRoomName: String?
+    ) async -> HotelPriceSearchSnapshot {
         prepare(for: trip)
-        if let cachedHotels, cachedHotels.hasLiveRates { return cachedHotels }
-        if let hotelPriceTask {
+
+        let requestedSignature = makeHotelPriceSignature(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            makkahRoomId: makkahRoomId,
+            makkahRoomName: makkahRoomName,
+            madinahRoomId: madinahRoomId,
+            madinahRoomName: madinahRoomName
+        )
+
+        if cachedHotelSignature == requestedSignature,
+           let cachedHotels,
+           cachedHotels.hasLiveRates {
+            return cachedHotels
+        }
+
+        if hotelPriceTaskSignature == requestedSignature, let hotelPriceTask {
             let value = await hotelPriceTask.value
-            cachedHotels = value
-            self.hotelPriceTask = nil
+            if hotelPriceTaskSignature == requestedSignature {
+                cachedHotels = value
+                cachedHotelSignature = requestedSignature
+                self.hotelPriceTask = nil
+                hotelPriceTaskSignature = nil
+            }
             return value
         }
-        let value = await hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+
+        // The automatic prewarm does not know the pilgrim's selected room.
+        // Never reuse that generic task for final pricing of a concrete room.
+        hotelPriceTask?.cancel()
+        hotelPriceTask = nil
+        hotelPriceTaskSignature = nil
+
+        let value = await hotelPriceService.search(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            makkahRoomId: makkahRoomId,
+            makkahRoomName: makkahRoomName,
+            madinahRoomId: madinahRoomId,
+            madinahRoomName: madinahRoomName
+        )
         cachedHotels = value
+        cachedHotelSignature = requestedSignature
         return value
+    }
+
+    func invalidateHotelPrices() {
+        cachedHotels = nil
+        cachedHotelSignature = nil
+        hotelPriceTask?.cancel()
+        hotelPriceTask = nil
+        hotelPriceTaskSignature = nil
     }
 
     func invalidateSession() {
         activeSignature = nil
         cachedInbound = []
-        cachedHotels = nil
         inboundPrewarmTask?.cancel()
-        hotelPriceTask?.cancel()
         inboundPrewarmTask = nil
-        hotelPriceTask = nil
+        invalidateHotelPrices()
     }
 
     private func prepare(for trip: TripDraft) {
@@ -200,13 +252,43 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     }
 
     private func startHotelPriceCheck(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) {
-        guard hotelPriceTask == nil, cachedHotels == nil else { return }
+        let signature = makeHotelPriceSignature(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            makkahRoomId: nil,
+            makkahRoomName: nil,
+            madinahRoomId: nil,
+            madinahRoomName: nil
+        )
+        guard hotelPriceTask == nil,
+              !(cachedHotelSignature == signature && cachedHotels != nil) else { return }
+
+        hotelPriceTaskSignature = signature
         hotelPriceTask = Task { @MainActor in
             // Let the first airline WebView/server request start first. The hotel
             // verification still runs while the pilgrim compares flight options.
-            try? await Task.sleep(for: .milliseconds(900))
-            let value = await self.hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+            do {
+                try await Task.sleep(for: .milliseconds(900))
+            } catch {
+                return .empty
+            }
+            guard !Task.isCancelled else { return .empty }
+
+            let value = await self.hotelPriceService.search(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                makkahRoomId: nil,
+                makkahRoomName: nil,
+                madinahRoomId: nil,
+                madinahRoomName: nil
+            )
+            guard !Task.isCancelled, self.hotelPriceTaskSignature == signature else {
+                return value
+            }
             self.cachedHotels = value
+            self.cachedHotelSignature = signature
             return value
         }
     }
@@ -384,6 +466,29 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         )
     }
 
+    private func makeHotelPriceSignature(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String?,
+        makkahRoomName: String?,
+        madinahRoomId: String?,
+        madinahRoomName: String?
+    ) -> String {
+        let formatter = ISO8601DateFormatter()
+        return [
+            makkahHotel.id,
+            makkahRoomId ?? "-",
+            makkahRoomName ?? "-",
+            madinahHotel?.id ?? "-",
+            madinahRoomId ?? "-",
+            madinahRoomName ?? "-",
+            formatter.string(from: trip.departureDate),
+            formatter.string(from: trip.returnDate),
+            String(trip.adults), String(trip.children), String(trip.infants), String(trip.rooms)
+        ].joined(separator: "|")
+    }
+
     private func makeSignature(_ trip: TripDraft) -> String {
         let formatter = ISO8601DateFormatter()
         return [
@@ -401,37 +506,71 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 @MainActor
 final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorComponentProviding {
     private let real = RealFlightPackageSearchService()
-    private let sandbox = BetaFlightSearchService()
 
     var currentHotelPriceSnapshot: HotelPriceSearchSnapshot? { real.currentHotelPriceSnapshot }
 
-    func ensureHotelPrices(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async -> HotelPriceSearchSnapshot {
-        await real.ensureHotelPrices(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+    func ensureHotelPrices(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String?,
+        makkahRoomName: String?,
+        madinahRoomId: String?,
+        madinahRoomName: String?
+    ) async -> HotelPriceSearchSnapshot {
+        await real.ensureHotelPrices(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            makkahRoomId: makkahRoomId,
+            makkahRoomName: makkahRoomName,
+            madinahRoomId: madinahRoomId,
+            madinahRoomName: madinahRoomName
+        )
     }
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
-        if AppConfig.usesSandboxFlightSearch { return try await sandbox.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel) }
-        return try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+        try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
     }
 
     func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer] {
-        if AppConfig.usesSandboxFlightSearch { return try await sandbox.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound) }
-        return try await real.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
+        try await real.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
     }
 
-    func searchOutboundProgressive(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, onUpdate: @escaping FlightSearchProgressHandler) async throws -> [FlightOffer] {
-        if AppConfig.usesSandboxFlightSearch { return try await sandbox.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate) }
-        return try await real.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate)
+    func searchOutboundProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        try await real.searchOutboundProgressive(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            onUpdate: onUpdate
+        )
     }
 
-    func searchReturnProgressive(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer, onUpdate: @escaping FlightSearchProgressHandler) async throws -> [FlightOffer] {
-        if AppConfig.usesSandboxFlightSearch { return try await sandbox.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate) }
-        return try await real.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
+    func searchReturnProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        outbound: FlightOffer,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        try await real.searchReturnProgressive(
+            trip: trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: madinahHotel,
+            outbound: outbound,
+            onUpdate: onUpdate
+        )
     }
 
-    /// Clears the cached real-flight search session when trip or hotel inputs change.
-    /// JourneyStore talks to the automatic facade, so the facade must forward this
-    /// lifecycle operation to the real engine as well as the normal search calls.
+    func invalidateHotelPrices() {
+        real.invalidateHotelPrices()
+    }
+
     func invalidateSession() {
         real.invalidateSession()
     }

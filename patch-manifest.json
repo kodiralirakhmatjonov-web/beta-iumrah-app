@@ -1,17 +1,17 @@
 {
-  "patch": "iumrah-beta-update-041-flight-session-compile-hotfix",
-  "purpose": "Restore AutomaticFlightSearchService.invalidateSession() after the update 040 build exposed a repository state missing the forwarding method required by JourneyStore.",
+  "patch": "iumrah-beta-update-042-generator-contract-compile-hotfix",
+  "purpose": "Repair the current Generator V2 flight-service contract exposed by the failed simulator build: room-aware GeneratorComponentProviding conformance, production-only real flight facade, and hotel/session invalidation forwarding.",
   "files": [
     {
-      "path": "BETA_HOTFIX_041_APPLIED.txt",
-      "sha256": "0ac218b59d35db33d35e0fee089d677ad503fba2950b19a6d6b15740cfffac79",
-      "bytes": 436
+      "path": "BETA_HOTFIX_042_APPLIED.txt",
+      "sha256": "df39773282a305c426207e3986c8d8b29fb50da2a331566eb6496ce019ec11b5",
+      "bytes": 695
     },
     {
       "path": "Sources/Services/RealFlightPackageSearchService.swift",
-      "sha256": "e6cc4958d0a68a6d5449ef61c66b2e893d5945e92fcb213d6963310b6430f3d4",
-      "bytes": 20985
+      "sha256": "bbcda1d41d17a140fcaf1bcda4307a7fe2d72975cb7a925be1b2c3d3bd341241",
+      "bytes": 23916
     }
   ],
-  "based_on": "BETA_UI_040_APPLIED"
+  "based_on_commit": "620d29066ee8d338bf4ec33da23145b9b535ae0b"
 }
