@@ -1,22 +1,32 @@
 {
-  "patch": "iumrah-beta-update-038-generator-v2-compile-hotfix",
-  "purpose": "Fix remaining iumrah Beta Swift compile failures by aligning localization with the current FlightEngineAvailabilityError enum and restoring BookingDraftBuilder flexible-day conversion.",
+  "patch": "iumrah-beta-update-039-interactive-flights-globes",
+  "purpose": "Use the supplied transparent iumrah Flights wordmark, make the Flights hero globe natively interactive with pan/zoom/rotate and a smooth globe-to-content fade, move the Home iumrah Flights card to the end, and add an interactive half-globe footer with “From the world to Mecca”.",
   "files": [
     {
-      "path": "BETA_HOTFIX_038_APPLIED.txt",
-      "sha256": "6b753af9e4a97b69cb044b5b2dd20f7b1f8097ea3ca3b41932f23d9a4b5992e9",
-      "bytes": 608
+      "path": "BETA_UI_039_APPLIED.txt",
+      "sha256": "c5d56b1fe9813442f3eb3a70bde907f25d417067e213534f78417584bf985b08",
+      "bytes": 205
     },
     {
-      "path": "Sources/Core/AppLocalization.swift",
-      "sha256": "027c2cb035dccaa6b14d9bf152f19b3a7e65ece3c3d8250577feb0e501374d9f",
-      "bytes": 159637
+      "path": "Sources/Views/Flights/IumrahInteractiveGlobe.swift",
+      "sha256": "f8fd9d4d0e5f059cc058cd2502dbf8ba19cc36df3e9e2580f81d958b41dea768",
+      "bytes": 5033
     },
     {
-      "path": "Sources/Core/BookingDraftBuilder.swift",
-      "sha256": "55b4f2c55d8be1608f68c68786a3f7077dfaa6d36717b607c8a3061f47a8e882",
-      "bytes": 8999
+      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
+      "sha256": "bde4a0e7041f916a293fadae40c990fada770efe44d724bfab5ecccd51d68c37",
+      "bytes": 54037
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "a8b6823b526fa79b2f3507cfe913c83af369187976dc63743012e4263e13948c",
+      "bytes": 26137
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahFlightsWordmark.imageset/iumrah-flights-wordmark.png",
+      "sha256": "d76926c677f8c58d9ef79dd45978c387c67fab46e67c5521cf7df4c287c921bf",
+      "bytes": 311691
     }
   ],
-  "based_on": "BETA_HOTFIX_037_APPLIED"
+  "based_on": "BETA_HOTFIX_038_APPLIED"
 }

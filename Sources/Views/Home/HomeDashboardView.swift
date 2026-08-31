@@ -25,7 +25,6 @@ struct HomeDashboardView: View {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
                 HomeVideoCarousel()
-                flightsHomeCard
                 hero
                 confidenceStrip
                 philosophyCard
@@ -33,10 +32,12 @@ struct HomeDashboardView: View {
                 esimHomeCard
                 careCard
                 hotelCard
+                flightsHomeCard
+                flightsWorldFooter
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
-            .padding(.bottom, 42)
+            .padding(.bottom, 0)
         }
         .background(Color.iumrahPageBackground)
     }
@@ -266,6 +267,44 @@ struct HomeDashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("iumrah Flights")
+    }
+
+    private var flightsWorldFooter: some View {
+        VStack(spacing: 0) {
+            Text("From the world to Mecca")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .tracking(-0.7)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .padding(.top, 34)
+                .padding(.bottom, 12)
+                .allowsHitTesting(false)
+
+            ZStack(alignment: .top) {
+                IumrahInteractiveGlobe(presentation: .worldToMakkah)
+                    .frame(height: 380)
+
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.00),
+                        .init(color: .black.opacity(0.58), location: 0.12),
+                        .init(color: .clear, location: 0.32),
+                        .init(color: .clear, location: 0.76),
+                        .init(color: .black.opacity(0.62), location: 1.00)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            }
+            .frame(height: 330)
+            .clipped()
+            .padding(.bottom, 84)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.black)
+        .padding(.horizontal, -IumrahDesign.pagePadding)
     }
 
     private var hero: some View {

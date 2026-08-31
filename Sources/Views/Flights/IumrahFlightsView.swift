@@ -10,20 +10,9 @@ struct IumrahFlightsView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var mapPosition: MapCameraPosition = .camera(
-        MapCamera(
-            centerCoordinate: CLLocationCoordinate2D(latitude: 27.5, longitude: 51.0),
-            distance: 16_800_000,
-            heading: 0,
-            pitch: 0
-        )
-    )
     @State private var flightQuery = ""
     @State private var notificationScheduled = false
     @State private var notificationPermissionDenied = false
-
-    private static let tashkent = CLLocationCoordinate2D(latitude: 41.2579, longitude: 69.2812)
-    private static let jeddah = CLLocationCoordinate2D(latitude: 21.6702, longitude: 39.1525)
 
     private var accessSession: StoredBookingSession? {
         bookings.sessions.first(where: IumrahFlightsAccess.isEligible)
@@ -105,49 +94,38 @@ struct IumrahFlightsView: View {
     // MARK: - Hero
 
     private var globeHero: some View {
-        ZStack(alignment: .bottom) {
-            Map(position: $mapPosition, interactionModes: []) {
-                MapPolyline(coordinates: [Self.tashkent, Self.jeddah], contourStyle: .geodesic)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.white.opacity(0.95), .blue.opacity(0.92)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        style: StrokeStyle(lineWidth: 2.4, lineCap: .round, dash: [4, 6])
-                    )
+        ZStack(alignment: .top) {
+            Color.black
 
-                Annotation("TAS", coordinate: Self.tashkent, anchor: .center) {
-                    routePoint(code: "TAS")
-                }
+            IumrahInteractiveGlobe(presentation: .flightRoute)
+                .frame(height: 520)
 
-                Annotation("JED", coordinate: Self.jeddah, anchor: .center) {
-                    routePoint(code: "JED")
-                }
-            }
-            .mapStyle(
-                .hybrid(
-                    elevation: .realistic,
-                    pointsOfInterest: .excludingAll,
-                    showsTraffic: false
-                )
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.00),
+                    .init(color: .clear, location: 0.38),
+                    .init(color: .black.opacity(0.16), location: 0.54),
+                    .init(color: .black.opacity(0.76), location: 0.73),
+                    .init(color: .black, location: 0.91)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
             )
+            .frame(height: 560)
             .allowsHitTesting(false)
-            .frame(height: 610)
-            .overlay {
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.08), .black.opacity(0.92), .black],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
+
+            Image("IumrahFlightsWordmark")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 330)
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .shadow(color: .black.opacity(0.42), radius: 18, y: 8)
+                .accessibilityLabel("iumrah Flights")
+                .allowsHitTesting(false)
 
             VStack(spacing: 18) {
-                Image("IumrahFlightsWordmark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 330)
-                    .accessibilityLabel("iumrah Flights")
+                Spacer(minLength: 0)
 
                 VStack(spacing: 8) {
                     Text(IumrahFlightsCopy.text(.heroTitle, settings.language))
@@ -166,30 +144,11 @@ struct IumrahFlightsView: View {
                 accessBadge
             }
             .padding(.horizontal, 22)
-            .padding(.bottom, 14)
+            .padding(.bottom, 18)
+            .allowsHitTesting(false)
         }
+        .frame(height: 680)
         .background(Color.black)
-    }
-
-    private func routePoint(code: String) -> some View {
-        VStack(spacing: 5) {
-            ZStack {
-                Circle()
-                    .fill(.white.opacity(0.18))
-                    .frame(width: 28, height: 28)
-                    .blur(radius: 7)
-                Circle()
-                    .fill(.white)
-                    .frame(width: 8, height: 8)
-                    .overlay { Circle().stroke(.blue.opacity(0.85), lineWidth: 2) }
-            }
-            Text(code)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.58), in: Capsule())
-        }
     }
 
     private var accessBadge: some View {

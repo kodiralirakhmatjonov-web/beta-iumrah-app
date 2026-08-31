@@ -1,0 +1,3 @@
+BETA_UI_039_APPLIED
+Interactive iumrah Flights globe + transparent Flights wordmark + Home footer world-to-Mecca globe.
+Based on Beta source 3(5) with updates 036, 037 and 038 applied before this overlay.
