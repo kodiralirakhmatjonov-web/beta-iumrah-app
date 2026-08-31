@@ -9,6 +9,7 @@ import { createBookingThroughPackageGateway } from "./booking-gateway";
 import { createPackageSearch, getPackageSearch, requotePackageSearch, PackageSearchSession } from "./package-search";
 import type { Env } from "./env";
 import { officialCarrierBotCount } from "./server-flight-bots";
+import { configuredHotelComponent, curatedPrimaryHotel, providerFlightSearch } from "./generator-components";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
 export { PackageSearchSession };
@@ -246,54 +247,16 @@ export default {
       }
     }
 
+    if (request.method === "POST" && url.pathname === "/api/package/flights/provider-search") {
+      return providerFlightSearch(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/package/hotel-component-price") {
+      return configuredHotelComponent(url, env);
+    }
+
     if (request.method === "GET" && url.pathname === "/api/package/primary-hotel") {
-      if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB binding is not configured" }, 503);
-      const tier = url.searchParams.get("tier") as ConsumerPackageQuoteRequest["tier"] | null;
-      const stars = Number(url.searchParams.get("stars"));
-      const city = url.searchParams.get("city");
-      if (!tier || !Number.isInteger(stars) || (city !== "Makkah" && city !== "Madinah")) {
-        return json({ ok: false, error: "tier, stars and city are required" }, 400);
-      }
-      try {
-        const row = await resolvePrimaryHotel(env.HOTELS_DB, tier, stars, city);
-        return json({
-          ok: true,
-          hotelId: row.hotel_id,
-          roomId: row.room_id,
-          tier: row.package_tier,
-          stars: row.stars,
-          city: row.city,
-          requestedTier: row.requestedTier,
-          requestedStars: row.requestedStars,
-          matchType: row.matchType,
-          isFallback: row.matchType !== "exact",
-          pricingMode: "configuredPrimary",
-        });
-      } catch {
-        const catalog = await env.HOTELS_DB.prepare(
-          `SELECT id, stars, city
-           FROM hotels
-           WHERE status = 'published' AND city = ?1
-           ORDER BY CASE WHEN stars = ?2 THEN 0 ELSE 1 END,
-                    ABS(COALESCE(stars, ?2) - ?2),
-                    updated_at DESC
-           LIMIT 1`,
-        ).bind(city, stars).first<{ id: string; stars: number | null; city: string }>();
-        if (!catalog) return json({ ok: false, error: `No published hotel is available for ${city}` }, 404);
-        return json({
-          ok: true,
-          hotelId: catalog.id,
-          roomId: null,
-          tier,
-          stars: Number(catalog.stars ?? stars),
-          city,
-          requestedTier: tier,
-          requestedStars: stars,
-          matchType: "catalogFallback",
-          isFallback: true,
-          pricingMode: "legacyEstimate",
-        });
-      }
+      return curatedPrimaryHotel(url, env);
     }
 
     if (request.method === "POST" && url.pathname === "/api/package/quote") {

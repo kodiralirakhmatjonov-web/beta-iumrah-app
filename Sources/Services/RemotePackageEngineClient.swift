@@ -79,29 +79,6 @@ struct RemotePackageEngineClient {
         )
         return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
     }
-    func createSearch(trip: TripDraft, clientRequestId: String) async throws -> ServerPackageSearchSnapshot {
-        try await api.post(
-            AppConfig.packageSearchSessionsPath,
-            body: ServerPackageSearchRequest(trip: trip, clientRequestId: clientRequestId),
-            timeoutInterval: 18
-        )
-    }
-
-    func searchSnapshot(searchId: String) async throws -> ServerPackageSearchSnapshot {
-        try await api.get(
-            "\(AppConfig.packageSearchSessionsPath)/\(searchId)",
-            timeoutInterval: 12
-        )
-    }
-
-    func requote(searchId: String, request: ServerPackageRequoteRequest) async throws -> ServerPackageRequoteResponse {
-        try await api.post(
-            "\(AppConfig.packageSearchSessionsPath)/\(searchId)/quote",
-            body: request,
-            timeoutInterval: 18
-        )
-    }
-
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
@@ -109,5 +86,37 @@ struct RemotePackageEngineClient {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    func searchFlightProvider(
+        providerID: FlightBotProviderID,
+        request: FlightBotSearchRequest,
+        dateOffset: Int
+    ) async throws -> ServerFlightProviderSearchResponse {
+        let body = ServerFlightProviderSearchRequest(
+            providerId: providerID.rawValue,
+            direction: request.direction,
+            origin: request.origin,
+            destination: request.destination,
+            travelDate: Self.dayFormatter.string(from: request.date),
+            dateOffset: dateOffset,
+            travelers: .init(
+                adults: request.adults,
+                children: request.children,
+                infants: request.infants,
+                rooms: 1
+            )
+        )
+        return try await api.post(
+            AppConfig.packageFlightProviderSearchPath,
+            body: body,
+            timeoutInterval: AppConfig.serverFlightProviderTimeoutSeconds
+        )
+    }
+
+    func configuredHotelComponentPrice(hotelID: String, roomID: String?) async throws -> ConfiguredHotelComponentPrice {
+        var query = [URLQueryItem(name: "hotelId", value: hotelID)]
+        if let roomID, !roomID.isEmpty { query.append(URLQueryItem(name: "roomId", value: roomID)) }
+        return try await api.get(AppConfig.packageHotelComponentPricePath, query: query, timeoutInterval: 8)
+    }
 
 }

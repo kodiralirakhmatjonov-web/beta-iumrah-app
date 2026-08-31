@@ -12,10 +12,11 @@ struct FinalPackageView: View {
     @State private var createdSession: StoredBookingSession?
     @State private var errorMessage: String?
     @State private var showCreatedBooking = false
+    @State private var isCalculatingPrice = false
 
     private var needsMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canBook: Bool {
-        journey.hasFreshAuthoritativeQuote &&
+        journey.hasFinalGeneratorQuote &&
         journey.selectedHotel != nil &&
         journey.selectedOutbound?.isVerifiedForBooking == true &&
         journey.selectedInbound?.isVerifiedForBooking == true &&
@@ -31,7 +32,11 @@ struct FinalPackageView: View {
                     successContent(createdSession)
                 } else {
                     packageHeader
-                    if let quote = journey.quote { premiumPriceCard(quote) }
+                    if let quote = journey.quote, journey.hasFinalGeneratorQuote {
+                        premiumPriceCard(quote)
+                    } else {
+                        pricingStatusCard
+                    }
                     includedServicesCard
                     reassuranceCard
                     notificationCard
@@ -66,7 +71,7 @@ struct FinalPackageView: View {
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .ready)
         .task {
-            if !journey.hasFreshAuthoritativeQuote { await journey.buildQuote() }
+            if !journey.hasFinalGeneratorQuote { await recalculatePrice() }
             await push.refreshAndRegisterIfAllowed()
         }
         .sheet(isPresented: $isProfileSheetPresented) {
@@ -79,6 +84,91 @@ struct FinalPackageView: View {
             if let createdSession {
                 BookingDetailView(bookingID: createdSession.id)
             }
+        }
+    }
+
+    private var pricingStatusCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                if isCalculatingPrice {
+                    ProgressView()
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isCalculatingPrice ? calculatingPriceTitle : pricingUnavailableTitle)
+                        .font(.headline)
+                    Text(isCalculatingPrice ? calculatingPriceBody : (journey.errorMessage ?? pricingUnavailableBody))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            if !isCalculatingPrice {
+                Button(retryPricingTitle) {
+                    Task { await recalculatePrice() }
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
+    }
+
+    @MainActor
+    private func recalculatePrice() async {
+        guard !isCalculatingPrice else { return }
+        isCalculatingPrice = true
+        await journey.buildQuote()
+        isCalculatingPrice = false
+        if journey.hasFinalGeneratorQuote { IumrahHaptics.success() }
+    }
+
+    private var calculatingPriceTitle: String {
+        switch settings.language {
+        case .russian: return "Собираем итоговую цену"
+        case .english: return "Building your final price"
+        case .uzbek: return "Yakuniy narx hisoblanmoqda"
+        case .uzbekCyrillic: return "Якуний нарх ҳисобланмоқда"
+        }
+    }
+
+    private var calculatingPriceBody: String {
+        switch settings.language {
+        case .russian: return "Проверяем выбранные рейсы и актуальную цену Primary Hotels, затем локальный генератор применит вашу прайсинг-архитектуру."
+        case .english: return "Checking the selected flights and Primary Hotel prices, then the local generator applies the package pricing rules."
+        case .uzbek: return "Tanlangan reyslar va Primary Hotel narxlari tekshiriladi, so‘ng ilovadagi generator paket narxini hisoblaydi."
+        case .uzbekCyrillic: return "Танланган рейслар ва Primary Hotel нархлари текширилади, сўнг иловадаги генератор пакет нархини ҳисоблайди."
+        }
+    }
+
+    private var pricingUnavailableTitle: String {
+        switch settings.language {
+        case .russian: return "Нужно подтвердить один из компонентов"
+        case .english: return "One component still needs verification"
+        case .uzbek: return "Bir komponentni tasdiqlash kerak"
+        case .uzbekCyrillic: return "Бир компонентни тасдиқлаш керак"
+        }
+    }
+
+    private var pricingUnavailableBody: String {
+        switch settings.language {
+        case .russian: return "Найденные рейсы сохранены. Повторите только проверку цены — весь поиск перелётов запускать заново не нужно."
+        case .english: return "Your selected flights are preserved. Retry only the price verification; the flight search does not need to restart."
+        case .uzbek: return "Tanlangan reyslar saqlanadi. Faqat narx tekshiruvini qaytaring — reyslarni qayta qidirish shart emas."
+        case .uzbekCyrillic: return "Танланган рейслар сақланади. Фақат нарх текширувини қайтаринг — рейсларни қайта қидириш шарт эмас."
+        }
+    }
+
+    private var retryPricingTitle: String {
+        switch settings.language {
+        case .russian: return "Повторить проверку цены"
+        case .english: return "Retry price verification"
+        case .uzbek: return "Narxni qayta tekshirish"
+        case .uzbekCyrillic: return "Нархни қайта текшириш"
         }
     }
 
@@ -195,15 +285,13 @@ struct FinalPackageView: View {
             }
 
             includedRow(.fullTransfer, icon: "car.fill")
-            if needsMadinah && journey.serverIntercityTransport == .haramainTrain {
-                literalIncludedRow(title: haramainTitle, value: haramainBody, icon: "tram.fill")
-            }
             includedRow(.ziyaratMakkah, icon: "mappin.and.ellipse")
             if needsMadinah { includedRow(.ziyaratMadinah, icon: "mappin.and.ellipse") }
             includedRow(.careSupport, icon: "heart.fill")
             includedRow(.guide, icon: "person.wave.2.fill")
             includedRow(.visa, icon: "doc.text.fill")
             includedRow(.meals, icon: "fork.knife")
+            includedRow(.esim, icon: "simcard.fill")
         }
         .padding(20)
         .background(Color.iumrahCardBackground)
@@ -237,48 +325,6 @@ struct FinalPackageView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 9)
-    }
-
-    private func literalIncludedRow(title: String, value: String, icon: String) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Circle().fill(Color.iumrahCareLight.opacity(0.22))
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Color.iumrahCareDark)
-            }
-            .frame(width: 30, height: 30)
-
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 22)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(value).font(.footnote).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 9)
-    }
-
-    private var haramainTitle: String {
-        switch settings.language {
-        case .russian: return "Поезд Haramain"
-        case .english: return "Haramain train"
-        case .uzbek: return "Haramain poyezdi"
-        case .uzbekCyrillic: return "Haramain поезди"
-        }
-    }
-
-    private var haramainBody: String {
-        switch settings.language {
-        case .russian: return "Между Меккой и Мединой"
-        case .english: return "Between Makkah and Madinah"
-        case .uzbek: return "Makka va Madina o‘rtasida"
-        case .uzbekCyrillic: return "Макка ва Мадина ўртасида"
-        }
     }
 
     private var reassuranceCard: some View {
@@ -393,11 +439,6 @@ struct FinalPackageView: View {
               let outbound = journey.selectedOutbound,
               let inbound = journey.selectedInbound,
               let quote = journey.quote else { return }
-        guard journey.hasFreshAuthoritativeQuote, quote.isEstimated == false, quote.quoteId?.isEmpty == false else {
-            errorMessage = authoritativeQuoteMessage
-            IumrahHaptics.error()
-            return
-        }
         guard outbound.isVerifiedForBooking, inbound.isVerifiedForBooking else {
             errorMessage = invalidFlightSelectionMessage
             IumrahHaptics.error()
@@ -424,9 +465,6 @@ struct FinalPackageView: View {
                 roomCategory: journey.selectedRoomCategory,
                 madinahRoom: journey.selectedMadinahRoom,
                 madinahRoomCategory: journey.selectedMadinahRoomCategory,
-                authoritativeMakkahRoomId: journey.serverMakkahRoomID,
-                authoritativeMadinahRoomId: journey.serverMadinahRoomID,
-                intercityTransport: journey.serverIntercityTransport,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,
@@ -444,15 +482,6 @@ struct FinalPackageView: View {
         }
     }
 
-
-    private var authoritativeQuoteMessage: String {
-        switch settings.language {
-        case .russian: return "Цена пакета устарела или не подтверждена сервером. Обновите пакет перед бронированием."
-        case .english: return "The package price is expired or not server-confirmed. Refresh the package before booking."
-        case .uzbek: return "Paket narxi eskirgan yoki server tomonidan tasdiqlanmagan. Bron qilishdan oldin paketni yangilang."
-        case .uzbekCyrillic: return "Пакет нархи эскирган ёки сервер томонидан тасдиқланмаган. Брон қилишдан олдин пакетни янгиланг."
-        }
-    }
 
     private var invalidFlightSelectionMessage: String {
         switch settings.language {

@@ -109,19 +109,19 @@ struct FlightCandidatePreviewCard: View {
 
     private var pricingTitle: String {
         switch settings.language {
-        case .russian: return "Пересчитываем пакет"
-        case .english: return "Updating package price"
-        case .uzbek: return "Paket narxi hisoblanmoqda"
-        case .uzbekCyrillic: return "Пакет нархи ҳисобланмоқда"
+        case .russian: return "Проверяем тариф"
+        case .english: return "Verifying fare"
+        case .uzbek: return "Tarif tekshirilmoqda"
+        case .uzbekCyrillic: return "Тариф текширилмоқда"
         }
     }
 
     private var pricingSubtitle: String {
         switch settings.language {
-        case .russian: return "Рейс уже подтверждён. Цена появится автоматически."
-        case .english: return "The flight is verified. The package price will appear automatically."
-        case .uzbek: return "Reys tasdiqlandi. Paket narxi avtomatik chiqadi."
-        case .uzbekCyrillic: return "Рейс тасдиқланди. Пакет нархи автоматик чиқади."
+        case .russian: return "Рейс найден. Подтверждаем цену и детали у источника."
+        case .english: return "Flight found. Verifying the fare and details with the source."
+        case .uzbek: return "Reys topildi. Tarif va tafsilotlar manbada tekshirilmoqda."
+        case .uzbekCyrillic: return "Рейс топилди. Тариф ва тафсилотлар манбада текширилмоқда."
         }
     }
 
@@ -146,6 +146,7 @@ struct FlightSearchProgressCard: View {
     @EnvironmentObject private var settings: AppSettingsStore
     let isSearching: Bool
     let hasResults: Bool
+    var liveStatus: GeneratorSearchStage? = nil
     let onContinue: () -> Void
 
     @State private var pulse = false
@@ -161,7 +162,7 @@ struct FlightSearchProgressCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .font(.headline)
-                    Text(subtitle)
+                    Text(liveStatus?.text(settings.language) ?? subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

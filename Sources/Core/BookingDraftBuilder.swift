@@ -21,6 +21,13 @@ enum BookingDraftBuilder {
         let stay = TripStayPlanner.breakdown(for: trip)
         let dates = stayDates(trip: trip, stay: stay)
         let includeMadinah = trip.scope == .makkahAndMadinah
+        // Generator V2 pricing chooses Haramain locally for Comfort/Luxury. Keep
+        // the booking payload aligned even when the discontinued server-package
+        // flow does not pass an explicit intercity transport value.
+        let usesHaramain = includeMadinah && (
+            intercityTransport == .haramainTrain ||
+            (intercityTransport == nil && (trip.packageTier == .comfort || trip.packageTier == .luxury))
+        )
         let services = [
             "flight",
             "makkahHotel",
@@ -28,7 +35,7 @@ enum BookingDraftBuilder {
             "visa",
             "meals",
             "transfer",
-            includeMadinah && intercityTransport == .haramainTrain ? "haramainTrain" : nil,
+            usesHaramain ? "haramainTrain" : nil,
             "accompaniment",
             "ziyaratMakkah",
             includeMadinah ? "ziyaratMadinah" : nil,
@@ -164,37 +171,13 @@ enum BookingDraftBuilder {
     }
 
     private static func stayDates(trip: TripDraft, stay: TripStayBreakdown) -> StayDates {
-        let start = Calendar.current.startOfDay(for: trip.departureDate)
-        let end = Calendar.current.startOfDay(for: trip.returnDate)
-        guard trip.scope == .makkahAndMadinah else {
-            return .init(makkahCheckIn: day(start), makkahCheckOut: day(end), madinahCheckIn: nil, madinahCheckOut: nil)
-        }
-
-        if trip.arrivalAirport == .madinah {
-            let madinahEnd = Calendar.current.date(byAdding: .day, value: stay.madinahNights, to: start) ?? start
-            return .init(
-                makkahCheckIn: day(madinahEnd),
-                makkahCheckOut: day(end),
-                madinahCheckIn: day(start),
-                madinahCheckOut: day(madinahEnd)
-            )
-        }
-
-        let makkahEnd = Calendar.current.date(byAdding: .day, value: stay.makkahNights, to: start) ?? start
-        return .init(
-            makkahCheckIn: day(start),
-            makkahCheckOut: day(makkahEnd),
-            madinahCheckIn: day(makkahEnd),
-            madinahCheckOut: day(end)
+        let windows = TripStayPlanner.windows(for: trip)
+        return StayDates(
+            makkahCheckIn: day(windows.makkah.checkIn),
+            makkahCheckOut: day(windows.makkah.checkOut),
+            madinahCheckIn: windows.madinah.map { day($0.checkIn) },
+            madinahCheckOut: windows.madinah.map { day($0.checkOut) }
         )
-    }
-
-    private static func flexibleDays(_ value: DateFlexibility) -> Int {
-        switch value {
-        case .exact: return 0
-        case .plusMinusOne, .plusMinusTwo: return 2
-        case .weekend: return 0
-        }
     }
 
     private static func day(_ date: Date) -> String {

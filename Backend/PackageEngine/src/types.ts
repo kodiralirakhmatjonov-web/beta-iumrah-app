@@ -258,6 +258,10 @@ export type ServerFlightCandidate = {
   stops: number;
   currency: "USD";
   segments: ServerFlightSegment[];
+  fareAmountUsd?: number;
+  fareScope?: "totalParty";
+  observedAt?: string;
+  sourceURL?: string;
 };
 
 export type ServerPackageTransport = {

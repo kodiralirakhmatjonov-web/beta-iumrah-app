@@ -10,9 +10,9 @@ enum AppConfig {
     static let appName = "iumrah Beta"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
-    /// 0.9 TestFlight validation mode: real provider bots + server-side package pricing.
-    /// There is deliberately NO silent sandbox fallback in this mode. If a provider,
-    /// CAPTCHA or Package Engine fails, the beta must expose that failure so we can tune it.
+    /// Generator V2 production mode: real airline provider bots with hybrid
+    /// server + device execution. Final package pricing is calculated locally
+    /// in the app by LocalPackagePricingEngine; the server only returns components.
     static let flightEngineMode: FlightEngineMode = .officialWebBots
     // One verified option is enough to keep the journey moving; the engine still
     // searches toward four-to-six options. A weak provider must never zero-out an
@@ -31,9 +31,11 @@ enum AppConfig {
     static let packageHealthPath = "/api/package/health"
     static let packageQuotePath = "/api/package/quote"
     static let packageFlightOptionsQuotePath = "/api/package/flight-options/quote"
-    static let packageSearchSessionsPath = "/api/package/search-sessions"
-    static let packageBookingPath = "/api/package/bookings"
-    static let usesRemotePackagePricing = true
+    static let packageFlightProviderSearchPath = "/api/package/flights/provider-search"
+    static let packageHotelComponentPricePath = "/api/package/hotel-component-price"
+    static let packageBookingPath = "/api/bookings"
+    static let serverFlightProviderTimeoutSeconds: Double = 14
+    static let usesServerPrimaryHotelResolver = true
 
     /// Primary hotel assignments are resolved server-side from the package tier,
     /// hotel stars and existing iumrah Hotels D1 catalog.

@@ -101,19 +101,28 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     let stops: Int
     let durationMinutes: Int
 
-    /// Historical name retained for UI compatibility: this value is the PUBLIC
-    /// package price per person after applying the selected flight option.
+    /// Historical property name retained for source compatibility. In Generator V2
+    /// this is the displayed airline fare for this flight option. The final Umrah
+    /// package selling price is calculated separately by LocalPackagePricingEngine.
     let totalPackagePrice: Decimal
     let currency: String
     let sourceLabel: String
 
-    /// Public presentation metadata. Raw ticket fare is intentionally not stored here.
+    /// Legacy remote-pricing metadata retained for decoding older stored sessions.
+    /// Generator V2 does not use these fields to calculate the final package price.
     let packageTotalPrice: Decimal?
     let quoteId: String?
     let sourceCandidateID: String?
     let airlineCode: String?
     let segments: [FlightSegment]?
     let connectionAirports: [FlightAirportSnapshot]?
+
+    /// Actual ticket fare observed by the airline bot. Generator V2 keeps fare
+    /// components separate from the package selling price.
+    let fareAmount: Decimal?
+    let fareScope: FlightFareScope?
+    let fareObservedAt: Date?
+    let fareSourceURL: String?
 
     init(
         id: String,
@@ -134,7 +143,11 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         sourceCandidateID: String? = nil,
         airlineCode: String? = nil,
         segments: [FlightSegment]? = nil,
-        connectionAirports: [FlightAirportSnapshot]? = nil
+        connectionAirports: [FlightAirportSnapshot]? = nil,
+        fareAmount: Decimal? = nil,
+        fareScope: FlightFareScope? = nil,
+        fareObservedAt: Date? = nil,
+        fareSourceURL: String? = nil
     ) {
         self.id = id
         self.direction = direction
@@ -155,6 +168,10 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: flightNumber)
         self.segments = segments?.isEmpty == false ? segments : nil
         self.connectionAirports = connectionAirports?.isEmpty == false ? connectionAirports : nil
+        self.fareAmount = fareAmount
+        self.fareScope = fareScope
+        self.fareObservedAt = fareObservedAt
+        self.fareSourceURL = fareSourceURL?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? fareSourceURL : nil
     }
 
     var displaySegments: [FlightSegment] {

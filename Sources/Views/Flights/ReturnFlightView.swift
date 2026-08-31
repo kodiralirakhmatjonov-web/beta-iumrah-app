@@ -10,12 +10,13 @@ struct ReturnFlightView: View {
     @State private var isInitialLoading = true
     @State private var isSearching = false
     @State private var fatalErrorText: String?
+    @State private var searchStatus: GeneratorSearchStage? = .starting
     @State private var searchGeneration = UUID()
 
     var body: some View {
         Group {
             if isInitialLoading && candidates.isEmpty && offers.isEmpty {
-                FlightSearchImmersiveView(state: .searching)
+                FlightSearchImmersiveView(state: .searching, liveStatus: searchStatus)
             } else {
                 resultsView
                     .iumrahInternalNavigation(progress: .flight)
@@ -46,6 +47,7 @@ struct ReturnFlightView: View {
                     FlightSearchProgressCard(
                         isSearching: isSearching,
                         hasResults: !candidates.isEmpty || !offers.isEmpty,
+                        liveStatus: searchStatus,
                         onContinue: { Task { await search(continueExisting: true) } }
                     )
                 }
@@ -85,8 +87,7 @@ struct ReturnFlightView: View {
         if let offer = row.offer {
             VStack(spacing: 10) {
                 Button {
-                    journey.selectedInbound = offer
-                    journey.quote = nil
+                    journey.chooseInboundFlight(offer)
                     IumrahHaptics.selection()
                 } label: {
                     FlightCard(
@@ -189,6 +190,7 @@ struct ReturnFlightView: View {
                     guard searchGeneration == generation else { return }
                     candidates = mergeCandidates(candidates, progress.discoveredCandidates)
                     offers = mergeOffers(offers, progress.pricedOffers)
+                    searchStatus = progress.status
                     isSearching = progress.isSearching
                     if !candidates.isEmpty || !offers.isEmpty || !progress.isSearching {
                         withAnimation(.easeInOut(duration: 0.22)) { isInitialLoading = false }
@@ -235,7 +237,7 @@ struct ReturnFlightView: View {
     private func mergeCandidates(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
         var result = lhs
         var keys = Set(lhs.map(\.deduplicationKey))
-        for candidate in rhs where candidate.isDisplayableCandidate {
+        for candidate in rhs where candidate.isDisplayableCandidate && isValidReturnDate(candidate.departureAt, airportCode: candidate.origin) {
             if keys.insert(candidate.deduplicationKey).inserted { result.append(candidate) }
         }
         return result
@@ -243,9 +245,20 @@ struct ReturnFlightView: View {
 
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {
         var map: [String: FlightOffer] = [:]
-        for offer in lhs where offer.isVerifiedForBooking { map[offer.sourceCandidateID ?? offer.id] = offer }
-        for offer in rhs where offer.isVerifiedForBooking { map[offer.sourceCandidateID ?? offer.id] = offer }
+        for offer in lhs where offer.isVerifiedForBooking && isValidReturnDate(offer.departureAt, airportCode: offer.origin) { map[offer.sourceCandidateID ?? offer.id] = offer }
+        for offer in rhs where offer.isVerifiedForBooking && isValidReturnDate(offer.departureAt, airportCode: offer.origin) { map[offer.sourceCandidateID ?? offer.id] = offer }
         return Array(map.values)
+    }
+
+    private func isValidReturnDate(_ date: Date, airportCode: String) -> Bool {
+        travelDay(date, airportCode: airportCode) > Calendar.current.startOfDay(for: journey.trip.departureDate)
+    }
+
+    private func travelDay(_ date: Date, airportCode: String) -> Date {
+        var source = Calendar(identifier: .gregorian)
+        source.timeZone = FlightReferenceCatalog.timeZone(for: airportCode) ?? TimeZone(secondsFromGMT: 0)!
+        let parts = source.dateComponents([.year, .month, .day], from: date)
+        return Calendar.current.date(from: DateComponents(year: parts.year, month: parts.month, day: parts.day)) ?? Calendar.current.startOfDay(for: date)
     }
 
     private func flexibleDateHeader(offset: Int, date: Date?) -> some View {
@@ -317,19 +330,19 @@ struct ReturnFlightView: View {
 
     private var backendTitle: String {
         switch settings.language {
-        case .russian: return "Не удалось рассчитать пакет"
-        case .english: return "Package pricing is unavailable"
-        case .uzbek: return "Paket narxini hisoblab bo‘lmadi"
-        case .uzbekCyrillic: return "Пакет нархини ҳисоблаб бўлмади"
+        case .russian: return "Пока нет подтверждённых рейсов"
+        case .english: return "No verified flights yet"
+        case .uzbek: return "Hozircha tasdiqlangan reys topilmadi"
+        case .uzbekCyrillic: return "Ҳозирча тасдиқланган рейс топилмади"
         }
     }
 
     private var backendRetryTitle: String {
         switch settings.language {
-        case .russian: return "Повторить расчёт"
-        case .english: return "Try pricing again"
-        case .uzbek: return "Qayta hisoblash"
-        case .uzbekCyrillic: return "Қайта ҳисоблаш"
+        case .russian: return "Продолжить поиск"
+        case .english: return "Continue search"
+        case .uzbek: return "Qidiruvni davom ettirish"
+        case .uzbekCyrillic: return "Қидирувни давом эттириш"
         }
     }
 }

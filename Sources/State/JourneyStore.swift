@@ -18,18 +18,9 @@ final class JourneyStore: ObservableObject {
     @Published var selectedOutbound: FlightOffer?
     @Published var selectedInbound: FlightOffer?
     @Published var quote: PackageQuote?
-
-    // Production generator state. Discovery and pricing are owned by PackageEngine;
-    // the iPhone only renders persisted server snapshots and submits candidate IDs.
-    @Published var serverSearchSnapshot: ServerPackageSearchSnapshot?
-    @Published var serverSearchId: String?
-    @Published var serverSearchClientRequestId: String?
-    @Published var selectedServerPackageKey: ServerPackageProductKey?
-    @Published var serverMakkahRoomID: String?
-    @Published var serverMadinahRoomID: String?
-    @Published var serverIntercityTransport: ServerIntercityTransport?
-    @Published var serverQuoteExpiresAt: String?
-    @Published var isGeneratingPackages = false
+    @Published private(set) var hotelPriceSnapshot: HotelPriceSearchSnapshot?
+    @Published private(set) var pricingMakkahRoomID: String?
+    @Published private(set) var pricingMadinahRoomID: String?
 
     @Published var isLoadingHotels = false
     @Published var isLoadingMadinahHotels = false
@@ -110,7 +101,7 @@ final class JourneyStore: ObservableObject {
     }
 
     private func resolvedPrimaryHotel(from all: [HotelSummary], city: String) async -> HotelSummary? {
-        guard AppConfig.usesRemotePackagePricing else { return nil }
+        guard AppConfig.usesServerPrimaryHotelResolver else { return nil }
         do {
             let resolved = try await packageEngine.primaryHotel(
                 tier: trip.packageTier,
@@ -152,16 +143,10 @@ final class JourneyStore: ObservableObject {
         selectedOutbound = nil
         selectedInbound = nil
         quote = nil
-
-        serverSearchSnapshot = nil
-        serverSearchId = nil
-        serverSearchClientRequestId = nil
-        selectedServerPackageKey = nil
-        serverMakkahRoomID = nil
-        serverMadinahRoomID = nil
-        serverIntercityTransport = nil
-        serverQuoteExpiresAt = nil
-        isGeneratingPackages = false
+        hotelPriceSnapshot = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+        (flightService as? AutomaticFlightSearchService)?.invalidateSession()
     }
 
     func chooseHotel(_ hotel: HotelSummary) {
@@ -170,29 +155,50 @@ final class JourneyStore: ObservableObject {
             selectedRoomCategory = nil
         }
         selectedHotel = hotel
-        serverMakkahRoomID = nil
-        if serverSearchId != nil {
-            quote = nil
-            serverQuoteExpiresAt = nil
-        } else {
-            invalidateFlightAndQuoteSelection()
-        }
+        invalidateFlightAndQuoteSelection()
     }
 
     func chooseRoom(_ room: HotelRoom?) {
         selectedRoom = room
         if room != nil { selectedRoomCategory = nil }
-        serverMakkahRoomID = room?.id
         quote = nil
-        serverQuoteExpiresAt = nil
     }
 
     func chooseRoomCategory(_ category: IumrahRoomCategoryOption?) {
         selectedRoomCategory = category
         if category != nil { selectedRoom = nil }
-        serverMakkahRoomID = category?.id
         quote = nil
-        serverQuoteExpiresAt = nil
+    }
+
+    /// Flight search may return ±1/±2 day options. Once the pilgrim selects one,
+    /// that flight's local departure day becomes the authoritative trip date.
+    /// Hotel verification is then repeated against those actual dates before
+    /// local package pricing runs.
+    func chooseOutboundFlight(_ offer: FlightOffer) {
+        selectedOutbound = offer
+        selectedInbound = nil
+        quote = nil
+        hotelPriceSnapshot = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+
+        let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
+        if !Calendar.current.isDate(selectedDay, inSameDayAs: trip.departureDate) {
+            trip.departureDate = selectedDay
+        }
+    }
+
+    func chooseInboundFlight(_ offer: FlightOffer) {
+        selectedInbound = offer
+        quote = nil
+        hotelPriceSnapshot = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+
+        let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
+        if selectedDay > trip.departureDate, !Calendar.current.isDate(selectedDay, inSameDayAs: trip.returnDate) {
+            trip.returnDate = selectedDay
+        }
     }
 
     func chooseMadinahHotel(_ hotel: HotelSummary) {
@@ -201,223 +207,157 @@ final class JourneyStore: ObservableObject {
             selectedMadinahRoomCategory = nil
         }
         selectedMadinahHotel = hotel
-        serverMadinahRoomID = nil
-        if serverSearchId != nil {
-            quote = nil
-            serverQuoteExpiresAt = nil
-        } else {
-            invalidateFlightAndQuoteSelection()
-        }
+        invalidateFlightAndQuoteSelection()
     }
 
     func chooseMadinahRoom(_ room: HotelRoom?) {
         selectedMadinahRoom = room
         if room != nil { selectedMadinahRoomCategory = nil }
-        serverMadinahRoomID = room?.id
         quote = nil
-        serverQuoteExpiresAt = nil
     }
 
     func chooseMadinahRoomCategory(_ category: IumrahRoomCategoryOption?) {
         selectedMadinahRoomCategory = category
         if category != nil { selectedMadinahRoom = nil }
-        serverMadinahRoomID = category?.id
         quote = nil
-        serverQuoteExpiresAt = nil
     }
 
     private func invalidateFlightAndQuoteSelection() {
         selectedOutbound = nil
         selectedInbound = nil
         quote = nil
+        hotelPriceSnapshot = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+        (flightService as? AutomaticFlightSearchService)?.invalidateSession()
     }
 
-    func beginServerPackageSearch(force: Bool = false) async {
-        guard trip.canContinue else { return }
-        if !force, let serverSearchId, serverSearchSnapshot != nil {
-            await refreshServerPackageSearch(searchId: serverSearchId)
-            return
-        }
-
-        isGeneratingPackages = true
-        errorMessage = nil
-        if force {
-            selectedOutbound = nil
-            selectedInbound = nil
-            selectedHotel = nil
-            selectedMadinahHotel = nil
-            quote = nil
-            selectedServerPackageKey = nil
-            serverMakkahRoomID = nil
-            serverMadinahRoomID = nil
-            serverIntercityTransport = nil
-            serverQuoteExpiresAt = nil
-        }
-        let requestId = UUID().uuidString
-        serverSearchClientRequestId = requestId
-        do {
-            let snapshot = try await packageEngine.createSearch(trip: trip, clientRequestId: requestId)
-            serverSearchSnapshot = snapshot
-            serverSearchId = snapshot.searchId
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isGeneratingPackages = false
-    }
-
-    func refreshServerPackageSearch(searchId explicitSearchId: String? = nil) async {
-        guard let searchId = explicitSearchId ?? serverSearchId else { return }
-        do {
-            let snapshot = try await packageEngine.searchSnapshot(searchId: searchId)
-            guard serverSearchId == nil || serverSearchId == snapshot.searchId else { return }
-            serverSearchId = snapshot.searchId
-            serverSearchClientRequestId = snapshot.clientRequestId
-            serverSearchSnapshot = snapshot
-            errorMessage = snapshot.status == .failed ? serverSearchMessage(snapshot.message) : nil
-        } catch {
-            // A temporary network failure must not destroy the search: the Durable
-            // Object continues processing and the next poll resumes from its snapshot.
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func applyGeneratedPackage(_ package: ServerGeneratedPackage, itinerary override: ServerPackageItinerary? = nil) throws {
-        guard let snapshot = serverSearchSnapshot,
-              package.status == .ready,
-              let publicQuote = package.quote,
-              let makkahHotel = package.hotelMakkah,
-              let outboundID = package.selectedOutboundCandidateId,
-              let inboundID = package.selectedInboundCandidateId,
-              let outboundCandidate = snapshot.outboundFlights.first(where: { $0.id == outboundID }),
-              let inboundCandidate = snapshot.inboundFlights.first(where: { $0.id == inboundID }) else {
-            throw ServerPackageSelectionError.incompletePackage
-        }
-        guard outboundCandidate.dateOffset == inboundCandidate.dateOffset,
-              outboundCandidate.dateOffset == package.selectedDateOffset else {
-            throw ServerPackageSelectionError.flightDateMismatch
-        }
-        let itinerary = override ?? snapshot.itinerary.shifted(by: package.selectedDateOffset)
-        guard let departureDate = ServerPackageDateParser.day(itinerary.startDate),
-              let returnDate = ServerPackageDateParser.day(itinerary.endDate) else {
-            throw ServerPackageSelectionError.invalidServerDates
-        }
-        guard let outbound = outboundCandidate.flightOffer(quote: publicQuote),
-              let inbound = inboundCandidate.flightOffer(quote: publicQuote) else {
-            throw ServerPackageSelectionError.unverifiedFlight
-        }
-
-        trip.departureDate = departureDate
-        trip.returnDate = returnDate
-        trip.scope = itinerary.includeMadinah ? .makkahAndMadinah : .makkahOnly
-        trip.arrivalAirport = itinerary.outboundDestination == "MED" ? .madinah : .jeddah
-        trip.packageTier = package.pricingTier
-        trip.hotelStars = package.stars
-
-        selectedHotel = makkahHotel.hotelSummary
-        selectedRoom = nil
-        selectedRoomCategory = nil
-        serverMakkahRoomID = makkahHotel.roomId
-
-        if itinerary.includeMadinah, let madinahHotel = package.hotelMadinah {
-            selectedMadinahHotel = madinahHotel.hotelSummary
-            serverMadinahRoomID = madinahHotel.roomId
-        } else {
-            selectedMadinahHotel = nil
-            serverMadinahRoomID = nil
-        }
-        selectedMadinahRoom = nil
-        selectedMadinahRoomCategory = nil
-
-        selectedOutbound = outbound
-        selectedInbound = inbound
-        quote = publicQuote.packageQuote
-        selectedServerPackageKey = package.key
-        serverIntercityTransport = package.transport.type
-        serverQuoteExpiresAt = package.quoteExpiresAt
-        errorMessage = nil
-    }
-
-    func requoteServerSelection() async {
-        guard let searchId = serverSearchId,
-              let packageKey = selectedServerPackageKey,
-              let outboundID = selectedOutbound?.sourceCandidateID,
-              let inboundID = selectedInbound?.sourceCandidateID,
-              let selectedHotel else { return }
-        do {
-            let response = try await packageEngine.requote(
-                searchId: searchId,
-                request: ServerPackageRequoteRequest(
-                    packageKey: packageKey,
-                    outboundCandidateId: outboundID,
-                    inboundCandidateId: inboundID,
-                    makkahHotelId: selectedHotel.id,
-                    madinahHotelId: trip.scope == .makkahAndMadinah ? selectedMadinahHotel?.id : nil,
-                    makkahRoomId: selectedRoom?.id ?? selectedRoomCategory?.id ?? serverMakkahRoomID,
-                    madinahRoomId: trip.scope == .makkahAndMadinah ? (selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id ?? serverMadinahRoomID) : nil
-                )
-            )
-            try applyGeneratedPackage(response.package, itinerary: response.itinerary)
-        } catch {
-            quote = nil
-            serverQuoteExpiresAt = nil
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    var hasFreshAuthoritativeQuote: Bool {
-        guard serverSearchId != nil,
-              selectedServerPackageKey != nil,
-              quote?.isEstimated == false,
-              let quoteId = quote?.quoteId, !quoteId.isEmpty,
-              let serverQuoteExpiresAt,
-              let expiry = Self.isoDate(serverQuoteExpiresAt) else { return false }
-        return expiry.timeIntervalSinceNow > 10
+    var hasFinalGeneratorQuote: Bool {
+        guard let quote, quote.isEstimated == false, let id = quote.quoteId else { return false }
+        return id.hasPrefix("local-") && quote.totalPackagePrice > 0 && quote.pricePerPerson > 0
     }
 
     func buildQuote() async {
-        if serverSearchId != nil, selectedServerPackageKey != nil {
-            await requoteServerSelection()
-            return
-        }
         guard let hotel = selectedHotel,
               let outbound = selectedOutbound,
-              let inbound = selectedInbound else { return }
+              let inbound = selectedInbound,
+              outbound.isVerifiedForBooking, inbound.isVerifiedForBooking,
+              let outboundFare = outbound.fareAmount, let outboundScope = outbound.fareScope,
+              let inboundFare = inbound.fareAmount, let inboundScope = inbound.fareScope else {
+            errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
+            quote = nil
+            return
+        }
+        if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil {
+            errorMessage = LocalPricingError.missingHotelPrice("Madinah").localizedDescription
+            quote = nil
+            return
+        }
+
         do {
-            quote = try await quoteService.quote(trip: trip, hotel: hotel, outbound: outbound, inbound: inbound)
+            if let components = flightService as? GeneratorComponentProviding {
+                hotelPriceSnapshot = await components.ensureHotelPrices(
+                    trip: trip,
+                    makkahHotel: hotel,
+                    madinahHotel: selectedMadinahHotel
+                )
+            }
+            let outboundUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
+            let inboundUsd = try await LocalFXRateService.shared.usd(inboundFare, currency: inbound.currency)
+            let makkah = try await resolveHotelComponent(
+                hotel: hotel,
+                city: "Makkah",
+                roomID: selectedRoom?.id ?? selectedRoomCategory?.id,
+                observations: hotelPriceSnapshot?.makkah ?? []
+            )
+            let madinah: LocalHotelPriceComponent?
+            if trip.scope == .makkahAndMadinah, let hotel = selectedMadinahHotel {
+                madinah = try await resolveHotelComponent(
+                    hotel: hotel,
+                    city: "Madinah",
+                    roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
+                    observations: hotelPriceSnapshot?.madinah ?? []
+                )
+            } else {
+                madinah = nil
+            }
+            pricingMakkahRoomID = makkah.roomId
+            pricingMadinahRoomID = madinah?.roomId
+            quote = try LocalPackagePricingEngine.calculate(
+                trip: trip,
+                outboundFareUsd: outboundUsd,
+                inboundFareUsd: inboundUsd,
+                outboundScope: outboundScope,
+                inboundScope: inboundScope,
+                makkahHotel: makkah,
+                madinahHotel: madinah
+            )
+            errorMessage = nil
         } catch {
+            quote = nil
             errorMessage = error.localizedDescription
         }
     }
 
-    private static func isoDate(_ value: String) -> Date? {
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let standard = ISO8601DateFormatter()
-        standard.formatOptions = [.withInternetDateTime]
-        return fractional.date(from: value) ?? standard.date(from: value)
-    }
+    private func resolveHotelComponent(
+        hotel: HotelSummary,
+        city: String,
+        roomID: String?,
+        observations: [HotelPriceObservation]
+    ) async throws -> LocalHotelPriceComponent {
+        let stay = TripStayPlanner.breakdown(for: trip)
+        let nights = city == "Makkah" ? stay.makkahNights : stay.madinahNights
 
-    private func serverSearchMessage(_ code: String?) -> String? {
-        switch code {
-        case "FLIGHT_PROVIDER_NOT_CONFIGURED": return "Flight provider is not configured on Package Engine."
-        default: return code
+        // A concrete room must never inherit a generic cheapest-room web fare.
+        // Use only its configured component rate unless a future provider returns
+        // explicit room identity in HotelPriceObservation.
+        if roomID == nil {
+            let live = observations
+                .filter { $0.hotelId == hotel.id && $0.amount > 0 }
+                .sorted { $0.amount < $1.amount }
+            for observation in live {
+                do {
+                    let usd = try await LocalFXRateService.shared.usd(observation.amount, currency: observation.currency)
+                    guard let unit = LocalHotelPriceComponent.Unit(rawValue: observation.unit.rawValue) else { continue }
+                    return LocalHotelPriceComponent(
+                        amountUsd: usd,
+                        unit: unit,
+                        nights: max(1, nights),
+                        hotelId: hotel.id,
+                        roomId: nil,
+                        source: observation.providerName
+                    )
+                } catch { continue }
+            }
+        }
+
+        do {
+            let configured = try await packageEngine.configuredHotelComponentPrice(hotelID: hotel.id, roomID: roomID)
+            guard configured.amount > 0, let unit = LocalHotelPriceComponent.Unit(rawValue: configured.unit) else {
+                throw LocalPricingError.missingHotelPrice(city)
+            }
+            return LocalHotelPriceComponent(
+                amountUsd: configured.amount,
+                unit: unit,
+                nights: max(1, nights),
+                hotelId: hotel.id,
+                roomId: configured.roomId,
+                source: configured.source
+            )
+        } catch {
+            throw LocalPricingError.missingHotelPrice(city)
         }
     }
-}
 
-enum ServerPackageSelectionError: LocalizedError {
-    case incompletePackage
-    case flightDateMismatch
-    case invalidServerDates
-    case unverifiedFlight
+    private func travelCalendarDay(for date: Date, airportCode: String) -> Date {
+        var source = Calendar(identifier: .gregorian)
+        source.timeZone = FlightReferenceCatalog.timeZone(for: airportCode) ?? TimeZone(secondsFromGMT: 0)!
+        let parts = source.dateComponents([.year, .month, .day], from: date)
 
-    var errorDescription: String? {
-        switch self {
-        case .incompletePackage: return "Server package is not ready yet."
-        case .flightDateMismatch: return "Server flight dates do not match this package."
-        case .invalidServerDates: return "Package Engine returned invalid travel dates."
-        case .unverifiedFlight: return "Package Engine returned a flight that did not pass the booking safety gate."
-        }
+        var local = Calendar.current
+        local.timeZone = .current
+        return local.date(from: DateComponents(year: parts.year, month: parts.month, day: parts.day, hour: 12))
+            ?? local.startOfDay(for: date)
     }
-}
 
+}

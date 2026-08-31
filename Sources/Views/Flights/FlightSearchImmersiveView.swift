@@ -8,6 +8,7 @@ struct FlightSearchImmersiveView: View {
 
     @EnvironmentObject private var settings: AppSettingsStore
     let state: Phase
+    var liveStatus: GeneratorSearchStage? = nil
 
     @State private var stepIndex = 0
 
@@ -65,7 +66,7 @@ struct FlightSearchImmersiveView: View {
                     .padding(.bottom, 22)
 
                 VStack(spacing: 10) {
-                    Text(state == .searching ? currentSearchMessage : L10n.text("flight_ready_title", settings.language))
+                    Text(state == .searching ? (liveStatus?.text(settings.language) ?? currentSearchMessage) : L10n.text("flight_ready_title", settings.language))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)

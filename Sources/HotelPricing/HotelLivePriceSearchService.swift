@@ -54,17 +54,13 @@ final class HotelLivePriceSearchService {
     }
 
     private func makeRequests(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) -> (makkah: HotelPriceSearchRequest, madinah: HotelPriceSearchRequest?) {
-        let stay = TripStayPlanner.breakdown(for: trip)
-        let calendar = Calendar(identifier: .gregorian)
-        let start = calendar.startOfDay(for: trip.departureDate)
-        let makkahCheckout = calendar.date(byAdding: .day, value: stay.makkahNights, to: start) ?? trip.returnDate
-        let end = calendar.startOfDay(for: trip.returnDate)
+        let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
 
         let makkah = HotelPriceSearchRequest(
             hotel: makkahHotel,
             city: "Makkah",
-            checkIn: start,
-            checkOut: makkahCheckout,
+            checkIn: windows.makkah.checkIn,
+            checkOut: windows.makkah.checkOut,
             adults: trip.adults,
             children: trip.children,
             infants: trip.infants,
@@ -72,12 +68,12 @@ final class HotelLivePriceSearchService {
         )
 
         let madinah: HotelPriceSearchRequest?
-        if trip.scope == .makkahAndMadinah, let madinahHotel, stay.madinahNights > 0 {
+        if trip.scope == .makkahAndMadinah, let madinahHotel, let window = windows.madinah {
             madinah = HotelPriceSearchRequest(
                 hotel: madinahHotel,
                 city: "Madinah",
-                checkIn: makkahCheckout,
-                checkOut: end,
+                checkIn: window.checkIn,
+                checkOut: window.checkOut,
                 adults: trip.adults,
                 children: trip.children,
                 infants: trip.infants,

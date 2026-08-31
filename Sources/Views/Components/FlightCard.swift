@@ -85,10 +85,10 @@ struct FlightCard: View {
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(L10n.text("flight_whole_package", settings.language))
+                    Text(ticketPriceTitle)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                    Text(L10n.text("flight_package_contents", settings.language))
+                    Text(ticketPriceSubtitle)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -102,6 +102,24 @@ struct FlightCard: View {
                 RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
                     .strokeBorder(Color.primary, lineWidth: 1.5)
             }
+        }
+    }
+
+    private var ticketPriceTitle: String {
+        switch settings.language {
+        case .russian: return offer.fareScope == .totalParty ? "Перелёт для всех паломников" : "Тариф на пассажира"
+        case .english: return offer.fareScope == .totalParty ? "Flight fare for all pilgrims" : "Fare per passenger"
+        case .uzbek: return offer.fareScope == .totalParty ? "Barcha ziyoratchilar uchun aviachipta" : "Bir yo‘lovchi uchun tarif"
+        case .uzbekCyrillic: return offer.fareScope == .totalParty ? "Барча зиёратчилар учун авиачипта" : "Бир йўловчи учун тариф"
+        }
+    }
+
+    private var ticketPriceSubtitle: String {
+        switch settings.language {
+        case .russian: return "Реальная цена из источника авиакомпании"
+        case .english: return "Observed on the airline booking source"
+        case .uzbek: return "Aviakompaniya bron manbasidagi haqiqiy narx"
+        case .uzbekCyrillic: return "Авиакомпания брон манбасидаги ҳақиқий нарх"
         }
     }
 

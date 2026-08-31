@@ -1,8 +1,7 @@
 import Foundation
 
-/// Searches live public booking pages and returns verified candidates. Raw fares
-/// never become user-facing prices; Package Engine is still the only layer that
-/// produces public package totals.
+/// Searches official airline booking pages and returns verified fare components.
+/// Generator V2 applies the existing package pricing formula locally on device.
 @MainActor
 struct OfficialFlightCandidateSearchService {
     func prepareRoundTrip(trip: TripDraft) async throws -> RoundTripFlightBotSession {

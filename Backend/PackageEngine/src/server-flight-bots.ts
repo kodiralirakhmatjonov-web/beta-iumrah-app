@@ -135,15 +135,15 @@ async function getCached(env: Env, key: string): Promise<InternalFlightCandidate
   } catch { return null; }
 }
 
-async function putCached(env: Env, key: string, candidates: InternalFlightCandidate[]) {
+async function putCached(env: Env, key: string, candidates: InternalFlightCandidate[], providerId = "officialBots") {
   if (!env.HOTELS_DB || candidates.length === 0) return;
   const now = new Date();
   const expires = new Date(now.getTime() + 10 * 60_000).toISOString();
   try {
     await env.HOTELS_DB.prepare(`INSERT INTO package_flight_cache_v1(cache_key,provider_id,result_json,expires_at,created_at,updated_at)
-      VALUES(?1,'officialBots',?2,?3,?4,?4)
-      ON CONFLICT(cache_key) DO UPDATE SET provider_id='officialBots',result_json=excluded.result_json,expires_at=excluded.expires_at,updated_at=excluded.updated_at`)
-      .bind(key, JSON.stringify(candidates), expires, now.toISOString()).run();
+      VALUES(?1,?2,?3,?4,?5,?5)
+      ON CONFLICT(cache_key) DO UPDATE SET provider_id=excluded.provider_id,result_json=excluded.result_json,expires_at=excluded.expires_at,updated_at=excluded.updated_at`)
+      .bind(key, providerId, JSON.stringify(candidates), expires, now.toISOString()).run();
   } catch {}
 }
 
@@ -336,7 +336,7 @@ async function fetchProvider(bot: OfficialCarrierBot, args: FlightBotSearchArgs)
 
 export async function normalizeOfficialCarrierText(
   raw: string,
-  bot: Pick<OfficialCarrierBot, "id" | "label" | "airlineCodes" | "fareScope">,
+  bot: Pick<OfficialCarrierBot, "id" | "label" | "airlineCodes" | "fareScope" | "startURL">,
   args: FlightBotSearchArgs,
   env: Env,
 ): Promise<InternalFlightCandidate[]> {
@@ -405,6 +405,10 @@ export async function normalizeOfficialCarrierText(
       stops: 0,
       currency: "USD",
       segments: [segment],
+      fareAmountUsd: groupFareUsd,
+      fareScope: "totalParty",
+      observedAt: new Date().toISOString(),
+      sourceURL: bot.startURL,
       groupFareUsd,
     });
   }
@@ -416,9 +420,39 @@ async function searchOneProvider(env: Env, bot: OfficialCarrierBot, args: Flight
   try {
     const payloads = await fetchProvider(bot, args);
     const all: InternalFlightCandidate[] = [];
-    for (const payload of payloads) all.push(...await normalizeOfficialCarrierText(payload.body, bot, args, env));
+    for (const payload of payloads) {
+      const normalized = await normalizeOfficialCarrierText(payload.body, bot, args, env);
+      all.push(...normalized.map((candidate) => ({ ...candidate, sourceURL: payload.url })));
+    }
     return all;
   } catch { return []; }
+}
+
+export function officialCarrierBotIds() { return BOTS.map((bot) => bot.id); }
+
+export async function searchOfficialCarrierProvider(
+  env: Env,
+  providerId: string,
+  args: FlightBotSearchArgs,
+): Promise<{ candidates: InternalFlightCandidate[]; fromCache: boolean }> {
+  if (!validAirport(args.origin) || !validAirport(args.destination) || !validDate(args.travelDate)) {
+    throw new Error("INVALID_FLIGHT_SEARCH_ROUTE");
+  }
+  const bot = BOTS.find((item) => item.id === providerId);
+  if (!bot) throw new Error("UNKNOWN_FLIGHT_PROVIDER");
+  const baseKey = cacheKey(args);
+  const key = `${baseKey}|provider:${providerId}`;
+  const cached = await getCached(env, key);
+  if (cached?.length) {
+    return { candidates: renamespaceCached(cached, args), fromCache: true };
+  }
+  const candidates = await searchOneProvider(env, bot, args);
+  const seen = new Set<string>();
+  const deduped = candidates
+    .filter((candidate) => seen.add(`${candidate.flightNumber}|${candidate.departureAt}|${candidate.arrivalAt}|${Math.round(candidate.groupFareUsd)}`))
+    .slice(0, 6);
+  await putCached(env, key, deduped, providerId);
+  return { candidates: deduped, fromCache: false };
 }
 
 export async function searchOfficialCarrierBots(env: Env, args: FlightBotSearchArgs): Promise<{ candidates: InternalFlightCandidate[]; fromCache: boolean; attemptedProviders: number; successfulProviders: number }> {
@@ -442,7 +476,7 @@ export async function searchOfficialCarrierBots(env: Env, args: FlightBotSearchA
   }
   const seen = new Set<string>();
   const deduped = all.filter((c) => seen.add(`${c.flightNumber}|${c.departureAt}|${c.arrivalAt}|${Math.round(c.groupFareUsd)}`)).slice(0, 10);
-  await putCached(env, key, deduped);
+  await putCached(env, key, deduped, "officialBots");
   return { candidates: deduped, fromCache: false, attemptedProviders: bots.length, successfulProviders };
 }
 

@@ -16,9 +16,9 @@ struct TripBuilderView: View {
                 packageCard
 
                 NavigationLink {
-                    PackageGenerationView()
+                    PrimaryHotelView()
                 } label: {
-                    Text(L10n.text("trip_generate_packages", settings.language))
+                    Text(L10n.text("trip_continue_hotel", settings.language))
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
                 .disabled(!journey.trip.canContinue)
