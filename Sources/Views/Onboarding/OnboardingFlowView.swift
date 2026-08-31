@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
 struct OnboardingFlowView: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -27,6 +28,10 @@ struct OnboardingFlowView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let windowInsets = OnboardingSafeArea.current
+            let safeTop = max(proxy.safeAreaInsets.top, windowInsets.top)
+            let safeBottom = max(proxy.safeAreaInsets.bottom, windowInsets.bottom)
+
             ZStack {
                 CinematicAmbientBackground(page: page)
                     .ignoresSafeArea()
@@ -37,11 +42,11 @@ struct OnboardingFlowView: View {
                     .scaleEffect(isFinishing && !reduceMotion ? 0.975 : 1)
                     .blur(radius: isFinishing && !reduceMotion ? 5 : 0)
 
-                topBar(topInset: proxy.safeAreaInsets.top)
+                topBar(topInset: safeTop)
                     .opacity(showIntro || isFinishing ? 0 : 1)
                     .zIndex(20)
 
-                footer(bottomInset: proxy.safeAreaInsets.bottom)
+                footer(bottomInset: safeBottom)
                     .opacity(showIntro || isFinishing ? 0 : 1)
                     .zIndex(20)
 
@@ -59,6 +64,7 @@ struct OnboardingFlowView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
+        .ignoresSafeArea()
         .onAppear(perform: startIntroSequence)
         .onChange(of: pageID) { oldValue, newValue in
             guard oldValue != nil, newValue != nil, oldValue != newValue, !showIntro else { return }
@@ -105,7 +111,7 @@ struct OnboardingFlowView: View {
             title: pageTitle(index),
             bodyText: pageBody(index),
             footnote: pageFootnote(index),
-            bottomReserve: max(proxy.safeAreaInsets.bottom, 28) + 126,
+            bottomReserve: max(OnboardingSafeArea.current.bottom, 20) + 112,
             showsCopy: index != pageCount - 1,
             scene: scene()
         )
@@ -153,13 +159,13 @@ struct OnboardingFlowView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 22)
-        .padding(.top, max(topInset, 44) + 8)
+        .padding(.top, max(topInset, 44) + 12)
         .frame(maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.22), value: page)
     }
 
     private func footer(bottomInset: CGFloat) -> some View {
-        VStack(spacing: 11) {
+        VStack(spacing: 10) {
             HStack(spacing: 6) {
                 ForEach(0..<pageCount, id: \.self) { index in
                     Capsule(style: .continuous)
@@ -186,38 +192,20 @@ struct OnboardingFlowView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 10) {
-                    Text(page == pageCount - 1
-                         ? L10n.text("onboarding_start", settings.language)
-                         : L10n.text("onboarding_next", settings.language))
-                    Image(systemName: page == pageCount - 1 ? "sparkles" : "arrow.right")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .frame(maxWidth: .infinity)
-                .frame(height: 58)
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
-                .background(Color.iumrahPrimaryButtonBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: .black.opacity(0.10), radius: 14, y: 7)
+                Text(page == pageCount - 1
+                     ? L10n.text("onboarding_start", settings.language)
+                     : L10n.text("onboarding_next", settings.language))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 52)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .tint(.blue)
         }
         .padding(.horizontal, 22)
-        .padding(.top, 12)
-        .padding(.bottom, max(bottomInset, 28) + 12)
-        .background {
-            LinearGradient(
-                colors: [
-                    Color.iumrahPageBackground.opacity(0),
-                    Color.iumrahPageBackground.opacity(0.96),
-                    Color.iumrahPageBackground
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .bottom)
-        }
+        .padding(.bottom, max(bottomInset, 20) + 6)
         .frame(maxHeight: .infinity, alignment: .bottom)
     }
 
@@ -266,7 +254,8 @@ struct OnboardingFlowView: View {
                 .accessibilityLabel(isMuted ? "Sound off" : "Sound on")
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 34)
+            .padding(.bottom, 118)
+            .zIndex(8)
             .opacity(isActive ? 1 : 0.72)
             .scaleEffect(isActive || reduceMotion ? 1 : 0.965, anchor: .bottom)
             .animation(.spring(response: 0.62, dampingFraction: 0.86), value: isActive)
@@ -296,7 +285,7 @@ struct OnboardingFlowView: View {
             OnboardingBuilderMock(isActive: isActive)
                 .frame(width: min(size.width * 0.86, 356))
                 .rotationEffect(.degrees(isActive && !reduceMotion ? -2.2 : -0.7))
-                .offset(x: isActive && !reduceMotion ? -18 : -6, y: isActive && !reduceMotion ? 8 : 20)
+                .offset(x: isActive && !reduceMotion ? -18 : -6, y: isActive && !reduceMotion ? 42 : 54)
                 .scaleEffect(isActive || reduceMotion ? 1 : 0.965)
                 .shadow(color: .black.opacity(0.14), radius: 30, y: 16)
                 .animation(.spring(response: 0.62, dampingFraction: 0.84), value: isActive)
@@ -306,7 +295,7 @@ struct OnboardingFlowView: View {
                 floatingSummaryCard(title: "27 Sep – 30 Sep", subtitle: L10n.text("detail_dates", settings.language), icon: "calendar")
                 floatingSummaryCard(title: L10n.text("tier_standard", settings.language), subtitle: L10n.text("trip_format_title", settings.language), icon: "sparkles")
             }
-            .offset(x: isActive && !reduceMotion ? 104 : 128, y: isActive && !reduceMotion ? -34 : -14)
+            .offset(x: isActive && !reduceMotion ? 104 : 128, y: isActive && !reduceMotion ? 0 : 20)
             .opacity(isActive ? 1 : 0.62)
             .scaleEffect(isActive || reduceMotion ? 1 : 0.93, anchor: .trailing)
             .animation(.spring(response: 0.60, dampingFraction: 0.83).delay(0.05), value: isActive)
@@ -343,13 +332,13 @@ struct OnboardingFlowView: View {
             OnboardingPackageMock(isActive: isActive)
                 .frame(width: min(size.width * 0.87, 360))
                 .rotationEffect(.degrees(isActive && !reduceMotion ? -2.4 : -0.8))
-                .offset(x: isActive && !reduceMotion ? -14 : -4, y: isActive && !reduceMotion ? -4 : 12)
+                .offset(x: isActive && !reduceMotion ? -14 : -4, y: isActive && !reduceMotion ? 34 : 50)
                 .scaleEffect(isActive || reduceMotion ? 1 : 0.965)
                 .shadow(color: .black.opacity(0.30), radius: 34, y: 18)
                 .animation(.spring(response: 0.62, dampingFraction: 0.84), value: isActive)
 
             priceSpotlight
-                .offset(x: isActive && !reduceMotion ? -96 : -70, y: isActive && !reduceMotion ? -132 : -104)
+                .offset(x: isActive && !reduceMotion ? -96 : -70, y: isActive && !reduceMotion ? -88 : -60)
                 .scaleEffect(isActive || reduceMotion ? 1 : 0.92)
                 .opacity(isActive ? 1 : 0.68)
                 .animation(.spring(response: 0.58, dampingFraction: 0.82).delay(0.04), value: isActive)
@@ -359,7 +348,7 @@ struct OnboardingFlowView: View {
                 OnboardingGlassPill(title: L10n.text("onboarding_chip_hotel", settings.language), icon: "building.2.fill", lightText: true)
                 OnboardingGlassPill(title: L10n.text("onboarding_chip_support", settings.language), icon: "heart.fill", lightText: true)
             }
-            .offset(y: isActive && !reduceMotion ? 164 : 142)
+            .offset(y: isActive && !reduceMotion ? 184 : 162)
             .opacity(isActive ? 1 : 0.70)
             .scaleEffect(isActive || reduceMotion ? 1 : 0.93)
             .animation(.spring(response: 0.60, dampingFraction: 0.83).delay(0.08), value: isActive)
@@ -389,7 +378,7 @@ struct OnboardingFlowView: View {
             OnboardingJourneyMock(isActive: isActive)
                 .frame(width: min(size.width * 0.78, 324))
                 .rotationEffect(.degrees(isActive && !reduceMotion ? -6.5 : -2.5))
-                .offset(x: isActive && !reduceMotion ? -64 : -42, y: isActive && !reduceMotion ? 44 : 58)
+                .offset(x: isActive && !reduceMotion ? -64 : -42, y: isActive && !reduceMotion ? 72 : 86)
                 .scaleEffect(isActive || reduceMotion ? 1 : 0.95)
                 .shadow(color: .black.opacity(0.14), radius: 28, y: 16)
                 .animation(.spring(response: 0.62, dampingFraction: 0.84), value: isActive)
@@ -397,16 +386,16 @@ struct OnboardingFlowView: View {
             OnboardingCareMock(isActive: isActive)
                 .frame(width: min(size.width * 0.72, 298))
                 .rotationEffect(.degrees(isActive && !reduceMotion ? 5.5 : 2.1))
-                .offset(x: isActive && !reduceMotion ? 64 : 40, y: isActive && !reduceMotion ? -30 : -6)
+                .offset(x: isActive && !reduceMotion ? 64 : 40, y: isActive && !reduceMotion ? 2 : 26)
                 .scaleEffect(isActive || reduceMotion ? 1 : 0.96)
                 .shadow(color: .black.opacity(0.18), radius: 30, y: 16)
                 .animation(.spring(response: 0.64, dampingFraction: 0.83).delay(0.04), value: isActive)
 
             VStack(spacing: 10) {
                 OnboardingGlassPill(title: "24/7", icon: "dot.radiowaves.left.and.right", lightText: false)
-                    .offset(x: 110, y: -122)
+                    .offset(x: 110, y: -92)
                 OnboardingGlassPill(title: L10n.text("onboarding_chip_status", settings.language), icon: "checkmark.circle.fill", lightText: false)
-                    .offset(x: -108, y: 112)
+                    .offset(x: -108, y: 136)
             }
             .opacity(isActive ? 1 : 0.70)
             .scaleEffect(isActive || reduceMotion ? 1 : 0.93)
@@ -431,7 +420,7 @@ struct OnboardingFlowView: View {
                 .offset(x: 0, y: compact ? -40 : -60)
 
             VStack(spacing: compact ? 14 : 18) {
-                Spacer(minLength: compact ? 28 : 60)
+                Spacer(minLength: compact ? 58 : 92)
 
                 Image("OnboardingBrandIcon")
                     .resizable()
@@ -472,7 +461,7 @@ struct OnboardingFlowView: View {
 
                 Spacer()
             }
-            .padding(.top, compact ? 40 : 70)
+            .padding(.top, compact ? 48 : 78)
             .padding(.bottom, compact ? 22 : 40)
         }
     }
@@ -701,13 +690,13 @@ private struct OnboardingCinematicPage<Scene: View>: View {
             let copyLength = title.count + bodyText.count + footnote.count
             let sceneFraction: CGFloat = {
                 if !showsCopy { return 1.0 }
-                if compact { return copyLength > 165 ? 0.48 : 0.52 }
-                if copyLength > 190 { return 0.54 }
-                if copyLength > 155 { return 0.57 }
-                return 0.60
+                if compact { return copyLength > 165 ? 0.50 : 0.54 }
+                if copyLength > 190 { return 0.56 }
+                if copyLength > 155 { return 0.59 }
+                return 0.62
             }()
             let sceneHeight = showsCopy
-                ? min(max(availableHeight * sceneFraction, compact ? 300 : 390), compact ? 390 : 475)
+                ? min(max(availableHeight * sceneFraction, compact ? 314 : 404), compact ? 408 : 496)
                 : availableHeight
 
             VStack(spacing: 0) {
@@ -725,11 +714,18 @@ private struct OnboardingCinematicPage<Scene: View>: View {
                     .overlay(alignment: .bottom) {
                         if showsCopy {
                             LinearGradient(
-                                colors: [Color.clear, Color.iumrahPageBackground.opacity(0.86), Color.iumrahPageBackground],
+                                stops: [
+                                    .init(color: Color.clear, location: 0.00),
+                                    .init(color: Color.iumrahPageBackground.opacity(0.18), location: 0.28),
+                                    .init(color: Color.iumrahPageBackground.opacity(0.64), location: 0.62),
+                                    .init(color: Color.iumrahPageBackground.opacity(0.94), location: 0.86),
+                                    .init(color: Color.iumrahPageBackground, location: 1.00)
+                                ],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
-                            .frame(height: 112)
+                            .frame(height: 176)
+                            .allowsHitTesting(false)
                         }
                     }
 
@@ -764,7 +760,7 @@ private struct OnboardingCinematicPage<Scene: View>: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 22)
-                    .padding(.top, compact ? 10 : 12)
+                    .padding(.top, compact ? 16 : 20)
 
                     Spacer(minLength: 0)
                 }
@@ -772,6 +768,17 @@ private struct OnboardingCinematicPage<Scene: View>: View {
             .frame(width: proxy.size.width, height: availableHeight, alignment: .top)
             .padding(.bottom, bottomReserve)
         }
+    }
+}
+
+private enum OnboardingSafeArea {
+    static var current: UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes
+            .flatMap(\.windows)
+            .first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap(\.windows).first
+        return window?.safeAreaInsets ?? .zero
     }
 }
 
