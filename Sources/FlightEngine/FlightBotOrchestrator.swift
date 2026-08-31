@@ -54,7 +54,9 @@ final class FlightBotOrchestrator {
         flexibility: DateFlexibility,
         requirement: FlightCandidateRequirement = .displayable,
         minimumResults: Int? = nil,
-        preferredResults: Int? = nil
+        preferredResults: Int? = nil,
+        maxProviderAttempts: Int? = nil,
+        onProgress: (@MainActor ([LiveFlightCandidate]) async -> Void)? = nil
     ) async throws -> SearchResult {
         pruneCheckpoints()
 
@@ -90,14 +92,19 @@ final class FlightBotOrchestrator {
         var succeeded = 0
         var started = 0
         var completedBatches = 0
-        let requiredFlexibleCoverageBatches = flexibility.isFlexibleDayRange ? dates.count : 0
+        let requiredFlexibleCoverageBatches = flexibility.isFlexibleDayRange ? dates.count * min(2, providers.count) : 0
         var flexibleCoverageCompleted = 0
 
         searchLoop: for batch in batches {
             guard Date() < deadline else { break }
+            if let maxProviderAttempts, started >= maxProviderAttempts { break }
 
-            let untried = batch.providers.filter {
+            var untried = batch.providers.filter {
                 !attemptedKeys.contains(attemptKey(provider: $0, date: batch.date))
+            }
+            if let maxProviderAttempts {
+                let remaining = max(0, maxProviderAttempts - started)
+                untried = Array(untried.prefix(remaining))
             }
             if untried.isEmpty {
                 if batch.isFlexibleCoverageBatch { flexibleCoverageCompleted += 1 }
@@ -161,7 +168,14 @@ final class FlightBotOrchestrator {
                 updatedAt: Date()
             )
 
-            // For ±1–2 days, always give the two highest-priority official carriers
+            // Surface every completed provider batch immediately. This is the
+            // production boundary used by the flight screens: one slow or empty
+            // source must never hide results already returned by another airline.
+            if let onProgress {
+                await onProgress(Array(ranked.prefix(16)))
+            }
+
+            // For ±1–2 days, always give the highest-priority official carriers
             // a chance on every candidate date before stopping. This is what makes
             // cheaper flights one/two days earlier or later actually appear.
             let coverageSatisfied = !flexibility.isFlexibleDayRange || flexibleCoverageCompleted >= requiredFlexibleCoverageBatches
@@ -215,15 +229,20 @@ final class FlightBotOrchestrator {
         let size = max(1, AppConfig.flightBotProviderBatchSize)
 
         if flexibility.isFlexibleDayRange {
-            // Phase 1: top two official carriers on every day in [0,-1,+1,-2,+2].
-            // On Uzbekistan routes these are Uzbekistan Airways and Qanot Sharq.
-            let coverageCount = min(size, providers.count)
-            let coverageProviders = Array(providers.prefix(coverageCount))
-            var output = dates.map { SearchBatch(date: $0, providers: coverageProviders, isFlexibleCoverageBatch: true) }
+            // Progressive flexible-date plan. The selected date is always checked
+            // first, then -1/+1/-2/+2. On every date the first two official
+            // carriers get a dedicated attempt before the broader market. Keeping
+            // those attempts separate also guarantees a single WKWebView per batch.
+            let priorityCoverageCount = min(2, providers.count)
+            var output: [SearchBatch] = []
 
-            // Phase 2: broaden the market, starting with the selected date and then
-            // the neighbouring dates in the same order as FlightDatePlanner.
-            let remaining = Array(providers.dropFirst(coverageCount))
+            for date in dates {
+                for provider in providers.prefix(priorityCoverageCount) {
+                    output.append(SearchBatch(date: date, providers: [provider], isFlexibleCoverageBatch: true))
+                }
+            }
+
+            let remaining = Array(providers.dropFirst(priorityCoverageCount))
             for date in dates {
                 for start in stride(from: 0, to: remaining.count, by: size) {
                     let end = min(remaining.count, start + size)

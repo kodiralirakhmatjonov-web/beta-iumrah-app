@@ -70,22 +70,23 @@ enum FlightTextParser {
 
         let selectedFlightNumbers = Array(flightNumbers.prefix(segmentCount))
         let routeForDisplay: [String]
-        if stops == 0 {
-            routeForDisplay = [request.origin, request.destination]
+        let detailedRoute = routeCodesByFlightNumbers(
+            in: normalizedBlock,
+            flightNumbers: selectedFlightNumbers,
+            origin: request.origin,
+            destination: request.destination
+        )
+        if let detailedRoute, detailedRoute.count >= segmentCount + 1 {
+            routeForDisplay = Array(detailedRoute.prefix(segmentCount + 1))
+        } else if stops > 0, inferredAirportCodes.count >= segmentCount + 1 {
+            // Multi-leg results sometimes list the connection airports in a
+            // separate route strip instead of next to each flight number. Direct
+            // flights do not get this fallback: their origin/destination must be
+            // tied to the actual flight-number context to prevent a page header
+            // from contaminating an unrelated promotional flight card.
+            routeForDisplay = Array(inferredAirportCodes.prefix(segmentCount + 1))
         } else {
-            let detailedRoute = routeCodesByFlightNumbers(
-                in: normalizedBlock,
-                flightNumbers: selectedFlightNumbers,
-                origin: request.origin,
-                destination: request.destination
-            )
-            if let detailedRoute, detailedRoute.count >= segmentCount + 1 {
-                routeForDisplay = Array(detailedRoute.prefix(segmentCount + 1))
-            } else if inferredAirportCodes.count >= segmentCount + 1 {
-                routeForDisplay = Array(inferredAirportCodes.prefix(segmentCount + 1))
-            } else {
-                return nil
-            }
+            return nil
         }
 
         guard routeForDisplay.first == request.origin.uppercased(),
@@ -167,7 +168,7 @@ enum FlightTextParser {
         origin: String,
         destination: String
     ) -> [String]? {
-        guard flightNumbers.count > 1 else { return nil }
+        guard !flightNumbers.isEmpty else { return nil }
         let uppercase = text.uppercased()
         let ns = uppercase as NSString
         guard let airportRegex = try? NSRegularExpression(pattern: #"\b[A-Z]{3}\b"#) else { return nil }
@@ -196,11 +197,11 @@ enum FlightTextParser {
 
             let before = airportMatches.filter {
                 NSMaxRange($0.range) <= flightRange.location &&
-                $0.range.location >= max(previousFlightEnd, flightRange.location - 320)
+                $0.range.location >= max(previousFlightEnd, flightRange.location - 520)
             }
             let after = airportMatches.filter {
                 $0.range.location >= NSMaxRange(flightRange) &&
-                $0.range.location < min(nextFlightStart, NSMaxRange(flightRange) + 320)
+                $0.range.location < min(nextFlightStart, NSMaxRange(flightRange) + 520)
             }
 
             var beforePair = routePair(from: Array(before.suffix(3)), expectedOrigin: expectedOrigin)
@@ -209,7 +210,7 @@ enum FlightTextParser {
                 if beforePair?.1 == destination.uppercased() { beforePair = nil }
                 if afterPair?.1 == destination.uppercased() { afterPair = nil }
             }
-            guard let pair = beforePair ?? afterPair else { return nil }
+            guard let pair = afterPair ?? beforePair else { return nil }
 
             route.append(pair.1)
             expectedOrigin = pair.1
@@ -256,7 +257,7 @@ enum FlightTextParser {
                 return next.location
             }()
 
-            let beforeStart = max(previousFlightEnd, flightRange.location - 320)
+            let beforeStart = max(previousFlightEnd, flightRange.location - 520)
             let before = ns.substring(with: NSRange(location: beforeStart, length: flightRange.location - beforeStart))
             let afterStart = NSMaxRange(flightRange)
             let afterEnd = min(nextFlightStart, afterStart + 360)

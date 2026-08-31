@@ -1,9 +1,65 @@
 import Foundation
 
+struct FlightSearchProgress {
+    let discoveredCandidates: [LiveFlightCandidate]
+    let pricedOffers: [FlightOffer]
+    let isSearching: Bool
+
+    static let emptySearching = FlightSearchProgress(
+        discoveredCandidates: [],
+        pricedOffers: [],
+        isSearching: true
+    )
+}
+
+typealias FlightSearchProgressHandler = @MainActor (FlightSearchProgress) -> Void
+
 @MainActor
 protocol FlightSearchServicing {
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer]
     func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer]
+
+    func searchOutboundProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer]
+
+    func searchReturnProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        outbound: FlightOffer,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer]
+}
+
+extension FlightSearchServicing {
+    func searchOutboundProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        onUpdate(.emptySearching)
+        let offers = try await searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
+        onUpdate(.init(discoveredCandidates: [], pricedOffers: offers, isSearching: false))
+        return offers
+    }
+
+    func searchReturnProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        outbound: FlightOffer,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        onUpdate(.emptySearching)
+        let offers = try await searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
+        onUpdate(.init(discoveredCandidates: [], pricedOffers: offers, isSearching: false))
+        return offers
+    }
 }
 
 @MainActor

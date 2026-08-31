@@ -22,84 +22,391 @@ enum FlightEngineAvailabilityError: LocalizedError {
 
 @MainActor
 final class RealFlightPackageSearchService: FlightSearchServicing {
-    private let botService = OfficialFlightCandidateSearchService()
     private let packageEngine = RemotePackageEngineClient()
     private let hotelPriceService = HotelLivePriceSearchService()
-    private var session: RoundTripFlightBotSession?
-    private var tripSignature: String?
+
     private var verifiedSignature: String?
+    private var activeSignature: String?
+    private var outboundCandidatesByID: [String: LiveFlightCandidate] = [:]
+    private var inboundCandidatesByID: [String: LiveFlightCandidate] = [:]
+    private var cachedHotelPrices: HotelPriceSearchSnapshot?
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
-        try await ensureBackendReady(for: trip)
-        // Flight discovery owns the browser first. Hotel price bots start only
-        // after a usable round-trip flight session exists; otherwise iOS can be
-        // forced to keep too many WKWebViews alive at once and every source loses.
-        let currentSession = try await sessionFor(trip: trip)
-        let hotelPrices = await hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
-        let response = try await packageEngine.quoteOutboundOptions(
+        try await searchOutboundProgressive(
             trip: trip,
             makkahHotel: makkahHotel,
             madinahHotel: madinahHotel,
-            outbound: currentSession.outbound,
-            inbound: currentSession.inbound,
-            hotelPrices: hotelPrices
+            onUpdate: { _ in }
         )
-
-        let offers = try bridge(
-            candidates: currentSession.outbound,
-            quotes: response.options,
-            direction: .outbound
-        )
-        try enforceMinimum(offers)
-        let ranked = rankForRecommendation(offers, anchor: trip.departureDate, flexibility: trip.flexibility)
-        return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
     }
 
     func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer] {
-        try await ensureBackendReady(for: trip)
-        var currentSession = try await sessionFor(trip: trip)
-        guard let sourceID = outbound.sourceCandidateID,
-              let selectedCandidate = currentSession.outbound.first(where: { $0.id == sourceID }) else {
-            throw FlightEngineAvailabilityError.realOutboundRequired
-        }
-
-        // The initial round-trip session already contains only complete verified
-        // return itineraries. Continue the direct-airline search only when we want
-        // to enrich the list toward the four-option target.
-        let visibleInbound = currentSession.inbound.filter(\.isDisplayableCandidate)
-        if visibleInbound.count < AppConfig.flightBotTargetOptions {
-            let refreshed = try await botService.refreshInbound(trip: trip)
-            let verified = refreshed.candidates.filter(\.isDisplayableCandidate)
-            guard !verified.isEmpty else {
-                throw FlightPricingBridgeError.insufficientQuotedOptions(found: 0, minimum: 1)
-            }
-            currentSession = currentSession.replacingInbound(with: refreshed)
-            self.session = currentSession
-        }
-
-        let hotelPrices = await hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
-        let response = try await packageEngine.quoteReturnOptions(
+        try await searchReturnProgressive(
             trip: trip,
             makkahHotel: makkahHotel,
             madinahHotel: madinahHotel,
-            selectedOutbound: selectedCandidate,
-            inbound: currentSession.inbound,
-            hotelPrices: hotelPrices
+            outbound: outbound,
+            onUpdate: { _ in }
         )
+    }
 
-        let offers = try bridge(
-            candidates: currentSession.inbound,
-            quotes: response.options,
-            direction: .inbound
+    func searchOutboundProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        try await ensureBackendReady(for: trip)
+        prepareCaches(for: trip)
+        onUpdate(.emptySearching)
+
+        let outboundRequest = makeOutboundRequest(trip)
+        let inboundRequest = makeInboundRequest(trip)
+        var discoveredOutbound: [LiveFlightCandidate] = []
+        var pricedOffers: [FlightOffer] = []
+
+        // Keep WKWebView discovery strictly serial on iPhone. The previous version
+        // started outbound and return discovery together; on memory-constrained
+        // devices WebKit could terminate one content process and the whole search
+        // looked like an intermittent network failure. First surface an outbound
+        // itinerary, then obtain one return reference needed for package pricing.
+        let initialFlexibility: DateFlexibility = trip.flexibility.isFlexibleDayRange ? .exact : trip.flexibility
+        let initial = await safeSearch(
+            request: outboundRequest,
+            flexibility: initialFlexibility,
+            minimumResults: 1,
+            preferredResults: 1,
+            maxProviderAttempts: 6,
+            onProgress: { candidates in
+                discoveredOutbound = self.mergeCandidates(discoveredOutbound, candidates)
+                self.cacheOutbound(discoveredOutbound)
+                onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: pricedOffers, isSearching: true))
+            }
         )
-        try enforceMinimum(offers)
-        let ranked = rankForRecommendation(offers, anchor: trip.returnDate, flexibility: trip.flexibility)
-        return Array(ranked.prefix(AppConfig.flightBotPreferredOptions))
+        discoveredOutbound = mergeCandidates(discoveredOutbound, initial?.candidates ?? [])
+
+        // If the selected day has nothing and the user explicitly allowed nearby
+        // days, widen immediately instead of showing an error state.
+        if discoveredOutbound.isEmpty, trip.flexibility.isFlexibleDayRange {
+            let widened = await safeSearch(
+                request: outboundRequest,
+                flexibility: trip.flexibility,
+                minimumResults: 1,
+                preferredResults: 1,
+                onProgress: { candidates in
+                    discoveredOutbound = self.mergeCandidates(discoveredOutbound, candidates)
+                    self.cacheOutbound(discoveredOutbound)
+                    onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: pricedOffers, isSearching: true))
+                }
+            )
+            discoveredOutbound = mergeCandidates(discoveredOutbound, widened?.candidates ?? [])
+        }
+        cacheOutbound(discoveredOutbound)
+        onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: pricedOffers, isSearching: true))
+
+        let inboundReference = await referenceInboundResult(request: inboundRequest, trip: trip)
+        let inboundCandidates = inboundReference?.candidates.filter(\.isDisplayableCandidate) ?? []
+        cacheInbound(inboundCandidates)
+
+        // First price pass deliberately uses the already configured hotel rate.
+        // It gets the first selectable card on screen without starting additional
+        // hotel WKWebViews while the initial flight bots are active.
+        if !discoveredOutbound.isEmpty, !inboundCandidates.isEmpty {
+            pricedOffers = await quoteOutboundSafely(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                outbound: discoveredOutbound,
+                inbound: inboundCandidates,
+                hotelPrices: nil,
+                previous: pricedOffers
+            )
+            onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: pricedOffers, isSearching: true))
+        }
+
+        // Continue behind the visible list. Every completed airline/date batch is
+        // surfaced immediately and, when possible, repriced before the next batch.
+        let continuation = await safeSearch(
+            request: outboundRequest,
+            flexibility: trip.flexibility,
+            minimumResults: 1,
+            preferredResults: AppConfig.flightBotPreferredOptions,
+            onProgress: { candidates in
+                discoveredOutbound = self.mergeCandidates(discoveredOutbound, candidates)
+                self.cacheOutbound(discoveredOutbound)
+                if !inboundCandidates.isEmpty {
+                    pricedOffers = await self.quoteOutboundSafely(
+                        trip: trip,
+                        makkahHotel: makkahHotel,
+                        madinahHotel: madinahHotel,
+                        outbound: discoveredOutbound,
+                        inbound: inboundCandidates,
+                        hotelPrices: self.cachedHotelPrices,
+                        previous: pricedOffers
+                    )
+                }
+                onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: pricedOffers, isSearching: true))
+            }
+        )
+        discoveredOutbound = mergeCandidates(discoveredOutbound, continuation?.candidates ?? [])
+        cacheOutbound(discoveredOutbound)
+
+        // Flight discovery gets priority over hotel scraping. After the visible
+        // list has been expanded across official carriers/dates, query Booking/
+        // Expedia serially and refresh the package prices. This keeps WebKit at
+        // one active search surface at a time on smaller iPhones.
+        if !discoveredOutbound.isEmpty {
+            let liveHotelPrices = await hotelPriceService.search(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel
+            )
+            if liveHotelPrices.hasLiveRates {
+                cachedHotelPrices = liveHotelPrices
+                if !inboundCandidates.isEmpty {
+                    pricedOffers = await quoteOutboundSafely(
+                        trip: trip,
+                        makkahHotel: makkahHotel,
+                        madinahHotel: madinahHotel,
+                        outbound: discoveredOutbound,
+                        inbound: inboundCandidates,
+                        hotelPrices: liveHotelPrices,
+                        previous: pricedOffers
+                    )
+                    onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: pricedOffers, isSearching: true))
+                }
+            }
+        }
+
+
+        if !discoveredOutbound.isEmpty, !inboundCandidates.isEmpty {
+            pricedOffers = await quoteOutboundSafely(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                outbound: discoveredOutbound,
+                inbound: inboundCandidates,
+                hotelPrices: cachedHotelPrices,
+                previous: pricedOffers
+            )
+        }
+
+        let final = rankedOffers(pricedOffers, anchor: trip.departureDate, flexibility: trip.flexibility)
+        onUpdate(.init(discoveredCandidates: discoveredOutbound, pricedOffers: final, isSearching: false))
+        return final
+    }
+
+    func searchReturnProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        outbound: FlightOffer,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        try await ensureBackendReady(for: trip)
+        prepareCaches(for: trip)
+        guard let sourceID = outbound.sourceCandidateID,
+              let selectedOutbound = outboundCandidatesByID[sourceID],
+              selectedOutbound.isDisplayableCandidate else {
+            throw FlightEngineAvailabilityError.realOutboundRequired
+        }
+
+        onUpdate(.emptySearching)
+        let request = makeInboundRequest(trip)
+        var discoveredInbound: [LiveFlightCandidate] = []
+        var pricedOffers: [FlightOffer] = []
+
+        let initialFlexibility: DateFlexibility = trip.flexibility.isFlexibleDayRange ? .exact : trip.flexibility
+        let initial = await safeSearch(
+            request: request,
+            flexibility: initialFlexibility,
+            minimumResults: 1,
+            preferredResults: 1,
+            maxProviderAttempts: 6,
+            onProgress: { candidates in
+                discoveredInbound = self.mergeCandidates(discoveredInbound, candidates)
+                self.cacheInbound(discoveredInbound)
+                onUpdate(.init(discoveredCandidates: discoveredInbound, pricedOffers: pricedOffers, isSearching: true))
+            }
+        )
+        discoveredInbound = mergeCandidates(discoveredInbound, initial?.candidates ?? [])
+
+        if discoveredInbound.isEmpty, trip.flexibility.isFlexibleDayRange {
+            let widened = await safeSearch(
+                request: request,
+                flexibility: trip.flexibility,
+                minimumResults: 1,
+                preferredResults: 1,
+                onProgress: { candidates in
+                    discoveredInbound = self.mergeCandidates(discoveredInbound, candidates)
+                    self.cacheInbound(discoveredInbound)
+                    onUpdate(.init(discoveredCandidates: discoveredInbound, pricedOffers: pricedOffers, isSearching: true))
+                }
+            )
+            discoveredInbound = mergeCandidates(discoveredInbound, widened?.candidates ?? [])
+        }
+        cacheInbound(discoveredInbound)
+
+        if !discoveredInbound.isEmpty {
+            pricedOffers = await quoteReturnSafely(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                selectedOutbound: selectedOutbound,
+                inbound: discoveredInbound,
+                hotelPrices: cachedHotelPrices,
+                previous: pricedOffers
+            )
+            onUpdate(.init(discoveredCandidates: discoveredInbound, pricedOffers: pricedOffers, isSearching: true))
+        }
+
+        let continuation = await safeSearch(
+            request: request,
+            flexibility: trip.flexibility,
+            minimumResults: 1,
+            preferredResults: AppConfig.flightBotPreferredOptions,
+            onProgress: { candidates in
+                discoveredInbound = self.mergeCandidates(discoveredInbound, candidates)
+                self.cacheInbound(discoveredInbound)
+                pricedOffers = await self.quoteReturnSafely(
+                    trip: trip,
+                    makkahHotel: makkahHotel,
+                    madinahHotel: madinahHotel,
+                    selectedOutbound: selectedOutbound,
+                    inbound: discoveredInbound,
+                    hotelPrices: self.cachedHotelPrices,
+                    previous: pricedOffers
+                )
+                onUpdate(.init(discoveredCandidates: discoveredInbound, pricedOffers: pricedOffers, isSearching: true))
+            }
+        )
+        discoveredInbound = mergeCandidates(discoveredInbound, continuation?.candidates ?? [])
+        cacheInbound(discoveredInbound)
+
+        if !discoveredInbound.isEmpty {
+            pricedOffers = await quoteReturnSafely(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                selectedOutbound: selectedOutbound,
+                inbound: discoveredInbound,
+                hotelPrices: cachedHotelPrices,
+                previous: pricedOffers
+            )
+        }
+
+        let final = rankedOffers(pricedOffers, anchor: trip.returnDate, flexibility: trip.flexibility)
+        onUpdate(.init(discoveredCandidates: discoveredInbound, pricedOffers: final, isSearching: false))
+        return final
     }
 
     func invalidateSession() {
-        session = nil
-        tripSignature = nil
+        activeSignature = nil
+        outboundCandidatesByID.removeAll()
+        inboundCandidatesByID.removeAll()
+        cachedHotelPrices = nil
+    }
+
+    private func referenceInboundResult(
+        request: FlightBotSearchRequest,
+        trip: TripDraft
+    ) async -> FlightBotOrchestrator.SearchResult? {
+        if let exact = await safeSearch(
+            request: request,
+            flexibility: .exact,
+            minimumResults: 1,
+            preferredResults: 1,
+            maxProviderAttempts: 8,
+            onProgress: nil
+        ), !exact.candidates.isEmpty {
+            return exact
+        }
+        guard trip.flexibility.isFlexibleDayRange else { return nil }
+        return await safeSearch(
+            request: request,
+            flexibility: trip.flexibility,
+            minimumResults: 1,
+            preferredResults: 1,
+            onProgress: nil
+        )
+    }
+
+    private func safeSearch(
+        request: FlightBotSearchRequest,
+        flexibility: DateFlexibility,
+        minimumResults: Int,
+        preferredResults: Int,
+        maxProviderAttempts: Int? = nil,
+        onProgress: (@MainActor ([LiveFlightCandidate]) async -> Void)?
+    ) async -> FlightBotOrchestrator.SearchResult? {
+        do {
+            return try await FlightBotOrchestrator.shared.search(
+                request: request,
+                flexibility: flexibility,
+                requirement: .displayable,
+                minimumResults: minimumResults,
+                preferredResults: preferredResults,
+                maxProviderAttempts: maxProviderAttempts,
+                onProgress: onProgress
+            )
+        } catch {
+            // Provider exhaustion is not a screen-level failure. The caller keeps
+            // any verified candidates already emitted by onProgress and may start
+            // another pass. Fatal Package Engine errors are handled separately.
+            return nil
+        }
+    }
+
+    private func quoteOutboundSafely(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        outbound: [LiveFlightCandidate],
+        inbound: [LiveFlightCandidate],
+        hotelPrices: HotelPriceSearchSnapshot?,
+        previous: [FlightOffer]
+    ) async -> [FlightOffer] {
+        guard !outbound.isEmpty, !inbound.isEmpty else { return previous }
+        do {
+            let response = try await packageEngine.quoteOutboundOptions(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                outbound: outbound,
+                inbound: inbound,
+                hotelPrices: hotelPrices
+            )
+            let newOffers = try bridge(candidates: outbound, quotes: response.options, direction: .outbound)
+            return mergeOffers(previous, newOffers, anchor: trip.departureDate, flexibility: trip.flexibility)
+        } catch {
+            return previous
+        }
+    }
+
+    private func quoteReturnSafely(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        selectedOutbound: LiveFlightCandidate,
+        inbound: [LiveFlightCandidate],
+        hotelPrices: HotelPriceSearchSnapshot?,
+        previous: [FlightOffer]
+    ) async -> [FlightOffer] {
+        guard !inbound.isEmpty else { return previous }
+        do {
+            let response = try await packageEngine.quoteReturnOptions(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                selectedOutbound: selectedOutbound,
+                inbound: inbound,
+                hotelPrices: hotelPrices
+            )
+            let newOffers = try bridge(candidates: inbound, quotes: response.options, direction: .inbound)
+            return mergeOffers(previous, newOffers, anchor: trip.returnDate, flexibility: trip.flexibility)
+        } catch {
+            return previous
+        }
     }
 
     private func ensureBackendReady(for trip: TripDraft) async throws {
@@ -130,13 +437,54 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         }
     }
 
-    private func sessionFor(trip: TripDraft) async throws -> RoundTripFlightBotSession {
+    private func prepareCaches(for trip: TripDraft) {
         let signature = makeSignature(trip)
-        if let session, tripSignature == signature { return session }
-        let created = try await botService.prepareRoundTrip(trip: trip)
-        self.session = created
-        self.tripSignature = signature
-        return created
+        guard activeSignature != signature else { return }
+        activeSignature = signature
+        outboundCandidatesByID.removeAll()
+        inboundCandidatesByID.removeAll()
+        cachedHotelPrices = nil
+    }
+
+    private func cacheOutbound(_ values: [LiveFlightCandidate]) {
+        for candidate in values where candidate.isDisplayableCandidate {
+            outboundCandidatesByID[candidate.id] = candidate
+        }
+    }
+
+    private func cacheInbound(_ values: [LiveFlightCandidate]) {
+        for candidate in values where candidate.isDisplayableCandidate {
+            inboundCandidatesByID[candidate.id] = candidate
+        }
+    }
+
+    private func mergeCandidates(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
+        var values = lhs
+        var keys = Set(lhs.map(\.deduplicationKey))
+        for candidate in rhs where candidate.isDisplayableCandidate {
+            if keys.insert(candidate.deduplicationKey).inserted { values.append(candidate) }
+        }
+        return values
+    }
+
+    private func mergeOffers(
+        _ lhs: [FlightOffer],
+        _ rhs: [FlightOffer],
+        anchor: Date,
+        flexibility: DateFlexibility
+    ) -> [FlightOffer] {
+        var byCandidate: [String: FlightOffer] = [:]
+        for offer in lhs + rhs where offer.isVerifiedForBooking {
+            let key = offer.sourceCandidateID ?? offer.id
+            if let current = byCandidate[key] {
+                // A later live-hotel-price quote supersedes the earlier provisional
+                // package quote for the same exact flight candidate.
+                if offer.quoteId != current.quoteId { byCandidate[key] = offer }
+            } else {
+                byCandidate[key] = offer
+            }
+        }
+        return rankedOffers(Array(byCandidate.values), anchor: anchor, flexibility: flexibility)
     }
 
     private func bridge(
@@ -145,10 +493,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
         direction: FlightDirection
     ) throws -> [FlightOffer] {
         let visibleCandidates = candidates.filter(\.isDisplayableCandidate)
-        let candidateMap = Dictionary(uniqueKeysWithValues: visibleCandidates.map { ($0.id, $0) })
-        let bridged = quotes.compactMap { quote -> FlightOffer? in
+        var candidateMap: [String: LiveFlightCandidate] = [:]
+        for candidate in visibleCandidates { candidateMap[candidate.id] = candidate }
+        return quotes.compactMap { quote -> FlightOffer? in
             guard let candidate = candidateMap[quote.candidateId], candidate.isDisplayableCandidate else { return nil }
-            return FlightOffer(
+            let offer = FlightOffer(
                 id: "real-\(direction.rawValue)-\(candidate.id)",
                 direction: direction,
                 airline: candidate.airline,
@@ -169,50 +518,51 @@ final class RealFlightPackageSearchService: FlightSearchServicing {
                 segments: candidate.segments,
                 connectionAirports: candidate.connectionAirports
             )
+            return offer.isVerifiedForBooking ? offer : nil
         }
-
-        return bridged
-            .filter(\.isVerifiedForBooking)
-            .sorted {
-                if $0.totalPackagePrice != $1.totalPackagePrice {
-                    return $0.totalPackagePrice < $1.totalPackagePrice
-                }
-                if $0.stops != $1.stops { return $0.stops < $1.stops }
-                return $0.departureAt < $1.departureAt
-            }
     }
 
-    private func rankForRecommendation(
-        _ offers: [FlightOffer],
-        anchor: Date,
-        flexibility: DateFlexibility
-    ) -> [FlightOffer] {
-        offers.filter(\.isVerifiedForBooking).sorted { lhs, rhs in
-            let leftDay = abs(Calendar.current.startOfDay(for: lhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
-            let rightDay = abs(Calendar.current.startOfDay(for: rhs.departureAt).timeIntervalSince(Calendar.current.startOfDay(for: anchor)))
-
+    private func rankedOffers(_ offers: [FlightOffer], anchor: Date, flexibility: DateFlexibility) -> [FlightOffer] {
+        Array(offers.filter(\.isVerifiedForBooking).sorted { lhs, rhs in
+            let calendar = Calendar.current
+            let leftDay = abs(calendar.startOfDay(for: lhs.departureAt).timeIntervalSince(calendar.startOfDay(for: anchor)))
+            let rightDay = abs(calendar.startOfDay(for: rhs.departureAt).timeIntervalSince(calendar.startOfDay(for: anchor)))
+            if leftDay == 0 && rightDay != 0 { return true }
+            if rightDay == 0 && leftDay != 0 { return false }
             if flexibility.isFlexibleDayRange {
-                // The user explicitly asked the engine to trade a nearby date for
-                // a better package price, so public package price ranks first.
-                if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
                 if leftDay != rightDay { return leftDay < rightDay }
-                if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+                if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
             } else {
                 if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
-                if leftDay != rightDay { return leftDay < rightDay }
                 if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
             }
+            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
             return lhs.departureAt < rhs.departureAt
-        }
+        }.prefix(18))
     }
 
-    private func enforceMinimum(_ offers: [FlightOffer]) throws {
-        guard offers.count >= AppConfig.flightBotMinimumOptions else {
-            throw FlightPricingBridgeError.insufficientQuotedOptions(
-                found: offers.count,
-                minimum: AppConfig.flightBotMinimumOptions
-            )
-        }
+    private func makeOutboundRequest(_ trip: TripDraft) -> FlightBotSearchRequest {
+        FlightBotSearchRequest(
+            direction: .outbound,
+            origin: trip.originCode,
+            destination: trip.outboundDestinationCode,
+            date: trip.departureDate,
+            adults: trip.adults,
+            children: trip.children,
+            infants: trip.infants
+        )
+    }
+
+    private func makeInboundRequest(_ trip: TripDraft) -> FlightBotSearchRequest {
+        FlightBotSearchRequest(
+            direction: .inbound,
+            origin: trip.returnOriginCode,
+            destination: trip.originCode,
+            date: trip.returnDate,
+            adults: trip.adults,
+            children: trip.children,
+            infants: trip.infants
+        )
     }
 
     private func makeSignature(_ trip: TripDraft) -> String {
@@ -266,6 +616,46 @@ final class AutomaticFlightSearchService: FlightSearchServicing {
                 return try await real.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
             }
             return try await sandbox.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
+        }
+    }
+
+    func searchOutboundProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        switch AppConfig.flightEngineMode {
+        case .sandbox:
+            return try await sandbox.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate)
+        case .officialWebBots:
+            return try await real.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate)
+        case .automatic:
+            guard await canUseRemoteEngine() else {
+                return try await sandbox.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate)
+            }
+            return try await real.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate)
+        }
+    }
+
+    func searchReturnProgressive(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        outbound: FlightOffer,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
+        switch AppConfig.flightEngineMode {
+        case .sandbox:
+            return try await sandbox.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
+        case .officialWebBots:
+            guard outbound.sourceCandidateID != nil else { throw FlightEngineAvailabilityError.realOutboundRequired }
+            return try await real.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
+        case .automatic:
+            if outbound.sourceCandidateID != nil {
+                return try await real.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
+            }
+            return try await sandbox.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
         }
     }
 

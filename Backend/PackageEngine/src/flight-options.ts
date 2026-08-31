@@ -89,8 +89,6 @@ const ALLOWED_PROVIDER_IDS = new Set([
   "flydubai",
   "airAstana",
   "flyArystan",
-  "googleFlights",
-  "skyscanner",
 ]);
 
 function validateObservation(observation: FlightFareObservation) {

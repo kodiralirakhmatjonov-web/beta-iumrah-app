@@ -44,10 +44,39 @@ struct FlightBotProvider: Identifiable, Hashable {
 
     var isOfficialCarrierSource: Bool { !id.isAggregator }
 
+    /// Some official booking engines expose a stable first-party search URL.
+    /// Using it is materially more reliable than simulating taps on a marketing
+    /// homepage. Providers without a documented route keep the form automation.
+    var usesDirectSearchURL: Bool {
+        id == .qanotSharq
+    }
+
     func searchURL(for request: FlightBotSearchRequest) -> URL {
-        // Production search intentionally opens the airline's own booking surface.
-        // No Google Flights/Skyscanner provider is registered below.
-        baseURL
+        switch id {
+        case .qanotSharq:
+            var components = URLComponents(string: "https://booking.qanotsharq.com/websky_grs/")!
+            let formatter = DateFormatter()
+            formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "dd.MM.yyyy"
+            components.queryItems = [
+                URLQueryItem(name: "origin-city-code[0]", value: request.origin.uppercased()),
+                URLQueryItem(name: "destination-city-code[0]", value: request.destination.uppercased()),
+                URLQueryItem(name: "date[0]", value: formatter.string(from: request.date)),
+                URLQueryItem(name: "segmentsCount", value: "1"),
+                URLQueryItem(name: "adultsAmount", value: String(max(1, request.adults))),
+                URLQueryItem(name: "childrenAmount", value: String(max(0, request.children))),
+                URLQueryItem(name: "infantsWithoutSeatAmount", value: String(max(0, request.infants))),
+                URLQueryItem(name: "infantsWithSeatAmount", value: "0"),
+                URLQueryItem(name: "searchGroupId", value: "standard"),
+                URLQueryItem(name: "lang", value: "en")
+            ]
+            return components.url ?? baseURL
+        default:
+            // Production search opens the airline's own booking surface.
+            // No Google Flights/Skyscanner provider is registered here.
+            return baseURL
+        }
     }
 }
 
