@@ -13,6 +13,8 @@ final class AppChromeStore: ObservableObject {
     @Published var currentTab: AppTab = .home
     @Published var shouldStartTripBuilder = false
     @Published var isImmersiveMode = false
+    @Published var isSidebarOpen = false
+    @Published var isESIMPresented = false
     @Published private(set) var internalNavigationDepth = 0
 
     func navigate(to tab: AppTab) {
@@ -25,6 +27,25 @@ final class AppChromeStore: ObservableObject {
         shouldStartTripBuilder = true
         currentTab = .booking
         requestedTab = .booking
+        IumrahHaptics.selection()
+    }
+
+    func openSidebar() {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+            isSidebarOpen = true
+        }
+        IumrahHaptics.selection()
+    }
+
+    func closeSidebar() {
+        withAnimation(.spring(response: 0.30, dampingFraction: 0.92)) {
+            isSidebarOpen = false
+        }
+    }
+
+    func presentESIM() {
+        closeSidebar()
+        isESIMPresented = true
         IumrahHaptics.selection()
     }
 

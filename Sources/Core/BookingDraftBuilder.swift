@@ -28,6 +28,7 @@ enum BookingDraftBuilder {
             "accompaniment",
             "ziyaratMakkah",
             includeMadinah ? "ziyaratMadinah" : nil,
+            "esim",
             "care",
         ].compactMap { $0 }
 
@@ -78,7 +79,7 @@ enum BookingDraftBuilder {
                 ziyaratMakkah: true,
                 ziyaratMadinah: includeMadinah,
                 meals: true,
-                esim: false
+                esim: true
             ),
             includedServices: services,
             hotelNames: .init(

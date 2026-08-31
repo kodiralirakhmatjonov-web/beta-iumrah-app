@@ -52,6 +52,14 @@ struct BookingService {
         }
     }
 
+    func fetchESIMs(id: String, headers: [String: String]) async throws -> [ClientESIMProfile] {
+        let response: ClientESIMListResponse = try await api.get(
+            "/api/catalog/hotels/client/trips/\(id)/esims",
+            headers: headers
+        )
+        return response.esims
+    }
+
     func updateHotelSelection(
         id: String,
         accessToken: String,

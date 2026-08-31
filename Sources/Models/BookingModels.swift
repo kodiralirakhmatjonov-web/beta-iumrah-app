@@ -231,6 +231,49 @@ struct ClientTripResponse: Decodable {
     let ok: Bool?
     let trip: ClientTripSnapshot
     let assignment: ClientBookingAssignment?
+    let esims: [ClientESIMProfile]?
+}
+
+struct ClientESIMProfile: Codable, Identifiable, Hashable {
+    let id: String
+    let bookingID: String
+    let travelerPosition: Int?
+    let label: String
+    let provider: String
+    let providerEsimID: String?
+    let iccid: String
+    let planName: String
+    let countryCode: String
+    let totalMB: Double
+    let usedMB: Double
+    let remainingMB: Double
+    let validityDays: Int?
+    let status: String
+    let providerStatus: String?
+    let providerSmdpStatus: String?
+    let smdpAddress: String
+    let activationCode: String
+    let lpaString: String
+    let qrCodeURL: String?
+    let activatedAt: String?
+    let expiresAt: String?
+    let lastUsageSyncAt: String?
+    let usageSource: String
+    let createdAt: String
+    let updatedAt: String
+
+    var totalGB: Double { totalMB / 1024 }
+    var usedGB: Double { usedMB / 1024 }
+    var remainingGB: Double { remainingMB / 1024 }
+    var usageAvailable: Bool { usageSource == "provider" || lastUsageSyncAt != nil }
+    var remainingFraction: Double { usageAvailable && totalMB > 0 ? min(max(remainingMB / totalMB, 0), 1) : 0 }
+    var hasActivationData: Bool { !lpaString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (!smdpAddress.isEmpty && !activationCode.isEmpty) }
+}
+
+struct ClientESIMListResponse: Decodable {
+    let ok: Bool
+    let bookingID: String
+    let esims: [ClientESIMProfile]
 }
 
 struct ClientBookingAssignment: Codable, Hashable {

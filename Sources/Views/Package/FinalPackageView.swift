@@ -201,6 +201,7 @@ struct FinalPackageView: View {
             includedRow(.guide, icon: "person.wave.2.fill")
             includedRow(.visa, icon: "doc.text.fill")
             includedRow(.meals, icon: "fork.knife")
+            includedRow(.esim, icon: "simcard.fill")
         }
         .padding(20)
         .background(Color.iumrahCardBackground)

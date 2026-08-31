@@ -1,17 +1,77 @@
 {
-  "patch": "iumrah-beta-update-030-onboarding-launch-deadlock-fix",
-  "based_on": "BETA_HOTFIX_029",
-  "purpose": "Prevent first-launch intro from starving its own dismissal by deferring the heavy onboarding hierarchy.",
+  "patch": "iumrah-beta-update-032-esim-auto-usage",
+  "purpose": "Package-only eSIM delivery and iOS activation with automatic provider-driven balance/status synchronization.",
   "files": [
     {
-      "path": "Sources/Views/Onboarding/OnboardingFlowView.swift",
-      "sha256": "378b1e94ce5f6777513d608bcbf03a06bd803fa3edcefe5a7e54a7c01bcb6e4c",
-      "bytes": 55073
+      "path": "BETA_ESIM_032_APPLIED.txt",
+      "sha256": "bbf9bed0026cebd6244b4d095d160b65fa4ced886ec9a1af183c9fece6948d8f",
+      "bytes": 713
     },
     {
-      "path": "BETA_HOTFIX_030_APPLIED.txt",
-      "sha256": "71c318b74828db162d56b1751143c035a95f6612a64be0058b7c20f0f66e0619",
-      "bytes": 461
+      "path": "Sources/AppShell/AppChromeStore.swift",
+      "sha256": "0a7c17489cf7c7f48ac4507ea142e43055a83f9274e4a1f1387e5b6e03384d1a",
+      "bytes": 1705
+    },
+    {
+      "path": "Sources/AppShell/SidebarDrawerView.swift",
+      "sha256": "0fc43309611495ad6c62621ea43085030c11792aee1a4cd98a22e7424b48980e",
+      "bytes": 8487
+    },
+    {
+      "path": "Sources/Core/BookingDraftBuilder.swift",
+      "sha256": "5861f2febf499c57bf783d87a46698eabe6f0e52c70e62f2f5977bd3e573c63b",
+      "bytes": 8688
+    },
+    {
+      "path": "Sources/Core/DesignSystem.swift",
+      "sha256": "d4f8f7ac8c3e2d4f27a1218dde72ebd6987d6a5b3d54a7a296b6b80fcd2b2f93",
+      "bytes": 7021
+    },
+    {
+      "path": "Sources/Models/BookingModels.swift",
+      "sha256": "c664a44e63f43abf759b0164f75c08800f005c78f0e4d904acf8038a2ee3f2a1",
+      "bytes": 12254
+    },
+    {
+      "path": "Sources/Models/IumrahAccountModels.swift",
+      "sha256": "d4c3119b5978539991fc3e1e51694fc2c3e9766cd43bdc4d909370643af69381",
+      "bytes": 5652
+    },
+    {
+      "path": "Sources/Services/BookingService.swift",
+      "sha256": "78a286c10641cdbb68812e3ca333925694a466d309af090167ac01f7a7230c5a",
+      "bytes": 5925
+    },
+    {
+      "path": "Sources/State/BookingStore.swift",
+      "sha256": "23e9707a18ca4e31f7e5a0d7c667c41c9b844e669bdd70f88398da6e878813d6",
+      "bytes": 29122
+    },
+    {
+      "path": "Sources/Views/Components/IumrahRootPageTitle.swift",
+      "sha256": "d98dcf02809f76d26259492da5c9faa12d79ae25a2939a574e070832c483ac6e",
+      "bytes": 3622
+    },
+    {
+      "path": "Sources/Views/ESIM/ESIMView.swift",
+      "sha256": "62520d0b0d588531a8914fc0d8abcb1f86a08fa552c8a39119b392bb6be5a455",
+      "bytes": 34324
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "adee725da20e13a545dea67653d15163a4fdd03edb541c4db0ec53bfac266916",
+      "bytes": 23845
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "sha256": "728c664d917a2288d3bed4336ac195ddadbca4845744e4e98c7a42650e6da7a7",
+      "bytes": 18327
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "sha256": "a8ef8edcb038c06b3bb3dc6e5bce8f317a2cc21172fb90d6d5f29af57fc6b3ff",
+      "bytes": 8008
     }
-  ]
+  ],
+  "based_on": "BETA_HOTFIX_030"
 }

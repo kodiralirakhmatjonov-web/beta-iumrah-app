@@ -1,0 +1,11 @@
+iumrah Beta eSIM update 032
+
+- Includes all eSIM UI/navigation work from update 031.
+- eSIM data balance is now provider-driven only: no manual used/remaining MB workflow.
+- eSIM detail automatically refreshes from the authenticated backend while the page is open and when the app becomes active.
+- Home eSIM widget refreshes automatically and never shows a fake 0 MB before the first provider sync.
+- Pending provider sync has a dedicated UI state; the last successful provider values remain cached if a later refresh fails.
+- QR/LPA/Activation Code and iOS 17.4+ system activation remain supported.
+- Standalone eSIM checkout remains disabled; eSIM is package-only in V1.
+
+No signing or workflow files changed.

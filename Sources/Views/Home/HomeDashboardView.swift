@@ -11,7 +11,13 @@ struct HomeDashboardView: View {
 
     var body: some View {
         marketingHome
-            .task { await bookings.refreshAll() }
+            .task(id: activeSession?.id) {
+                await bookings.refreshAll()
+                while !Task.isCancelled {
+                    if let activeSession { _ = try? await bookings.loadESIMs(for: activeSession.id) }
+                    try? await Task.sleep(nanoseconds: 120_000_000_000)
+                }
+            }
     }
 
     private var marketingHome: some View {
@@ -23,6 +29,7 @@ struct HomeDashboardView: View {
                 confidenceStrip
                 philosophyCard
                 connectedTripCard
+                esimHomeCard
                 careCard
                 hotelCard
             }
@@ -349,6 +356,119 @@ struct HomeDashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahMarketingCard()
+    }
+
+    private var esimHomeCard: some View {
+        Button { chrome.presentESIM() } label: {
+            HStack(spacing: 16) {
+                if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
+                    ZStack {
+                        Circle().stroke(Color.primary.opacity(0.08), lineWidth: 8)
+                        if profile.usageAvailable {
+                            Circle()
+                                .trim(from: 0, to: profile.remainingFraction)
+                                .stroke(Color.iumrahCareDark, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                            VStack(spacing: 0) {
+                                Text(homeDataText(profile.remainingMB))
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                Text(homeESIMCopy(.left))
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            VStack(spacing: 4) {
+                                ProgressView().controlSize(.small)
+                                Text("AUTO")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .frame(width: 82, height: 82)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("iumrah eSIM")
+                            .font(.headline)
+                        Text(profile.hasActivationData ? homeESIMCopy(.ready) : homeESIMCopy(.assigned))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        Text(profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.iumrahCareDark)
+                    }
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(Color.iumrahCareLight.opacity(0.20))
+                        Image(systemName: "simcard.fill")
+                            .font(.system(size: 27, weight: .semibold))
+                            .foregroundStyle(Color.iumrahCareDark)
+                    }
+                    .frame(width: 82, height: 82)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("iumrah eSIM")
+                            .font(.headline)
+                        Text(homeESIMCopy(.packageOnly))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                        Text(homeESIMCopy(.details))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.iumrahCareDark)
+                    }
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .iumrahCard()
+        }
+        .buttonStyle(.plain)
+    }
+
+    private enum HomeESIMCopyKey { case left, ready, assigned, activate, open, packageOnly, details }
+
+    private func homeESIMCopy(_ key: HomeESIMCopyKey) -> String {
+        switch (settings.language, key) {
+        case (.russian, .left): return "осталось"
+        case (.russian, .ready): return "Профиль готов. Активируйте eSIM на iPhone."
+        case (.russian, .assigned): return "eSIM привязана к вашей поездке."
+        case (.russian, .activate): return "Активировать eSIM"
+        case (.russian, .open): return "Открыть eSIM"
+        case (.russian, .packageOnly): return "В первой версии eSIM доступна только внутри Umrah-пакета."
+        case (.russian, .details): return "Тарифы и активация"
+        case (.english, .left): return "left"
+        case (.english, .ready): return "Your profile is ready. Activate eSIM on iPhone."
+        case (.english, .assigned): return "eSIM is assigned to your trip."
+        case (.english, .activate): return "Activate eSIM"
+        case (.english, .open): return "Open eSIM"
+        case (.english, .packageOnly): return "In V1, eSIM is available only inside an Umrah package."
+        case (.english, .details): return "Plans & activation"
+        case (.uzbek, .left): return "qoldi"
+        case (.uzbek, .ready): return "Profil tayyor. iPhone’da eSIM’ni faollashtiring."
+        case (.uzbek, .assigned): return "eSIM safaringizga biriktirilgan."
+        case (.uzbek, .activate): return "eSIM’ni faollashtirish"
+        case (.uzbek, .open): return "eSIM’ni ochish"
+        case (.uzbek, .packageOnly): return "V1’da eSIM faqat Umra paketi tarkibida mavjud."
+        case (.uzbek, .details): return "Tariflar va faollashtirish"
+        case (.uzbekCyrillic, .left): return "қолди"
+        case (.uzbekCyrillic, .ready): return "Профил тайёр. iPhone’да eSIM’ни фаоллаштиринг."
+        case (.uzbekCyrillic, .assigned): return "eSIM сафарингизга бириктирилган."
+        case (.uzbekCyrillic, .activate): return "eSIM’ни фаоллаштириш"
+        case (.uzbekCyrillic, .open): return "eSIM’ни очиш"
+        case (.uzbekCyrillic, .packageOnly): return "V1’да eSIM фақат Умра пакети таркибида мавжуд."
+        case (.uzbekCyrillic, .details): return "Тарифлар ва фаоллаштириш"
+        }
+    }
+
+    private func homeDataText(_ mb: Double) -> String {
+        if mb >= 1024 { return String(format: "%.1f GB", mb / 1024) }
+        return "\(Int(max(0, mb).rounded())) MB"
     }
 
     private func journeyIcon(_ name: String) -> some View {

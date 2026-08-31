@@ -34,10 +34,9 @@ struct IumrahRootPageTitle: View {
 
             VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
                 Button {
-                    IumrahHaptics.selection()
-                    chrome.navigate(to: .account)
+                    chrome.openSidebar()
                 } label: {
-                    Image(systemName: "person.crop.circle")
+                    Image(systemName: "line.3.horizontal")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(lightStyle ? Color.white : Color.primary)
                         .frame(width: 46, height: 46)
@@ -51,7 +50,7 @@ struct IumrahRootPageTitle: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Account")
+                .accessibilityLabel("Menu")
 
                 if showsMakkahTime {
                     MakkahClockView(lightStyle: lightStyle)

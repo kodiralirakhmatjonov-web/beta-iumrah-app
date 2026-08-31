@@ -133,7 +133,7 @@ struct RootView: View {
     private var rootContent: some View {
         Group {
             if hasCompletedOnboarding {
-                tabs
+                SidebarDrawerHost { tabs }
                     .transition(.opacity.combined(with: .scale(scale: 0.985)))
             } else {
                 OnboardingFlowView {
@@ -173,6 +173,12 @@ struct RootView: View {
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarBackground(Color.iumrahCardBackground.opacity(0.96), for: .tabBar)
+        .fullScreenCover(isPresented: $chrome.isESIMPresented) {
+            ESIMView()
+                .environmentObject(settings)
+                .environmentObject(chrome)
+                .environmentObject(bookings)
+        }
     }
 
     private func tabScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {
