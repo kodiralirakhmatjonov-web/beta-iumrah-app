@@ -4,6 +4,7 @@ struct OutboundFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @StateObject private var challengeCenter = FlightBotChallengeCenter.shared
 
     @State private var candidates: [LiveFlightCandidate] = []
     @State private var offers: [FlightOffer] = []
@@ -12,6 +13,7 @@ struct OutboundFlightView: View {
     @State private var fatalErrorText: String?
     @State private var searchStatus: GeneratorSearchStage? = .starting
     @State private var searchGeneration = UUID()
+    @State private var presentedChallenge: FlightBotChallenge?
 
     var body: some View {
         Group {
@@ -26,6 +28,23 @@ struct OutboundFlightView: View {
         .task { await search(continueExisting: false) }
         .onAppear { updateImmersive() }
         .onChange(of: isInitialLoading) { _, _ in updateImmersive() }
+        .onReceive(challengeCenter.$pending) { value in
+            guard let value, value.request.direction == .outbound else { return }
+            guard challengeMatchesCurrentTrip(value) else { return }
+            if candidates.isEmpty && offers.isEmpty {
+                withAnimation(.easeInOut(duration: 0.22)) { isInitialLoading = false }
+            }
+        }
+        .sheet(item: $presentedChallenge) { challenge in
+            FlightChallengeSheet(
+                challenge: challenge,
+                onCompleted: {
+                    presentedChallenge = nil
+                    Task { await resumeChallenge(challenge) }
+                },
+                onCancelled: { presentedChallenge = nil }
+            )
+        }
         .onDisappear { chrome.setImmersive(false) }
     }
 
@@ -39,7 +58,13 @@ struct OutboundFlightView: View {
                     subtitle: L10n.text("flight_out_body", settings.language)
                 )
 
-                if let fatalErrorText, candidates.isEmpty && offers.isEmpty {
+                if let challenge = currentChallenge {
+                    FlightProviderVerificationCard(challenge: challenge) {
+                        presentedChallenge = challenge
+                    }
+                }
+
+                if let fatalErrorText, candidates.isEmpty && offers.isEmpty && currentChallenge == nil {
                     fatalBackendCard(fatalErrorText)
                 } else {
                     flightGroups
@@ -215,6 +240,18 @@ struct OutboundFlightView: View {
         if !offers.isEmpty { IumrahHaptics.success() }
     }
 
+    private var currentChallenge: FlightBotChallenge? {
+        guard let challenge = challengeCenter.pending,
+              challenge.request.direction == .outbound,
+              challengeMatchesCurrentTrip(challenge) else { return nil }
+        return challenge
+    }
+
+    private func challengeMatchesCurrentTrip(_ challenge: FlightBotChallenge) -> Bool {
+        challenge.request.origin == journey.trip.originCode.uppercased() &&
+        challenge.request.destination == journey.trip.outboundDestinationCode.uppercased()
+    }
+
     private func updateImmersive() {
         chrome.setImmersive(isInitialLoading && candidates.isEmpty && offers.isEmpty)
     }
@@ -245,6 +282,17 @@ struct OutboundFlightView: View {
             if keys.insert(candidate.deduplicationKey).inserted { result.append(candidate) }
         }
         return result
+    }
+
+    @MainActor
+    private func resumeChallenge(_ challenge: FlightBotChallenge) async {
+        let resumed = await journey.flightService.resumeFlightChallenge(challenge)
+        if !resumed.isEmpty {
+            offers = mergeOffers(offers, resumed)
+            fatalErrorText = nil
+            isInitialLoading = false
+        }
+        await search(continueExisting: true)
     }
 
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {

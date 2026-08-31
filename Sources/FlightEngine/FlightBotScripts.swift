@@ -389,13 +389,35 @@ enum FlightBotScripts {
     })()
     """#
 
-    static let detectChallenge = """
+    static let detectChallenge = #"""
     (() => {
-      const body = (document.body?.innerText || '').toLowerCase();
-      const markers = ['captcha','not a robot','not robot','не робот','введите код','enter the code','robot verification','verify you are human'];
-      return markers.some(m => body.includes(m));
+      const markers = ['captcha','not a robot','not robot','не робот','введите код','enter the code','robot verification','verify you are human','prove that you are not a robot'];
+      const visible = el => {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        const st = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none' && Number(st.opacity || 1) > 0;
+      };
+      const clean = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+      // Booking engines often ship hidden CAPTCHA templates in the initial HTML.
+      // Treat a challenge as real only when its dialog/form/iframe is visible.
+      const surfaces = Array.from(document.querySelectorAll(
+        '[role=dialog],dialog,form,[class*=captcha],[id*=captcha],[class*=challenge],[id*=challenge],iframe[src*=captcha],iframe[title*=captcha]'
+      )).filter(visible);
+      for (const surface of surfaces) {
+        const text = clean(surface.innerText || surface.textContent || surface.getAttribute('title') || surface.getAttribute('aria-label') || '');
+        const htmlHint = clean((surface.getAttribute('class') || '') + ' ' + (surface.getAttribute('id') || '') + ' ' + (surface.getAttribute('src') || ''));
+        if (markers.some(marker => text.includes(marker) || htmlHint.includes(marker))) return true;
+      }
+
+      const visibleInputs = Array.from(document.querySelectorAll('input')).filter(visible);
+      return visibleInputs.some(input => {
+        const descriptor = clean([input.name, input.id, input.placeholder, input.getAttribute('aria-label')].filter(Boolean).join(' '));
+        return descriptor.includes('captcha');
+      });
     })()
-    """
+    """#
 
     static let expandCandidateDetails = #"""
     (() => {

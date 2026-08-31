@@ -1,0 +1,10 @@
+Generator / Flight Engine device-bot update 009 applied.
+
+- Qanot Sharq, Centrum Air and Air Samarkand use provider-specific iPhone WKWebView search adapters.
+- Carrier + direction sessions are persistent so outbound and return prewarm do not navigate each other away.
+- Human verification reuses the exact provider WKWebView/session and resumes the exact challenged request.
+- Hidden return prewarm never surfaces or strands a verification challenge.
+- Qanot WebSky uses the documented adultsCount / childrenCount / infantsWithoutSeatCount parameters.
+- Centrum and Air Samarkand fail closed if their exact first-party controls are not found; no generic form submit fallback.
+- Device results remain local and can enter the progressive UI immediately after strict provider validation.
+- Existing local package pricing, booking and eSIM architecture are intentionally unchanged.

@@ -63,6 +63,7 @@ struct FlightBotProvider: Identifiable, Hashable {
     let executionProfile: ExecutionProfile
     let supportsServerSearch: Bool
     let supportsDeviceSearch: Bool
+    let deviceTimeoutSeconds: Double
 
     var isOfficialCarrierSource: Bool { !id.isAggregator }
 
@@ -96,10 +97,10 @@ struct FlightBotProvider: Identifiable, Hashable {
                 URLQueryItem(name: "destination-city-code[0]", value: request.destination.uppercased()),
                 URLQueryItem(name: "date[0]", value: formatter.string(from: request.date)),
                 URLQueryItem(name: "segmentsCount", value: "1"),
-                URLQueryItem(name: "adultsAmount", value: String(max(1, request.adults))),
-                URLQueryItem(name: "childrenAmount", value: String(max(0, request.children))),
-                URLQueryItem(name: "infantsWithoutSeatAmount", value: String(max(0, request.infants))),
-                URLQueryItem(name: "infantsWithSeatAmount", value: "0"),
+                URLQueryItem(name: "adultsCount", value: String(max(1, request.adults))),
+                URLQueryItem(name: "childrenCount", value: String(max(0, request.children))),
+                URLQueryItem(name: "infantsWithoutSeatCount", value: String(max(0, request.infants))),
+                URLQueryItem(name: "infantsWithSeatCount", value: "0"),
                 URLQueryItem(name: "searchGroupId", value: "standard"),
                 URLQueryItem(name: "lang", value: "en")
             ]
@@ -131,7 +132,8 @@ enum FlightBotProviderRegistry {
             officialHosts: ["booking.uzairways.com"],
             executionProfile: .uzbekistanBooking,
             supportsServerSearch: true,
-            supportsDeviceSearch: true
+            supportsDeviceSearch: true,
+            deviceTimeoutSeconds: 16
         ),
         FlightBotProvider(
             id: .qanotSharq,
@@ -144,7 +146,8 @@ enum FlightBotProviderRegistry {
             officialHosts: ["booking.qanotsharq.com"],
             executionProfile: .qanotWebSky,
             supportsServerSearch: false,
-            supportsDeviceSearch: true
+            supportsDeviceSearch: true,
+            deviceTimeoutSeconds: 20
         ),
         FlightBotProvider(
             id: .centrumAir,
@@ -157,20 +160,22 @@ enum FlightBotProviderRegistry {
             officialHosts: ["booking.centrum-air.com"],
             executionProfile: .centrumIBEDevice,
             supportsServerSearch: false,
-            supportsDeviceSearch: true
+            supportsDeviceSearch: true,
+            deviceTimeoutSeconds: 24
         ),
         FlightBotProvider(
             id: .airSamarkand,
             displayName: "Air Samarkand",
             marketScope: .uzbekistanPriority,
             priority: 40,
-            baseURL: URL(string: "https://booking.airsamarkand.com/en/")!,
+            baseURL: URL(string: "https://booking.airsamarkand.com/en/?tsi_frontoffice_cmd=index")!,
             defaultFareScope: .perPassenger,
             airlineCodes: ["9S"],
             officialHosts: ["booking.airsamarkand.com"],
             executionProfile: .airSamarkandSessionDevice,
             supportsServerSearch: false,
-            supportsDeviceSearch: true
+            supportsDeviceSearch: true,
+            deviceTimeoutSeconds: 20
         )
     ]
 

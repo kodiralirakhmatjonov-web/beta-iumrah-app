@@ -25,10 +25,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     private var activeSignature: String?
     private var cachedInbound: [LiveFlightCandidate] = []
     private var cachedHotels: HotelPriceSearchSnapshot?
-    private var cachedHotelSignature: String?
     private var inboundPrewarmTask: Task<[LiveFlightCandidate], Never>?
     private var hotelPriceTask: Task<HotelPriceSearchSnapshot, Never>?
-    private var hotelPriceTaskSignature: String?
 
     var currentHotelPriceSnapshot: HotelPriceSearchSnapshot? { cachedHotels }
 
@@ -55,17 +53,30 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 
         let request = makeOutboundRequest(trip)
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
-        let deviceTask = Task { @MainActor [request] in
+        // Device-only providers start immediately beside the server pass. Providers
+        // that already have a server adapter are not duplicated in WebKit unless
+        // that server adapter returns nothing.
+        let deviceOnlyIDs = self.deviceOnlyProviderIDs(origin: request.origin, destination: request.destination)
+        let deviceTask = Task { @MainActor [request, deviceOnlyIDs] in
             await self.deviceCandidates(
                 request: request,
                 flexibility: trip.flexibility,
+                allowedProviderIDs: deviceOnlyIDs,
+                onProvider: { provider in
+                    onUpdate(.init(
+                        discoveredCandidates: [],
+                        pricedOffers: [],
+                        isSearching: true,
+                        status: .checkingProvider(provider.displayName)
+                    ))
+                },
                 onProgress: { candidates in
                     let offers = candidates.compactMap(self.offer(from:))
                     onUpdate(.init(
                         discoveredCandidates: candidates,
                         pricedOffers: offers,
                         isSearching: true,
-                        status: .checkingAirlines
+                        status: .comparingFares
                     ))
                 }
             )
@@ -95,8 +106,44 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         )
         serverCandidates = merge(serverCandidates, serverValues)
 
+        // True device fallback for a server-capable carrier: only launch it after
+        // the server attempt produced no verified candidate for that carrier.
+        let missingServerIDs = self.missingServerProviderIDs(
+            origin: request.origin,
+            destination: request.destination,
+            candidates: serverCandidates
+        )
+        let serverSnapshot = serverCandidates
+        let serverFallbackTask = Task { @MainActor [request, missingServerIDs, serverSnapshot] in
+            guard !missingServerIDs.isEmpty else { return [LiveFlightCandidate]() }
+            return await self.deviceCandidates(
+                request: request,
+                flexibility: trip.flexibility,
+                allowedProviderIDs: missingServerIDs,
+                maxProviderAttempts: missingServerIDs.count,
+                onProvider: { provider in
+                    onUpdate(.init(
+                        discoveredCandidates: serverSnapshot,
+                        pricedOffers: serverSnapshot.compactMap(self.offer(from:)),
+                        isSearching: true,
+                        status: .checkingProvider(provider.displayName)
+                    ))
+                },
+                onProgress: { values in
+                    let merged = self.merge(serverSnapshot, values)
+                    onUpdate(.init(
+                        discoveredCandidates: merged,
+                        pricedOffers: merged.compactMap(self.offer(from:)),
+                        isSearching: true,
+                        status: .continuing
+                    ))
+                }
+            )
+        }
+
         let deviceValues = await deviceTask.value
-        let combined = merge(serverCandidates, deviceValues)
+        let serverFallback = await serverFallbackTask.value
+        let combined = merge(merge(serverCandidates, deviceValues), serverFallback)
         let offers = ranked(combined.compactMap(offer(from:)), anchor: trip.departureDate)
         onUpdate(.init(discoveredCandidates: combined, pricedOffers: offers, isSearching: false, status: .continuing))
         if offers.isEmpty { throw FlightEngineAvailabilityError.noVerifiedFlights }
@@ -112,11 +159,27 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     ) async throws -> [FlightOffer] {
         guard outbound.isVerifiedForBooking else { throw FlightEngineAvailabilityError.realOutboundRequired }
         prepare(for: trip)
+        // A flexible outbound choice can move the authoritative hotel dates while
+        // the return route/date stays unchanged. Reverification starts immediately
+        // without discarding a useful return-flight prewarm cache.
+        startHotelPriceCheck(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
 
+        // Never make the pilgrim wait for a hidden prewarm job to finish before
+        // seeing the return screen. If prewarm already found something, surface it
+        // immediately. If it has not found anything yet, cancel it and switch to
+        // the visible progressive search so provider status/results can stream.
         if let prewarm = inboundPrewarmTask {
-            cachedInbound = merge(cachedInbound, await prewarm.value)
-            inboundPrewarmTask = nil
+            if cachedInbound.isEmpty {
+                prewarm.cancel()
+                inboundPrewarmTask = nil
+            } else {
+                let first = ranked(cachedInbound.compactMap(offer(from:)), anchor: trip.returnDate)
+                onUpdate(.init(discoveredCandidates: cachedInbound, pricedOffers: first, isSearching: true, status: .continuing))
+                cachedInbound = merge(cachedInbound, await prewarm.value)
+                inboundPrewarmTask = nil
+            }
         }
+
         if !cachedInbound.isEmpty {
             let first = ranked(cachedInbound.compactMap(offer(from:)), anchor: trip.returnDate)
             onUpdate(.init(discoveredCandidates: cachedInbound, pricedOffers: first, isSearching: true, status: .continuing))
@@ -125,23 +188,37 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         }
 
         let request = makeInboundRequest(trip)
-        let device = await deviceCandidates(
-            request: request,
-            flexibility: trip.flexibility,
-            onProgress: { values in
-                self.cachedInbound = self.merge(self.cachedInbound, values)
-                onUpdate(.init(
-                    discoveredCandidates: self.cachedInbound,
-                    pricedOffers: self.ranked(self.cachedInbound.compactMap(self.offer(from:)), anchor: trip.returnDate),
-                    isSearching: true,
-                    status: .checkingAirlines
-                ))
-            }
-        )
-        cachedInbound = merge(cachedInbound, device)
+        let alreadyObserved = Set(cachedInbound.map(\.providerID))
+        let deviceOnlyIDs = self.deviceOnlyProviderIDs(origin: request.origin, destination: request.destination)
+            .subtracting(alreadyObserved)
+        let deviceTask = Task { @MainActor [request, deviceOnlyIDs] in
+            await self.deviceCandidates(
+                request: request,
+                flexibility: trip.flexibility,
+                allowedProviderIDs: deviceOnlyIDs,
+                onProvider: { provider in
+                    onUpdate(.init(
+                        discoveredCandidates: self.cachedInbound,
+                        pricedOffers: self.ranked(self.cachedInbound.compactMap(self.offer(from:)), anchor: trip.returnDate),
+                        isSearching: true,
+                        status: .checkingProvider(provider.displayName)
+                    ))
+                },
+                onProgress: { values in
+                    self.cachedInbound = self.merge(self.cachedInbound, values)
+                    onUpdate(.init(
+                        discoveredCandidates: self.cachedInbound,
+                        pricedOffers: self.ranked(self.cachedInbound.compactMap(self.offer(from:)), anchor: trip.returnDate),
+                        isSearching: true,
+                        status: .comparingFares
+                    ))
+                }
+            )
+        }
 
-        // A second server pass is cheap because successful provider/date responses
-        // are cached in D1. It also picks up providers that finished after prewarm.
+        // Server and device-only providers run beside each other. The server pass
+        // is still authoritative for server-capable carriers, but it never blocks
+        // Qanot/Centrum/Air Samarkand WebKit discovery.
         let server = await serverCandidatesProgressive(
             request: request,
             flexibility: trip.flexibility,
@@ -164,10 +241,72 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             }
         )
         cachedInbound = merge(cachedInbound, server)
+
+        let missingServerIDs = self.missingServerProviderIDs(
+            origin: request.origin,
+            destination: request.destination,
+            candidates: cachedInbound
+        )
+        let serverSnapshot = cachedInbound
+        let serverFallbackTask = Task { @MainActor [request, missingServerIDs, serverSnapshot] in
+            guard !missingServerIDs.isEmpty else { return [LiveFlightCandidate]() }
+            return await self.deviceCandidates(
+                request: request,
+                flexibility: trip.flexibility,
+                allowedProviderIDs: missingServerIDs,
+                maxProviderAttempts: missingServerIDs.count,
+                onProvider: { provider in
+                    onUpdate(.init(
+                        discoveredCandidates: serverSnapshot,
+                        pricedOffers: self.ranked(serverSnapshot.compactMap(self.offer(from:)), anchor: trip.returnDate),
+                        isSearching: true,
+                        status: .checkingProvider(provider.displayName)
+                    ))
+                },
+                onProgress: { values in
+                    let merged = self.merge(serverSnapshot, values)
+                    onUpdate(.init(
+                        discoveredCandidates: merged,
+                        pricedOffers: self.ranked(merged.compactMap(self.offer(from:)), anchor: trip.returnDate),
+                        isSearching: true,
+                        status: .continuing
+                    ))
+                }
+            )
+        }
+
+        let device = await deviceTask.value
+        let serverFallback = await serverFallbackTask.value
+        cachedInbound = merge(merge(cachedInbound, device), serverFallback)
         let final = ranked(cachedInbound.compactMap(offer(from:)), anchor: trip.returnDate)
         onUpdate(.init(discoveredCandidates: cachedInbound, pricedOffers: final, isSearching: false, status: .continuing))
         if final.isEmpty { throw FlightEngineAvailabilityError.noVerifiedFlights }
         return final
+    }
+
+    func resumeFlightChallenge(_ challenge: FlightBotChallenge) async -> [FlightOffer] {
+        FlightBotDeviceSessionPool.shared.verificationCompleted(challenge)
+        FlightBotChallengeCenter.shared.clear(challenge)
+        FlightBotOrchestrator.shared.resetCheckpointsAfterVerification()
+
+        guard let provider = FlightBotProviderRegistry.providers.first(where: { $0.id == challenge.providerID }),
+              provider.supportsDeviceSearch,
+              provider.acceptsSourceURL(challenge.url) else { return [] }
+
+        do {
+            let candidates = try await FlightBotRunner(
+                provider: provider,
+                request: challenge.request,
+                requirement: .displayable
+            ).run(timeoutSeconds: provider.deviceTimeoutSeconds)
+            let verified = candidates.filter(accept)
+            return ranked(verified.compactMap(offer(from:)), anchor: challenge.request.date)
+        } catch FlightBotRunner.BotError.challengeRequired(let nextChallenge) {
+            FlightBotChallengeCenter.shared.publish(nextChallenge)
+            return []
+        } catch {
+            return []
+        }
     }
 
     func ensureHotelPrices(
@@ -180,40 +319,14 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         madinahRoomName: String?
     ) async -> HotelPriceSearchSnapshot {
         prepare(for: trip)
-
-        let requestedSignature = makeHotelPriceSignature(
-            trip: trip,
-            makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel,
-            makkahRoomId: makkahRoomId,
-            makkahRoomName: makkahRoomName,
-            madinahRoomId: madinahRoomId,
-            madinahRoomName: madinahRoomName
-        )
-
-        if cachedHotelSignature == requestedSignature,
-           let cachedHotels,
-           cachedHotels.hasLiveRates {
-            return cachedHotels
-        }
-
-        if hotelPriceTaskSignature == requestedSignature, let hotelPriceTask {
+        let hasExactRoomRequest = makkahRoomId != nil || madinahRoomId != nil
+        if !hasExactRoomRequest, let cachedHotels, cachedHotels.hasLiveRates { return cachedHotels }
+        if !hasExactRoomRequest, let hotelPriceTask {
             let value = await hotelPriceTask.value
-            if hotelPriceTaskSignature == requestedSignature {
-                cachedHotels = value
-                cachedHotelSignature = requestedSignature
-                self.hotelPriceTask = nil
-                hotelPriceTaskSignature = nil
-            }
+            cachedHotels = value
+            self.hotelPriceTask = nil
             return value
         }
-
-        // The automatic prewarm does not know the pilgrim's selected room.
-        // Never reuse that generic task for final pricing of a concrete room.
-        hotelPriceTask?.cancel()
-        hotelPriceTask = nil
-        hotelPriceTaskSignature = nil
-
         let value = await hotelPriceService.search(
             trip: trip,
             makkahHotel: makkahHotel,
@@ -223,25 +336,23 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             madinahRoomId: madinahRoomId,
             madinahRoomName: madinahRoomName
         )
-        cachedHotels = value
-        cachedHotelSignature = requestedSignature
+        if !hasExactRoomRequest { cachedHotels = value }
         return value
     }
 
     func invalidateHotelPrices() {
         cachedHotels = nil
-        cachedHotelSignature = nil
         hotelPriceTask?.cancel()
         hotelPriceTask = nil
-        hotelPriceTaskSignature = nil
     }
 
     func invalidateSession() {
         activeSignature = nil
         cachedInbound = []
+        invalidateHotelPrices()
         inboundPrewarmTask?.cancel()
         inboundPrewarmTask = nil
-        invalidateHotelPrices()
+        FlightBotChallengeCenter.shared.clear()
     }
 
     private func prepare(for trip: TripDraft) {
@@ -252,43 +363,12 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     }
 
     private func startHotelPriceCheck(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) {
-        let signature = makeHotelPriceSignature(
-            trip: trip,
-            makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel,
-            makkahRoomId: nil,
-            makkahRoomName: nil,
-            madinahRoomId: nil,
-            madinahRoomName: nil
-        )
-        guard hotelPriceTask == nil,
-              !(cachedHotelSignature == signature && cachedHotels != nil) else { return }
-
-        hotelPriceTaskSignature = signature
+        guard hotelPriceTask == nil, cachedHotels == nil else { return }
         hotelPriceTask = Task { @MainActor in
-            // Let the first airline WebView/server request start first. The hotel
-            // verification still runs while the pilgrim compares flight options.
-            do {
-                try await Task.sleep(for: .milliseconds(900))
-            } catch {
-                return .empty
-            }
-            guard !Task.isCancelled else { return .empty }
-
-            let value = await self.hotelPriceService.search(
-                trip: trip,
-                makkahHotel: makkahHotel,
-                madinahHotel: madinahHotel,
-                makkahRoomId: nil,
-                makkahRoomName: nil,
-                madinahRoomId: nil,
-                madinahRoomName: nil
-            )
-            guard !Task.isCancelled, self.hotelPriceTaskSignature == signature else {
-                return value
-            }
+            // Hotel verification starts with flight discovery. It must not wait for
+            // the flight UI because the final package needs the same authoritative dates.
+            let value = await self.hotelPriceService.search(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
             self.cachedHotels = value
-            self.cachedHotelSignature = signature
             return value
         }
     }
@@ -297,15 +377,64 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         guard inboundPrewarmTask == nil, cachedInbound.isEmpty else { return }
         let request = makeInboundRequest(trip)
         inboundPrewarmTask = Task { @MainActor in
-            await self.serverCandidatesProgressive(request: request, flexibility: trip.flexibility, onProvider: { _ in }, onCandidates: { _ in })
+            // Return prewarm mirrors the visible architecture: server-capable and
+            // device-only airlines start together, not one after another. Every
+            // verified candidate is persisted in-memory immediately for instant
+            // presentation if the pilgrim opens Return early.
+            let deviceOnlyIDs = self.deviceOnlyProviderIDs(origin: request.origin, destination: request.destination)
+            let deviceTask = Task { @MainActor [request, deviceOnlyIDs] in
+                await self.deviceCandidates(
+                    request: request,
+                    flexibility: trip.flexibility,
+                    allowedProviderIDs: deviceOnlyIDs,
+                    publishChallenges: false,
+                    onProgress: { values in
+                        self.cachedInbound = self.merge(self.cachedInbound, values)
+                    }
+                )
+            }
+
+            let server = await self.serverCandidatesProgressive(
+                request: request,
+                flexibility: trip.flexibility,
+                onProvider: { _ in },
+                onCandidates: { values in
+                    self.cachedInbound = self.merge(self.cachedInbound, values)
+                }
+            )
+            self.cachedInbound = self.merge(self.cachedInbound, server)
+
+            let missingServerIDs = self.missingServerProviderIDs(
+                origin: request.origin,
+                destination: request.destination,
+                candidates: self.cachedInbound
+            )
+            let fallback = await self.deviceCandidates(
+                request: request,
+                flexibility: trip.flexibility,
+                allowedProviderIDs: missingServerIDs,
+                maxProviderAttempts: missingServerIDs.count,
+                publishChallenges: false,
+                onProgress: { values in
+                    self.cachedInbound = self.merge(self.cachedInbound, values)
+                }
+            )
+            let device = await deviceTask.value
+            self.cachedInbound = self.merge(self.merge(self.cachedInbound, device), fallback)
+            return self.cachedInbound
         }
     }
 
     private func deviceCandidates(
         request: FlightBotSearchRequest,
         flexibility: DateFlexibility,
+        allowedProviderIDs: Set<FlightBotProviderID>? = nil,
+        maxProviderAttempts: Int? = nil,
+        publishChallenges: Bool = true,
+        onProvider: @escaping @MainActor (FlightBotProvider) -> Void = { _ in },
         onProgress: @escaping @MainActor ([LiveFlightCandidate]) -> Void
     ) async -> [LiveFlightCandidate] {
+        var progressive: [LiveFlightCandidate] = []
         do {
             let result = try await FlightBotOrchestrator.shared.search(
                 request: request,
@@ -313,7 +442,14 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                 requirement: .displayable,
                 minimumResults: 1,
                 preferredResults: AppConfig.flightBotPreferredOptions,
-                onProgress: { candidates in onProgress(candidates.filter(self.accept)) }
+                maxProviderAttempts: maxProviderAttempts,
+                allowedProviderIDs: allowedProviderIDs,
+                publishChallenges: publishChallenges,
+                onProvider: onProvider,
+                onProgress: { candidates in
+                    progressive = self.merge(progressive, candidates.filter(self.accept))
+                    onProgress(progressive)
+                }
             )
             return result.candidates.filter(accept)
         } catch {
@@ -327,7 +463,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         onProvider: @escaping @MainActor (FlightBotProvider) -> Void,
         onCandidates: @escaping @MainActor ([LiveFlightCandidate]) -> Void
     ) async -> [LiveFlightCandidate] {
-        let providers = Array(FlightBotProviderRegistry.ordered(for: request.origin, destination: request.destination).prefix(4))
+        let providers = FlightBotProviderRegistry.serverProviders(for: request.origin, destination: request.destination)
         guard !providers.isEmpty else { return [] }
         let dates = FlightDatePlanner.dates(anchor: request.date, flexibility: flexibility)
         var output: [LiveFlightCandidate] = []
@@ -398,11 +534,29 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     }
 
     private func accept(_ candidate: LiveFlightCandidate) -> Bool {
-        candidate.isDisplayableCandidate &&
+        let age = Date().timeIntervalSince(candidate.observedAt)
+        return candidate.isDisplayableCandidate &&
         candidate.observedFare > 0 &&
         candidate.fareScope != .unknown &&
         candidate.observedCurrency.range(of: "^[A-Za-z]{3}$", options: .regularExpression) != nil &&
-        Date().timeIntervalSince(candidate.observedAt) < 60 * 60
+        age >= -5 * 60 && age <= 30 * 60
+    }
+
+    private func deviceOnlyProviderIDs(origin: String, destination: String) -> Set<FlightBotProviderID> {
+        Set(FlightBotProviderRegistry.ordered(for: origin, destination: destination)
+            .filter { $0.supportsDeviceSearch && !$0.supportsServerSearch }
+            .map(\.id))
+    }
+
+    private func missingServerProviderIDs(
+        origin: String,
+        destination: String,
+        candidates: [LiveFlightCandidate]
+    ) -> Set<FlightBotProviderID> {
+        let observed = Set(candidates.map(\.providerID))
+        return Set(FlightBotProviderRegistry.serverProviders(for: origin, destination: destination)
+            .filter { $0.supportsDeviceSearch && !observed.contains($0.id) }
+            .map(\.id))
     }
 
     private func merge(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
@@ -466,36 +620,15 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         )
     }
 
-    private func makeHotelPriceSignature(
-        trip: TripDraft,
-        makkahHotel: HotelSummary,
-        madinahHotel: HotelSummary?,
-        makkahRoomId: String?,
-        makkahRoomName: String?,
-        madinahRoomId: String?,
-        madinahRoomName: String?
-    ) -> String {
-        let formatter = ISO8601DateFormatter()
-        return [
-            makkahHotel.id,
-            makkahRoomId ?? "-",
-            makkahRoomName ?? "-",
-            madinahHotel?.id ?? "-",
-            madinahRoomId ?? "-",
-            madinahRoomName ?? "-",
-            formatter.string(from: trip.departureDate),
-            formatter.string(from: trip.returnDate),
-            String(trip.adults), String(trip.children), String(trip.infants), String(trip.rooms)
-        ].joined(separator: "|")
-    }
-
     private func makeSignature(_ trip: TripDraft) -> String {
         let formatter = ISO8601DateFormatter()
         return [
             trip.originCode,
             trip.outboundDestinationCode,
             trip.returnOriginCode,
-            formatter.string(from: trip.departureDate),
+            // Return prewarm depends on the return route/date, passenger mix and
+            // flexibility. Do not invalidate it merely because the pilgrim picked
+            // an outbound flight on +1/-1 day.
             formatter.string(from: trip.returnDate),
             trip.flexibility.rawValue,
             String(trip.adults), String(trip.children), String(trip.infants), String(trip.rooms)
@@ -508,6 +641,10 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
     private let real = RealFlightPackageSearchService()
 
     var currentHotelPriceSnapshot: HotelPriceSearchSnapshot? { real.currentHotelPriceSnapshot }
+
+    func resumeFlightChallenge(_ challenge: FlightBotChallenge) async -> [FlightOffer] {
+        await real.resumeFlightChallenge(challenge)
+    }
 
     func ensureHotelPrices(
         trip: TripDraft,
@@ -529,6 +666,10 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
         )
     }
 
+    func invalidateHotelPrices() {
+        real.invalidateHotelPrices()
+    }
+
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
     }
@@ -537,41 +678,11 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
         try await real.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
     }
 
-    func searchOutboundProgressive(
-        trip: TripDraft,
-        makkahHotel: HotelSummary,
-        madinahHotel: HotelSummary?,
-        onUpdate: @escaping FlightSearchProgressHandler
-    ) async throws -> [FlightOffer] {
-        try await real.searchOutboundProgressive(
-            trip: trip,
-            makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel,
-            onUpdate: onUpdate
-        )
+    func searchOutboundProgressive(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, onUpdate: @escaping FlightSearchProgressHandler) async throws -> [FlightOffer] {
+        try await real.searchOutboundProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, onUpdate: onUpdate)
     }
 
-    func searchReturnProgressive(
-        trip: TripDraft,
-        makkahHotel: HotelSummary,
-        madinahHotel: HotelSummary?,
-        outbound: FlightOffer,
-        onUpdate: @escaping FlightSearchProgressHandler
-    ) async throws -> [FlightOffer] {
-        try await real.searchReturnProgressive(
-            trip: trip,
-            makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel,
-            outbound: outbound,
-            onUpdate: onUpdate
-        )
-    }
-
-    func invalidateHotelPrices() {
-        real.invalidateHotelPrices()
-    }
-
-    func invalidateSession() {
-        real.invalidateSession()
+    func searchReturnProgressive(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer, onUpdate: @escaping FlightSearchProgressHandler) async throws -> [FlightOffer] {
+        try await real.searchReturnProgressive(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound, onUpdate: onUpdate)
     }
 }

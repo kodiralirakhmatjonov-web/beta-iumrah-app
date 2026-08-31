@@ -57,6 +57,7 @@ final class FlightBotOrchestrator {
         preferredResults: Int? = nil,
         maxProviderAttempts: Int? = nil,
         allowedProviderIDs: Set<FlightBotProviderID>? = nil,
+        publishChallenges: Bool = true,
         onProvider: (@MainActor (FlightBotProvider) -> Void)? = nil,
         onProgress: (@MainActor ([LiveFlightCandidate]) async -> Void)? = nil
     ) async throws -> SearchResult {
@@ -138,7 +139,7 @@ final class FlightBotOrchestrator {
                     onProvider?(provider)
                     do {
                         let remaining = max(3, deadline.timeIntervalSinceNow)
-                        let providerBudget = min(AppConfig.flightBotProviderTimeoutSeconds, remaining)
+                        let providerBudget = min(provider.deviceTimeoutSeconds, remaining)
                         let results = try await FlightBotRunner(
                             provider: provider,
                             request: request,
@@ -152,6 +153,13 @@ final class FlightBotOrchestrator {
                         }
                         return .candidates(results)
                     } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
+                        if !publishChallenges {
+                            // Hidden return prewarm must never strand a provider
+                            // session in an invisible verification state. A later
+                            // visible search will start a fresh carrier attempt.
+                            FlightBotDeviceSessionPool.shared.verificationCancelled(challenge)
+                            return .failed
+                        }
                         return .challenge(challenge)
                     } catch {
                         return .failed
@@ -226,14 +234,21 @@ final class FlightBotOrchestrator {
             updatedAt: Date()
         )
 
+        if publishChallenges, let challenge = challenges.first {
+            FlightBotChallengeCenter.shared.publish(challenge)
+        }
+
         guard !final.isEmpty else {
-            if let challenge = challenges.first { FlightBotChallengeCenter.shared.publish(challenge) }
             throw OrchestratorError.noVerifiedResults(
                 blockedProviders: Array(Set(challenges.map(\.providerName))).sorted()
             )
         }
 
         return SearchResult(candidates: final, summary: summary, blockedChallenges: challenges)
+    }
+
+    func resetCheckpointsAfterVerification() {
+        checkpoints.removeAll()
     }
 
     private func buildBatches(

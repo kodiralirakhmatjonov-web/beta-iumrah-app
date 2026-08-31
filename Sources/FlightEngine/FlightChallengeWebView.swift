@@ -1,18 +1,16 @@
 import SwiftUI
 @preconcurrency import WebKit
 
-/// Human-verification surface for a provider. It shares WKWebsiteDataStore.default()
-/// with FlightBotRunner so cookies/session state survive when the search is retried.
+/// Presents the exact WKWebView session that encountered the airline's human
+/// verification. Reusing the same browser is critical: CAPTCHA/session tokens may
+/// live in transient page state and are not guaranteed to survive a second load.
+@MainActor
 struct FlightChallengeWebView: UIViewRepresentable {
     let challenge: FlightBotChallenge
 
     func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .default()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.load(URLRequest(url: challenge.url))
+        let webView = FlightBotDeviceSessionPool.shared.webView(for: challenge)
+        webView.removeFromSuperview()
         return webView
     }
 

@@ -113,9 +113,13 @@ protocol FlightSearchServicing {
         outbound: FlightOffer,
         onUpdate: @escaping FlightSearchProgressHandler
     ) async throws -> [FlightOffer]
+
+    func resumeFlightChallenge(_ challenge: FlightBotChallenge) async -> [FlightOffer]
 }
 
 extension FlightSearchServicing {
+    func resumeFlightChallenge(_ challenge: FlightBotChallenge) async -> [FlightOffer] { [] }
+
     func searchOutboundProgressive(
         trip: TripDraft,
         makkahHotel: HotelSummary,
