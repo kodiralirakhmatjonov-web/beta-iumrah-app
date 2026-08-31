@@ -1,42 +1,32 @@
 {
-  "patch": "iumrah-beta-update-035-iumrah-flights",
-  "purpose": "Add the premium iumrah Flights home card and product page with native Apple globe presentation, active-trip-only flight access, notification demo, and iumrah Friends journey-status presentation while preserving backend and pricing architecture.",
+  "patch": "iumrah-beta-update-036-native-connectivity-indicator",
+  "purpose": "Add a real native animated Online/Offline internet indicator to the iumrah Home header, using iOS network reachability plus a lightweight iumrah.app probe while preserving the existing application and pricing architecture.",
   "files": [
     {
-      "path": "BETA_UI_035_APPLIED.txt",
-      "sha256": "7a10ed99de7c7be1caa512edc9b848fb38661eaa8d9c0de1320cb0519173862b",
-      "bytes": 1589
+      "path": "BETA_UI_036_APPLIED.txt",
+      "sha256": "45b81b4ce6826ec485aa0c28e3930086f173701d1d1a387c566eb72511d1e1cd",
+      "bytes": 1227
+    },
+    {
+      "path": "Sources/Services/IumrahConnectivityMonitor.swift",
+      "sha256": "28e5474148e6ae96b7944eb9d03b4147e288424960a421f0ab32feccfee82b26",
+      "bytes": 3459
+    },
+    {
+      "path": "Sources/Views/Components/ConnectivityStatusPill.swift",
+      "sha256": "f44481404d1732f72f4f55b47f5428e372179340f91724c8aff6a1413e0ca522",
+      "bytes": 4189
+    },
+    {
+      "path": "Sources/Views/Components/IumrahRootPageTitle.swift",
+      "sha256": "1b67485e535b36f13bb12cdb143bfd7c553ad961d99190d9390f98a49551f63f",
+      "bytes": 4197
     },
     {
       "path": "Sources/Views/Home/HomeDashboardView.swift",
-      "sha256": "783cbd3870469075f17733747e2b54fac0ff3ac562e0ac8dca7eb6272219a84f",
-      "bytes": 24593
-    },
-    {
-      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
-      "sha256": "8c57f8f4e6eaaedead702dacbd1d12243fef9f1648530b2fdf6eb5ede005164b",
-      "bytes": 55715
-    },
-    {
-      "path": "Resources/Assets.xcassets/IumrahFlightsHomeCard.imageset/Contents.json",
-      "sha256": "317917abc3be642bf4ebd81924732166ef2598d648adb5a96eca1029c01ac279",
-      "bytes": 196
-    },
-    {
-      "path": "Resources/Assets.xcassets/IumrahFlightsHomeCard.imageset/iumrah-flights-home-card.jpg",
-      "sha256": "e23da795396817e178578317cc978c099c6c655960c35f1b9232ee38c9b8d5d7",
-      "bytes": 287226
-    },
-    {
-      "path": "Resources/Assets.xcassets/IumrahFlightsWordmark.imageset/Contents.json",
-      "sha256": "cb059d451ddca2f13f63bb8076509a9e9d6656c2d67b7dc0879099977e6913f7",
-      "bytes": 195
-    },
-    {
-      "path": "Resources/Assets.xcassets/IumrahFlightsWordmark.imageset/iumrah-flights-wordmark.png",
-      "sha256": "f95f80b41a7c00664a9523c845fbaeef28212d1b02b3ff62f0e3e002744e533a",
-      "bytes": 363874
+      "sha256": "38c08b25cbae43c882602dcd483ce851308294348520fed77e02e2c1b17b0595",
+      "bytes": 24679
     }
   ],
-  "based_on": "BETA_UI_034_APPLIED"
+  "based_on": "BETA_UI_035_APPLIED"
 }

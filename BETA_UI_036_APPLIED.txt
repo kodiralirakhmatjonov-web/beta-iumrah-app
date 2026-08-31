@@ -1,0 +1,13 @@
+BETA_UI_036_APPLIED
+
+Update: native animated internet connectivity indicator.
+Base: repository state with BETA_UI_035_APPLIED.
+
+Changes:
+- Adds a compact native SwiftUI Online / Offline status pill to the Home header between the iumrah Project wordmark and sidebar button.
+- Uses NWPathMonitor for immediate iOS network-path changes and a short HTTPS HEAD probe to https://iumrah.app so connected-but-unusable Wi-Fi is not left falsely shown as Online.
+- Uses a continuously flowing native AngularGradient border: mint/cyan while Online, pink/red while Offline, and a restrained neutral state while checking.
+- Uses TimelineView rather than GIF/video assets, preserving smooth animation with no image-loop dependency; Reduce Motion automatically freezes the flowing border.
+- Reuses the project's existing iOS 26 native Liquid Glass modifier with the existing ultraThinMaterial fallback for iOS 17–18.
+- Keeps the indicator intentionally compact and narrows only the invisible layout frame around the existing wordmark when the indicator is present, preserving the visible logo scale.
+- Does not change package pricing, booking logic, backend contracts, signing, workflows, tab architecture, or existing navigation behavior.

@@ -10,15 +10,16 @@ struct IumrahRootPageTitle: View {
     var lightStyle = false
     var usesBrandLogo = false
     var brandScale: CGFloat = 1.0
+    var showsConnectivityStatus = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: showsConnectivityStatus ? 10 : 14) {
             Group {
                 if usesBrandLogo {
                     Image(wordmarkAsset)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 180 * brandScale, height: 46 * brandScale, alignment: .leading)
+                        .frame(width: brandFrameWidth, height: 46 * brandScale, alignment: .leading)
                         .accessibilityLabel("Iumrah")
                 } else {
                     Text(title)
@@ -30,7 +31,12 @@ struct IumrahRootPageTitle: View {
                 }
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: showsConnectivityStatus ? 4 : 8)
+
+            if showsConnectivityStatus {
+                ConnectivityStatusPill(lightStyle: lightStyle)
+                    .padding(.top, 6)
+            }
 
             VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
                 Button {
@@ -58,6 +64,13 @@ struct IumrahRootPageTitle: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var brandFrameWidth: CGFloat {
+        // The supplied wordmark asset is height-limited, so this narrower frame
+        // preserves its visible size while freeing genuine layout space for the
+        // compact connectivity control on Home.
+        showsConnectivityStatus ? 140 : 180 * brandScale
     }
 
     private var wordmarkAsset: String {

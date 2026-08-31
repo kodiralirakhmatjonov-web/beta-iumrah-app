@@ -23,7 +23,7 @@ struct HomeDashboardView: View {
     private var marketingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25)
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
                 HomeVideoCarousel()
                 flightsHomeCard
                 hero
@@ -63,7 +63,8 @@ struct HomeDashboardView: View {
                         title: L10n.text("tab_home", settings.language),
                         showsMakkahTime: true,
                         lightStyle: true,
-                        usesBrandLogo: true
+                        usesBrandLogo: true,
+                        showsConnectivityStatus: true
                     )
 
                     activeBookingCard(session)
