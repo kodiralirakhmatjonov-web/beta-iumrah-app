@@ -171,7 +171,7 @@ private struct IumrahGlassModifier<S: Shape>: ViewModifier {
         } else {
             content
                 .background(.ultraThinMaterial, in: shape)
-                .overlay(shape.strokeBorder(Color.white.opacity(0.34), lineWidth: 0.7))
+                .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.7))
         }
     }
 }

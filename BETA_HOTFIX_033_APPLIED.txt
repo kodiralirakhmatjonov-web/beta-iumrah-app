@@ -1,0 +1,10 @@
+BETA HOTFIX 033 APPLIED
+
+Fixes the Beta simulator/TestFlight compile failure introduced by the shared Liquid Glass fallback.
+
+Change:
+- `IumrahGlassModifier<S: Shape>` no longer calls `strokeBorder` on a generic `Shape`.
+- The fallback overlay uses `Shape.stroke`, which is valid for every `Shape` and preserves the same visual border intent.
+
+No eSIM models, API contracts, navigation, signing, workflows, or backend files are changed by this hotfix.
+Based on: BETA_ESIM_032_APPLIED
