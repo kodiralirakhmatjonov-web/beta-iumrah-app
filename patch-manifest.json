@@ -1,17 +1,27 @@
 {
-  "patch": "iumrah-beta-update-033-esim-build-fix",
-  "purpose": "Fix the Beta Xcode compile error in the availability-safe Liquid Glass fallback without changing eSIM behavior.",
+  "patch": "iumrah-beta-update-034-airport-globe",
+  "purpose": "Add a native Apple MapKit globe airport picker while preserving the existing text airport search and application architecture.",
   "files": [
     {
-      "path": "BETA_HOTFIX_033_APPLIED.txt",
-      "sha256": "19b6de970c8578d62e92dd4a6ef46dbb12e4b3a5144e7f6838e4226498f8bdb2",
-      "bytes": 484
+      "path": "BETA_UI_034_APPLIED.txt",
+      "sha256": "4466ff796037a08e7be02da56f45508ca3032698edf85c937ae560a1a229dfcd",
+      "bytes": 764
     },
     {
-      "path": "Sources/Core/DesignSystem.swift",
-      "sha256": "f6ae0f269299923f854fa36b165cb710af608c25db8c5057fca8e98b87f9016e",
-      "bytes": 7015
+      "path": "Sources/Core/AppLocalization.swift",
+      "sha256": "4df7469229bafe3802025b761814b6d67e2a16745618e087fe489b171dfd3c8c",
+      "bytes": 159844
+    },
+    {
+      "path": "Sources/Views/Airports/AirportGlobePickerView.swift",
+      "sha256": "3fa229a14561c324ed88e7f3a3f44f831ab495ef783d48e10138d3198386b06a",
+      "bytes": 14905
+    },
+    {
+      "path": "Sources/Views/Airports/AirportPickerView.swift",
+      "sha256": "bd9dca0bf7b3319f9899855135f40e84ed675aba29d57999cb808f62afcb5062",
+      "bytes": 6846
     }
   ],
-  "based_on": "BETA_ESIM_032_APPLIED"
+  "based_on": "BETA_HOTFIX_033_APPLIED"
 }

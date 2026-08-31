@@ -1,0 +1,14 @@
+BETA UI 034 APPLIED
+
+Native Apple MapKit airport globe picker for iumrah Beta.
+
+Changes:
+- Adds a full-screen native Apple hybrid globe with realistic elevation.
+- Shows/selects Apple Maps airport points of interest only.
+- Resolves a tapped Apple Maps airport through the existing iumrah airport API and preserves the existing Airport model / IATA selection flow.
+- Keeps the current text airport search unchanged and adds globe entry points to AirportPickerView.
+- Uses the existing iumrah glass/button/haptics/localization system.
+- Adds EN, RU, UZ Latin and UZ Cyrillic strings for the globe flow.
+- Adds no location permission, third-party map SDK, backend migration, signing change, workflow change, or project.yml change.
+
+Based on: BETA_HOTFIX_033_APPLIED

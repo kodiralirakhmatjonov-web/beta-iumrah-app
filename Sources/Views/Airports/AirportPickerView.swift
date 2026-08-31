@@ -10,6 +10,7 @@ struct AirportPickerView: View {
     @State private var results: [Airport] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var isGlobePresented = false
 
     private let service = AirportSearchService()
 
@@ -28,6 +29,20 @@ struct AirportPickerView: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 28)
+
+                        Button {
+                            isGlobePresented = true
+                            IumrahHaptics.soft()
+                        } label: {
+                            Label(L10n.text("airport_map_title", settings.language), systemImage: "globe.europe.africa.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 16)
+                                .frame(height: 44)
+                                .background(Color.iumrahRaisedBackground)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if isLoading && results.isEmpty {
@@ -91,9 +106,30 @@ struct AirportPickerView: View {
             }
             .task(id: query) { await search() }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isGlobePresented = true
+                        IumrahHaptics.soft()
+                    } label: {
+                        Image(systemName: "globe.europe.africa.fill")
+                    }
+                    .accessibilityLabel(L10n.text("airport_map_title", settings.language))
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L10n.text("close", settings.language)) { dismiss() }
                 }
+            }
+            .fullScreenCover(isPresented: $isGlobePresented) {
+                AirportGlobePickerView(
+                    selection: $selection,
+                    fallbackCode: $fallbackCode,
+                    onSelectionCommitted: {
+                        isGlobePresented = false
+                        dismiss()
+                    }
+                )
+                .environmentObject(settings)
             }
         }
     }
