@@ -31,6 +31,8 @@ enum AppConfig {
     static let packageHealthPath = "/api/package/health"
     static let packageQuotePath = "/api/package/quote"
     static let packageFlightOptionsQuotePath = "/api/package/flight-options/quote"
+    static let packageSearchSessionsPath = "/api/package/search-sessions"
+    static let packageBookingPath = "/api/package/bookings"
     static let usesRemotePackagePricing = true
 
     /// Primary hotel assignments are resolved server-side from the package tier,

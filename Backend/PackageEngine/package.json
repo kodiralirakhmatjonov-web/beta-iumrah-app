@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs && bash scripts/runtime-tests.sh",
     "deploy": "wrangler deploy --config wrangler.generated.jsonc",
     "migrate": "wrangler d1 execute HOTELS_DB --remote --file migrations/0006_package_primary_hotels.sql --config wrangler.generated.jsonc"
   },

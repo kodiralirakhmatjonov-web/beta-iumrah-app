@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2026-08-24"
 
 [vars]
-PRICING_VERSION = "iumrah-web-v1-beta-0.14"
+PRICING_VERSION = "iumrah-web-v1-beta-0.15"
 CBU_FX_URL = "https://cbu.uz/en/arkhiv-kursov-valyut/json/"
 
 # Bind the EXISTING iumrah-hotels D1 database when this worker is deployed.
@@ -12,3 +12,11 @@ CBU_FX_URL = "https://cbu.uz/en/arkhiv-kursov-valyut/json/"
 # binding = "HOTELS_DB"
 # database_name = "iumrah-hotels"
 # database_id = "<existing Cloudflare D1 database id>"
+
+[[durable_objects.bindings]]
+name = "SEARCH_SESSIONS"
+class_name = "PackageSearchSession"
+
+[[migrations]]
+tag = "v1-package-search-session"
+new_sqlite_classes = ["PackageSearchSession"]

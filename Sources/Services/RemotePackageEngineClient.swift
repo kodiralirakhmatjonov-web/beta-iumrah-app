@@ -79,6 +79,29 @@ struct RemotePackageEngineClient {
         )
         return try await api.post(AppConfig.packageFlightOptionsQuotePath, body: request, timeoutInterval: 15)
     }
+    func createSearch(trip: TripDraft, clientRequestId: String) async throws -> ServerPackageSearchSnapshot {
+        try await api.post(
+            AppConfig.packageSearchSessionsPath,
+            body: ServerPackageSearchRequest(trip: trip, clientRequestId: clientRequestId),
+            timeoutInterval: 18
+        )
+    }
+
+    func searchSnapshot(searchId: String) async throws -> ServerPackageSearchSnapshot {
+        try await api.get(
+            "\(AppConfig.packageSearchSessionsPath)/\(searchId)",
+            timeoutInterval: 12
+        )
+    }
+
+    func requote(searchId: String, request: ServerPackageRequoteRequest) async throws -> ServerPackageRequoteResponse {
+        try await api.post(
+            "\(AppConfig.packageSearchSessionsPath)/\(searchId)/quote",
+            body: request,
+            timeoutInterval: 18
+        )
+    }
+
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)

@@ -9,6 +9,9 @@ enum BookingDraftBuilder {
         roomCategory: IumrahRoomCategoryOption?,
         madinahRoom: HotelRoom? = nil,
         madinahRoomCategory: IumrahRoomCategoryOption? = nil,
+        authoritativeMakkahRoomId: String? = nil,
+        authoritativeMadinahRoomId: String? = nil,
+        intercityTransport: ServerIntercityTransport? = nil,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -25,10 +28,10 @@ enum BookingDraftBuilder {
             "visa",
             "meals",
             "transfer",
+            includeMadinah && intercityTransport == .haramainTrain ? "haramainTrain" : nil,
             "accompaniment",
             "ziyaratMakkah",
             includeMadinah ? "ziyaratMadinah" : nil,
-            "esim",
             "care",
         ].compactMap { $0 }
 
@@ -68,9 +71,9 @@ enum BookingDraftBuilder {
                 flightId: "\(outbound.id)|\(inbound.id)",
                 makkahHotelId: hotel.id,
                 madinahHotelId: includeMadinah ? madinahHotel?.id : nil,
-                makkahRoomId: room?.id,
+                makkahRoomId: room?.id ?? roomCategory?.id ?? authoritativeMakkahRoomId,
                 makkahRoomCategory: roomCategory?.category,
-                madinahRoomId: includeMadinah ? madinahRoom?.id : nil,
+                madinahRoomId: includeMadinah ? (madinahRoom?.id ?? madinahRoomCategory?.id ?? authoritativeMadinahRoomId) : nil,
                 madinahRoomCategory: includeMadinah ? madinahRoomCategory?.category : nil
             ),
             customization: .init(
@@ -79,7 +82,7 @@ enum BookingDraftBuilder {
                 ziyaratMakkah: true,
                 ziyaratMadinah: includeMadinah,
                 meals: true,
-                esim: true
+                esim: false
             ),
             includedServices: services,
             hotelNames: .init(
@@ -92,8 +95,8 @@ enum BookingDraftBuilder {
                 quoteId: quote.quoteId ?? inbound.quoteId,
                 outbound: generatorFlight(outbound),
                 inbound: generatorFlight(inbound),
-                makkahHotel: generatorHotel(hotel, room: room, roomCategory: roomCategory),
-                madinahHotel: madinahHotel.map { generatorHotel($0, room: madinahRoom, roomCategory: madinahRoomCategory) }
+                makkahHotel: generatorHotel(hotel, room: room, roomCategory: roomCategory, authoritativeRoomId: authoritativeMakkahRoomId),
+                madinahHotel: madinahHotel.map { generatorHotel($0, room: madinahRoom, roomCategory: madinahRoomCategory, authoritativeRoomId: authoritativeMadinahRoomId) }
             )
         )
         return BookingCreateEnvelope(lang: language.rawValue, booking: draft)
@@ -131,12 +134,17 @@ enum BookingDraftBuilder {
         )
     }
 
-    private static func generatorHotel(_ hotel: HotelSummary, room: HotelRoom?, roomCategory: IumrahRoomCategoryOption?) -> BookingGeneratorHotelSnapshot {
+    private static func generatorHotel(
+        _ hotel: HotelSummary,
+        room: HotelRoom?,
+        roomCategory: IumrahRoomCategoryOption?,
+        authoritativeRoomId: String? = nil
+    ) -> BookingGeneratorHotelSnapshot {
         BookingGeneratorHotelSnapshot(
             hotelId: hotel.id,
             hotelName: hotel.name,
             city: hotel.city,
-            roomId: room?.id ?? roomCategory?.id,
+            roomId: room?.id ?? roomCategory?.id ?? authoritativeRoomId,
             roomName: room?.name ?? roomCategory?.displayName,
             roomCategory: roomCategory?.category.rawValue
         )

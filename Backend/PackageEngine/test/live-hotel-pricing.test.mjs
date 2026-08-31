@@ -7,7 +7,7 @@ const flightOptions = fs.readFileSync(new URL("../src/flight-options.ts", import
 
 // A Booking/Expedia total for the requested stay must never be multiplied by
 // room count a second time in the Package Engine.
-assert.match(pricing, /if \(cost\.unit === "totalStay"\) return cost\.amountUsd/);
+assert.match(pricing, /if \(cost\.unit === "totalStay"\) return amount/);
 
 // Live hotel observations must be pinned to the exact selected hotel and stay.
 assert.match(hotelCosts, /observation\.hotelId !== hotelId/);

@@ -15,7 +15,7 @@ struct FinalPackageView: View {
 
     private var needsMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canBook: Bool {
-        journey.quote != nil &&
+        journey.hasFreshAuthoritativeQuote &&
         journey.selectedHotel != nil &&
         journey.selectedOutbound?.isVerifiedForBooking == true &&
         journey.selectedInbound?.isVerifiedForBooking == true &&
@@ -66,7 +66,7 @@ struct FinalPackageView: View {
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .ready)
         .task {
-            if journey.quote == nil { await journey.buildQuote() }
+            if !journey.hasFreshAuthoritativeQuote { await journey.buildQuote() }
             await push.refreshAndRegisterIfAllowed()
         }
         .sheet(isPresented: $isProfileSheetPresented) {
@@ -195,13 +195,15 @@ struct FinalPackageView: View {
             }
 
             includedRow(.fullTransfer, icon: "car.fill")
+            if needsMadinah && journey.serverIntercityTransport == .haramainTrain {
+                literalIncludedRow(title: haramainTitle, value: haramainBody, icon: "tram.fill")
+            }
             includedRow(.ziyaratMakkah, icon: "mappin.and.ellipse")
             if needsMadinah { includedRow(.ziyaratMadinah, icon: "mappin.and.ellipse") }
             includedRow(.careSupport, icon: "heart.fill")
             includedRow(.guide, icon: "person.wave.2.fill")
             includedRow(.visa, icon: "doc.text.fill")
             includedRow(.meals, icon: "fork.knife")
-            includedRow(.esim, icon: "simcard.fill")
         }
         .padding(20)
         .background(Color.iumrahCardBackground)
@@ -235,6 +237,48 @@ struct FinalPackageView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 9)
+    }
+
+    private func literalIncludedRow(title: String, value: String, icon: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Circle().fill(Color.iumrahCareLight.opacity(0.22))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.iumrahCareDark)
+            }
+            .frame(width: 30, height: 30)
+
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 22)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(value).font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 9)
+    }
+
+    private var haramainTitle: String {
+        switch settings.language {
+        case .russian: return "Поезд Haramain"
+        case .english: return "Haramain train"
+        case .uzbek: return "Haramain poyezdi"
+        case .uzbekCyrillic: return "Haramain поезди"
+        }
+    }
+
+    private var haramainBody: String {
+        switch settings.language {
+        case .russian: return "Между Меккой и Мединой"
+        case .english: return "Between Makkah and Madinah"
+        case .uzbek: return "Makka va Madina o‘rtasida"
+        case .uzbekCyrillic: return "Макка ва Мадина ўртасида"
+        }
     }
 
     private var reassuranceCard: some View {
@@ -349,6 +393,11 @@ struct FinalPackageView: View {
               let outbound = journey.selectedOutbound,
               let inbound = journey.selectedInbound,
               let quote = journey.quote else { return }
+        guard journey.hasFreshAuthoritativeQuote, quote.isEstimated == false, quote.quoteId?.isEmpty == false else {
+            errorMessage = authoritativeQuoteMessage
+            IumrahHaptics.error()
+            return
+        }
         guard outbound.isVerifiedForBooking, inbound.isVerifiedForBooking else {
             errorMessage = invalidFlightSelectionMessage
             IumrahHaptics.error()
@@ -375,6 +424,9 @@ struct FinalPackageView: View {
                 roomCategory: journey.selectedRoomCategory,
                 madinahRoom: journey.selectedMadinahRoom,
                 madinahRoomCategory: journey.selectedMadinahRoomCategory,
+                authoritativeMakkahRoomId: journey.serverMakkahRoomID,
+                authoritativeMadinahRoomId: journey.serverMadinahRoomID,
+                intercityTransport: journey.serverIntercityTransport,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,
@@ -392,6 +444,15 @@ struct FinalPackageView: View {
         }
     }
 
+
+    private var authoritativeQuoteMessage: String {
+        switch settings.language {
+        case .russian: return "Цена пакета устарела или не подтверждена сервером. Обновите пакет перед бронированием."
+        case .english: return "The package price is expired or not server-confirmed. Refresh the package before booking."
+        case .uzbek: return "Paket narxi eskirgan yoki server tomonidan tasdiqlanmagan. Bron qilishdan oldin paketni yangilang."
+        case .uzbekCyrillic: return "Пакет нархи эскирган ёки сервер томонидан тасдиқланмаган. Брон қилишдан олдин пакетни янгиланг."
+        }
+    }
 
     private var invalidFlightSelectionMessage: String {
         switch settings.language {

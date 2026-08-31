@@ -17,7 +17,6 @@ final class BookingStore: ObservableObject {
     @Published private(set) var sessions: [StoredBookingSession] = []
     @Published private(set) var chats: [String: [ChatMessage]] = [:]
     @Published private(set) var itineraries: [String: [BookingItineraryItem]] = [:]
-    @Published private(set) var esims: [String: [ClientESIMProfile]] = [:]
 
     private let bookingService = BookingService()
     private let hotelCatalogService = HotelCatalogService()
@@ -39,6 +38,9 @@ final class BookingStore: ObservableObject {
         roomCategory: IumrahRoomCategoryOption? = nil,
         madinahRoom: HotelRoom? = nil,
         madinahRoomCategory: IumrahRoomCategoryOption? = nil,
+        authoritativeMakkahRoomId: String? = nil,
+        authoritativeMadinahRoomId: String? = nil,
+        intercityTransport: ServerIntercityTransport? = nil,
         outbound: FlightOffer,
         inbound: FlightOffer,
         quote: PackageQuote,
@@ -53,6 +55,9 @@ final class BookingStore: ObservableObject {
             roomCategory: roomCategory,
             madinahRoom: madinahRoom,
             madinahRoomCategory: madinahRoomCategory,
+            authoritativeMakkahRoomId: authoritativeMakkahRoomId,
+            authoritativeMadinahRoomId: authoritativeMadinahRoomId,
+            intercityTransport: intercityTransport,
             outbound: outbound,
             inbound: inbound,
             quote: quote,
@@ -73,8 +78,8 @@ final class BookingStore: ObservableObject {
             whatsapp: serverProfile?.whatsapp,
             outboundFlight: outbound,
             inboundFlight: inbound,
-            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory),
-            madinahHotelSelection: madinahHotel.map { BookingHotelSelectionSnapshot(hotel: $0, room: madinahRoom, roomCategory: madinahRoomCategory) }
+            hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory, authoritativeRoomId: authoritativeMakkahRoomId),
+            madinahHotelSelection: madinahHotel.map { BookingHotelSelectionSnapshot(hotel: $0, room: madinahRoom, roomCategory: madinahRoomCategory, authoritativeRoomId: authoritativeMadinahRoomId) }
         )
         if let accountToken, !accountToken.isEmpty,
            let linked = try? await accountService.linkBooking(bookingID: session.id, bookingToken: session.accessToken, token: accountToken) {
@@ -95,7 +100,6 @@ final class BookingStore: ObservableObject {
                 session.bookingDisplayNumber = response.trip.bookingDisplayNumber ?? session.bookingDisplayNumber
                 session.operationStatus = response.trip.status
                 session.guide = response.assignment?.guide
-                esims[session.id] = response.esims ?? []
             }
         }
         upsert(session)
@@ -145,7 +149,7 @@ final class BookingStore: ObservableObject {
                     let detail = try await accountService.tripDetail(bookingID: session.id, token: accountToken)
                     mergeRemoteBooking(
                         detail.booking,
-                        operational: ClientTripResponse(ok: true, trip: detail.trip, assignment: detail.assignment, esims: detail.esims),
+                        operational: ClientTripResponse(ok: true, trip: detail.trip, assignment: detail.assignment),
                         bookingID: session.id
                     )
                 }
@@ -185,7 +189,6 @@ final class BookingStore: ObservableObject {
                 sessions[index].bookingNumber = detail.trip.bookingNumber
                 sessions[index].bookingDisplayNumber = detail.trip.bookingDisplayNumber
                 sessions[index].guide = detail.assignment?.guide ?? sessions[index].guide
-                esims[trip.bookingID] = detail.esims ?? []
                 mergeRemoteHotelSelection(detail.booking.hotelSelection, into: &sessions[index].hotelSelection)
                 mergeRemoteHotelSelection(detail.booking.madinahHotelSelection, into: &sessions[index].madinahHotelSelection)
             } else {
@@ -208,7 +211,6 @@ final class BookingStore: ObservableObject {
                     bookingDisplayNumber: detail.trip.bookingDisplayNumber
                 )
                 sessions.append(restored)
-                esims[trip.bookingID] = detail.esims ?? []
             }
         }
         sessions.sort { $0.booking.createdAt > $1.booking.createdAt }
@@ -231,7 +233,6 @@ final class BookingStore: ObservableObject {
         sessions[index].bookingNumber = operational?.trip.bookingNumber ?? sessions[index].bookingNumber
         sessions[index].bookingDisplayNumber = operational?.trip.bookingDisplayNumber ?? sessions[index].bookingDisplayNumber
         sessions[index].guide = operational?.assignment?.guide ?? sessions[index].guide
-        if let remoteESIMs = operational?.esims { esims[bookingID] = remoteESIMs }
         if let profile = booking.pilgrimProfile {
             sessions[index].travelerName = profile.displayName
             sessions[index].telegram = profile.telegram
@@ -286,24 +287,6 @@ final class BookingStore: ObservableObject {
         let items = try await bookingService.fetchItinerary(id: bookingID, headers: headers)
         itineraries[bookingID] = items
         return items
-    }
-
-    func esimProfiles(for bookingID: String) -> [ClientESIMProfile] {
-        esims[bookingID] ?? []
-    }
-
-    func primaryESIM(for bookingID: String) -> ClientESIMProfile? {
-        esimProfiles(for: bookingID).first
-    }
-
-    @discardableResult
-    func loadESIMs(for bookingID: String) async throws -> [ClientESIMProfile] {
-        guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
-        let headers = clientHeaders(for: session)
-        guard !headers.isEmpty else { throw APIError.missingBookingToken }
-        let profiles = try await bookingService.fetchESIMs(id: bookingID, headers: headers)
-        esims[bookingID] = profiles
-        return profiles
     }
 
     func loadChat(for bookingID: String) async throws -> [ChatMessage] {
@@ -556,7 +539,6 @@ final class BookingStore: ObservableObject {
         sessions.removeAll(where: { $0.id == id })
         chats[id] = nil
         itineraries[id] = nil
-        esims[id] = nil
     }
 
     private func isRemoteMissing(code: Int, message: String) -> Bool {

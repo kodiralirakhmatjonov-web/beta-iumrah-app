@@ -4,7 +4,7 @@ struct BookingService {
     private let api = APIClient.shared
 
     func createBooking(_ request: BookingCreateEnvelope) async throws -> BookingCreateResponse {
-        try await api.post("/api/bookings", body: request)
+        try await api.post(AppConfig.packageBookingPath, body: request)
     }
 
     func fetchBooking(id: String, accessToken: String) async throws -> RemoteBooking {
@@ -50,14 +50,6 @@ struct BookingService {
             if lhs.dateLocal != rhs.dateLocal { return lhs.dateLocal < rhs.dateLocal }
             return lhs.sortOrder < rhs.sortOrder
         }
-    }
-
-    func fetchESIMs(id: String, headers: [String: String]) async throws -> [ClientESIMProfile] {
-        let response: ClientESIMListResponse = try await api.get(
-            "/api/catalog/hotels/client/trips/\(id)/esims",
-            headers: headers
-        )
-        return response.esims
     }
 
     func updateHotelSelection(

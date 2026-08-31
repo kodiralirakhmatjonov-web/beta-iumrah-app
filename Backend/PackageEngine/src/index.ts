@@ -5,15 +5,13 @@ import { resolvePrimaryHotel, type D1Like } from "./primary-hotels";
 import { deletePrimaryHotel, listPrimaryHotels, requirePackageAdmin, upsertPrimaryHotel } from "./admin";
 import { deleteAdminBooking, deletePilgrimBooking, updatePilgrimContact, updatePilgrimCustomization, updatePilgrimHotel } from "./booking-control";
 import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRoomCategories, listHotelRoomCategories } from "./room-categories";
+import { createBookingThroughPackageGateway } from "./booking-gateway";
+import { createPackageSearch, getPackageSearch, requotePackageSearch, PackageSearchSession } from "./package-search";
+import type { Env } from "./env";
+import { officialCarrierBotCount } from "./server-flight-bots";
 import type { ConsumerPackageQuoteRequest, FlightOptionsQuoteRequest, PackageQuoteRequest, PublicPackageQuote } from "./types";
 
-type Env = {
-  PRICING_VERSION?: string;
-  HOTELS_DB?: D1Like;
-  BOOKINGS_DB?: D1Like & { batch(statements: import("./primary-hotels").D1PreparedStatementLike[]): Promise<unknown[]> };
-  CBU_FX_URL?: string;
-  AUTH_SESSION_URL?: string;
-};
+export { PackageSearchSession };
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -69,7 +67,10 @@ async function publicHealth(env: Env) {
       primaryHotelConfigCount: 0,
       pricingReady: false,
       flightOptionQuotingReady: false,
-      legacyEstimateFallbackEnabled: true,
+      legacyEstimateFallbackEnabled: false,
+      searchSessionsConfigured: Boolean(env.SEARCH_SESSIONS),
+      flightProviderConfigured: officialCarrierBotCount() > 0,
+      serverSearchReady: false,
     });
   }
 
@@ -107,13 +108,16 @@ async function publicHealth(env: Env) {
       bookingsDbConfigured: Boolean(env.BOOKINGS_DB),
       primaryHotelConfigCount: count,
       primaryHotelConfigByCity: { Makkah: makkahCount, Madinah: madinahCount },
-      pricingReady: true,
-      makkahPricingReady: true,
-      madinahPricingReady: true,
-      fallbackResolutionEnabled: true,
-      legacyEstimateFallbackEnabled: true,
+      pricingReady: makkahCount > 0,
+      makkahPricingReady: makkahCount > 0,
+      madinahPricingReady: madinahCount > 0,
+      fallbackResolutionEnabled: false,
+      legacyEstimateFallbackEnabled: false,
       flightOptionQuotingReady: true,
-      pricingMode: count > 0 ? "mixed" : "legacyEstimate",
+      searchSessionsConfigured: Boolean(env.SEARCH_SESSIONS),
+      flightProviderConfigured: officialCarrierBotCount() > 0,
+      serverSearchReady: Boolean(env.SEARCH_SESSIONS && officialCarrierBotCount() > 0 && makkahCount > 0),
+      pricingMode: count > 0 ? "configuredPrimary" : "unavailable",
       roomCategoriesReady: roomCategoryCount > 0,
       roomCategoryCount,
       bookingRoomColumnsReady: Boolean(env.BOOKINGS_DB),
@@ -128,7 +132,10 @@ async function publicHealth(env: Env) {
       primaryHotelConfigCount: 0,
       pricingReady: false,
       flightOptionQuotingReady: false,
-      legacyEstimateFallbackEnabled: true,
+      legacyEstimateFallbackEnabled: false,
+      searchSessionsConfigured: Boolean(env.SEARCH_SESSIONS),
+      flightProviderConfigured: officialCarrierBotCount() > 0,
+      serverSearchReady: false,
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);
   }
@@ -180,6 +187,36 @@ export default {
 
     if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {
       return publicHealth(env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/bookings") {
+      return createBookingThroughPackageGateway(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/search-sessions") {
+      try {
+        return await createPackageSearch(request, env);
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : "SEARCH_CREATE_FAILED" }, 400);
+      }
+    }
+
+    const packageSearchQuoteMatch = url.pathname.match(/^\/api\/package\/search-sessions\/([^/]+)\/quote$/);
+    if (request.method === "POST" && packageSearchQuoteMatch) {
+      try {
+        return await requotePackageSearch(decodeURIComponent(packageSearchQuoteMatch[1]), request, env);
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : "SEARCH_REQUOTE_FAILED" }, 400);
+      }
+    }
+
+    const packageSearchMatch = url.pathname.match(/^\/api\/package\/search-sessions\/([^/]+)$/);
+    if (request.method === "GET" && packageSearchMatch) {
+      try {
+        return await getPackageSearch(decodeURIComponent(packageSearchMatch[1]), env);
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : "SEARCH_READ_FAILED" }, 400);
+      }
     }
 
     const hotelRoomCategoriesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/room-categories$/);

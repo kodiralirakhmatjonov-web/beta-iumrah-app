@@ -88,6 +88,9 @@ struct PackageEngineHealthResponse: Decodable {
     let roomCategoriesReady: Bool?
     let roomCategoryCount: Int?
     let bookingRoomColumnsReady: Bool?
+    let searchSessionsConfigured: Bool?
+    let flightProviderConfigured: Bool?
+    let serverSearchReady: Bool?
 }
 
 struct PrimaryHotelResolutionResponse: Decodable, Hashable {

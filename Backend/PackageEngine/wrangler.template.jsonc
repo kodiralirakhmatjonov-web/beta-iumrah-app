@@ -27,8 +27,24 @@
     }
   ],
   "vars": {
-    "PRICING_VERSION": "iumrah-web-v1-beta-0.14",
+    "PRICING_VERSION": "iumrah-web-v1-beta-0.15",
     "CBU_FX_URL": "https://cbu.uz/en/arkhiv-kursov-valyut/json/",
     "AUTH_SESSION_URL": "https://iumrah.app/api/auth/staff/session"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SEARCH_SESSIONS",
+        "class_name": "PackageSearchSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-package-search-session",
+      "new_sqlite_classes": [
+        "PackageSearchSession"
+      ]
+    }
+  ]
 }

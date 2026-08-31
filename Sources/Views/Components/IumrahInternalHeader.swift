@@ -21,6 +21,7 @@ enum TripProgressStage: Int, CaseIterable {
 struct IumrahFlowProgress: View {
     @EnvironmentObject private var settings: AppSettingsStore
     let stage: TripProgressStage
+    var labelKey: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
@@ -29,7 +30,7 @@ struct IumrahFlowProgress: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 12)
-                Text(L10n.text(stage.localizationKey, settings.language))
+                Text(L10n.text(labelKey ?? stage.localizationKey, settings.language))
                     .font(.subheadline.weight(.semibold))
             }
 

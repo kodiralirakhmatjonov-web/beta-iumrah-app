@@ -24,9 +24,12 @@ export const PRICING_CONFIG = {
   accompanimentMakkahOnlyPerGroupUsd: 100,
   transfer: {
     sedanCapacity: 3,
-    withMadinahPerSedanUsd: 300,
+    roadWithMadinahPerSedanUsd: 300,
+    localWithTrainPerSedanUsd: 200,
     makkahOnlyPerSedanUsd: 200,
   },
+  haramainSarPerTraveller: 300,
+  sarPerUsd: 3.75,
   esimUnitCostUsd: 0,
 } as const;
 
@@ -49,18 +52,27 @@ export function resolveVehicleCount(travelers: Travelers) {
   return Math.max(1, Math.ceil(travelerCount(travelers) / PRICING_CONFIG.transfer.sedanCapacity));
 }
 
+function finiteNonNegative(value: unknown, field: string) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) throw new Error(`${field} must be a finite non-negative number`);
+  return number;
+}
+
 function flightLegGroupCost(cost: FlightLegCost, travelers: Travelers) {
-  if (Number.isFinite(cost.totalGroupUsd) && Number(cost.totalGroupUsd) >= 0) return Number(cost.totalGroupUsd);
-  const adult = Number(cost.adultUsd ?? 0) * Math.max(0, travelers.adults);
-  const child = Number(cost.childUsd ?? cost.adultUsd ?? 0) * Math.max(0, travelers.children);
-  const infant = Number(cost.infantUsd ?? cost.adultUsd ?? 0) * Math.max(0, travelers.infants);
-  return adult + child + infant;
+  if (cost.totalGroupUsd !== undefined) return finiteNonNegative(cost.totalGroupUsd, "flight totalGroupUsd");
+  const adultRate = finiteNonNegative(cost.adultUsd ?? 0, "adult flight fare");
+  const childRate = finiteNonNegative(cost.childUsd ?? adultRate, "child flight fare");
+  const infantRate = finiteNonNegative(cost.infantUsd ?? adultRate, "infant flight fare");
+  return adultRate * Math.max(0, travelers.adults) + childRate * Math.max(0, travelers.children) + infantRate * Math.max(0, travelers.infants);
 }
 
 function hotelCost(cost: HotelCost, rooms: number) {
-  const nights = Math.max(1, Math.floor(cost.nights));
-  if (cost.unit === "totalStay") return cost.amountUsd;
-  return cost.amountUsd * rooms * (cost.unit === "perRoomNight" ? nights : 1);
+  const amount = finiteNonNegative(cost.amountUsd, "hotel amountUsd");
+  const nights = Math.max(1, Math.floor(finiteNonNegative(cost.nights, "hotel nights")));
+  if (cost.unit === "totalStay") return amount;
+  if (cost.unit === "perRoomStay") return amount * rooms;
+  if (cost.unit === "perRoomNight") return amount * rooms * nights;
+  throw new Error("Unsupported hotel price unit");
 }
 
 function defaults(input: PackageQuoteRequest): PackageCustomization {
@@ -74,7 +86,8 @@ function defaults(input: PackageQuoteRequest): PackageCustomization {
   };
 }
 
-export function calculatePackageQuote(input: PackageQuoteRequest, pricingVersion = "iumrah-web-v1-beta-0.5"): InternalPricingResult {
+export function calculatePackageQuote(input: PackageQuoteRequest, pricingVersion = "iumrah-web-v1-beta-0.15"): InternalPricingResult {
+  if (!["economy", "standard", "comfort", "luxury"].includes(input.tier)) throw new Error("Unsupported package tier");
   const count = travelerCount(input.travelers);
   const rooms = resolveRoomCount(input.travelers);
   const vehicles = resolveVehicleCount(input.travelers);
@@ -94,10 +107,13 @@ export function calculatePackageQuote(input: PackageQuoteRequest, pricingVersion
     ? PRICING_CONFIG.mealPerDayUsd[input.tier] * Math.max(1, input.totalDays) * mealTravellers
     : 0;
 
-  const costTransfer =
-    (input.includeMadinah
-      ? PRICING_CONFIG.transfer.withMadinahPerSedanUsd
-      : PRICING_CONFIG.transfer.makkahOnlyPerSedanUsd) * vehicles;
+  const usesTrain = input.includeMadinah && input.intercityTransport === "haramainTrain";
+  const costTransfer = input.includeMadinah
+    ? (usesTrain ? PRICING_CONFIG.transfer.localWithTrainPerSedanUsd : PRICING_CONFIG.transfer.roadWithMadinahPerSedanUsd) * vehicles
+    : PRICING_CONFIG.transfer.makkahOnlyPerSedanUsd * vehicles;
+  const costIntercity = usesTrain
+    ? (PRICING_CONFIG.haramainSarPerTraveller / PRICING_CONFIG.sarPerUsd) * count
+    : 0;
 
   const costGuide = customization.accompaniment
     ? input.includeMadinah
@@ -111,15 +127,15 @@ export function calculatePackageQuote(input: PackageQuoteRequest, pricingVersion
 
   const costEsim = customization.esim ? PRICING_CONFIG.esimUnitCostUsd * count : 0;
 
-  const totalCost = costFlights + costHotel + costVisa + costMeals + costTransfer + costGuide + costZiyarat + costEsim;
+  const totalCost = costFlights + costHotel + costVisa + costMeals + costTransfer + costIntercity + costGuide + costZiyarat + costEsim;
   const markupAmount = totalCost * PRICING_CONFIG.packageMarkupRate;
   const baseSellingPrice = totalCost + markupAmount;
-  const sellingPrice = baseSellingPrice / (1 - PRICING_CONFIG.paymentFeeRate);
-  const paymentFeeAmount = sellingPrice - baseSellingPrice;
-  const estimatedProfit = sellingPrice - paymentFeeAmount - totalCost;
+  const calculatedSellingPrice = baseSellingPrice / (1 - PRICING_CONFIG.paymentFeeRate);
 
-  const pricePerPerson = roundPublicPrice(sellingPrice / count);
+  const pricePerPerson = roundPublicPrice(calculatedSellingPrice / count);
   const totalPackagePrice = pricePerPerson * count;
+  const paymentFeeAmount = totalPackagePrice * PRICING_CONFIG.paymentFeeRate;
+  const estimatedProfit = totalPackagePrice - paymentFeeAmount - totalCost;
 
   return {
     quoteId: crypto.randomUUID(),
@@ -136,13 +152,14 @@ export function calculatePackageQuote(input: PackageQuoteRequest, pricingVersion
       costVisa,
       costMeals,
       costTransfer,
+      costIntercity,
       costGuide,
       costZiyarat,
       costEsim,
       markupAmount,
       baseSellingPrice,
       paymentFeeAmount,
-      sellingPrice,
+      sellingPrice: calculatedSellingPrice,
       estimatedProfit,
     },
   };

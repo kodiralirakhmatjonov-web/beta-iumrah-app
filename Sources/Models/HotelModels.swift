@@ -120,18 +120,23 @@ struct BookingHotelSelectionSnapshot: Codable, Hashable {
     let roomCategory: IumrahRoomCategory?
     let roomSource: String?
 
-    init(hotel: HotelSummary, room: HotelRoom? = nil, roomCategory: IumrahRoomCategoryOption? = nil) {
+    init(
+        hotel: HotelSummary,
+        room: HotelRoom? = nil,
+        roomCategory: IumrahRoomCategoryOption? = nil,
+        authoritativeRoomId: String? = nil
+    ) {
         hotelId = hotel.id
         hotelName = hotel.name
         city = hotel.city
         coverImageURL = hotel.coverImageURL
-        roomId = room?.id
+        roomId = room?.id ?? authoritativeRoomId
         roomName = room?.name ?? roomCategory?.displayName
         roomBeds = room?.beds ?? roomCategory?.bedConfiguration
         roomSizeM2 = room?.sizeM2
         roomMaxGuests = room?.maxGuests ?? roomCategory?.maxGuests
         self.roomCategory = roomCategory?.category
-        roomSource = roomCategory != nil ? "iumrahPrimary" : room != nil ? "hotelInventory" : nil
+        roomSource = roomCategory != nil || authoritativeRoomId != nil ? "iumrahPrimary" : room != nil ? "hotelInventory" : nil
     }
 
     private init(
