@@ -24,7 +24,7 @@ struct TripStayWindows: Hashable {
 
 enum TripStayPlanner {
     static func breakdown(for trip: TripDraft, calendar: Calendar = .current) -> TripStayBreakdown {
-        let start = calendar.startOfDay(for: trip.departureDate)
+        let start = calendar.startOfDay(for: trip.hotelStayStartDate)
         let end = calendar.startOfDay(for: trip.returnDate)
         let rawNights = calendar.dateComponents([.day], from: start, to: end).day ?? 1
         let totalNights = max(1, rawNights)
@@ -44,7 +44,7 @@ enum TripStayPlanner {
     /// MED arrival can never price Makkah on the wrong dates.
     static func windows(for trip: TripDraft, calendar: Calendar = .current) -> TripStayWindows {
         let stay = breakdown(for: trip, calendar: calendar)
-        let start = calendar.startOfDay(for: trip.departureDate)
+        let start = calendar.startOfDay(for: trip.hotelStayStartDate)
         let end = calendar.startOfDay(for: trip.returnDate)
 
         guard trip.scope == .makkahAndMadinah else {

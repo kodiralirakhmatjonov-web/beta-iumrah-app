@@ -142,6 +142,7 @@ final class JourneyStore: ObservableObject {
 
         selectedOutbound = nil
         selectedInbound = nil
+        trip.saudiArrivalDate = nil
         quote = nil
         hotelPriceSnapshot = nil
         pricingMakkahRoomID = nil
@@ -154,6 +155,7 @@ final class JourneyStore: ObservableObject {
         trip.flightFilters = filters == .default ? nil : filters
         selectedOutbound = nil
         selectedInbound = nil
+        trip.saudiArrivalDate = nil
         quote = nil
         (flightService as? AutomaticFlightSearchService)?.invalidateFlightInventory()
     }
@@ -192,9 +194,13 @@ final class JourneyStore: ObservableObject {
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
 
-        let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
-        if !Calendar.current.isDate(selectedDay, inSameDayAs: trip.departureDate) {
-            trip.departureDate = selectedDay
+        let selectedDepartureDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
+        let selectedArrivalDay = travelCalendarDay(for: offer.arrivalAt, airportCode: offer.destination)
+        let departureChanged = !Calendar.current.isDate(selectedDepartureDay, inSameDayAs: trip.departureDate)
+        let arrivalChanged = trip.saudiArrivalDate.map { !Calendar.current.isDate($0, inSameDayAs: selectedArrivalDay) } ?? true
+        if departureChanged { trip.departureDate = selectedDepartureDay }
+        trip.saudiArrivalDate = selectedArrivalDay
+        if departureChanged || arrivalChanged {
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
         }
     }
@@ -253,8 +259,7 @@ final class JourneyStore: ObservableObject {
               let outbound = selectedOutbound,
               let inbound = selectedInbound,
               outbound.isVerifiedForBooking, inbound.isVerifiedForBooking,
-              let outboundFare = outbound.fareAmount, let outboundScope = outbound.fareScope,
-              let inboundFare = inbound.fareAmount, let inboundScope = inbound.fareScope else {
+              let journeyFare = inbound.fareAmount, let journeyScope = inbound.fareScope else {
             errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
             quote = nil
             return
@@ -273,17 +278,21 @@ final class JourneyStore: ObservableObject {
                     madinahHotel: selectedMadinahHotel,
                     makkahRoomId: selectedRoom?.id ?? selectedRoomCategory?.id,
                     makkahRoomName: selectedRoom?.name ?? selectedRoomCategory?.displayName,
+                    makkahRoomCapacity: selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests,
                     madinahRoomId: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
                     madinahRoomName: selectedMadinahRoom?.name ?? selectedMadinahRoomCategory?.displayName,
+                    madinahRoomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
                     forceRefresh: forceHotelRefresh
                 )
             }
-            let outboundUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
-            let inboundUsd = try await LocalFXRateService.shared.usd(inboundFare, currency: inbound.currency)
+            // The selected return option carries Ignav's complete two-leg itinerary fare.
+            // Never add outbound and inbound again: that would double-count the same return ticket.
+            let journeyFareUsd = try await LocalFXRateService.shared.usd(journeyFare, currency: inbound.currency)
             let makkah = try await resolveHotelComponent(
                 hotel: hotel,
                 city: "Makkah",
                 roomID: selectedRoom?.id ?? selectedRoomCategory?.id,
+                roomCapacity: selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests,
                 observations: hotelPriceSnapshot?.makkah ?? []
             )
             let madinah: LocalHotelPriceComponent?
@@ -292,6 +301,7 @@ final class JourneyStore: ObservableObject {
                     hotel: hotel,
                     city: "Madinah",
                     roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
+                    roomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
                     observations: hotelPriceSnapshot?.madinah ?? []
                 )
             } else {
@@ -301,10 +311,8 @@ final class JourneyStore: ObservableObject {
             pricingMadinahRoomID = madinah?.roomId
             quote = try LocalPackagePricingEngine.calculate(
                 trip: trip,
-                outboundFareUsd: outboundUsd,
-                inboundFareUsd: inboundUsd,
-                outboundScope: outboundScope,
-                inboundScope: inboundScope,
+                journeyFareUsd: journeyFareUsd,
+                journeyScope: journeyScope,
                 makkahHotel: makkah,
                 madinahHotel: madinah
             )
@@ -319,6 +327,7 @@ final class JourneyStore: ObservableObject {
         hotel: HotelSummary,
         city: String,
         roomID: String?,
+        roomCapacity: Int?,
         observations: [HotelPriceObservation]
     ) async throws -> LocalHotelPriceComponent {
         let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
@@ -332,7 +341,8 @@ final class JourneyStore: ObservableObject {
         }
 
         let bedOccupants = max(1, trip.adults + trip.children)
-        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / 4.0)))
+        let capacity = max(1, roomCapacity ?? 4)
+        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / Double(capacity))))
         let effectiveRooms = max(trip.rooms, minimumRooms)
         var verified: [(component: LocalHotelPriceComponent, totalUsd: Decimal)] = []
 
@@ -349,6 +359,7 @@ final class JourneyStore: ObservableObject {
                     amountUsd: usd,
                     unit: unit,
                     nights: max(1, window.nights),
+                    rooms: effectiveRooms,
                     hotelId: hotel.id,
                     roomId: roomID,
                     source: observation.providerName
@@ -379,17 +390,11 @@ final class JourneyStore: ObservableObject {
             throw LocalPricingError.missingHotelPrice(city)
         }
 
-        let ordered = verified.sorted { $0.totalUsd < $1.totalUsd }
-        if ordered.count >= 2, let cheapest = ordered.first, let highest = ordered.last {
-            // Two independent provider surfaces can occasionally expose different
-            // rate plans. If one parsed result is dramatically cheaper, do not use
-            // it as the package cost. Choosing the conservative verified value here
-            // prevents a malformed/partial price from silently creating a loss.
-            if cheapest.totalUsd * Decimal(string: "1.50")! < highest.totalUsd {
-                return highest.component
-            }
-        }
-        return ordered[0].component
+        // This is an indicative launch price followed by manual availability
+        // confirmation. After parser-corruption guards have removed impossible
+        // room-night values, use the lowest current provider rate instead of
+        // automatically switching to the most expensive provider on disagreement.
+        return verified.min(by: { $0.totalUsd < $1.totalUsd })!.component
     }
 
     private func travelCalendarDay(for date: Date, airportCode: String) -> Date {

@@ -10,12 +10,9 @@ enum IgnavFlightProviderError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidRequest:
-            return "Параметры поиска авиабилетов заполнены некорректно."
-        case .serverUnavailable:
-            return "Сервис поиска авиабилетов временно недоступен. Повторите попытку."
-        case .searchFailed:
-            return "Не удалось получить актуальные авиабилеты. Повторите поиск."
+        case .invalidRequest: return "Параметры поиска авиабилетов заполнены некорректно."
+        case .serverUnavailable: return "Сервис поиска авиабилетов временно недоступен. Повторите попытку."
+        case .searchFailed: return "Не удалось получить актуальные авиабилеты. Повторите поиск."
         }
     }
 }
@@ -24,42 +21,37 @@ enum IgnavFlightProviderError: LocalizedError, Equatable {
 final class IgnavFlightInventoryProvider: FlightInventoryProviding {
     let sourceName = "Ignav"
     private let session: URLSession
-    private let maxConcurrentDates = 3
+    private let maxConcurrentDatePairs = 3
 
     init(session: URLSession = .shared) {
         self.session = session
     }
 
-    func search(
-        request: FlightSearchRequest,
-        dates: [Date],
-        onUpdate: @escaping @MainActor ([LiveFlightCandidate]) -> Void
-    ) async throws -> [LiveFlightCandidate] {
-        guard !dates.isEmpty else { return [] }
+    func searchJourney(
+        request: FlightJourneySearchRequest,
+        datePairs: [FlightJourneyDatePair],
+        onUpdate: @escaping @MainActor ([LiveFlightJourneyCandidate]) -> Void
+    ) async throws -> [LiveFlightJourneyCandidate] {
+        guard !datePairs.isEmpty else { return [] }
         let session = self.session
-        let indexed = dates.enumerated().map { ($0.offset, $0.element) }
         var nextIndex = 0
-        var merged: [LiveFlightCandidate] = []
+        var merged: [LiveFlightJourneyCandidate] = []
         var firstError: Error?
 
-        await withTaskGroup(of: DateSearchResult.self) { group in
-            func enqueue(_ item: (Int, Date)) {
+        await withTaskGroup(of: JourneySearchResult.self) { group in
+            func enqueue(_ pair: FlightJourneyDatePair) {
                 group.addTask {
                     do {
-                        let values = try await Self.fetchDate(
-                            session: session,
-                            request: request,
-                            date: item.1
-                        )
-                        return DateSearchResult(candidates: values, error: nil)
+                        let values = try await Self.fetchPair(session: session, request: request, pair: pair)
+                        return JourneySearchResult(candidates: values, error: nil)
                     } catch {
-                        return DateSearchResult(candidates: [], error: error)
+                        return JourneySearchResult(candidates: [], error: error)
                     }
                 }
             }
 
-            while nextIndex < min(maxConcurrentDates, indexed.count) {
-                enqueue(indexed[nextIndex])
+            while nextIndex < min(maxConcurrentDatePairs, datePairs.count) {
+                enqueue(datePairs[nextIndex])
                 nextIndex += 1
             }
 
@@ -69,35 +61,32 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
                     merged = Self.merge(merged, result.candidates)
                     onUpdate(merged)
                 }
-                if nextIndex < indexed.count {
-                    enqueue(indexed[nextIndex])
+                if nextIndex < datePairs.count {
+                    enqueue(datePairs[nextIndex])
                     nextIndex += 1
                 }
             }
         }
 
-        if merged.isEmpty, let firstError {
-            throw firstError
-        }
+        if merged.isEmpty, let firstError { throw firstError }
         return merged
     }
 
-    private nonisolated static func fetchDate(
+    private nonisolated static func fetchPair(
         session: URLSession,
-        request: FlightSearchRequest,
-        date: Date
-    ) async throws -> [LiveFlightCandidate] {
+        request: FlightJourneySearchRequest,
+        pair: FlightJourneyDatePair
+    ) async throws -> [LiveFlightJourneyCandidate] {
         let url = AppConfig.apiBaseURL.appending(path: "api/package/flights/search")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
-        urlRequest.timeoutInterval = 28
+        urlRequest.timeoutInterval = 32
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-        urlRequest.httpBody = try JSONEncoder().encode(ProxySearchBody(request: request, date: date))
+        urlRequest.httpBody = try JSONEncoder().encode(ProxySearchBody(request: request, pair: pair))
 
         let (data, response) = try await session.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse else { throw IgnavFlightProviderError.serverUnavailable }
-
         if http.statusCode == 503,
            let error = try? JSONDecoder().decode(ProxyErrorResponse.self, from: data),
            error.error == "FLIGHT_PROVIDER_NOT_CONFIGURED" {
@@ -111,48 +100,80 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
         let decoded = try JSONDecoder().decode(ProxySearchResponse.self, from: data)
         guard decoded.ok, decoded.source == "ignav" else { throw IgnavFlightProviderError.searchFailed }
         let observedAt = try parseISO8601(decoded.observedAt)
-
-        return decoded.itineraries.compactMap { itinerary in
-            candidate(
-                from: itinerary,
-                request: request,
-                expectedDate: date,
-                observedAt: observedAt
-            )
+        return decoded.itineraries.compactMap {
+            journey(from: $0, request: request, expectedPair: pair, observedAt: observedAt)
         }
     }
 
-    private nonisolated static func candidate(
+    private nonisolated static func journey(
         from itinerary: ProxyItinerary,
-        request: FlightSearchRequest,
+        request: FlightJourneySearchRequest,
+        expectedPair: FlightJourneyDatePair,
+        observedAt: Date
+    ) -> LiveFlightJourneyCandidate? {
+        guard ["verified", "unverified"].contains(itinerary.price.status.lowercased()),
+              itinerary.price.amount > 0,
+              itinerary.price.currency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              itinerary.legs.count == 2,
+              itinerary.fareScope == "total_party" else { return nil }
+
+        guard let outbound = legCandidate(
+            itinerary.legs[0],
+            itinerary: itinerary,
+            direction: .outbound,
+            expectedOrigin: request.outboundOrigin,
+            expectedDestination: request.outboundDestination,
+            expectedDate: expectedPair.outbound,
+            observedAt: observedAt
+        ), let inbound = legCandidate(
+            itinerary.legs[1],
+            itinerary: itinerary,
+            direction: .inbound,
+            expectedOrigin: request.inboundOrigin,
+            expectedDestination: request.inboundDestination,
+            expectedDate: expectedPair.inbound,
+            observedAt: observedAt
+        ) else { return nil }
+
+        let value = LiveFlightJourneyCandidate(
+            id: "ignav:\(itinerary.ignavId)",
+            sourceID: "ignav",
+            sourceName: "Ignav",
+            totalFare: itinerary.price.amount,
+            currency: itinerary.price.currency.uppercased(),
+            fareScope: .totalParty,
+            observedAt: observedAt,
+            providerItineraryID: itinerary.ignavId,
+            outbound: outbound,
+            inbound: inbound,
+            baggage: itinerary.bags.map { FlightBaggageAllowance(carryOn: $0.carryOn, checked: $0.checked) },
+            requiresSelfTransfer: itinerary.requiresSelfTransfer
+        )
+        return value.isDisplayableCandidate ? value : nil
+    }
+
+    private nonisolated static func legCandidate(
+        _ leg: ProxyLeg,
+        itinerary: ProxyItinerary,
+        direction: FlightDirection,
+        expectedOrigin: String,
+        expectedDestination: String,
         expectedDate: Date,
         observedAt: Date
     ) -> LiveFlightCandidate? {
-        guard itinerary.price.status == "verified",
-              itinerary.price.amount > 0,
-              itinerary.price.currency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
-              !itinerary.segments.isEmpty else { return nil }
-
-        let segments: [FlightSegment] = itinerary.segments.compactMap { value in
+        let segments: [FlightSegment] = leg.segments.compactMap { value in
             guard value.marketingCarrierCode.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil,
                   value.flightNumber.range(of: "^[0-9]{1,4}[A-Z]?$", options: .regularExpression) != nil,
                   let departure = try? parseISO8601(value.departureTimeUTC),
-                  let arrival = try? parseISO8601(value.arrivalTimeUTC),
-                  departure < arrival,
+                  let arrival = try? parseISO8601(value.arrivalTimeUTC), departure < arrival,
                   value.durationMinutes > 0 else { return nil }
             return FlightSegment(
-                id: "ignav:\(itinerary.ignavId):\(value.marketingCarrierCode)\(value.flightNumber):\(value.departureAirport)",
-                airline: value.operatingCarrierName ?? itinerary.airline,
+                id: "ignav:\(itinerary.ignavId):\(direction.rawValue):\(value.marketingCarrierCode)\(value.flightNumber):\(value.departureAirport)",
+                airline: value.operatingCarrierName ?? leg.airline,
                 airlineCode: value.marketingCarrierCode,
                 flightNumber: "\(value.marketingCarrierCode) \(value.flightNumber)",
-                origin: FlightAirportSnapshot(
-                    code: value.departureAirport,
-                    timeZoneIdentifier: value.departureTimezone
-                ),
-                destination: FlightAirportSnapshot(
-                    code: value.arrivalAirport,
-                    timeZoneIdentifier: value.arrivalTimezone
-                ),
+                origin: FlightAirportSnapshot(code: value.departureAirport, timeZoneIdentifier: value.departureTimezone),
+                destination: FlightAirportSnapshot(code: value.arrivalAirport, timeZoneIdentifier: value.arrivalTimezone),
                 departureAt: departure,
                 arrivalAt: arrival,
                 durationMinutes: value.durationMinutes,
@@ -161,17 +182,13 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
                 cabin: itinerary.cabinClass
             )
         }
-        guard segments.count == itinerary.segments.count,
-              let first = segments.first,
-              let last = segments.last,
-              first.origin.code == request.origin,
-              last.destination.code == request.destination,
-              itinerary.stops == segments.count - 1,
-              itinerary.durationMinutes > 0 else { return nil }
-
-        let expected = calendarDay(expectedDate)
-        let actual = calendarDay(first.departureAt, timeZoneIdentifier: first.origin.timeZoneIdentifier)
-        guard expected == actual else { return nil }
+        guard segments.count == leg.segments.count,
+              let first = segments.first, let last = segments.last,
+              first.origin.code == expectedOrigin,
+              last.destination.code == expectedDestination,
+              leg.stops == segments.count - 1,
+              leg.durationMinutes > 0,
+              calendarDay(expectedDate) == calendarDay(first.departureAt, timeZoneIdentifier: first.origin.timeZoneIdentifier) else { return nil }
 
         for segment in segments {
             guard let originZone = segment.origin.timeZoneIdentifier, TimeZone(identifier: originZone) != nil,
@@ -182,32 +199,29 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
                   segments[index - 1].arrivalAt <= segments[index].departureAt else { return nil }
         }
 
-        let connections = segments.count > 1
-            ? segments.dropLast().map { $0.destination }
-            : []
-        let scope: FlightFareScope = itinerary.fareScope == "total_party" ? .totalParty : .unknown
-        guard scope != .unknown else { return nil }
-
+        let connections = segments.count > 1 ? segments.dropLast().map { $0.destination } : []
         let candidate = LiveFlightCandidate(
-            id: "ignav:\(itinerary.ignavId):\(request.direction.rawValue)",
+            id: "ignav:\(itinerary.ignavId):\(direction.rawValue)",
             sourceID: "ignav",
             sourceName: "Ignav",
-            direction: request.direction,
-            airline: itinerary.airline,
-            flightNumber: itinerary.flightNumber,
-            origin: itinerary.origin,
-            destination: itinerary.destination,
+            direction: direction,
+            airline: leg.airline,
+            flightNumber: leg.flightNumber,
+            origin: leg.origin,
+            destination: leg.destination,
             departureAt: first.departureAt,
             arrivalAt: last.arrivalAt,
-            stops: itinerary.stops,
-            durationMinutes: itinerary.durationMinutes,
+            stops: leg.stops,
+            durationMinutes: leg.durationMinutes,
+            // Every leg carries the same complete-journey fare. The local package
+            // engine consumes it only once from the selected return option.
             observedFare: itinerary.price.amount,
             observedCurrency: itinerary.price.currency,
-            fareScope: scope,
+            fareScope: .totalParty,
             observedAt: observedAt,
             sourceURL: nil,
             rawFingerprint: itinerary.ignavId,
-            airlineCode: itinerary.airlineCode,
+            airlineCode: leg.airlineCode,
             segments: segments,
             connectionAirports: connections.isEmpty ? nil : connections,
             providerItineraryID: itinerary.ignavId,
@@ -218,12 +232,10 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
         return candidate.isDisplayableCandidate ? candidate : nil
     }
 
-    private nonisolated static func merge(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
+    private nonisolated static func merge(_ lhs: [LiveFlightJourneyCandidate], _ rhs: [LiveFlightJourneyCandidate]) -> [LiveFlightJourneyCandidate] {
         var result = lhs
-        var keys = Set(result.map(\.deduplicationKey))
-        for value in rhs where keys.insert(value.deduplicationKey).inserted {
-            result.append(value)
-        }
+        var ids = Set(result.map(\.providerItineraryID))
+        for value in rhs where ids.insert(value.providerItineraryID).inserted { result.append(value) }
         return result
     }
 
@@ -242,48 +254,41 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        if let timeZoneIdentifier, let zone = TimeZone(identifier: timeZoneIdentifier) {
-            formatter.timeZone = zone
+        if let timeZoneIdentifier, let timeZone = TimeZone(identifier: timeZoneIdentifier) {
+            formatter.timeZone = timeZone
         } else {
-            // The user selects a calendar day in the device locale. Preserve that
-            // calendar day when building the API request; converting local midnight
-            // to UTC can shift Uzbekistan dates to the previous day.
             formatter.timeZone = .current
         }
         return formatter.string(from: date)
     }
 }
 
-private struct DateSearchResult: Sendable {
-    let candidates: [LiveFlightCandidate]
+private struct JourneySearchResult: Sendable {
+    let candidates: [LiveFlightJourneyCandidate]
     let error: Error?
 }
 
 private struct ProxySearchBody: Encodable, Sendable {
-    let direction: String
-    let origin: String
-    let destination: String
-    let departureDate: String
+    let legs: [ProxySearchLeg]
     let adults: Int
     let children: Int
     let infantsInSeat: Int
     let infantsOnLap: Int
     let cabinClass: String
-    let maxStops: Int?
     let minCarryOnBags: Int?
     let minCheckedBags: Int?
     let maxPrice: Int?
-    let departureTimeRange: ProxyTimeRange?
     let airlinesInclude: [String]?
     let airlinesExclude: [String]?
     let allowSelfTransfer: Bool
 
-    init(request: FlightSearchRequest, date: Date) {
+    init(request: FlightJourneySearchRequest, pair: FlightJourneyDatePair) {
         let filters = request.filters
-        direction = request.direction.rawValue
-        origin = request.origin
-        destination = request.destination
-        departureDate = Self.day(date)
+        let timeRange = ProxyTimeRange(departure: filters.departureWindow, arrival: filters.arrivalWindow)
+        legs = [
+            ProxySearchLeg(origin: request.outboundOrigin, destination: request.outboundDestination, departureDate: Self.day(pair.outbound), maxStops: filters.stops.maxStops, departureTimeRange: timeRange),
+            ProxySearchLeg(origin: request.inboundOrigin, destination: request.inboundDestination, departureDate: Self.day(pair.inbound), maxStops: filters.stops.maxStops, departureTimeRange: timeRange)
+        ]
         adults = request.adults
         children = request.children
         if filters.infantSeating == .lap {
@@ -294,11 +299,9 @@ private struct ProxySearchBody: Encodable, Sendable {
             infantsInSeat = request.infants
         }
         cabinClass = filters.cabinClass.rawValue
-        maxStops = filters.stops.maxStops
         minCarryOnBags = filters.minCarryOnBags > 0 ? filters.minCarryOnBags : nil
         minCheckedBags = filters.minCheckedBags > 0 ? filters.minCheckedBags : nil
         maxPrice = filters.maxPriceUSD.flatMap { $0 > 0 ? $0 : nil }
-        departureTimeRange = ProxyTimeRange(departure: filters.departureWindow, arrival: filters.arrivalWindow)
         let include = filters.normalizedAirlinesInclude
         let exclude = filters.normalizedAirlinesExclude.filter { !include.contains($0) }
         airlinesInclude = include.isEmpty ? nil : include
@@ -307,16 +310,13 @@ private struct ProxySearchBody: Encodable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case direction, origin, destination, adults, children
-        case departureDate = "departure_date"
+        case legs, adults, children
         case infantsInSeat = "infants_in_seat"
         case infantsOnLap = "infants_on_lap"
         case cabinClass = "cabin_class"
-        case maxStops = "max_stops"
         case minCarryOnBags = "min_carry_on_bags"
         case minCheckedBags = "min_checked_bags"
         case maxPrice = "max_price"
-        case departureTimeRange = "departure_time_range"
         case airlinesInclude = "airlines_include"
         case airlinesExclude = "airlines_exclude"
         case allowSelfTransfer = "allow_self_transfer"
@@ -326,12 +326,23 @@ private struct ProxySearchBody: Encodable, Sendable {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        // Trip dates are calendar-day values selected by the user. Encode them in
-        // the current calendar timezone so a local midnight never becomes the
-        // previous UTC date before it reaches Ignav.
         formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
+    }
+}
+
+private struct ProxySearchLeg: Encodable, Sendable {
+    let origin: String
+    let destination: String
+    let departureDate: String
+    let maxStops: Int?
+    let departureTimeRange: ProxyTimeRange?
+    enum CodingKeys: String, CodingKey {
+        case origin, destination
+        case departureDate = "departure_date"
+        case maxStops = "max_stops"
+        case departureTimeRange = "departure_time_range"
     }
 }
 
@@ -363,16 +374,9 @@ private struct ProxySearchResponse: Decodable {
     let source: String
     let observedAt: String
     let itineraries: [ProxyItinerary]
-    enum CodingKeys: String, CodingKey {
-        case ok, source, itineraries
-        case observedAt = "observed_at"
-    }
+    enum CodingKeys: String, CodingKey { case ok, source, itineraries; case observedAt = "observed_at" }
 }
-private struct ProxyPrice: Decodable {
-    let amount: Decimal
-    let currency: String
-    let status: String
-}
+private struct ProxyPrice: Decodable { let amount: Decimal; let currency: String; let status: String }
 private struct ProxyBags: Decodable {
     let carryOn: Int?
     let checked: Int?
@@ -392,7 +396,6 @@ private struct ProxySegment: Decodable {
     let arrivalTimeUTC: String
     let durationMinutes: Int
     let aircraft: String?
-
     enum CodingKeys: String, CodingKey {
         case marketingCarrierCode = "marketing_carrier_code"
         case flightNumber = "flight_number"
@@ -409,27 +412,38 @@ private struct ProxySegment: Decodable {
         case aircraft
     }
 }
-private struct ProxyItinerary: Decodable {
-    let price: ProxyPrice
+private struct ProxyLeg: Decodable {
     let airline: String
     let flightNumber: String
     let airlineCode: String
     let origin: String
     let destination: String
+    let departureAt: String
+    let arrivalAt: String
     let durationMinutes: Int
     let stops: Int
+    let cabinClass: String?
+    let segments: [ProxySegment]
+    enum CodingKeys: String, CodingKey {
+        case airline, origin, destination, stops, segments
+        case flightNumber = "flight_number"
+        case airlineCode = "airline_code"
+        case departureAt = "departure_at"
+        case arrivalAt = "arrival_at"
+        case durationMinutes = "duration_minutes"
+        case cabinClass = "cabin_class"
+    }
+}
+private struct ProxyItinerary: Decodable {
+    let price: ProxyPrice
+    let legs: [ProxyLeg]
     let cabinClass: String?
     let bags: ProxyBags?
     let requiresSelfTransfer: Bool?
     let fareScope: String
     let ignavId: String
-    let segments: [ProxySegment]
-
     enum CodingKeys: String, CodingKey {
-        case price, airline, origin, destination, stops, bags, segments
-        case flightNumber = "flight_number"
-        case airlineCode = "airline_code"
-        case durationMinutes = "duration_minutes"
+        case price, legs, bags
         case cabinClass = "cabin_class"
         case requiresSelfTransfer = "requires_self_transfer"
         case fareScope = "fare_scope"

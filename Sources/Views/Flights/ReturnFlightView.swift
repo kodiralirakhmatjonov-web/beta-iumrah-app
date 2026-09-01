@@ -142,10 +142,13 @@ struct ReturnFlightView: View {
         let selectedDay = offers.filter { dayOffset($0.departureAt, from: journey.trip.returnDate) == 0 }
         let pool = selectedDay.isEmpty ? offers : selectedDay
         return pool.min { lhs, rhs in
-            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+            // Each offer carries the complete return/open-jaw journey fare.
+            // Recommend the lowest complete-trip price first; stops and duration
+            // only break ties instead of making a much more expensive fare the baseline.
             if lhs.currency == rhs.currency, lhs.totalPackagePrice != rhs.totalPackagePrice {
                 return lhs.totalPackagePrice < rhs.totalPackagePrice
             }
+            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
             if lhs.durationMinutes != rhs.durationMinutes { return lhs.durationMinutes < rhs.durationMinutes }
             return lhs.departureAt < rhs.departureAt
         }

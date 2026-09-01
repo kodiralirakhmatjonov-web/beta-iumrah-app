@@ -9,6 +9,7 @@ final class HotelLivePriceSearchService {
 
     private var cache: [String: CacheEntry] = [:]
     private let cacheLifetime: TimeInterval = 5 * 60
+    private let packageEngine = RemotePackageEngineClient()
 
     func search(
         trip: TripDraft,
@@ -16,8 +17,10 @@ final class HotelLivePriceSearchService {
         madinahHotel: HotelSummary?,
         makkahRoomId: String? = nil,
         makkahRoomName: String? = nil,
+        makkahRoomCapacity: Int? = nil,
         madinahRoomId: String? = nil,
         madinahRoomName: String? = nil,
+        madinahRoomCapacity: Int? = nil,
         forceRefresh: Bool = false
     ) async -> HotelPriceSearchSnapshot {
         // Booking/Expedia search surfaces can reliably verify the concrete hotel,
@@ -27,7 +30,9 @@ final class HotelLivePriceSearchService {
         let key = signature(
             trip: trip,
             makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel
+            madinahHotel: madinahHotel,
+            makkahRoomCapacity: makkahRoomCapacity,
+            madinahRoomCapacity: madinahRoomCapacity
         )
 
         if forceRefresh {
@@ -36,14 +41,22 @@ final class HotelLivePriceSearchService {
             return cached.value
         }
 
+        async let makkahSourcesTask = fetchPricingSources(hotelID: makkahHotel.id)
+        async let madinahSourcesTask = fetchPricingSources(hotelID: madinahHotel?.id)
+        let (makkahSources, madinahSources) = await (makkahSourcesTask, madinahSourcesTask)
+
         let requests = makeRequests(
             trip: trip,
             makkahHotel: makkahHotel,
             madinahHotel: madinahHotel,
             makkahRoomId: makkahRoomId,
             makkahRoomName: makkahRoomName,
+            makkahRoomCapacity: makkahRoomCapacity,
+            makkahPricingSources: makkahSources,
             madinahRoomId: madinahRoomId,
-            madinahRoomName: madinahRoomName
+            madinahRoomName: madinahRoomName,
+            madinahRoomCapacity: madinahRoomCapacity,
+            madinahPricingSources: madinahSources
         )
         let values = await searchHotelsProgressively(makkah: requests.makkah, madinah: requests.madinah)
         let snapshot = HotelPriceSearchSnapshot(makkah: values.makkah, madinah: values.madinah)
@@ -131,11 +144,16 @@ final class HotelLivePriceSearchService {
         madinahHotel: HotelSummary?,
         makkahRoomId: String?,
         makkahRoomName: String?,
+        makkahRoomCapacity: Int?,
+        makkahPricingSources: [HotelPricingSourceIdentity],
         madinahRoomId: String?,
-        madinahRoomName: String?
+        madinahRoomName: String?,
+        madinahRoomCapacity: Int?,
+        madinahPricingSources: [HotelPricingSourceIdentity]
     ) -> (makkah: HotelPriceSearchRequest, madinah: HotelPriceSearchRequest?) {
         let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
-        let effectiveRooms = resolvedRoomCount(for: trip)
+        let makkahRooms = resolvedRoomCount(for: trip, roomCapacity: makkahRoomCapacity)
+        let madinahRooms = resolvedRoomCount(for: trip, roomCapacity: madinahRoomCapacity)
 
         let makkah = HotelPriceSearchRequest(
             hotel: makkahHotel,
@@ -145,12 +163,13 @@ final class HotelLivePriceSearchService {
             adults: trip.adults,
             children: trip.children,
             infants: trip.infants,
-            rooms: effectiveRooms,
+            rooms: makkahRooms,
             // Keep the app selection attached for diagnostics/bookings, but the
             // provider bot verifies the hotel stay rather than pretending that an
             // internal iumrah room ID is a Booking/Expedia inventory ID.
             selectedRoomId: makkahRoomId,
-            selectedRoomName: makkahRoomName
+            selectedRoomName: makkahRoomName,
+            pricingSources: makkahPricingSources
         )
 
         let madinah: HotelPriceSearchRequest?
@@ -163,9 +182,10 @@ final class HotelLivePriceSearchService {
                 adults: trip.adults,
                 children: trip.children,
                 infants: trip.infants,
-                rooms: effectiveRooms,
+                rooms: madinahRooms,
                 selectedRoomId: madinahRoomId,
-                selectedRoomName: madinahRoomName
+                selectedRoomName: madinahRoomName,
+                pricingSources: madinahPricingSources
             )
         } else {
             madinah = nil
@@ -173,25 +193,34 @@ final class HotelLivePriceSearchService {
         return (makkah, madinah)
     }
 
+    private func fetchPricingSources(hotelID: String?) async -> [HotelPricingSourceIdentity] {
+        guard let hotelID, !hotelID.isEmpty else { return [] }
+        return (try? await packageEngine.hotelPricingSources(hotelID: hotelID)) ?? []
+    }
+
     private func signature(
         trip: TripDraft,
         makkahHotel: HotelSummary,
-        madinahHotel: HotelSummary?
+        madinahHotel: HotelSummary?,
+        makkahRoomCapacity: Int?,
+        madinahRoomCapacity: Int?
     ) -> String {
         let formatter = ISO8601DateFormatter()
         return [
             makkahHotel.id,
             madinahHotel?.id ?? "-",
-            formatter.string(from: trip.departureDate),
+            formatter.string(from: trip.hotelStayStartDate),
             formatter.string(from: trip.returnDate),
             String(trip.adults), String(trip.children), String(trip.infants),
-            String(resolvedRoomCount(for: trip)), trip.scope.rawValue
+            String(resolvedRoomCount(for: trip, roomCapacity: makkahRoomCapacity)),
+            String(resolvedRoomCount(for: trip, roomCapacity: madinahRoomCapacity)), trip.scope.rawValue
         ].joined(separator: "|")
     }
 
-    private func resolvedRoomCount(for trip: TripDraft) -> Int {
+    private func resolvedRoomCount(for trip: TripDraft, roomCapacity: Int?) -> Int {
         let bedOccupants = max(1, trip.adults + trip.children)
-        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / 4.0)))
+        let capacity = max(1, roomCapacity ?? 4)
+        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / Double(capacity))))
         return max(trip.rooms, minimumRooms)
     }
 }

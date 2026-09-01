@@ -1,0 +1,18 @@
+BETA_GENERATOR_PRODUCTION_045_APPLIED
+
+Umrah Generator production pricing pass:
+- Ignav flight search uses one complete two-leg return/open-jaw itinerary price.
+- Flight option deltas compare complete journeys instead of unrelated one-way fares.
+- Hotel stays start on the actual Saudi-arrival calendar day.
+- Primary Room Double/Triple/Quadruple remains an iumrah occupancy abstraction.
+- Hotel search uses Business-maintained provider identities when available and a non-zero WKWebView layout.
+- Provider disagreement no longer automatically selects the most expensive hotel rate.
+- Existing pricing business model is preserved: 50% markup on the full trip cost, then 2% payment fee.
+- Service pricing is preserved; Luxury meals changed only from $200 to $100 per person/day.
+- No final flight/hotel repricing or automatic booking-availability confirmation was added.
+
+QA:
+- PackageEngine TypeScript typecheck passed.
+- PackageEngine static tests: 14/14 passed.
+- PackageEngine runtime tests: 10/10 passed.
+- All changed Swift files parse successfully with swiftc -parse.

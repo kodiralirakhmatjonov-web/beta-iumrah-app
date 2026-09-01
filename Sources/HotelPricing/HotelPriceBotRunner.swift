@@ -30,8 +30,9 @@ final class HotelPriceBotRunner {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        self.webView = WKWebView(frame: .zero, configuration: configuration)
+        self.webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: configuration)
         self.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 iumrah-beta/1.0"
+        self.webView.layoutIfNeeded()
     }
 
     func run(timeoutSeconds: Double = AppConfig.hotelPriceProviderTimeoutSeconds) async throws -> HotelPriceObservation {
@@ -48,7 +49,8 @@ final class HotelPriceBotRunner {
                 let script = HotelPriceBotScripts.extractExactHotel(
                     provider: provider,
                     hotelName: request.hotel.name,
-                    roomName: nil
+                    roomName: nil,
+                    sourceIdentity: request.pricingSource(for: provider.id)
                 )
                 if let json = try? await evaluate(script) as? String,
                    !json.isEmpty,
@@ -77,6 +79,11 @@ final class HotelPriceBotRunner {
         let combined = "\(card.metaText) \(card.priceText) \(card.body)"
         guard let parsed = HotelPriceTextParser.parse(text: combined, preferred: "\(card.metaText) \(card.priceText)") else { return nil }
 
+        let resolvedSourceURL = URL(string: card.url).flatMap { candidate -> URL? in
+            guard candidate.scheme?.lowercased() == "https", let host = candidate.host?.lowercased(), provider.id.accepts(host: host) else { return nil }
+            return candidate
+        } ?? sourceURL
+
         return HotelPriceObservation(
             id: UUID().uuidString,
             hotelId: request.hotel.id,
@@ -90,7 +97,7 @@ final class HotelPriceBotRunner {
             observedAt: Self.isoFormatter.string(from: Date()),
             checkInDate: Self.dayFormatter.string(from: request.checkIn),
             checkOutDate: Self.dayFormatter.string(from: request.checkOut),
-            sourceURL: sourceURL.absoluteString,
+            sourceURL: resolvedSourceURL.absoluteString,
             roomId: request.selectedRoomId,
             roomName: request.selectedRoomName
         )

@@ -17,6 +17,13 @@ struct RemotePackageEngineClient {
         return response.categories.sorted { $0.position < $1.position }
     }
 
+    func hotelPricingSources(hotelID: String) async throws -> [HotelPricingSourceIdentity] {
+        let response: HotelPricingSourcesResponse = try await api.get(
+            "/api/package/hotel/\(hotelID)/pricing-sources", timeoutInterval: 10
+        )
+        return response.ok ? response.sources : []
+    }
+
     func primaryHotel(tier: PackageTier, stars: Int, city: String) async throws -> PrimaryHotelResolutionResponse {
         try await api.get(
             "/api/package/primary-hotel",

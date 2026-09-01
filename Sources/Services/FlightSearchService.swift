@@ -84,24 +84,24 @@ enum FlightInventoryProviderError: LocalizedError, Equatable {
 protocol FlightInventoryProviding: AnyObject {
     var sourceName: String { get }
 
-    func search(
-        request: FlightSearchRequest,
-        dates: [Date],
-        onUpdate: @escaping @MainActor ([LiveFlightCandidate]) -> Void
-    ) async throws -> [LiveFlightCandidate]
+    func searchJourney(
+        request: FlightJourneySearchRequest,
+        datePairs: [FlightJourneyDatePair],
+        onUpdate: @escaping @MainActor ([LiveFlightJourneyCandidate]) -> Void
+    ) async throws -> [LiveFlightJourneyCandidate]
 }
 
 @MainActor
 final class UnconfiguredFlightInventoryProvider: FlightInventoryProviding {
     let sourceName = "Flight API"
 
-    func search(
-        request: FlightSearchRequest,
-        dates: [Date],
-        onUpdate: @escaping @MainActor ([LiveFlightCandidate]) -> Void
-    ) async throws -> [LiveFlightCandidate] {
+    func searchJourney(
+        request: FlightJourneySearchRequest,
+        datePairs: [FlightJourneyDatePair],
+        onUpdate: @escaping @MainActor ([LiveFlightJourneyCandidate]) -> Void
+    ) async throws -> [LiveFlightJourneyCandidate] {
         _ = request
-        _ = dates
+        _ = datePairs
         _ = onUpdate
         throw FlightInventoryProviderError.notConfigured
     }
@@ -116,8 +116,10 @@ protocol GeneratorComponentProviding: AnyObject {
         madinahHotel: HotelSummary?,
         makkahRoomId: String?,
         makkahRoomName: String?,
+        makkahRoomCapacity: Int?,
         madinahRoomId: String?,
         madinahRoomName: String?,
+        madinahRoomCapacity: Int?,
         forceRefresh: Bool
     ) async -> HotelPriceSearchSnapshot
 }
@@ -130,8 +132,10 @@ extension GeneratorComponentProviding {
             madinahHotel: madinahHotel,
             makkahRoomId: nil,
             makkahRoomName: nil,
+            makkahRoomCapacity: nil,
             madinahRoomId: nil,
             madinahRoomName: nil,
+            madinahRoomCapacity: nil,
             forceRefresh: false
         )
     }

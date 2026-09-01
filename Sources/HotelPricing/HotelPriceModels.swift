@@ -5,6 +5,20 @@ enum HotelPriceProviderID: String, Codable, Hashable, CaseIterable {
     case expedia
 }
 
+
+struct HotelPricingSourceIdentity: Codable, Hashable {
+    let provider: HotelPriceProviderID
+    let sourceURL: String
+    let providerHotelID: String?
+    let canonicalURL: String?
+}
+
+struct HotelPricingSourcesResponse: Decodable {
+    let ok: Bool
+    let hotelId: String
+    let sources: [HotelPricingSourceIdentity]
+}
+
 enum HotelPriceUnit: String, Codable, Hashable {
     case totalStay
     case perRoomStay
@@ -74,7 +88,7 @@ struct HotelPriceObservation: Identifiable, Codable, Hashable {
     }()
 }
 
-private extension HotelPriceProviderID {
+extension HotelPriceProviderID {
     func accepts(host: String) -> Bool {
         switch self {
         case .booking:
@@ -105,6 +119,11 @@ struct HotelPriceSearchRequest: Hashable {
     let rooms: Int
     let selectedRoomId: String?
     let selectedRoomName: String?
+    let pricingSources: [HotelPricingSourceIdentity]
+
+    func pricingSource(for provider: HotelPriceProviderID) -> HotelPricingSourceIdentity? {
+        pricingSources.first { $0.provider == provider }
+    }
 
     var totalHotelGuests: Int {
         // Search engines require child ages for exact child pricing. Until the trip

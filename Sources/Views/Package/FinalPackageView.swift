@@ -141,37 +141,37 @@ struct FinalPackageView: View {
 
     private var calculatingPriceTitle: String {
         switch settings.language {
-        case .russian: return "Собираем итоговую цену"
-        case .english: return "Building your final price"
-        case .uzbek: return "Yakuniy narx hisoblanmoqda"
-        case .uzbekCyrillic: return "Якуний нарх ҳисобланмоқда"
+        case .russian: return "Рассчитываем цену пакета"
+        case .english: return "Calculating your package price"
+        case .uzbek: return "Paket narxi hisoblanmoqda"
+        case .uzbekCyrillic: return "Пакет нархи ҳисобланмоқда"
         }
     }
 
     private var calculatingPriceBody: String {
         switch settings.language {
-        case .russian: return "Проверяем выбранные рейсы и актуальную цену Primary Hotels, затем локальный генератор применит вашу прайсинг-архитектуру."
-        case .english: return "Checking the selected flights and Primary Hotel prices, then the local generator applies the package pricing rules."
-        case .uzbek: return "Tanlangan reyslar va Primary Hotel narxlari tekshiriladi, so‘ng ilovadagi generator paket narxini hisoblaydi."
-        case .uzbekCyrillic: return "Танланган рейслар ва Primary Hotel нархлари текширилади, сўнг иловадаги генератор пакет нархини ҳисоблайди."
+        case .russian: return "Используем найденную стоимость маршрута туда и обратно и получаем текущую цену выбранных Primary Hotels, затем рассчитываем пакет."
+        case .english: return "Using the found complete-journey fare and current Primary Hotel prices, then calculating the package."
+        case .uzbek: return "Topilgan borish-qaytish yo‘nalishi narxi va Primary Hotel joriy narxlari asosida paket hisoblanadi."
+        case .uzbekCyrillic: return "Топилган бориш-қайтиш йўналиши нархи ва Primary Hotel жорий нархлари асосида пакет ҳисобланади."
         }
     }
 
     private var pricingUnavailableTitle: String {
         switch settings.language {
-        case .russian: return "Нужно подтвердить один из компонентов"
-        case .english: return "One component still needs verification"
-        case .uzbek: return "Bir komponentni tasdiqlash kerak"
-        case .uzbekCyrillic: return "Бир компонентни тасдиқлаш керак"
+        case .russian: return "Не удалось получить цену компонента"
+        case .english: return "A component price is unavailable"
+        case .uzbek: return "Komponent narxini olish imkoni bo‘lmadi"
+        case .uzbekCyrillic: return "Компонент нархини олиш имкони бўлмади"
         }
     }
 
     private var pricingUnavailableBody: String {
         switch settings.language {
-        case .russian: return "Найденные рейсы сохранены. Повторите только проверку цены — весь поиск перелётов запускать заново не нужно."
-        case .english: return "Your selected flights are preserved. Retry only the price verification; the flight search does not need to restart."
-        case .uzbek: return "Tanlangan reyslar saqlanadi. Faqat narx tekshiruvini qaytaring — reyslarni qayta qidirish shart emas."
-        case .uzbekCyrillic: return "Танланган рейслар сақланади. Фақат нарх текширувини қайтаринг — рейсларни қайта қидириш шарт эмас."
+        case .russian: return "Найденный маршрут сохранён. Повторите получение цены отеля — поиск авиабилетов заново не запускается."
+        case .english: return "Your selected journey is preserved. Retry the hotel price lookup; flight search will not restart."
+        case .uzbek: return "Tanlangan yo‘nalish saqlanadi. Mehmonxona narxini qayta oling — reys qidiruvi qayta boshlanmaydi."
+        case .uzbekCyrillic: return "Танланган йўналиш сақланади. Меҳмонхона нархини қайта олинг — рейс қидируви қайта бошланмайди."
         }
     }
 
@@ -190,10 +190,10 @@ struct FinalPackageView: View {
 
     private var retryPricingTitle: String {
         switch settings.language {
-        case .russian: return "Повторить проверку цены"
-        case .english: return "Retry price verification"
-        case .uzbek: return "Narxni qayta tekshirish"
-        case .uzbekCyrillic: return "Нархни қайта текшириш"
+        case .russian: return "Повторить получение цены"
+        case .english: return "Retry price lookup"
+        case .uzbek: return "Narxni qayta olish"
+        case .uzbekCyrillic: return "Нархни қайта олиш"
         }
     }
 

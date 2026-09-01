@@ -116,19 +116,19 @@ struct FlightCard: View {
 
     private var ticketPriceTitle: String {
         switch settings.language {
-        case .russian: return "Изменение стоимости перелёта"
-        case .english: return "Flight price difference"
-        case .uzbek: return "Parvoz narxi farqi"
-        case .uzbekCyrillic: return "Парвоз нархи фарқи"
+        case .russian: return "Разница за перелёт туда и обратно"
+        case .english: return "Round-trip price difference"
+        case .uzbek: return "Borish-qaytish narxi farqi"
+        case .uzbekCyrillic: return "Бориш-қайтиш нархи фарқи"
         }
     }
 
     private var ticketPriceSubtitle: String {
         switch settings.language {
-        case .russian: return isRecommended ? "Этот вариант заложен в расчёт" : "Относительно рекомендованного варианта"
-        case .english: return isRecommended ? "Included in the baseline calculation" : "Compared with the recommended option"
-        case .uzbek: return isRecommended ? "Asosiy hisob-kitobga kiritilgan" : "Tavsiya etilgan variantga nisbatan"
-        case .uzbekCyrillic: return isRecommended ? "Асосий ҳисоб-китобга киритилган" : "Тавсия этилган вариантга нисбатан"
+        case .russian: return isRecommended ? "Этот маршрут туда и обратно — базовый" : "Относительно рекомендованного маршрута"
+        case .english: return isRecommended ? "Baseline complete journey" : "Compared with the recommended journey"
+        case .uzbek: return isRecommended ? "Borish-qaytish uchun asosiy yo‘nalish" : "Tavsiya etilgan yo‘nalishga nisbatan"
+        case .uzbekCyrillic: return isRecommended ? "Бориш-қайтиш учун асосий йўналиш" : "Тавсия этилган йўналишга нисбатан"
         }
     }
 

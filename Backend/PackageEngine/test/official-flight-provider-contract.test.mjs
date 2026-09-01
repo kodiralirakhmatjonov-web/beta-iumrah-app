@@ -33,4 +33,12 @@ assert.match(wrangler, /v2-remove-package-search-session/);
 assert.ok(wrangler.includes('\"deleted_classes\": [\"PackageSearchSession\"]'));
 assert.match(index, /\/api\/package\/flights\/search/);
 assert.match(index, /searchIgnavFlights/);
-console.log('flight/server cleanup + Ignav boundary contract OK');
+
+const ignav = fs.readFileSync(new URL('../src/ignav-flights.ts', import.meta.url), 'utf8');
+assert.match(ignav, /IGNAV_BASE_URL}\/fares\/search/);
+assert.match(ignav, /raw\.legs\.length !== 2/);
+assert.match(ignav, /itinerary\.legs\.length !== 2/);
+assert.ok(!ignav.includes('/fares/one-way'), 'Umrah flight search must not price outbound and return as separate one-way products');
+assert.match(ignav, /\["verified", "unverified"\]/, 'indicative launch pricing should keep Ignav current search-price hints');
+
+console.log('flight/server cleanup + Ignav open-jaw boundary contract OK');

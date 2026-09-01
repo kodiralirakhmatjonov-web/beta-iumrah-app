@@ -122,6 +122,49 @@ struct FlightSearchRequest: Hashable, Codable {
     }
 }
 
+
+struct FlightJourneySearchRequest: Hashable, Codable {
+    let id: String
+    let outboundOrigin: String
+    let outboundDestination: String
+    let inboundOrigin: String
+    let inboundDestination: String
+    let adults: Int
+    let children: Int
+    let infants: Int
+    let cabin: String
+    let filters: FlightSearchFilters
+
+    init(
+        id: String = UUID().uuidString,
+        outboundOrigin: String,
+        outboundDestination: String,
+        inboundOrigin: String,
+        inboundDestination: String,
+        adults: Int,
+        children: Int,
+        infants: Int,
+        cabin: String = "economy",
+        filters: FlightSearchFilters = .default
+    ) {
+        self.id = id
+        self.outboundOrigin = outboundOrigin.uppercased()
+        self.outboundDestination = outboundDestination.uppercased()
+        self.inboundOrigin = inboundOrigin.uppercased()
+        self.inboundDestination = inboundDestination.uppercased()
+        self.adults = adults
+        self.children = children
+        self.infants = infants
+        self.cabin = cabin
+        self.filters = filters
+    }
+}
+
+struct FlightJourneyDatePair: Hashable, Codable {
+    let outbound: Date
+    let inbound: Date
+}
+
 enum FlightFareScope: String, Codable, Hashable {
     case perPassenger
     case totalParty
@@ -272,6 +315,33 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }
         guard let connectionAirports, connectionAirports.count == stops else { return false }
         return connectionAirports.map(\.code) == segments.dropLast().map(\.destination.code)
+    }
+}
+
+
+struct LiveFlightJourneyCandidate: Identifiable, Hashable, Codable {
+    let id: String
+    let sourceID: String
+    let sourceName: String
+    let totalFare: Decimal
+    let currency: String
+    let fareScope: FlightFareScope
+    let observedAt: Date
+    let providerItineraryID: String
+    let outbound: LiveFlightCandidate
+    let inbound: LiveFlightCandidate
+    let baggage: FlightBaggageAllowance?
+    let requiresSelfTransfer: Bool?
+
+    var isDisplayableCandidate: Bool {
+        totalFare > 0 &&
+        fareScope != .unknown &&
+        outbound.isDisplayableCandidate &&
+        inbound.isDisplayableCandidate &&
+        outbound.direction == .outbound &&
+        inbound.direction == .inbound &&
+        outbound.observedCurrency.caseInsensitiveCompare(currency) == .orderedSame &&
+        inbound.observedCurrency.caseInsensitiveCompare(currency) == .orderedSame
     }
 }
 

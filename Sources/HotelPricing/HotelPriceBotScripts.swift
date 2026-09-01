@@ -9,24 +9,28 @@ enum HotelPriceBotScripts {
     })()
     """
 
-    static func extractExactHotel(provider: HotelPriceProvider, hotelName: String, roomName: String?) -> String {
+    static func extractExactHotel(
+        provider: HotelPriceProvider,
+        hotelName: String,
+        roomName: String?,
+        sourceIdentity: HotelPricingSourceIdentity?
+    ) -> String {
         let escapedName = jsEscape(hotelName)
         let escapedRoom = jsEscape(roomName ?? "")
         let providerID = provider.id.rawValue
-        return """
+        let expectedHotelID = jsEscape(sourceIdentity?.providerHotelID ?? "")
+        let expectedURL = jsEscape(sourceIdentity?.canonicalURL ?? sourceIdentity?.sourceURL ?? "")
+        return #"""
         (() => {
-          const provider = '\(providerID)';
-          const wanted = '\(escapedName)';
-          const wantedRoom = '\(escapedRoom)';
-          const clean = v => (v || '').replace(/\\s+/g,' ').trim();
-          const normalize = v => clean(v).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,' ');
-          const stop = new Set(['hotel','hotels','makkah','mecca','madinah','medina','the','al','by','and','resort','apartments','hotel']);
+          const provider = '\#(providerID)';
+          const wanted = '\#(escapedName)';
+          const wantedRoom = '\#(escapedRoom)';
+          const expectedHotelID = '\#(expectedHotelID)'.toLowerCase();
+          const expectedURL = '\#(expectedURL)'.toLowerCase();
+          const clean = v => (v || '').replace(/\s+/g,' ').trim();
+          const normalize = v => clean(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ');
+          const stop = new Set(['hotel','hotels','makkah','mecca','madinah','medina','the','al','by','and','resort','apartments']);
           const targetTokens = normalize(wanted).split(' ').filter(t => t.length > 2 && !stop.has(t));
-          const normalizedWantedRoom = normalize(wantedRoom);
-          const roomStop = new Set(['room','rooms','guest','guests','bed','beds']);
-          const roomTokens = normalizedWantedRoom.split(' ').filter(t => t.length > 2 && !roomStop.has(t));
-          const categoryTerms = ['single','double','triple','quadruple','family','suite','deluxe','executive','superior','standard','king','queen','twin'];
-          const requiredCategoryTerms = categoryTerms.filter(t => normalizedWantedRoom.split(' ').includes(t));
           const visible = el => {
             const r = el.getBoundingClientRect();
             const s = getComputedStyle(el);
@@ -37,7 +41,22 @@ enum HotelPriceBotScripts {
             if (!targetTokens.length) return 0;
             return targetTokens.filter(t => n.includes(t)).length / targetTokens.length;
           };
-          const money = /(?:US\\$|USD|\\$|€|EUR|SAR|AED|GBP|£)\\s*[0-9][0-9\\s,.]*/i;
+          const identityMatch = href => {
+            const h = (href || '').toLowerCase();
+            if (!h) return false;
+            if (expectedHotelID && h.includes(expectedHotelID)) return true;
+            if (expectedURL) {
+              try {
+                const expected = new URL(expectedURL);
+                const actual = new URL(href, location.href);
+                const ep = expected.pathname.replace(/\/$/, '');
+                const ap = actual.pathname.replace(/\/$/, '');
+                if (ep && ap && (ap === ep || ap.includes(ep) || ep.includes(ap))) return true;
+              } catch (_) {}
+            }
+            return false;
+          };
+          const money = /(?:US\$|USD|\$|€|EUR|SAR|AED|GBP|£)\s*[0-9][0-9\s,.]*/i;
           const selector = provider === 'booking'
             ? '[data-testid="property-card"]'
             : '[data-stid*="property-listing"], article, li[data-stid], [role=listitem]';
@@ -50,20 +69,17 @@ enum HotelPriceBotScripts {
             const titleEl = card.querySelector('[data-testid="title"],h2,h3,[data-stid*="content-hotel-title"],[aria-label*="hotel" i]');
             const title = clean(titleEl?.innerText || titleEl?.textContent || '');
             const body = clean(card.innerText || '');
-            const score = Math.max(similarity(title), similarity(body) * 0.86);
-            if (score < 0.62 || !money.test(body)) continue;
-            let roomEvidence = true;
-            if (wantedRoom) {
-              const normalizedBody = normalize(body);
-              // The internal iumrah room ID is not a Booking/Expedia inventory ID.
-              // We only correlate it after the selected human-readable category is
-              // actually visible on the priced provider card.
-              const exactPhrase = normalizedWantedRoom.length > 0 && normalizedBody.includes(normalizedWantedRoom);
-              const distinctiveMatch = roomTokens.length >= 2 && roomTokens.every(token => normalizedBody.includes(token));
-              const categoryMatch = requiredCategoryTerms.length > 0 && requiredCategoryTerms.every(token => normalizedBody.includes(token));
-              roomEvidence = exactPhrase || distinctiveMatch || categoryMatch;
-              if (!roomEvidence) continue;
-            }
+            const anchor = card.querySelector('a[href]');
+            const href = anchor?.href || '';
+            const exactIdentity = identityMatch(href);
+            const nameScore = Math.max(similarity(title), similarity(body) * 0.86);
+            const score = Math.min(1, nameScore + (exactIdentity ? 0.28 : 0));
+            // A known Business-side property identity is preferred, while a very
+            // strong exact-name match remains a safe fallback if a provider changed URL format.
+            if (expectedURL || expectedHotelID) {
+              if (!exactIdentity && nameScore < 0.82) continue;
+            } else if (nameScore < 0.62) continue;
+            if (!money.test(body)) continue;
 
             let priceText = '';
             let metaText = '';
@@ -73,22 +89,24 @@ enum HotelPriceBotScripts {
             } else {
               const priceNodes = Array.from(card.querySelectorAll('[data-stid*="price"],[class*="price" i]')).filter(visible);
               priceText = clean(priceNodes.map(x => x.innerText).filter(Boolean).join(' '));
-              const totalNode = Array.from(card.querySelectorAll('*')).find(el => /total|for \\d+ nights?/i.test(clean(el.innerText)) && money.test(clean(el.innerText)));
+              const totalNode = Array.from(card.querySelectorAll('*')).find(el => /total|for \d+ nights?/i.test(clean(el.innerText)) && money.test(clean(el.innerText)));
               metaText = clean(totalNode?.innerText || '');
             }
             if (!priceText) {
-              const candidates = (body.match(/(?:US\\$|USD|\\$|€|EUR|SAR|AED|GBP|£)\\s*[0-9][0-9\\s,.]*/ig) || []);
+              const candidates = (body.match(/(?:US\$|USD|\$|€|EUR|SAR|AED|GBP|£)\s*[0-9][0-9\s,.]*/ig) || []);
               priceText = clean(candidates.join(' | '));
             }
 
             if (!best || score > bestScore) {
               bestScore = score;
-              best = { title, priceText, metaText, body: body.slice(0, 4200), url: location.href, score, roomEvidence };
+              let absoluteURL = location.href;
+              try { if (href) absoluteURL = new URL(href, location.href).href; } catch (_) {}
+              best = { title, priceText, metaText, body: body.slice(0, 4200), url: absoluteURL, score, roomEvidence: true };
             }
           }
           return best ? JSON.stringify(best) : '';
         })()
-        """
+        """#
     }
 
     private static func jsEscape(_ value: String) -> String {

@@ -9,17 +9,20 @@ struct LocalHotelPriceComponent: Hashable {
     let amountUsd: Decimal
     let unit: Unit
     let nights: Int
+    let rooms: Int
     let hotelId: String
     let roomId: String?
     let source: String
 }
 
+/// Launch pricing policy for the indicative Umrah package price.
+/// Keep the existing business model: 50% markup on the complete trip cost,
+/// then gross up by the 2% payment fee.
 enum LocalPackagePricingEngine {
-    // Mirrors Backend/PackageEngine/src/pricing.ts. Keep these constants aligned;
-    // Generator V2 intentionally executes the formula on device.
     static let packageMarkupRate = Decimal(string: "0.50")!
     static let paymentFeeRate = Decimal(string: "0.02")!
     static let publicRoundingStep = Decimal(5)
+
     static let visaPerTravellerUsd = Decimal(120)
     static let makkahZiyaratPerGroupUsd = Decimal(100)
     static let madinahZiyaratPerGroupUsd = Decimal(100)
@@ -34,22 +37,20 @@ enum LocalPackagePricingEngine {
 
     static func calculate(
         trip: TripDraft,
-        outboundFareUsd: Decimal,
-        inboundFareUsd: Decimal,
-        outboundScope: FlightFareScope,
-        inboundScope: FlightFareScope,
+        journeyFareUsd: Decimal,
+        journeyScope: FlightFareScope,
         makkahHotel: LocalHotelPriceComponent,
         madinahHotel: LocalHotelPriceComponent?
     ) throws -> PackageQuote {
         let travelers = max(1, trip.travelerCount)
-        let rooms = resolveRoomCount(trip)
         let vehicles = max(1, Int(ceil(Double(travelers) / Double(sedanCapacity))))
         let stay = TripStayPlanner.breakdown(for: trip)
 
-        let flights = try groupFare(outboundFareUsd, scope: outboundScope, travelers: travelers)
-            + groupFare(inboundFareUsd, scope: inboundScope, travelers: travelers)
-        let hotels = hotelCost(makkahHotel, rooms: rooms)
-            + (trip.scope == .makkahAndMadinah ? hotelCost(madinahHotel, rooms: rooms) : 0)
+        // Ignav flexible search already returns one price for the complete ordered
+        // outbound + return/open-jaw itinerary. Consume it exactly once.
+        let flights = try groupFare(journeyFareUsd, scope: journeyScope, travelers: travelers)
+        let hotels = hotelCost(makkahHotel)
+            + (trip.scope == .makkahAndMadinah ? hotelCost(madinahHotel) : 0)
         let visa = visaPerTravellerUsd * Decimal(travelers)
         let mealTravellers = max(0, trip.adults + trip.children)
         let meals = mealRate(trip.packageTier) * Decimal(max(1, stay.totalDays)) * Decimal(mealTravellers)
@@ -65,6 +66,7 @@ enum LocalPackagePricingEngine {
 
         let totalCost = flights + hotels + visa + meals + transfer + intercity + guide + ziyarat
         guard totalCost > 0 else { throw LocalPricingError.invalidComponents }
+
         let baseSelling = totalCost + totalCost * packageMarkupRate
         let calculatedSelling = baseSelling / (1 - paymentFeeRate)
         let perPerson = roundPublic(calculatedSelling / Decimal(travelers))
@@ -87,26 +89,20 @@ enum LocalPackagePricingEngine {
         }
     }
 
-    private static func hotelCost(_ value: LocalHotelPriceComponent?, rooms: Int) -> Decimal {
+    private static func hotelCost(_ value: LocalHotelPriceComponent?) -> Decimal {
         guard let value else { return 0 }
         switch value.unit {
         case .totalStay: return value.amountUsd
-        case .perRoomStay: return value.amountUsd * Decimal(rooms)
-        case .perRoomNight: return value.amountUsd * Decimal(rooms) * Decimal(max(1, value.nights))
+        case .perRoomStay: return value.amountUsd * Decimal(max(1, value.rooms))
+        case .perRoomNight: return value.amountUsd * Decimal(max(1, value.rooms)) * Decimal(max(1, value.nights))
         }
-    }
-
-    private static func resolveRoomCount(_ trip: TripDraft) -> Int {
-        let bedOccupants = max(1, trip.adults + trip.children)
-        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / 4.0)))
-        return max(trip.rooms, minimumRooms)
     }
 
     private static func mealRate(_ tier: PackageTier) -> Decimal {
         switch tier {
         case .economy, .standard: return 15
         case .comfort: return 50
-        case .luxury: return 200
+        case .luxury: return 100
         }
     }
 
@@ -123,8 +119,8 @@ enum LocalPricingError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidFlightFare: return "Не удалось подтвердить стоимость выбранного авиабилета."
-        case .missingHotelPrice(let city): return "Не удалось подтвердить цену Primary Hotel в городе \(city). Повторите проверку или выберите другой отель."
+        case .invalidFlightFare: return "Не удалось получить текущую стоимость выбранного перелёта."
+        case .missingHotelPrice(let city): return "Не удалось получить текущую цену Primary Hotel в городе \(city). Повторите поиск или выберите другой отель."
         case .invalidComponents: return "Компоненты пакета неполные. Повторите расчёт."
         }
     }

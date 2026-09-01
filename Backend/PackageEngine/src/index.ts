@@ -4,6 +4,7 @@ import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRo
 import type { Env } from "./env";
 import { curatedPrimaryHotel } from "./generator-components";
 import { searchIgnavFlights } from "./ignav-flights";
+import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
 
 function json(value: unknown, status = 200) {
@@ -28,7 +29,6 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
-      accountEmailConfigured: Boolean(env.RESEND_API_KEY),
     });
   }
 
@@ -63,7 +63,6 @@ async function publicHealth(env: Env) {
       bookingRoomColumnsReady: Boolean(env.BOOKINGS_DB),
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
-      accountEmailConfigured: Boolean(env.RESEND_API_KEY),
     });
   } catch (error) {
     return json({
@@ -76,7 +75,6 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
-      accountEmailConfigured: Boolean(env.RESEND_API_KEY),
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);
   }
@@ -128,6 +126,12 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/api/package/flights/search") {
       return searchIgnavFlights(request, env);
+    }
+
+    const hotelPricingSourcesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/pricing-sources$/);
+    if (request.method === "GET" && hotelPricingSourcesMatch) {
+      const hotelId = decodeURIComponent(hotelPricingSourcesMatch[1]).trim();
+      return hotelPricingSources(hotelId, env);
     }
 
     const hotelRoomCategoriesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/room-categories$/);

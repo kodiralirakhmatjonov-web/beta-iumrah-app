@@ -86,6 +86,9 @@ struct TripDraft: Codable, Hashable {
     var originAirport: Airport? = nil
     var arrivalAirport: SaudiArrivalAirport = .jeddah
     var departureDate: Date = Calendar.current.date(byAdding: .day, value: 21, to: Date()) ?? Date()
+    /// Actual local calendar day when the selected outbound itinerary reaches Saudi Arabia.
+    /// Hotel stays start here, never on the origin-airport departure day.
+    var saudiArrivalDate: Date? = nil
     var returnDate: Date = Calendar.current.date(byAdding: .day, value: 28, to: Date()) ?? Date()
     var flexibility: DateFlexibility = .exact
     var adults: Int = 2
@@ -98,6 +101,7 @@ struct TripDraft: Codable, Hashable {
     var flightFilters: FlightSearchFilters? = nil
 
     var travelerCount: Int { adults + children + infants }
+    var hotelStayStartDate: Date { saudiArrivalDate ?? departureDate }
     var effectiveFlightFilters: FlightSearchFilters { flightFilters ?? .default }
     var isWeekendUmrah: Bool { flexibility == .weekend }
 
@@ -146,6 +150,7 @@ struct TripDraft: Codable, Hashable {
         }
 
         departureDate = friday
+        saudiArrivalDate = nil
         returnDate = calendar.date(byAdding: .day, value: 3, to: friday) ?? friday.addingTimeInterval(3 * 86_400)
     }
 
