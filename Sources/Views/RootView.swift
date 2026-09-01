@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v4") private var hasCompletedOnboarding = false
     @StateObject private var settings = AppSettingsStore()
     @StateObject private var chrome = AppChromeStore()
@@ -8,6 +9,7 @@ struct RootView: View {
     @StateObject private var bookings = BookingStore()
     @StateObject private var account = IumrahAccountStore()
     @ObservedObject private var push = PushNotificationManager.shared
+    @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @State private var hasBootstrappedAfterOnboarding = false
 
     var body: some View {
@@ -26,51 +28,76 @@ struct RootView: View {
             .task {
                 guard hasCompletedOnboarding else { return }
                 await bootstrapAfterOnboardingIfNeeded()
-                await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                await push.ensureAuthorizationForClientNotifications()
                 await syncPushSubscriptions()
+                await syncClientNotifications()
+                handleOpenedPushIfNeeded()
             }
             .onChange(of: push.deviceToken) { _, _ in
                 guard hasCompletedOnboarding else { return }
-                Task { await syncPushSubscriptions() }
+                Task {
+                    await syncPushSubscriptions()
+                    await syncClientNotifications()
+                }
             }
             .onChange(of: bookings.sessions.map(\.id)) { _, _ in
                 Task {
                     await linkLocalBookingsToAccount()
                     guard hasCompletedOnboarding else { return }
-                    await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                    await push.ensureAuthorizationForClientNotifications()
                     await syncPushSubscriptions()
+                    await syncClientNotifications()
                 }
             }
             .onChange(of: account.iumrahID) { _, newValue in
                 bookings.setAccountToken(account.bearerToken)
                 syncLocalProfileFromAccount()
+                Task { await syncClientNotifications() }
                 guard newValue != nil, let token = account.bearerToken else { return }
                 Task {
                     await bookings.restoreAccountTrips(token: token)
                     await linkLocalBookingsToAccount()
                     await syncPushSubscriptions()
+                    await syncClientNotifications()
                 }
             }
             .onChange(of: settings.language.rawValue) { _, _ in
                 guard hasCompletedOnboarding else { return }
-                Task { await syncPushSubscriptions() }
+                Task {
+                    await syncPushSubscriptions()
+                    await syncClientNotifications()
+                }
             }
             .onChange(of: hasCompletedOnboarding) { _, completed in
                 guard completed else { return }
                 Task {
                     await bootstrapAfterOnboardingIfNeeded()
-                    await push.ensureAuthorizationForBookedTrips(hasBookings: !bookings.sessions.isEmpty)
+                    await push.ensureAuthorizationForClientNotifications()
                     await syncPushSubscriptions()
+                    await syncClientNotifications()
+                    handleOpenedPushIfNeeded()
                 }
             }
             .onChange(of: push.eventRevision) { _, _ in
                 guard hasCompletedOnboarding else { return }
                 Task {
                     await bookings.refreshAll()
+                    await clientNotifications.refresh(accountToken: account.bearerToken)
                     if let bookingID = push.lastEvent?.bookingID,
                        push.lastEvent?.type.hasPrefix("chat_") == true {
                         _ = try? await bookings.loadChat(for: bookingID)
                     }
+                }
+            }
+            .onChange(of: push.openRevision) { _, _ in
+                guard hasCompletedOnboarding else { return }
+                handleOpenedPushIfNeeded()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active, hasCompletedOnboarding else { return }
+                Task {
+                    await push.refreshAndRegisterIfAllowed()
+                    await syncClientNotifications()
                 }
             }
     }
@@ -98,6 +125,49 @@ struct RootView: View {
     private func syncPushSubscriptions() async {
         guard let token = push.deviceToken, !token.isEmpty else { return }
         await bookings.syncPushSubscriptions(deviceToken: token, locale: settings.language.rawValue)
+    }
+
+    @MainActor
+    private func syncClientNotifications() async {
+        await clientNotifications.sync(
+            deviceToken: push.deviceToken,
+            accountToken: account.bearerToken,
+            hasTrip: !bookings.sessions.isEmpty,
+            locale: settings.language.rawValue
+        )
+    }
+
+    @MainActor
+    private func handleOpenedPushIfNeeded() {
+        guard let event = push.lastOpenedEvent else { return }
+        if event.type == "system_notification" {
+            routeNotification(destination: event.destination, bookingID: event.destinationBookingID)
+            if let id = event.notificationID, let notification = clientNotifications.notification(id: id) {
+                Task { await clientNotifications.markOpened(notification, accountToken: account.bearerToken) }
+            }
+            return
+        }
+        if let bookingID = event.bookingID {
+            if event.type.hasPrefix("chat_") {
+                chrome.navigate(to: .care)
+            } else {
+                chrome.openBooking(id: bookingID)
+            }
+        }
+    }
+
+    @MainActor
+    private func routeNotification(destination: String?, bookingID: String?) {
+        switch destination {
+        case "hotels": chrome.navigate(to: .hotels)
+        case "bookings": chrome.navigate(to: .booking)
+        case "care": chrome.navigate(to: .care)
+        case "account": chrome.navigate(to: .account)
+        case "booking":
+            if let bookingID, bookings.booking(id: bookingID) != nil { chrome.openBooking(id: bookingID) }
+            else { chrome.navigate(to: .booking) }
+        default: chrome.navigate(to: .home)
+        }
     }
 
     @MainActor

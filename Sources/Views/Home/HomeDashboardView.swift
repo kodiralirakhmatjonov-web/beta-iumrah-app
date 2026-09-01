@@ -4,6 +4,8 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var bookings: BookingStore
+    @EnvironmentObject private var account: IumrahAccountStore
+    @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { $0.effectiveStatus.uppercased() != "COMPLETED" }
@@ -24,6 +26,11 @@ struct HomeDashboardView: View {
         ScrollView {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
+                if let notification = clientNotifications.latest {
+                    SystemNotificationCard(notification: notification) {
+                        openSystemNotification(notification)
+                    }
+                }
                 HomeVideoCarousel()
                 hero
                 confidenceStrip
@@ -40,6 +47,24 @@ struct HomeDashboardView: View {
             .padding(.bottom, 0)
         }
         .background(Color.iumrahPageBackground)
+    }
+
+    private func openSystemNotification(_ notification: ClientSystemNotification) {
+        IumrahHaptics.selection()
+        Task { await clientNotifications.markOpened(notification, accountToken: account.bearerToken) }
+        switch notification.destination {
+        case "hotels": chrome.navigate(to: .hotels)
+        case "bookings": chrome.navigate(to: .booking)
+        case "care": chrome.navigate(to: .care)
+        case "account": chrome.navigate(to: .account)
+        case "booking":
+            if let bookingID = notification.destinationBookingID, bookings.booking(id: bookingID) != nil {
+                chrome.openBooking(id: bookingID)
+            } else {
+                chrome.navigate(to: .booking)
+            }
+        default: chrome.navigate(to: .home)
+        }
     }
 
     private func activeJourneyHome(_ session: StoredBookingSession) -> some View {

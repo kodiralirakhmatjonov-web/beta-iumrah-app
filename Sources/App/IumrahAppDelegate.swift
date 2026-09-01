@@ -37,6 +37,18 @@ final class IumrahAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound, .badge]
+        await MainActor.run {
+            PushNotificationManager.shared.receiveRemotePayload(notification.request.content.userInfo, opened: false)
+        }
+        return [.banner, .list, .sound, .badge]
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await MainActor.run {
+            PushNotificationManager.shared.receiveRemotePayload(response.notification.request.content.userInfo, opened: true)
+        }
     }
 }

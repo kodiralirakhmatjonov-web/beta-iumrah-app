@@ -46,6 +46,16 @@ struct BookingsHomeView: View {
         .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
             TripBuilderView()
         }
+        .navigationDestination(isPresented: Binding(
+            get: { chrome.requestedBookingID != nil },
+            set: { if !$0 { chrome.requestedBookingID = nil } }
+        )) {
+            if let bookingID = chrome.requestedBookingID, bookings.booking(id: bookingID) != nil {
+                BookingDetailView(bookingID: bookingID)
+            } else {
+                EmptyView()
+            }
+        }
     }
 
     private var emptyBookingHome: some View {
