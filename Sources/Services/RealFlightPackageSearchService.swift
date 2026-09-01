@@ -38,12 +38,22 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     private var inboundPrewarmTask: Task<[LiveFlightCandidate], Never>?
     private var hotelPriceTask: Task<HotelPriceSearchSnapshot, Never>?
 
+    init() {
+        self.flightProvider = IgnavFlightInventoryProvider()
+        self.hotelPriceService = HotelLivePriceSearchService()
+    }
+
     init(
-        flightProvider: FlightInventoryProviding = IgnavFlightInventoryProvider(),
-        hotelPriceService: HotelLivePriceSearchService = HotelLivePriceSearchService()
+        flightProvider: FlightInventoryProviding,
+        hotelPriceService: HotelLivePriceSearchService
     ) {
         self.flightProvider = flightProvider
         self.hotelPriceService = hotelPriceService
+    }
+
+    init(flightProvider: FlightInventoryProviding) {
+        self.flightProvider = flightProvider
+        self.hotelPriceService = HotelLivePriceSearchService()
     }
 
     var currentHotelPriceSnapshot: HotelPriceSearchSnapshot? { cachedHotels }
@@ -406,7 +416,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorComponentProviding {
     private let coordinator: RealFlightPackageSearchService
 
-    init(flightProvider: FlightInventoryProviding = IgnavFlightInventoryProvider()) {
+    init() {
+        self.coordinator = RealFlightPackageSearchService()
+    }
+
+    init(flightProvider: FlightInventoryProviding) {
         self.coordinator = RealFlightPackageSearchService(flightProvider: flightProvider)
     }
 
