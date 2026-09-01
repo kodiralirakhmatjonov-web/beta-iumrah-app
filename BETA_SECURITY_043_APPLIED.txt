@@ -1,0 +1,28 @@
+BETA_SECURITY_043_APPLIED
+
+Client account security + Sign in with Apple.
+
+Identity architecture:
+- `pilgrims.id` remains the only canonical user id.
+- The app displays that same integer as a six-digit iumrah ID (16 -> 000016).
+- Password login continues to resolve directly to that account.
+- Apple stores only a unique verified `apple_subject -> pilgrims.id` link.
+- Apple never creates a second pilgrim/account and no email is requested or used for sign-in.
+- A user first signs in with iumrah ID + password, protects the primary device, and connects Apple once.
+
+Session security:
+- Every updated app installation has a Keychain-protected device id + secret.
+- Active account bearer sessions receive opaque public session ids and device metadata.
+- Legacy active sessions remain visible as an unknown device until they register from the updated app.
+- A secondary/new session may terminate only itself.
+- Only the password-confirmed primary device may terminate other sessions or connect Apple.
+- Apple identity tokens are verified against Apple JWKS, issuer, audience, expiry, nonce and replay protection on the Worker.
+
+Required rollout order:
+1. Apply `iumrah-beta-update-043-account-security-apple.zip` in the Beta repository.
+2. Run the existing `Deploy iumrah Package Engine` workflow once (required for the D1 tables and new routes).
+3. Run TestFlight after the Package Engine deploy succeeds.
+
+No new GitHub secret or email provider is required. The existing provisioning profile already contains the Sign in with Apple capability for `com.iumrah.beta`.
+
+Based on BETA_HOTFIX_042_APPLIED.

@@ -4,6 +4,7 @@ import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRo
 import type { Env } from "./env";
 import { curatedPrimaryHotel } from "./generator-components";
 import { searchIgnavFlights } from "./ignav-flights";
+import { handleClientAccountSecurity } from "./client-account-security";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -81,6 +82,10 @@ async function publicHealth(env: Env) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/api/package/client/account/")) {
+      return handleClientAccountSecurity(request, env, url);
+    }
 
     if (url.pathname.startsWith("/api/admin/package")) {
       const auth = await requirePackageAdmin(request);

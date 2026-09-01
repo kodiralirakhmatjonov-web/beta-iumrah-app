@@ -105,6 +105,55 @@ struct IumrahAccountService {
     func media(path: String, token: String) async throws -> Data {
         try await api.fetchData(path, headers: ["Authorization": "Bearer \(token)"])
     }
+
+    func registerCurrentSession(token: String, locale: String) async throws -> IumrahSecurityOverview {
+        try await api.post(
+            "/api/package/client/account/security/register",
+            body: IumrahDeviceRegistrationRequest(device: IumrahAccountDeviceIdentity.current(locale: locale)),
+            headers: ["Authorization": "Bearer \(token)"]
+        )
+    }
+
+    func securityOverview(token: String) async throws -> IumrahSecurityOverview {
+        try await api.get(
+            "/api/package/client/account/security",
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func claimPrimaryDevice(password: String, token: String) async throws -> IumrahSecurityOverview {
+        try await api.post(
+            "/api/package/client/account/security/claim-primary",
+            body: IumrahClaimPrimaryRequest(password: password),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func terminateSession(id: String, token: String) async throws -> IumrahTerminateSessionResponse {
+        try await api.delete(
+            "/api/package/client/account/security/sessions/\(id)",
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func signInWithApple(_ credential: IumrahAppleCredential, locale: String) async throws -> IumrahAccountAuthResponse {
+        try await api.post(
+            "/api/package/client/account/apple/sign-in",
+            body: IumrahAppleSignInRequest(
+                identityToken: credential.identityToken,
+                nonce: credential.nonce,
+                device: IumrahAccountDeviceIdentity.current(locale: locale)
+            )
+        )
+    }
+
+    func linkApple(_ credential: IumrahAppleCredential, token: String) async throws -> IumrahAppleLinkResponse {
+        try await api.post(
+            "/api/package/client/account/apple/link",
+            body: IumrahAppleRequest(identityToken: credential.identityToken, nonce: credential.nonce),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
 }
 
 private struct EmptyBody: Encodable {}

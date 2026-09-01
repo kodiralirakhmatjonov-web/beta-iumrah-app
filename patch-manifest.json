@@ -1,17 +1,77 @@
 {
-  "patch": "iumrah-beta-update-041-flights-adaptive-light-dark",
-  "purpose": "Replace the top Flights wordmark with a native text title, move the supplied wordmark to the end of the page, and make IumrahFlightsView fully adaptive to the iPhone system Light/Dark appearance while preserving the interactive globe and trip-only Flights behavior.",
+  "patch": "iumrah-beta-update-043-account-security-apple",
+  "purpose": "Add protected client account sessions and Sign in with Apple as a second credential for the same canonical six-digit iumrah ID, without creating a second user or using email for identity.",
   "files": [
     {
-      "path": "BETA_UI_041_APPLIED.txt",
-      "sha256": "eedeaad153bb901ebb059d29f1d44b315fd5b1ce06c281e9e6b338211648d9c5",
-      "bytes": 595
+      "path": "BETA_SECURITY_043_APPLIED.txt",
+      "sha256": "f766bce7aa835ce094adb691e4188eeceb11bdc31a99c53b41b07793faa4715f",
+      "bytes": 1600
     },
     {
-      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
-      "sha256": "34914b089af63727249b36c379a5c2144b6e5b6988ea0e3b5e4e0fe6c29e9537",
-      "bytes": 55345
+      "path": "Backend/PackageEngine/migrations/0006_package_primary_hotels.sql",
+      "sha256": "04be393897714a86dbfee2a32c53b59d5ba8afbd25f9603f14b48c91c2eb5ed3",
+      "bytes": 4667
+    },
+    {
+      "path": "Backend/PackageEngine/src/client-account-security.ts",
+      "sha256": "7012dc84e63f42940347e86fce5ed447aee1c3a49177a464c9124ef320d26a3b",
+      "bytes": 28420
+    },
+    {
+      "path": "Backend/PackageEngine/src/env.ts",
+      "sha256": "96ee8c4f4271bb8598cdbeabb5ada01529fe093a11fac000df9247b3845e428d",
+      "bytes": 256
+    },
+    {
+      "path": "Backend/PackageEngine/src/index.ts",
+      "sha256": "ced1bcc71c4384e8d284961f1b37b37a9dc2037352e38ef6b0d326a0a7091606",
+      "bytes": 6669
+    },
+    {
+      "path": "Backend/PackageEngine/test/client-account-security-contract.test.mjs",
+      "sha256": "1ba9d68edeaf0e46a7bdf05f031b8831750e55394a3b47fa22b939eaa78a56bc",
+      "bytes": 1442
+    },
+    {
+      "path": "Backend/PackageEngine/wrangler.template.jsonc",
+      "sha256": "4a586dd0500d17e180072d492e849f7341fabbd9d856179054ab0faa28a5dfd5",
+      "bytes": 980
+    },
+    {
+      "path": "Resources/iumrahBeta.entitlements",
+      "sha256": "7e030f3a193257f0411e8371448760249e06f908bcd541f728ec25a6c4c4251f",
+      "bytes": 356
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
+      "sha256": "8f42f15f84cdb777dc23c4be45b78122eda86e572ba6e967c4b12438e2ac6f92",
+      "bytes": 31949
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "sha256": "53b2e60985e65e366e61072b07069d013e602d21bc96a58e31b2cdc24cf637fe",
+      "bytes": 52647
+    },
+    {
+      "path": "Sources/Core/IumrahAccountSecurityIdentity.swift",
+      "sha256": "10f2fe24dcd811e2def2e7006299cf4b36c4c72be5e4ccc56ad09404b1ca7723",
+      "bytes": 6194
+    },
+    {
+      "path": "Sources/Models/IumrahAccountModels.swift",
+      "sha256": "c027291c99d7de92de47b124ba8c9bd38ecc75b1ce5984b5397a16d292cab2d6",
+      "bytes": 7092
+    },
+    {
+      "path": "Sources/Services/IumrahAccountService.swift",
+      "sha256": "2610ec751f45d82ed29c89cda1574fa4a7928089b4fea0f7f6490e8f5eec0b50",
+      "bytes": 6628
+    },
+    {
+      "path": "Sources/State/IumrahAccountStore.swift",
+      "sha256": "b90d4711fc9d3971529857f599fa85e72a9e33a694d7ce5167f161c7f650311d",
+      "bytes": 7750
     }
   ],
-  "based_on": "BETA_UI_040_APPLIED"
+  "based_on": "BETA_HOTFIX_042_APPLIED"
 }

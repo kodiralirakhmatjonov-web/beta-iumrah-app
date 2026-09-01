@@ -178,6 +178,69 @@ struct IumrahCheckoutResponse: Decodable {
 struct IumrahSimpleResponse: Decodable { let ok: Bool }
 struct IumrahReceiptResponse: Decodable { let ok: Bool; let id: String }
 
+struct IumrahDeviceRegistrationRequest: Encodable {
+    let device: IumrahClientDevice
+}
+
+struct IumrahSecuritySession: Decodable, Identifiable, Hashable {
+    let id: String
+    let deviceName: String
+    let model: String
+    let platform: String
+    let osVersion: String
+    let appVersion: String
+    let city: String
+    let region: String
+    let country: String
+    let createdAt: String
+    let lastActiveAt: String
+    let expiresAt: String
+    let isCurrent: Bool
+    let isPrimary: Bool
+    let canTerminate: Bool
+}
+
+struct IumrahAppleConnectionStatus: Decodable, Hashable {
+    let linked: Bool
+    let linkedAt: String?
+}
+
+struct IumrahSecurityOverview: Decodable, Hashable {
+    let ok: Bool
+    let iumrahID: String
+    let currentSessionID: String
+    let currentDeviceIsPrimary: Bool
+    let primaryDeviceProtected: Bool
+    let apple: IumrahAppleConnectionStatus
+    let sessions: [IumrahSecuritySession]
+}
+
+struct IumrahClaimPrimaryRequest: Encodable {
+    let password: String
+}
+
+struct IumrahAppleRequest: Encodable {
+    let identityToken: String
+    let nonce: String
+}
+
+struct IumrahAppleSignInRequest: Encodable {
+    let identityToken: String
+    let nonce: String
+    let device: IumrahClientDevice
+}
+
+struct IumrahAppleLinkResponse: Decodable {
+    let ok: Bool
+    let appleLinked: Bool
+    let iumrahID: String
+}
+
+struct IumrahTerminateSessionResponse: Decodable {
+    let ok: Bool
+    let signedOut: Bool
+}
+
 struct IumrahAccountTripDetailResponse: Decodable {
     let ok: Bool
     let trip: ClientTripSnapshot

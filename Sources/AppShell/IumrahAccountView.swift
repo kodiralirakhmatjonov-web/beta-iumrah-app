@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import UserNotifications
 import UIKit
@@ -8,11 +9,14 @@ struct IumrahAccountView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var loginID = ""
     @State private var loginPassword = ""
     @State private var isLoggingIn = false
     @State private var loginError: String?
+    @State private var appleNonce = ""
+    @State private var isAppleSigningIn = false
 
     @State private var firstName = ""
     @State private var lastName = ""
@@ -571,7 +575,16 @@ struct IumrahAccountView: View {
 
             Divider().padding(.leading, 54)
 
-            settingsRow(icon: "lock.shield.fill", title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"), value: tr("iumrah ID + password", "iumrah ID + пароль", "iumrah ID + parol", "iumrah ID + парол"), showsChevron: false)
+            NavigationLink {
+                IumrahAccountSecurityView()
+            } label: {
+                settingsRow(
+                    icon: "lock.shield.fill",
+                    title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"),
+                    value: tr("Apple and active sessions", "Apple и активные сеансы", "Apple va faol seanslar", "Apple ва фаол сеанслар")
+                )
+            }
+            .buttonStyle(.plain)
         }
         .iumrahCard()
     }
@@ -670,6 +683,34 @@ struct IumrahAccountView: View {
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
             .disabled(loginID.filter(\.isNumber).count != 6 || loginPassword.count < 8 || isLoggingIn)
+
+            HStack(spacing: 12) {
+                Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
+                Text(tr("or", "или", "yoki", "ёки"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
+            }
+
+            SignInWithAppleButton(.signIn) { request in
+                prepareAppleSignIn(request)
+            } onCompletion: { result in
+                completeAppleSignIn(result)
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 56)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .disabled(isAppleSigningIn || isLoggingIn)
+
+            Text(tr(
+                "Apple opens the same account after it has been connected to your six-digit iumrah ID in Account Security.",
+                "Apple открывает тот же аккаунт после привязки к шестизначному iumrah ID в разделе «Безопасность аккаунта».",
+                "Apple Akkaunt xavfsizligida olti xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
+                "Apple Аккаунт хавфсизлигида олти хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
+            ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .iumrahCard()
     }
@@ -901,19 +942,52 @@ struct IumrahAccountView: View {
         defer { isLoggingIn = false }
         do {
             let profile = try await account.login(iumrahID: loginID, password: loginPassword)
-            bookings.setAccountToken(account.bearerToken)
-            if let token = account.bearerToken {
-                await bookings.restoreAccountTrips(token: token)
-                await bookings.refreshAll()
-            }
-            applyProfileToLocalSettings(profile)
-            loadProfileDraftIfNeeded(force: true, profile: profile)
+            await completeAuthenticatedLogin(profile)
             loginPassword = ""
             IumrahHaptics.success()
         } catch {
             loginError = L10n.error(error, settings.language)
             IumrahHaptics.error()
         }
+    }
+
+    private func prepareAppleSignIn(_ request: ASAuthorizationAppleIDRequest) {
+        do {
+            appleNonce = try IumrahAppleSignInSupport.prepare(request)
+            isAppleSigningIn = true
+            loginError = nil
+        } catch {
+            loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+        }
+    }
+
+    private func completeAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        Task { @MainActor in
+            defer { isAppleSigningIn = false }
+            do {
+                let authorization = try result.get()
+                let credential = try IumrahAppleSignInSupport.credential(from: authorization, nonce: appleNonce)
+                let profile = try await account.signInWithApple(credential, locale: settings.language.rawValue)
+                await completeAuthenticatedLogin(profile)
+                IumrahHaptics.success()
+            } catch let error as ASAuthorizationError where error.code == .canceled {
+                loginError = nil
+            } catch {
+                loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+                IumrahHaptics.error()
+            }
+        }
+    }
+
+    @MainActor
+    private func completeAuthenticatedLogin(_ profile: IumrahAccountProfile) async {
+        bookings.setAccountToken(account.bearerToken)
+        if let token = account.bearerToken {
+            await bookings.restoreAccountTrips(token: token)
+            await bookings.refreshAll()
+        }
+        applyProfileToLocalSettings(profile)
+        loadProfileDraftIfNeeded(force: true, profile: profile)
     }
 
     @MainActor

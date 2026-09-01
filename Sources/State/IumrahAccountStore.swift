@@ -40,6 +40,7 @@ final class IumrahAccountStore: ObservableObject {
             let profile = try await service.session(token: token)
             account = profile
             IumrahAccountVault.save(.init(token: token, account: profile))
+            _ = try? await service.registerCurrentSession(token: token, locale: Locale.current.identifier)
             lastError = nil
         } catch {
             self.token = nil
@@ -53,12 +54,21 @@ final class IumrahAccountStore: ObservableObject {
     func activate(bookingID: String, bookingToken: String, password: String) async throws -> IumrahAccountProfile {
         let response = try await service.activate(bookingID: bookingID, bookingToken: bookingToken, password: password)
         setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: Locale.current.identifier)
         return response.account
     }
 
     @discardableResult
     func login(iumrahID: String, password: String) async throws -> IumrahAccountProfile {
         let response = try await service.login(iumrahID: iumrahID, password: password)
+        setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: Locale.current.identifier)
+        return response.account
+    }
+
+    @discardableResult
+    func signInWithApple(_ credential: IumrahAppleCredential, locale: String) async throws -> IumrahAccountProfile {
+        let response = try await service.signInWithApple(credential, locale: locale)
         setSession(response)
         return response.account
     }
@@ -84,6 +94,29 @@ final class IumrahAccountStore: ObservableObject {
         IumrahAccountVault.clear()
     }
 
+    func securityOverview(locale: String) async throws -> IumrahSecurityOverview {
+        guard let token else { throw APIError.status(401) }
+        _ = try await service.registerCurrentSession(token: token, locale: locale)
+        return try await service.securityOverview(token: token)
+    }
+
+    func claimPrimaryDevice(password: String) async throws -> IumrahSecurityOverview {
+        guard let token else { throw APIError.status(401) }
+        return try await service.claimPrimaryDevice(password: password, token: token)
+    }
+
+    func terminateSecuritySession(id: String) async throws -> Bool {
+        guard let token else { throw APIError.status(401) }
+        let response = try await service.terminateSession(id: id, token: token)
+        if response.signedOut { clearLocalSession() }
+        return response.signedOut
+    }
+
+    func linkApple(_ credential: IumrahAppleCredential) async throws -> IumrahAppleLinkResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.linkApple(credential, token: token)
+    }
+
     func linkBooking(bookingID: String, bookingToken: String) async throws -> IumrahAccountLinkBookingResponse {
         guard let token else { throw APIError.status(401) }
         return try await service.linkBooking(bookingID: bookingID, bookingToken: bookingToken, token: token)
@@ -104,6 +137,13 @@ final class IumrahAccountStore: ObservableObject {
         account = response.account
         lastError = nil
         IumrahAccountVault.save(.init(token: response.session.token, account: response.account))
+    }
+
+    private func clearLocalSession() {
+        token = nil
+        account = nil
+        lastError = nil
+        IumrahAccountVault.clear()
     }
 }
 

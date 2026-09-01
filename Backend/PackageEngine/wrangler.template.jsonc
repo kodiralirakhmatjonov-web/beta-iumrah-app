@@ -35,5 +35,8 @@
       "tag": "v2-remove-package-search-session",
       "deleted_classes": ["PackageSearchSession"]
     }
-  ]
+  ],
+  "vars": {
+    "APPLE_BUNDLE_ID": "com.iumrah.beta"
+  }
 }
