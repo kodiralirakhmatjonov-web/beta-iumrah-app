@@ -1,0 +1,8 @@
+BETA HOTFIX 046
+
+Fixes the TestFlight simulator-build failure reported in logs_90878718488.zip:
+Sources/AppShell/IumrahAccountView.swift used login(iumrahID:password:)
+while IumrahAccountStore exposes login(identifier:password:locale:).
+
+This update adds a compatibility overload only. No Umrah Generator pricing,
+flight, hotel, UI, account behavior, backend, signing, or workflow files are changed.
