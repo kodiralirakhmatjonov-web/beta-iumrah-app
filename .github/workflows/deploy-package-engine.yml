@@ -27,20 +27,23 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify Cloudflare secrets
+      - name: Verify deploy secrets
+        env:
+          IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
         run: |
           set -euo pipefail
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID; do
-            if [ -z "${!name}" ]; then
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY; do
+            if [ -z "${!name:-}" ]; then
               echo "Missing GitHub secret: $name"
               exit 1
             fi
           done
+          echo "Required deployment secrets are present."
 
       - name: Install dependencies
         run: npm install
 
-      - name: Typecheck and pricing tests
+      - name: Typecheck and tests
         run: |
           npm run typecheck
           npm test
@@ -79,22 +82,31 @@ jobs:
       - name: Deploy Package Engine routes
         run: npx wrangler deploy --config wrangler.generated.jsonc
 
-      - name: Verify Package Engine
+      - name: Install Ignav Worker secret
+        env:
+          IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IGNAV_API_KEY" | npx wrangler secret put IGNAV_API_KEY --config wrangler.generated.jsonc
+
+      - name: Verify Package Engine and Ignav
         working-directory: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5; do
+          for attempt in 1 2 3 4 5 6; do
             if RESPONSE=$(curl -fsS "https://iumrah.app/api/package/health"); then
               echo "$RESPONSE" | jq .
-              echo "$RESPONSE" | jq -e '.ok == true and .hotelsDbConfigured == true' >/dev/null
-              if echo "$RESPONSE" | jq -e '.pricingReady == true' >/dev/null; then
-                echo "iumrah Package Engine is online and Primary Hotel pricing is configured."
-              else
-                echo "iumrah Package Engine is online. Primary Hotel pricing still needs to be configured."
+              if echo "$RESPONSE" | jq -e '
+                .ok == true and
+                .hotelsDbConfigured == true and
+                .flightProvider == "ignav" and
+                .flightProviderConfigured == true
+              ' >/dev/null; then
+                echo "iumrah Package Engine is online and Ignav is configured."
+                exit 0
               fi
-              exit 0
             fi
             sleep 5
           done
-          echo "Package Engine health check failed after deployment."
+          echo "Package Engine health check failed: Ignav is not configured."
           exit 1
