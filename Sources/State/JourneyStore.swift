@@ -248,7 +248,7 @@ final class JourneyStore: ObservableObject {
         return id.hasPrefix("local-") && quote.totalPackagePrice > 0 && quote.pricePerPerson > 0
     }
 
-    func buildQuote() async {
+    func buildQuote(forceHotelRefresh: Bool = false) async {
         guard let hotel = selectedHotel,
               let outbound = selectedOutbound,
               let inbound = selectedInbound,
@@ -274,7 +274,8 @@ final class JourneyStore: ObservableObject {
                     makkahRoomId: selectedRoom?.id ?? selectedRoomCategory?.id,
                     makkahRoomName: selectedRoom?.name ?? selectedRoomCategory?.displayName,
                     madinahRoomId: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
-                    madinahRoomName: selectedMadinahRoom?.name ?? selectedMadinahRoomCategory?.displayName
+                    madinahRoomName: selectedMadinahRoom?.name ?? selectedMadinahRoomCategory?.displayName,
+                    forceRefresh: forceHotelRefresh
                 )
             }
             let outboundUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
@@ -358,19 +359,37 @@ final class JourneyStore: ObservableObject {
                 case .perRoomStay: totalUsd = usd * Decimal(effectiveRooms)
                 case .perRoomNight: totalUsd = usd * Decimal(effectiveRooms) * Decimal(max(1, window.nights))
                 }
-                if totalUsd > 0 { verified.append((component, totalUsd)) }
+                let roomNights = Decimal(max(1, effectiveRooms * max(1, window.nights)))
+                let normalizedRoomNightUsd = totalUsd / roomNights
+                // Reject obvious parser artefacts (fees, loyalty credits, tiny
+                // fragments or malformed totals) before they can under-price a
+                // package. The range is deliberately broad; it is a corruption
+                // guard, not a hotel-category price assumption.
+                guard normalizedRoomNightUsd >= 15, normalizedRoomNightUsd <= 10_000 else { continue }
+                verified.append((component, totalUsd))
             } catch {
                 continue
             }
         }
 
-        guard let best = verified.min(by: { $0.totalUsd < $1.totalUsd }) else {
+        guard !verified.isEmpty else {
             // Never substitute package_primary_hotels or an estimated room rate for
             // a failed current-price check. Final package pricing is allowed only
-            // after an official live hotel surface confirms this exact stay/room.
+            // after a current provider surface confirms this exact hotel/stay.
             throw LocalPricingError.missingHotelPrice(city)
         }
-        return best.component
+
+        let ordered = verified.sorted { $0.totalUsd < $1.totalUsd }
+        if ordered.count >= 2, let cheapest = ordered.first, let highest = ordered.last {
+            // Two independent provider surfaces can occasionally expose different
+            // rate plans. If one parsed result is dramatically cheaper, do not use
+            // it as the package cost. Choosing the conservative verified value here
+            // prevents a malformed/partial price from silently creating a loss.
+            if cheapest.totalUsd * Decimal(string: "1.50")! < highest.totalUsd {
+                return highest.component
+            }
+        }
+        return ordered[0].component
     }
 
     private func travelCalendarDay(for date: Date, airportCode: String) -> Date {

@@ -71,7 +71,7 @@ struct FinalPackageView: View {
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .ready)
         .task {
-            if !journey.hasFinalGeneratorQuote { await recalculatePrice() }
+            if !journey.hasFinalGeneratorQuote { await recalculatePrice(forceHotelRefresh: false) }
             await push.refreshAndRegisterIfAllowed()
         }
         .sheet(isPresented: $isProfileSheetPresented) {
@@ -110,7 +110,7 @@ struct FinalPackageView: View {
             if !isCalculatingPrice {
                 VStack(spacing: 10) {
                     Button(retryPricingTitle) {
-                        Task { await recalculatePrice() }
+                        Task { await recalculatePrice(forceHotelRefresh: true) }
                     }
                     .buttonStyle(IumrahSecondaryButtonStyle())
 
@@ -131,10 +131,10 @@ struct FinalPackageView: View {
     }
 
     @MainActor
-    private func recalculatePrice() async {
+    private func recalculatePrice(forceHotelRefresh: Bool) async {
         guard !isCalculatingPrice else { return }
         isCalculatingPrice = true
-        await journey.buildQuote()
+        await journey.buildQuote(forceHotelRefresh: forceHotelRefresh)
         isCalculatingPrice = false
         if journey.hasFinalGeneratorQuote { IumrahHaptics.success() }
     }

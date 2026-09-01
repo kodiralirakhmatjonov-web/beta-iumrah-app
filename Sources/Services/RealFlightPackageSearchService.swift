@@ -179,45 +179,50 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         makkahRoomId: String?,
         makkahRoomName: String?,
         madinahRoomId: String?,
-        madinahRoomName: String?
+        madinahRoomName: String?,
+        forceRefresh: Bool
     ) async -> HotelPriceSearchSnapshot {
-        // A selected room/category is authoritative. Run an exact verification
-        // for it instead of reusing the generic early hotel prewarm.
-        if makkahRoomId != nil || makkahRoomName != nil || madinahRoomId != nil || madinahRoomName != nil {
-            let snapshot = await hotelPriceService.search(
-                trip: trip,
-                makkahHotel: makkahHotel,
-                madinahHotel: madinahHotel,
-                makkahRoomId: makkahRoomId,
-                makkahRoomName: makkahRoomName,
-                madinahRoomId: madinahRoomId,
-                madinahRoomName: madinahRoomName
-            )
-            cachedHotels = snapshot
-            return snapshot
-        }
-
-        if let hotelPriceTask {
+        if forceRefresh {
+            hotelPriceTask?.cancel()
+            hotelPriceTask = nil
+            cachedHotels = nil
+        } else if let hotelPriceTask {
             let snapshot = await hotelPriceTask.value
-            cachedHotels = snapshot
             self.hotelPriceTask = nil
-            return snapshot
+            if isCompleteHotelSnapshot(snapshot, trip: trip) {
+                cachedHotels = snapshot
+                return snapshot
+            }
+            // A partial prewarm (for example Makkah succeeded but Madinah hit a
+            // challenge) is not a valid final-pricing snapshot. Retry the selected
+            // hotels immediately instead of carrying the partial result forward.
+        } else if let cachedHotels, isCompleteHotelSnapshot(cachedHotels, trip: trip) {
+            return cachedHotels
         }
-        if let cachedHotels { return cachedHotels }
 
         let snapshot = await hotelPriceService.search(
             trip: trip,
             makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel
+            madinahHotel: madinahHotel,
+            makkahRoomId: makkahRoomId,
+            makkahRoomName: makkahRoomName,
+            madinahRoomId: madinahRoomId,
+            madinahRoomName: madinahRoomName,
+            forceRefresh: forceRefresh
         )
-        cachedHotels = snapshot
+        if isCompleteHotelSnapshot(snapshot, trip: trip) { cachedHotels = snapshot }
         return snapshot
+    }
+
+    private func isCompleteHotelSnapshot(_ snapshot: HotelPriceSearchSnapshot, trip: TripDraft) -> Bool {
+        !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
     }
 
     func invalidateHotelPrices() {
         hotelPriceTask?.cancel()
         hotelPriceTask = nil
         cachedHotels = nil
+        hotelPriceService.invalidateAll()
     }
 
     func invalidateFlightInventory() {
@@ -235,6 +240,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         activeSignature = nil
         cachedInbound = []
         cachedHotels = nil
+        hotelPriceService.invalidateAll()
     }
 
     private func prepare(for trip: TripDraft) {
@@ -433,7 +439,8 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
         makkahRoomId: String?,
         makkahRoomName: String?,
         madinahRoomId: String?,
-        madinahRoomName: String?
+        madinahRoomName: String?,
+        forceRefresh: Bool
     ) async -> HotelPriceSearchSnapshot {
         await coordinator.ensureHotelPrices(
             trip: trip,
@@ -442,7 +449,8 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
             makkahRoomId: makkahRoomId,
             makkahRoomName: makkahRoomName,
             madinahRoomId: madinahRoomId,
-            madinahRoomName: madinahRoomName
+            madinahRoomName: madinahRoomName,
+            forceRefresh: forceRefresh
         )
     }
 

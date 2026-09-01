@@ -117,7 +117,8 @@ protocol GeneratorComponentProviding: AnyObject {
         makkahRoomId: String?,
         makkahRoomName: String?,
         madinahRoomId: String?,
-        madinahRoomName: String?
+        madinahRoomName: String?,
+        forceRefresh: Bool
     ) async -> HotelPriceSearchSnapshot
 }
 
@@ -130,7 +131,8 @@ extension GeneratorComponentProviding {
             makkahRoomId: nil,
             makkahRoomName: nil,
             madinahRoomId: nil,
-            madinahRoomName: nil
+            madinahRoomName: nil,
+            forceRefresh: false
         )
     }
 }

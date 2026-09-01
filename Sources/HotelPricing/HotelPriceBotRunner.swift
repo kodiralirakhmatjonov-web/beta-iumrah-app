@@ -48,7 +48,7 @@ final class HotelPriceBotRunner {
                 let script = HotelPriceBotScripts.extractExactHotel(
                     provider: provider,
                     hotelName: request.hotel.name,
-                    roomName: request.selectedRoomName
+                    roomName: nil
                 )
                 if let json = try? await evaluate(script) as? String,
                    !json.isEmpty,
@@ -70,10 +70,10 @@ final class HotelPriceBotRunner {
 
     private func makeObservation(card: ExtractedCard, sourceURL: URL) -> HotelPriceObservation? {
         guard card.score >= 0.62 else { return nil }
-        if request.selectedRoomId != nil {
-            guard request.selectedRoomName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
-                  card.roomEvidence else { return nil }
-        }
+        // The current provider surface verifies the concrete hotel/stay/occupancy.
+        // iumrah room category IDs are internal IDs, not Booking/Expedia inventory
+        // identifiers, so missing room-name text on a search result must not turn a
+        // valid hotel price into a false negative.
         let combined = "\(card.metaText) \(card.priceText) \(card.body)"
         guard let parsed = HotelPriceTextParser.parse(text: combined, preferred: "\(card.metaText) \(card.priceText)") else { return nil }
 

@@ -47,9 +47,11 @@ struct HotelPriceObservation: Identifiable, Codable, Hashable {
         guard age >= -5 * 60, age <= 20 * 60 else { return false }
         guard let url = URL(string: sourceURL), url.scheme?.lowercased() == "https",
               let host = url.host?.lowercased(), providerId.accepts(host: host) else { return false }
-        if let expectedRoomId {
-            guard roomId == expectedRoomId, roomName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return false }
-        }
+        // selectedRoomId is an internal iumrah selection key. Booking/Expedia
+        // search-result prices verify the exact hotel/stay/occupancy, not a stable
+        // external room inventory ID, so room matching must not invalidate an
+        // otherwise current hotel observation.
+        _ = expectedRoomId
         return true
     }
 

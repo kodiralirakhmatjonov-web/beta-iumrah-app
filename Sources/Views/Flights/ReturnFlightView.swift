@@ -94,7 +94,7 @@ struct ReturnFlightView: View {
                     flexibleDateHeader(offset: group.offset, date: group.rows.first?.departureAt)
                 }
 
-                ForEach(group.rows) { row in
+                ForEach(orderedRows(group.rows)) { row in
                     resultRow(row)
                 }
             }
@@ -112,7 +112,9 @@ struct ReturnFlightView: View {
                     FlightCard(
                         offer: offer,
                         isSelected: journey.selectedInbound?.id == offer.id,
-                        isRecommended: recommendedOfferID == offer.id
+                        isRecommended: recommendedOfferID == offer.id,
+                        referenceOffer: recommendedOffer,
+                        travelerCount: journey.trip.travelerCount
                     )
                 }
                 .buttonStyle(.plain)
@@ -136,9 +138,36 @@ struct ReturnFlightView: View {
         }
     }
 
-    private var recommendedOfferID: String? {
+    private var recommendedOffer: FlightOffer? {
         let selectedDay = offers.filter { dayOffset($0.departureAt, from: journey.trip.returnDate) == 0 }
-        return (selectedDay.isEmpty ? offers : selectedDay).min(by: { $0.totalPackagePrice < $1.totalPackagePrice })?.id
+        let pool = selectedDay.isEmpty ? offers : selectedDay
+        return pool.min { lhs, rhs in
+            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+            if lhs.currency == rhs.currency, lhs.totalPackagePrice != rhs.totalPackagePrice {
+                return lhs.totalPackagePrice < rhs.totalPackagePrice
+            }
+            if lhs.durationMinutes != rhs.durationMinutes { return lhs.durationMinutes < rhs.durationMinutes }
+            return lhs.departureAt < rhs.departureAt
+        }
+    }
+
+    private var recommendedOfferID: String? { recommendedOffer?.id }
+
+    private func orderedRows(_ rows: [FlightResultRowModel]) -> [FlightResultRowModel] {
+        guard let recommendedOfferID else { return rows }
+        return rows.enumerated().sorted { lhs, rhs in
+            let lhsRecommended = lhs.element.offer?.id == recommendedOfferID
+            let rhsRecommended = rhs.element.offer?.id == recommendedOfferID
+            if lhsRecommended != rhsRecommended { return lhsRecommended }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    private func selectRecommendedIfNeeded() {
+        guard let recommendedOffer else { return }
+        if journey.selectedInbound == nil {
+            journey.chooseInboundFlight(recommendedOffer)
+        }
     }
 
     private var floatingContinueBar: some View {
@@ -222,6 +251,7 @@ struct ReturnFlightView: View {
         guard searchGeneration == generation else { return }
         isSearching = false
         isInitialLoading = false
+        selectRecommendedIfNeeded()
         if !offers.isEmpty { IumrahHaptics.success() }
     }
 

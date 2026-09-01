@@ -5,6 +5,8 @@ struct FlightCard: View {
     let offer: FlightOffer
     let isSelected: Bool
     var isRecommended: Bool = false
+    var referenceOffer: FlightOffer? = nil
+    var travelerCount: Int = 1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 17) {
@@ -97,11 +99,10 @@ struct FlightCard: View {
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
-                PackagePriceView(
-                    amount: offer.totalPackagePrice,
-                    currency: offer.currency,
-                    showsPerPerson: offer.fareScope == .perPassenger
-                )
+                Text(relativePriceText)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(relativePriceAmount == 0 ? Color.primary : (relativePriceAmount > 0 ? Color.primary : Color.iumrahCareDark))
             }
         }
         .iumrahCard()
@@ -115,19 +116,53 @@ struct FlightCard: View {
 
     private var ticketPriceTitle: String {
         switch settings.language {
-        case .russian: return offer.fareScope == .totalParty ? "Перелёт для всех паломников" : "Тариф на пассажира"
-        case .english: return offer.fareScope == .totalParty ? "Flight fare for all pilgrims" : "Fare per passenger"
-        case .uzbek: return offer.fareScope == .totalParty ? "Barcha ziyoratchilar uchun aviachipta" : "Bir yo‘lovchi uchun tarif"
-        case .uzbekCyrillic: return offer.fareScope == .totalParty ? "Барча зиёратчилар учун авиачипта" : "Бир йўловчи учун тариф"
+        case .russian: return "Изменение стоимости перелёта"
+        case .english: return "Flight price difference"
+        case .uzbek: return "Parvoz narxi farqi"
+        case .uzbekCyrillic: return "Парвоз нархи фарқи"
         }
     }
 
     private var ticketPriceSubtitle: String {
         switch settings.language {
-        case .russian: return "Актуальный тариф на момент поиска"
-        case .english: return "Current fare at search time"
-        case .uzbek: return "Qidiruv vaqtidagi joriy tarif"
-        case .uzbekCyrillic: return "Қидирув вақтидаги жорий тариф"
+        case .russian: return isRecommended ? "Этот вариант заложен в расчёт" : "Относительно рекомендованного варианта"
+        case .english: return isRecommended ? "Included in the baseline calculation" : "Compared with the recommended option"
+        case .uzbek: return isRecommended ? "Asosiy hisob-kitobga kiritilgan" : "Tavsiya etilgan variantga nisbatan"
+        case .uzbekCyrillic: return isRecommended ? "Асосий ҳисоб-китобга киритилган" : "Тавсия этилган вариантга нисбатан"
+        }
+    }
+
+    private var relativePriceAmount: Decimal {
+        guard let referenceOffer,
+              referenceOffer.currency.caseInsensitiveCompare(offer.currency) == .orderedSame,
+              let current = partyFare(for: offer),
+              let baseline = partyFare(for: referenceOffer) else { return 0 }
+        return current - baseline
+    }
+
+    private var relativePriceText: String {
+        let amount = relativePriceAmount
+        let rounded = NSDecimalNumber(decimal: amount).doubleValue.rounded()
+        let absolute = Int(abs(rounded))
+        let sign = rounded < 0 ? "−" : "+"
+        let currency: String
+        switch offer.currency.uppercased() {
+        case "USD": currency = "$"
+        case "EUR": currency = "€"
+        case "GBP": currency = "£"
+        case "SAR": currency = "SAR"
+        case "AED": currency = "AED"
+        default: currency = offer.currency.uppercased()
+        }
+        return "\(sign)\(absolute) \(currency)"
+    }
+
+    private func partyFare(for value: FlightOffer) -> Decimal? {
+        guard let amount = value.fareAmount, let scope = value.fareScope, amount > 0 else { return nil }
+        switch scope {
+        case .totalParty: return amount
+        case .perPassenger: return amount * Decimal(max(1, travelerCount))
+        case .unknown: return nil
         }
     }
 

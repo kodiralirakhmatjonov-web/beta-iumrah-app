@@ -8,7 +8,7 @@ final class HotelLivePriceSearchService {
     }
 
     private var cache: [String: CacheEntry] = [:]
-    private let cacheLifetime: TimeInterval = 12 * 60
+    private let cacheLifetime: TimeInterval = 5 * 60
 
     func search(
         trip: TripDraft,
@@ -17,18 +17,24 @@ final class HotelLivePriceSearchService {
         makkahRoomId: String? = nil,
         makkahRoomName: String? = nil,
         madinahRoomId: String? = nil,
-        madinahRoomName: String? = nil
+        madinahRoomName: String? = nil,
+        forceRefresh: Bool = false
     ) async -> HotelPriceSearchSnapshot {
+        // Booking/Expedia search surfaces can reliably verify the concrete hotel,
+        // dates, occupancy and room count, but the app's internal Double/Triple/
+        // Quadruple IDs are not provider inventory IDs. They therefore must not be
+        // used as a cache key or as proof of a provider room/rate plan.
         let key = signature(
             trip: trip,
             makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel,
-            makkahRoomId: makkahRoomId,
-            makkahRoomName: makkahRoomName,
-            madinahRoomId: madinahRoomId,
-            madinahRoomName: madinahRoomName
+            madinahHotel: madinahHotel
         )
-        if let cached = cache[key], Date().timeIntervalSince(cached.createdAt) < cacheLifetime { return cached.value }
+
+        if forceRefresh {
+            cache.removeValue(forKey: key)
+        } else if let cached = cache[key], Date().timeIntervalSince(cached.createdAt) < cacheLifetime {
+            return cached.value
+        }
 
         let requests = makeRequests(
             trip: trip,
@@ -41,10 +47,20 @@ final class HotelLivePriceSearchService {
         )
         let values = await searchHotelsProgressively(makkah: requests.makkah, madinah: requests.madinah)
         let snapshot = HotelPriceSearchSnapshot(makkah: values.makkah, madinah: values.madinah)
-        cache[key] = CacheEntry(createdAt: Date(), value: snapshot)
+
+        // Never negative-cache a provider failure/challenge. A failed search must be
+        // retryable immediately from the final-price screen instead of getting stuck
+        // behind a 5/12 minute empty cache entry.
+        let isComplete = !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
+        if isComplete {
+            cache[key] = CacheEntry(createdAt: Date(), value: snapshot)
+        }
         return snapshot
     }
 
+    func invalidateAll() {
+        cache.removeAll()
+    }
 
     /// Verifies Makkah and Madinah concurrently without allowing more than two
     /// hotel WKWebViews at once on smaller iPhones. Each provider is one round:
@@ -102,6 +118,9 @@ final class HotelLivePriceSearchService {
             let budget = min(AppConfig.hotelPriceProviderTimeoutSeconds, max(6, deadline.timeIntervalSinceNow))
             return try await HotelPriceBotRunner(provider: provider, request: request).run(timeoutSeconds: budget)
         } catch {
+            #if DEBUG
+            print("[HotelPrice] \(provider.displayName) \(request.city) \(request.hotel.name): \(error)")
+            #endif
             return nil
         }
     }
@@ -116,6 +135,7 @@ final class HotelLivePriceSearchService {
         madinahRoomName: String?
     ) -> (makkah: HotelPriceSearchRequest, madinah: HotelPriceSearchRequest?) {
         let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
+        let effectiveRooms = resolvedRoomCount(for: trip)
 
         let makkah = HotelPriceSearchRequest(
             hotel: makkahHotel,
@@ -125,7 +145,10 @@ final class HotelLivePriceSearchService {
             adults: trip.adults,
             children: trip.children,
             infants: trip.infants,
-            rooms: trip.rooms,
+            rooms: effectiveRooms,
+            // Keep the app selection attached for diagnostics/bookings, but the
+            // provider bot verifies the hotel stay rather than pretending that an
+            // internal iumrah room ID is a Booking/Expedia inventory ID.
             selectedRoomId: makkahRoomId,
             selectedRoomName: makkahRoomName
         )
@@ -140,7 +163,7 @@ final class HotelLivePriceSearchService {
                 adults: trip.adults,
                 children: trip.children,
                 infants: trip.infants,
-                rooms: trip.rooms,
+                rooms: effectiveRooms,
                 selectedRoomId: madinahRoomId,
                 selectedRoomName: madinahRoomName
             )
@@ -153,23 +176,22 @@ final class HotelLivePriceSearchService {
     private func signature(
         trip: TripDraft,
         makkahHotel: HotelSummary,
-        madinahHotel: HotelSummary?,
-        makkahRoomId: String?,
-        makkahRoomName: String?,
-        madinahRoomId: String?,
-        madinahRoomName: String?
+        madinahHotel: HotelSummary?
     ) -> String {
         let formatter = ISO8601DateFormatter()
         return [
             makkahHotel.id,
-            makkahRoomId ?? "-",
-            makkahRoomName ?? "-",
             madinahHotel?.id ?? "-",
-            madinahRoomId ?? "-",
-            madinahRoomName ?? "-",
             formatter.string(from: trip.departureDate),
             formatter.string(from: trip.returnDate),
-            String(trip.adults), String(trip.children), String(trip.infants), String(trip.rooms)
+            String(trip.adults), String(trip.children), String(trip.infants),
+            String(resolvedRoomCount(for: trip)), trip.scope.rawValue
         ].joined(separator: "|")
+    }
+
+    private func resolvedRoomCount(for trip: TripDraft) -> Int {
+        let bedOccupants = max(1, trip.adults + trip.children)
+        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / 4.0)))
+        return max(trip.rooms, minimumRooms)
     }
 }
