@@ -670,6 +670,10 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
         real.invalidateHotelPrices()
     }
 
+    func invalidateSession() {
+        real.invalidateSession()
+    }
+
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
     }
