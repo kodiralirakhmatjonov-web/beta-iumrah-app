@@ -895,18 +895,17 @@ async function startPasswordRecovery(request: Request, env: Env, db: D1Like) {
      WHERE email_normalized=?1 LIMIT 1`,
   ).bind(email).first<{ pilgrim_id: number; email_display: string }>();
   if (!accountEmail) return json({ ok: true, challengeID: publicChallengeID });
-  try {
-    const challenge = await createEmailChallenge(
-      db, env, request, "reset_password", Number(accountEmail.pilgrim_id),
-      accountEmail.email_display, cleanText(payload?.locale, 24),
-    );
-    await audit(db, Number(accountEmail.pilgrim_id), "password_reset_started", null, null);
-    return json({ ok: true, challengeID: challenge.id });
-  } catch (error) {
-    if (error instanceof RouteError && error.code === "EMAIL_RATE_LIMITED") throw error;
-    console.error("PASSWORD_RECOVERY_DELIVERY_FAILED", error);
-    return json({ ok: true, challengeID: publicChallengeID });
-  }
+  // A known, verified account must never receive a fake success when Resend
+  // rejected the message. Propagate delivery/configuration failures so the app
+  // stays on the email form and tells the user to retry instead of opening an
+  // unusable code screen. Unknown addresses still get the neutral response
+  // above to avoid exposing whether an account exists.
+  const challenge = await createEmailChallenge(
+    db, env, request, "reset_password", Number(accountEmail.pilgrim_id),
+    accountEmail.email_display, cleanText(payload?.locale, 24),
+  );
+  await audit(db, Number(accountEmail.pilgrim_id), "password_reset_started", null, null);
+  return json({ ok: true, challengeID: challenge.id, expiresAt: challenge.expiresAt });
 }
 
 async function confirmPasswordRecovery(request: Request, db: D1Like) {

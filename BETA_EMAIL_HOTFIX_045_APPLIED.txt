@@ -1,0 +1,11 @@
+iumrah Beta Email Hotfix 045
+
+- Password recovery no longer reports a fake success when Resend rejects delivery.
+- The app now remains on the email form and surfaces the existing localized
+  delivery error instead of opening a code form for a message that was not sent.
+- Package Engine health reports whether RESEND_API_KEY is available.
+- Package Engine health now exposes whether account email delivery is configured,
+  making deployment diagnostics explicit without exposing the secret.
+
+After applying this update, run Deploy iumrah Package Engine. A TestFlight build
+is not required because the client already handles the server delivery error.

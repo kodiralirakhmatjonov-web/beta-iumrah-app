@@ -43,6 +43,11 @@ test("email verification and recovery are bounded and do not store raw codes", (
   assert.match(source, /SET revoked_at=\?1 WHERE pilgrim_id=\?2 AND revoked_at IS NULL/);
   assert.match(source, /UPDATE iumrah_client_devices SET is_primary=0 WHERE pilgrim_id=\?1/);
   assert.doesNotMatch(migration, /code TEXT NOT NULL/);
+  assert.doesNotMatch(
+    source,
+    /PASSWORD_RECOVERY_DELIVERY_FAILED[\s\S]{0,300}challengeID:\s*publicChallengeID/,
+    "A Resend failure for a verified account must not be returned as a fake success",
+  );
 });
 
 test("Apple can resolve or create one canonical account without duplicating identity", () => {
