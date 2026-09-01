@@ -68,7 +68,7 @@ struct L10n {
             case .realOutboundRequired:
                 return text("flight_error_outbound", language)
             case .noVerifiedFlights:
-                return text("flight_bot_no_candidates", language)
+                return text("flight_error_no_verified", language)
             }
         }
         if let pricingError = error as? FlightPricingBridgeError {
@@ -101,6 +101,8 @@ struct L10n {
                 return text("flight_bot_no_candidates", language)
             case .timeout:
                 return text("flight_bot_timeout", language)
+            case .superseded:
+                return text("flight_bot_superseded", language)
             }
         }
         if let urlError = error as? URLError {
@@ -485,6 +487,7 @@ struct L10n {
             "flight_error_makkah": "The Makkah hotel price is not configured yet.",
             "flight_error_madinah": "The Madinah hotel price is not configured yet for this route.",
             "flight_error_outbound": "The outbound flight selection is no longer available. Search flights again.",
+            "flight_error_no_verified": "No verified flights are available yet. Try the search again.",
             "flight_error_fare_scope": "Could not verify the fare type from %@.",
             "flight_error_candidate": "The flight system can no longer find the selected option %@.",
             "flight_error_minimum": "Only %d verified options remained; at least %d are required.",
@@ -516,6 +519,7 @@ struct L10n {
             "flight_bot_challenge": "Human verification is required by %@.",
             "flight_bot_no_candidates": "The provider returned no readable flight options.",
             "flight_bot_timeout": "The flight provider took too long to respond.",
+            "flight_bot_superseded": "The flight search was updated. Continuing with the latest request.",
             "umrah_coming": "Step-by-step Umrah guidance will appear here in a future update.",
             "hotel_all_photos_count": "All %d",
             "hotel_reviews_count": "%d reviews",
@@ -963,6 +967,7 @@ struct L10n {
             "flight_error_makkah": "Для Мекки пока не настроена цена основного отеля.",
             "flight_error_madinah": "Для этого маршрута пока не настроена цена основного отеля в Медине.",
             "flight_error_outbound": "Выбранный рейс туда больше недоступен. Повторите поиск перелёта.",
+            "flight_error_no_verified": "Пока не удалось получить подтверждённые рейсы. Повторите поиск.",
             "flight_error_fare_scope": "Не удалось подтвердить тип тарифа у %@.",
             "flight_error_candidate": "Система перелётов больше не видит выбранный вариант %@.",
             "flight_error_minimum": "После проверки осталось %d вариантов; требуется минимум %d.",
@@ -994,6 +999,7 @@ struct L10n {
             "flight_bot_challenge": "%@ запросил человеческую проверку.",
             "flight_bot_no_candidates": "Провайдер не вернул читаемых вариантов перелёта.",
             "flight_bot_timeout": "Провайдер перелётов слишком долго не отвечает.",
+            "flight_bot_superseded": "Поиск обновлён. Продолжаем с актуальными параметрами.",
             "umrah_coming": "Пошаговое сопровождение Умры появится здесь в одном из следующих обновлений.",
             "hotel_all_photos_count": "Все %d",
             "hotel_reviews_count": "%d отзывов",
@@ -1441,6 +1447,7 @@ struct L10n {
             "flight_error_makkah": "Makka uchun asosiy mehmonxona narxi hali sozlanmagan.",
             "flight_error_madinah": "Bu yo‘nalish uchun Madinadagi asosiy mehmonxona narxi hali sozlanmagan.",
             "flight_error_outbound": "Tanlangan borish reysi endi mavjud emas. Parvozni qayta qidiring.",
+            "flight_error_no_verified": "Hozircha tasdiqlangan parvozlar topilmadi. Qidiruvni qayta urinib ko‘ring.",
             "flight_error_fare_scope": "%@ tarif turini tasdiqlab bo‘lmadi.",
             "flight_error_candidate": "Parvoz tizimi tanlangan %@ variantini topa olmadi.",
             "flight_error_minimum": "Tekshiruvdan keyin %d variant qoldi; kamida %d ta kerak.",
@@ -1472,6 +1479,7 @@ struct L10n {
             "flight_bot_challenge": "%@ inson tekshiruvini talab qilmoqda.",
             "flight_bot_no_candidates": "Provayder o‘qib bo‘ladigan parvoz variantlarini qaytarmadi.",
             "flight_bot_timeout": "Parvoz provayderi juda uzoq javob bermadi.",
+            "flight_bot_superseded": "Parvoz qidiruvi yangilandi. Eng so‘nggi parametrlar bilan davom etamiz.",
             "umrah_coming": "Umra bo‘yicha bosqichma-bosqich yo‘riqnoma keyingi yangilanishlardan birida shu yerga qo‘shiladi.",
             "hotel_all_photos_count": "Barchasi %d",
             "hotel_reviews_count": "%d ta sharh",
@@ -1919,6 +1927,7 @@ struct L10n {
             "flight_error_makkah": "Макка учун асосий меҳмонхона нархи ҳали созланмаган.",
             "flight_error_madinah": "Бу йўналиш учун Мадинадаги асосий меҳмонхона нархи ҳали созланмаган.",
             "flight_error_outbound": "Танланган бориш рейси энди мавжуд эмас. Парвозни қайта қидиринг.",
+            "flight_error_no_verified": "Ҳозирча тасдиқланган парвозлар топилмади. Қидирувни қайта уриниб кўринг.",
             "flight_error_fare_scope": "%@ тариф турини тасдиқлаб бўлмади.",
             "flight_error_candidate": "Парвоз тизими танланган %@ вариантини топа олмади.",
             "flight_error_minimum": "Текширувдан кейин %d вариант қолди; камида %d та керак.",
@@ -1950,6 +1959,7 @@ struct L10n {
             "flight_bot_challenge": "%@ инсон текширувини талаб қилмоқда.",
             "flight_bot_no_candidates": "Провайдер ўқиб бўладиган парвоз вариантларини қайтармади.",
             "flight_bot_timeout": "Парвоз провайдери жуда узоқ жавоб бермади.",
+            "flight_bot_superseded": "Парвоз қидируви янгиланди. Энг сўнгги параметрлар билан давом этамиз.",
             "umrah_coming": "Умра бўйича босқичма-босқич йўриқнома кейинги янгиланишлардан бирида шу ерга қўшилади.",
             "hotel_all_photos_count": "Барчаси %d",
             "hotel_reviews_count": "%d та шарҳ",
