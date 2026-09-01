@@ -14,26 +14,28 @@ struct ReturnFlightView: View {
     @State private var searchStatus: GeneratorSearchStage? = .starting
     @State private var searchGeneration = UUID()
     @State private var presentedChallenge: FlightBotChallenge?
+    @State private var providerEvents: [FlightProviderSearchEvent] = []
 
     var body: some View {
         Group {
-            if isInitialLoading && candidates.isEmpty && offers.isEmpty {
-                FlightSearchImmersiveView(state: .searching, liveStatus: searchStatus)
-            } else {
+            if hasVerifiedResults {
                 resultsView
                     .iumrahInternalNavigation(progress: .flight)
+            } else if currentChallenge != nil || (!isSearching && !isInitialLoading) {
+                searchGate
+                    .iumrahInternalNavigation(progress: .flight)
+            } else {
+                FlightSearchImmersiveView(state: .searching, liveStatus: searchStatus)
             }
         }
-        .background(isInitialLoading && candidates.isEmpty && offers.isEmpty ? Color.black : Color.iumrahPageBackground)
+        .background(shouldShowImmersive ? Color.black : Color.iumrahPageBackground)
         .task { await search(continueExisting: false) }
         .onAppear { updateImmersive() }
         .onChange(of: isInitialLoading) { _, _ in updateImmersive() }
         .onReceive(challengeCenter.$pending) { value in
             guard let value, value.request.direction == .inbound else { return }
             guard challengeMatchesCurrentTrip(value) else { return }
-            if candidates.isEmpty && offers.isEmpty {
-                withAnimation(.easeInOut(duration: 0.22)) { isInitialLoading = false }
-            }
+            updateImmersive()
         }
         .sheet(item: $presentedChallenge) { challenge in
             FlightChallengeSheet(
@@ -46,6 +48,30 @@ struct ReturnFlightView: View {
             )
         }
         .onDisappear { chrome.setImmersive(false) }
+    }
+
+    private var searchGate: some View {
+        FlightSearchGateView(
+            direction: .inbound,
+            anchorDate: journey.trip.returnDate,
+            flexibility: journey.trip.flexibility,
+            message: fatalErrorText ?? searchGateFallbackMessage,
+            providerEvents: providerEvents,
+            challenge: currentChallenge,
+            onRetry: { Task { await search(continueExisting: true) } },
+            onOpenChallenge: {
+                if let challenge = currentChallenge { presentedChallenge = challenge }
+            }
+        )
+    }
+
+    private var searchGateFallbackMessage: String {
+        switch settings.language {
+        case .russian: return "Поиск завершён без рейса, который прошёл все проверки iumrah."
+        case .english: return "Search completed without a flight that passed all iumrah checks."
+        case .uzbek: return "Qidiruv iumrah tekshiruvlaridan o‘tgan reyssiz yakunlandi."
+        case .uzbekCyrillic: return "Қидирув iumrah текширувларидан ўтган рейссиз якунланди."
+        }
     }
 
     private var resultsView: some View {
@@ -64,18 +90,14 @@ struct ReturnFlightView: View {
                     }
                 }
 
-                if let fatalErrorText, candidates.isEmpty && offers.isEmpty && currentChallenge == nil {
-                    fatalBackendCard(fatalErrorText)
-                } else {
-                    flightGroups
+                flightGroups
 
-                    FlightSearchProgressCard(
-                        isSearching: isSearching,
-                        hasResults: !candidates.isEmpty || !offers.isEmpty,
-                        liveStatus: searchStatus,
-                        onContinue: { Task { await search(continueExisting: true) } }
-                    )
-                }
+                FlightSearchProgressCard(
+                    isSearching: isSearching,
+                    hasResults: !candidates.isEmpty || !offers.isEmpty,
+                    liveStatus: searchStatus,
+                    onContinue: { Task { await search(continueExisting: true) } }
+                )
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -188,6 +210,7 @@ struct ReturnFlightView: View {
         if !continueExisting {
             candidates = []
             offers = []
+            providerEvents = []
             journey.selectedInbound = nil
             journey.quote = nil
         }
@@ -199,11 +222,6 @@ struct ReturnFlightView: View {
         journey.errorMessage = nil
         if candidates.isEmpty && offers.isEmpty { isInitialLoading = true }
 
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(9))
-            guard searchGeneration == generation else { return }
-            withAnimation(.easeInOut(duration: 0.22)) { isInitialLoading = false }
-        }
 
         do {
             let final = try await journey.flightService.searchReturnProgressive(
@@ -213,6 +231,7 @@ struct ReturnFlightView: View {
                 outbound: outbound,
                 onUpdate: { progress in
                     guard searchGeneration == generation else { return }
+                    providerEvents = FlightSearchDiagnostics.merge(providerEvents, progress.providerEvents)
                     candidates = mergeCandidates(candidates, progress.discoveredCandidates)
                     offers = mergeOffers(offers, progress.pricedOffers)
                     searchStatus = progress.status
@@ -248,18 +267,23 @@ struct ReturnFlightView: View {
         challenge.request.destination == journey.trip.originCode.uppercased()
     }
 
+    private var hasVerifiedResults: Bool { !candidates.isEmpty || !offers.isEmpty }
+
+    private var shouldShowImmersive: Bool {
+        !hasVerifiedResults && currentChallenge == nil && (isSearching || isInitialLoading)
+    }
+
     private func updateImmersive() {
-        chrome.setImmersive(isInitialLoading && candidates.isEmpty && offers.isEmpty)
+        chrome.setImmersive(shouldShowImmersive)
     }
 
     private func grouped(rows: [FlightResultRowModel], anchor: Date) -> [(offset: Int, rows: [FlightResultRowModel])] {
         let byOffset = Dictionary(grouping: rows) { dayOffset($0.departureAt, from: anchor) }
-        let preferredOrder = [0, -1, 1, -2, 2]
-        let keys = byOffset.keys.sorted { lhs, rhs in
-            let li = preferredOrder.firstIndex(of: lhs) ?? (100 + abs(lhs))
-            let ri = preferredOrder.firstIndex(of: rhs) ?? (100 + abs(rhs))
-            if li != ri { return li < ri }
-            return lhs < rhs
+        let keys: [Int]
+        if journey.trip.flexibility.isWeeklyDiscovery {
+            keys = byOffset.keys.sorted()
+        } else {
+            keys = byOffset.keys.sorted { abs($0) == abs($1) ? $0 < $1 : abs($0) < abs($1) }
         }
         return keys.map { ($0, byOffset[$0, default: []]) }
     }
@@ -311,17 +335,43 @@ struct ReturnFlightView: View {
 
     private func flexibleDateHeader(offset: Int, date: Date?) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(flexibleDateTitle(offset))
-                .font(.title3.weight(.bold))
-            if let date {
-                Text("\(localizedDate(date)) · \(flexibleDateSubtitle(offset))")
+            if journey.trip.flexibility.isWeeklyDiscovery, let date {
+                Text(weeklyDateTitle(date))
+                    .font(.title3.weight(.bold))
+                Text(weeklyDateSubtitle(offset))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(flexibleDateTitle(offset))
+                    .font(.title3.weight(.bold))
+                if let date {
+                    Text("\(localizedDate(date)) · \(flexibleDateSubtitle(offset))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, offset == 0 ? 0 : 8)
+    }
+
+    private func weeklyDateTitle(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        formatter.dateFormat = "d MMMM, EEEE"
+        return formatter.string(from: date).localizedCapitalized
+    }
+
+    private func weeklyDateSubtitle(_ offset: Int) -> String {
+        let selected = offset == 0
+        switch settings.language {
+        case .russian: return selected ? "Ваша дата · есть подтверждённый рейс" : "На эту дату найден подтверждённый рейс"
+        case .english: return selected ? "Your date · verified flight available" : "A verified flight is available on this date"
+        case .uzbek: return selected ? "Siz tanlagan sana · tasdiqlangan reys bor" : "Bu sanada tasdiqlangan reys topildi"
+        case .uzbekCyrillic: return selected ? "Сиз танлаган сана · тасдиқланган рейс бор" : "Бу санада тасдиқланган рейс топилди"
+        }
     }
 
     private func flexibleDateTitle(_ offset: Int) -> String {
@@ -359,38 +409,5 @@ struct ReturnFlightView: View {
         formatter.locale = Locale(identifier: settings.language.localeIdentifier)
         formatter.dateFormat = "d MMMM"
         return formatter.string(from: date)
-    }
-
-    private func fatalBackendCard(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(backendTitle, systemImage: "exclamationmark.triangle.fill")
-                .font(.headline)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Button(backendRetryTitle) { Task { await search(continueExisting: true) } }
-                .buttonStyle(IumrahSecondaryButtonStyle())
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahCard()
-    }
-
-    private var backendTitle: String {
-        switch settings.language {
-        case .russian: return "Пока нет подтверждённых рейсов"
-        case .english: return "No verified flights yet"
-        case .uzbek: return "Hozircha tasdiqlangan reys topilmadi"
-        case .uzbekCyrillic: return "Ҳозирча тасдиқланган рейс топилмади"
-        }
-    }
-
-    private var backendRetryTitle: String {
-        switch settings.language {
-        case .russian: return "Продолжить поиск"
-        case .english: return "Continue search"
-        case .uzbek: return "Qidiruvni davom ettirish"
-        case .uzbekCyrillic: return "Қидирувни давом эттириш"
-        }
     }
 }

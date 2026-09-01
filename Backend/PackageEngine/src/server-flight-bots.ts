@@ -478,7 +478,12 @@ export async function normalizeOfficialCarrierText(
   return candidates.filter((c) => seen.add(`${c.providerId}|${c.flightNumber}|${c.departureAt}|${c.groupFareUsd.toFixed(2)}`));
 }
 
-async function searchOneProvider(env: Env, bot: OfficialCarrierBot, args: FlightBotSearchArgs) {
+type ProviderSearchAttempt = {
+  candidates: InternalFlightCandidate[];
+  providerError?: string;
+};
+
+async function searchOneProviderDetailed(env: Env, bot: OfficialCarrierBot, args: FlightBotSearchArgs): Promise<ProviderSearchAttempt> {
   try {
     const payloads = await fetchProvider(bot, args);
     const all: InternalFlightCandidate[] = [];
@@ -486,8 +491,17 @@ async function searchOneProvider(env: Env, bot: OfficialCarrierBot, args: Flight
       const normalized = await normalizeOfficialCarrierText(payload.body, bot, args, env);
       all.push(...normalized.map((candidate) => ({ ...candidate, sourceURL: payload.url })));
     }
-    return all;
-  } catch { return []; }
+    return { candidates: all };
+  } catch (error) {
+    return {
+      candidates: [],
+      providerError: error instanceof Error ? error.message : "PROVIDER_SEARCH_FAILED",
+    };
+  }
+}
+
+async function searchOneProvider(env: Env, bot: OfficialCarrierBot, args: FlightBotSearchArgs) {
+  return (await searchOneProviderDetailed(env, bot, args)).candidates;
 }
 
 export function officialCarrierBotIds() { return BOTS.map((bot) => bot.id); }
@@ -505,7 +519,7 @@ export async function searchOfficialCarrierProvider(
   env: Env,
   providerId: string,
   args: FlightBotSearchArgs,
-): Promise<{ candidates: InternalFlightCandidate[]; fromCache: boolean }> {
+): Promise<{ candidates: InternalFlightCandidate[]; fromCache: boolean; providerError?: string }> {
   if (!validAirport(args.origin) || !validAirport(args.destination) || !validDate(args.travelDate)) {
     throw new Error("INVALID_FLIGHT_SEARCH_ROUTE");
   }
@@ -518,13 +532,13 @@ export async function searchOfficialCarrierProvider(
   if (cached?.length) {
     return { candidates: renamespaceCached(cached, args), fromCache: true };
   }
-  const candidates = await searchOneProvider(env, bot, args);
+  const attempt = await searchOneProviderDetailed(env, bot, args);
   const seen = new Set<string>();
-  const deduped = candidates
+  const deduped = attempt.candidates
     .filter((candidate) => seen.add(`${candidate.flightNumber}|${candidate.departureAt}|${candidate.arrivalAt}|${Math.round(candidate.groupFareUsd)}`))
     .slice(0, 6);
   await putCached(env, key, deduped, providerId);
-  return { candidates: deduped, fromCache: false };
+  return { candidates: deduped, fromCache: false, providerError: attempt.providerError };
 }
 
 export async function searchOfficialCarrierBots(env: Env, args: FlightBotSearchArgs): Promise<{ candidates: InternalFlightCandidate[]; fromCache: boolean; attemptedProviders: number; successfulProviders: number }> {

@@ -170,8 +170,9 @@ final class JourneyStore: ObservableObject {
         invalidateHotelPriceAndQuote()
     }
 
-    /// Flight search may return ±1/±2 day options. Once the pilgrim selects one,
-    /// that flight's local departure day becomes the authoritative trip date.
+    /// Weekly flight discovery may return a flight on another day in the seven-day
+    /// window. Once the pilgrim selects one, that flight's local departure day
+    /// becomes the authoritative trip date.
     /// Hotel verification is then repeated against those actual dates before
     /// local package pricing runs.
     func chooseOutboundFlight(_ offer: FlightOffer) {

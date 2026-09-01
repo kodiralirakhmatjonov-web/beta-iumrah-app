@@ -24,9 +24,9 @@ enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
     case plusMinusTwo
     case weekend
 
-    /// The current product has one flexible-day mode: search the selected day,
-    /// one and two days before it, and one and two days after it. The old ±1 mode
-    /// remains decodable but is no longer presented as a separate choice.
+    /// The current product has one flexible flight-discovery mode: search a full
+    /// seven-day window around the selected date. The old ±1 raw value remains
+    /// decodable and is normalized into the same weekly mode.
     static var allCases: [DateFlexibility] { [.exact, .plusMinusTwo, .weekend] }
 
     var id: String { rawValue }
@@ -34,6 +34,8 @@ enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
     var isFlexibleDayRange: Bool {
         self == .plusMinusOne || self == .plusMinusTwo
     }
+
+    var isWeeklyDiscovery: Bool { isFlexibleDayRange }
 
     func title(_ language: AppSettingsStore.Language) -> String {
         switch self {

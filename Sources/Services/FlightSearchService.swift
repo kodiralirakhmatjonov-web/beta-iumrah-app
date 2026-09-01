@@ -43,17 +43,20 @@ struct FlightSearchProgress {
     let pricedOffers: [FlightOffer]
     let isSearching: Bool
     let status: GeneratorSearchStage?
+    let providerEvents: [FlightProviderSearchEvent]
 
     init(
         discoveredCandidates: [LiveFlightCandidate],
         pricedOffers: [FlightOffer],
         isSearching: Bool,
-        status: GeneratorSearchStage? = nil
+        status: GeneratorSearchStage? = nil,
+        providerEvents: [FlightProviderSearchEvent] = []
     ) {
         self.discoveredCandidates = discoveredCandidates
         self.pricedOffers = pricedOffers
         self.isSearching = isSearching
         self.status = status
+        self.providerEvents = providerEvents
     }
 
     static let emptySearching = FlightSearchProgress(

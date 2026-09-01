@@ -59,6 +59,7 @@ final class FlightBotOrchestrator {
         allowedProviderIDs: Set<FlightBotProviderID>? = nil,
         publishChallenges: Bool = true,
         onProvider: (@MainActor (FlightBotProvider) -> Void)? = nil,
+        onProviderEvent: (@MainActor (FlightProviderSearchEvent) -> Void)? = nil,
         onProgress: (@MainActor ([LiveFlightCandidate]) async -> Void)? = nil
     ) async throws -> SearchResult {
         pruneCheckpoints()
@@ -99,8 +100,7 @@ final class FlightBotOrchestrator {
         var completedBatches = 0
         let requiredFlexibleCoverageBatches: Int = {
             guard flexibility.isFlexibleDayRange, !dates.isEmpty, !providers.isEmpty else { return 0 }
-            // One exact-date bounded batch plus one priority-carrier batch for each
-            // alternate date is sufficient coverage before early stopping.
+            // Weekly discovery covers every date for every active device carrier.
             return dates.count
         }()
         var flexibleCoverageCompleted = 0
@@ -137,15 +137,30 @@ final class FlightBotOrchestrator {
                 let key = attemptKey(provider: provider, date: batch.date)
                 return (key, Task { @MainActor in
                     onProvider?(provider)
+                    onProviderEvent?(FlightProviderSearchEvent(
+                        providerID: provider.id,
+                        providerName: provider.displayName,
+                        execution: .device,
+                        date: request.date,
+                        outcome: .searching
+                    ))
                     do {
                         let remaining = max(3, deadline.timeIntervalSinceNow)
-                        let providerBudget = min(provider.deviceTimeoutSeconds, remaining)
+                        let weeklyBudget = flexibility.isWeeklyDiscovery ? 12.0 : provider.deviceTimeoutSeconds
+                        let providerBudget = min(weeklyBudget, remaining)
                         let results = try await FlightBotRunner(
                             provider: provider,
                             request: request,
                             requirement: effectiveRequirement
                         ).run(timeoutSeconds: providerBudget)
                         let accepted = results.filter(\.isDisplayableCandidate)
+                        onProviderEvent?(FlightProviderSearchEvent(
+                            providerID: provider.id,
+                            providerName: provider.displayName,
+                            execution: .device,
+                            date: request.date,
+                            outcome: accepted.isEmpty ? .notConfirmed : .verified(accepted.count)
+                        ))
                         if !accepted.isEmpty, let onProgress {
                             // Do not wait for a slower provider in the same bounded
                             // batch before the first verified airline card appears.
@@ -153,6 +168,13 @@ final class FlightBotOrchestrator {
                         }
                         return .candidates(results)
                     } catch FlightBotRunner.BotError.challengeRequired(let challenge) {
+                        onProviderEvent?(FlightProviderSearchEvent(
+                            providerID: provider.id,
+                            providerName: provider.displayName,
+                            execution: .device,
+                            date: request.date,
+                            outcome: .verificationRequired
+                        ))
                         if !publishChallenges {
                             // Hidden return prewarm must never strand a provider
                             // session in an invisible verification state. A later
@@ -161,7 +183,31 @@ final class FlightBotOrchestrator {
                             return .failed
                         }
                         return .challenge(challenge)
+                    } catch FlightBotRunner.BotError.noCandidates {
+                        onProviderEvent?(FlightProviderSearchEvent(
+                            providerID: provider.id, providerName: provider.displayName, execution: .device,
+                            date: request.date, outcome: .notConfirmed
+                        ))
+                        return .failed
+                    } catch FlightBotRunner.BotError.timeout {
+                        onProviderEvent?(FlightProviderSearchEvent(
+                            providerID: provider.id, providerName: provider.displayName, execution: .device,
+                            date: request.date, outcome: .unavailable
+                        ))
+                        return .failed
+                    } catch FlightBotRunner.BotError.invalidPage {
+                        onProviderEvent?(FlightProviderSearchEvent(
+                            providerID: provider.id, providerName: provider.displayName, execution: .device,
+                            date: request.date, outcome: .unavailable
+                        ))
+                        return .failed
+                    } catch FlightBotRunner.BotError.superseded {
+                        return .failed
                     } catch {
+                        onProviderEvent?(FlightProviderSearchEvent(
+                            providerID: provider.id, providerName: provider.displayName, execution: .device,
+                            date: request.date, outcome: .unavailable
+                        ))
                         return .failed
                     }
                 })
@@ -205,6 +251,11 @@ final class FlightBotOrchestrator {
             let coverageSatisfied = !flexibility.isFlexibleDayRange || flexibleCoverageCompleted >= requiredFlexibleCoverageBatches
             guard coverageSatisfied else { continue }
 
+            if flexibility.isWeeklyDiscovery {
+                // Do not stop after the first fare: the product promise is to show
+                // which days in the week actually have confirmed flights.
+                continue
+            }
             if ranked.count >= desired { break searchLoop }
             if ranked.count >= hardMinimum && completedBatches >= requiredFlexibleCoverageBatches + 3 {
                 break searchLoop
@@ -259,41 +310,15 @@ final class FlightBotOrchestrator {
         guard !dates.isEmpty, !providers.isEmpty else { return [] }
         let size = max(1, AppConfig.flightBotProviderBatchSize)
 
-        if flexibility.isFlexibleDayRange {
-            // Exact-date coverage comes first for every reviewed carrier. This
-            // prevents a third carrier (for example Air Samarkand) from waiting
-            // behind ten ±1/±2 attempts. After exact coverage, nearby dates keep
-            // the authoritative 0,-1,+1,-2,+2 order and prioritise the first two
-            // carrier adapters before broader fallback coverage.
-            let priorityCoverageCount = min(2, providers.count)
-            var output: [SearchBatch] = []
-
-            if let exactDate = dates.first {
-                for start in stride(from: 0, to: providers.count, by: size) {
-                    let end = min(providers.count, start + size)
-                    output.append(SearchBatch(
-                        date: exactDate,
-                        providers: Array(providers[start..<end]),
-                        isFlexibleCoverageBatch: start < priorityCoverageCount
-                    ))
-                }
+        if flexibility.isWeeklyDiscovery {
+            // Weekly discovery is exhaustive across the currently certified device
+            // providers. All three iPhone carriers search every day in the seven-day
+            // window, while verified results still stream immediately. One batch per
+            // date allows the carrier sessions to run in parallel without creating
+            // multiple WKWebViews for the same carrier/direction.
+            return dates.map { date in
+                SearchBatch(date: date, providers: providers, isFlexibleCoverageBatch: true)
             }
-
-            for date in dates.dropFirst() {
-                let priority = Array(providers.prefix(priorityCoverageCount))
-                if !priority.isEmpty {
-                    output.append(SearchBatch(date: date, providers: priority, isFlexibleCoverageBatch: true))
-                }
-            }
-
-            let remaining = Array(providers.dropFirst(priorityCoverageCount))
-            for date in dates.dropFirst() {
-                for start in stride(from: 0, to: remaining.count, by: size) {
-                    let end = min(remaining.count, start + size)
-                    output.append(SearchBatch(date: date, providers: Array(remaining[start..<end]), isFlexibleCoverageBatch: false))
-                }
-            }
-            return output
         }
 
         var output: [SearchBatch] = []

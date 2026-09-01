@@ -71,6 +71,7 @@ export async function providerFlightSearch(request: Request, env: Env) {
       providerId,
       fromCache: result.fromCache,
       candidates: result.candidates.map(({ groupFareUsd: _internal, ...candidate }) => candidate),
+      providerError: result.providerError,
       searchedAt: new Date().toISOString(),
     });
   } catch (error) {

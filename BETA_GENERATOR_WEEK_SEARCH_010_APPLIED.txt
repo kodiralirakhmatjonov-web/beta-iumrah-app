@@ -1,0 +1,9 @@
+iumrah Beta Generator week-search update 010
+
+- Keeps the pilgrim on the premium search surface until at least one verified flight exists.
+- Replaces the visible ±2-day mode with a seven-day Week discovery window around the selected date.
+- Searches all active production flight providers across all seven dates while streaming verified results progressively.
+- Adds per-provider/per-date diagnostics so a failed integration is never presented as proof that an airline has no flights.
+- Distinguishes server source failure from a completed search with no promotable candidate.
+- Groups verified results by their actual calendar date.
+- Preserves local package pricing, booking, eSIM, Primary Hotel and hotel-live-price architecture.

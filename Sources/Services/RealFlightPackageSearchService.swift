@@ -70,6 +70,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                         status: .checkingProvider(provider.displayName)
                     ))
                 },
+                onProviderEvent: { event in
+                    onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, providerEvents: [event]))
+                },
                 onProgress: { candidates in
                     let offers = candidates.compactMap(self.offer(from:))
                     onUpdate(.init(
@@ -93,6 +96,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                     isSearching: true,
                     status: .checkingProvider(provider.displayName)
                 ))
+            },
+            onProviderEvent: { event in
+                onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, providerEvents: [event]))
             },
             onCandidates: { values in
                 serverCandidates = self.merge(serverCandidates, values)
@@ -120,7 +126,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                 request: request,
                 flexibility: trip.flexibility,
                 allowedProviderIDs: missingServerIDs,
-                maxProviderAttempts: missingServerIDs.count,
+                maxProviderAttempts: trip.flexibility.isWeeklyDiscovery ? nil : missingServerIDs.count,
                 onProvider: { provider in
                     onUpdate(.init(
                         discoveredCandidates: serverSnapshot,
@@ -128,6 +134,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                         isSearching: true,
                         status: .checkingProvider(provider.displayName)
                     ))
+                },
+                onProviderEvent: { event in
+                    onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, providerEvents: [event]))
                 },
                 onProgress: { values in
                     let merged = self.merge(serverSnapshot, values)
@@ -204,6 +213,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                         status: .checkingProvider(provider.displayName)
                     ))
                 },
+                onProviderEvent: { event in
+                    onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, providerEvents: [event]))
+                },
                 onProgress: { values in
                     self.cachedInbound = self.merge(self.cachedInbound, values)
                     onUpdate(.init(
@@ -230,6 +242,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                     status: .checkingProvider(provider.displayName)
                 ))
             },
+            onProviderEvent: { event in
+                onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, providerEvents: [event]))
+            },
             onCandidates: { values in
                 self.cachedInbound = self.merge(self.cachedInbound, values)
                 onUpdate(.init(
@@ -254,7 +269,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                 request: request,
                 flexibility: trip.flexibility,
                 allowedProviderIDs: missingServerIDs,
-                maxProviderAttempts: missingServerIDs.count,
+                maxProviderAttempts: trip.flexibility.isWeeklyDiscovery ? nil : missingServerIDs.count,
                 onProvider: { provider in
                     onUpdate(.init(
                         discoveredCandidates: serverSnapshot,
@@ -262,6 +277,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                         isSearching: true,
                         status: .checkingProvider(provider.displayName)
                     ))
+                },
+                onProviderEvent: { event in
+                    onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, providerEvents: [event]))
                 },
                 onProgress: { values in
                     let merged = self.merge(serverSnapshot, values)
@@ -413,7 +431,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                 request: request,
                 flexibility: trip.flexibility,
                 allowedProviderIDs: missingServerIDs,
-                maxProviderAttempts: missingServerIDs.count,
+                maxProviderAttempts: trip.flexibility.isWeeklyDiscovery ? nil : missingServerIDs.count,
                 publishChallenges: false,
                 onProgress: { values in
                     self.cachedInbound = self.merge(self.cachedInbound, values)
@@ -432,6 +450,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         maxProviderAttempts: Int? = nil,
         publishChallenges: Bool = true,
         onProvider: @escaping @MainActor (FlightBotProvider) -> Void = { _ in },
+        onProviderEvent: @escaping @MainActor (FlightProviderSearchEvent) -> Void = { _ in },
         onProgress: @escaping @MainActor ([LiveFlightCandidate]) -> Void
     ) async -> [LiveFlightCandidate] {
         var progressive: [LiveFlightCandidate] = []
@@ -446,6 +465,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                 allowedProviderIDs: allowedProviderIDs,
                 publishChallenges: publishChallenges,
                 onProvider: onProvider,
+                onProviderEvent: onProviderEvent,
                 onProgress: { candidates in
                     progressive = self.merge(progressive, candidates.filter(self.accept))
                     onProgress(progressive)
@@ -461,6 +481,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         request: FlightBotSearchRequest,
         flexibility: DateFlexibility,
         onProvider: @escaping @MainActor (FlightBotProvider) -> Void,
+        onProviderEvent: @escaping @MainActor (FlightProviderSearchEvent) -> Void = { _ in },
         onCandidates: @escaping @MainActor ([LiveFlightCandidate]) -> Void
     ) async -> [LiveFlightCandidate] {
         let providers = FlightBotProviderRegistry.serverProviders(for: request.origin, destination: request.destination)
@@ -469,12 +490,19 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         var output: [LiveFlightCandidate] = []
 
         for (dateIndex, date) in dates.enumerated() {
-            if output.count >= AppConfig.flightBotPreferredOptions { return output }
+            if !flexibility.isWeeklyDiscovery && output.count >= AppConfig.flightBotPreferredOptions { return output }
             let providersForDate = dateIndex == 0 ? providers : Array(providers.prefix(2))
             let offset = dayOffset(date, from: request.date)
             for provider in providersForDate {
-                if Task.isCancelled || output.count >= AppConfig.flightBotPreferredOptions { return output }
+                if Task.isCancelled || (!flexibility.isWeeklyDiscovery && output.count >= AppConfig.flightBotPreferredOptions) { return output }
                 onProvider(provider)
+                onProviderEvent(FlightProviderSearchEvent(
+                    providerID: provider.id,
+                    providerName: provider.displayName,
+                    execution: .server,
+                    date: date,
+                    outcome: .searching
+                ))
                 let dated = FlightBotSearchRequest(
                     direction: request.direction,
                     origin: request.origin,
@@ -491,8 +519,21 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                     if !values.isEmpty {
                         output = merge(output, values)
                         onCandidates(values)
+                        onProviderEvent(FlightProviderSearchEvent(
+                            providerID: provider.id, providerName: provider.displayName, execution: .server,
+                            date: date, outcome: .verified(values.count)
+                        ))
+                    } else {
+                        onProviderEvent(FlightProviderSearchEvent(
+                            providerID: provider.id, providerName: provider.displayName, execution: .server,
+                            date: date, outcome: response.providerError == nil ? .notConfirmed : .unavailable
+                        ))
                     }
                 } catch {
+                    onProviderEvent(FlightProviderSearchEvent(
+                        providerID: provider.id, providerName: provider.displayName, execution: .server,
+                        date: date, outcome: .unavailable
+                    ))
                     // Provider failure is isolated. Device WebKit and all other
                     // server providers continue without turning the screen into an error.
                 }
@@ -668,10 +709,6 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
 
     func invalidateHotelPrices() {
         real.invalidateHotelPrices()
-    }
-
-    func invalidateSession() {
-        real.invalidateSession()
     }
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {

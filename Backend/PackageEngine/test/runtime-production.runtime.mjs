@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { normalizeItinerary, searchDateOffsets, tierDefinitions, bestFlightPair } from '../.runtime-dist/package-search.js';
 import { calculatePackageQuote } from '../.runtime-dist/pricing.js';
 import { normalizeOfficialCarrierText, officialCarrierBotCapabilities, officialCarrierBotCount } from '../.runtime-dist/server-flight-bots.js';
+import { providerFlightSearch } from '../.runtime-dist/generator-components.js';
 
 const travelers = { adults: 2, children: 0, infants: 0, rooms: 1 };
 const baseRequest = {
@@ -64,8 +65,8 @@ test('standard tier composition is Essential 1-star, Comfort 3-star, Luxury 5-st
   ]);
 });
 
-test('flexible scheduler searches 0,-1,+1,-2,+2 and exact does not fan out', () => {
-  assert.deepEqual(searchDateOffsets({ ...baseRequest, flexibility: 'plusMinusTwo' }), [0, -1, 1, -2, 2]);
+test('weekly flexible scheduler searches a full seven-day window and exact does not fan out', () => {
+  assert.deepEqual(searchDateOffsets({ ...baseRequest, flexibility: 'plusMinusTwo' }), [0, -1, 1, -2, 2, -3, 3]);
   assert.deepEqual(searchDateOffsets(baseRequest), [0]);
 });
 
@@ -91,6 +92,35 @@ function candidate(id, direction, dateOffset, fare) {
     groupFareUsd: fare,
   };
 }
+
+
+
+test('provider search reports source failure instead of pretending the airline has no flights', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('NETWORK_TEST_FAILURE'); };
+  try {
+    const request = new Request('https://iumrah.app/api/package/flights/provider-search', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerId: 'uzbekistanAirways',
+        direction: 'outbound',
+        origin: 'TAS',
+        destination: 'JED',
+        travelDate: '2026-09-10',
+        dateOffset: 0,
+        travelers,
+      }),
+    });
+    const response = await providerFlightSearch(request, {});
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    assert.deepEqual(body.candidates, []);
+    assert.match(body.providerError, /NETWORK_TEST_FAILURE/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('flight pair cannot cross flexible-date offsets', () => {
   const pair = bestFlightPair(

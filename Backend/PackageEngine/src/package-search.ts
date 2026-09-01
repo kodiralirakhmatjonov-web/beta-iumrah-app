@@ -267,7 +267,7 @@ export function shiftItinerary(base: ServerItinerary, offset: number): ServerIti
 
 export function searchDateOffsets(input: PackageSearchRequest) {
   if (input.flexibility === "weekend" || input.flexibility === "exact") return [0];
-  return [0, -1, 1, -2, 2];
+  return [0, -1, 1, -2, 2, -3, 3];
 }
 
 export function tierDefinitions(mode: PackageSearchMode): TierDefinition[] {
