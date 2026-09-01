@@ -26,10 +26,12 @@ struct HomeDashboardView: View {
         ScrollView {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
-                if let notification = clientNotifications.latest {
-                    SystemNotificationCard(notification: notification) {
-                        openSystemNotification(notification)
-                    }
+                if !clientNotifications.homeNotifications.isEmpty {
+                    SystemNotificationsCarouselView(
+                        notifications: Array(clientNotifications.homeNotifications.prefix(5)),
+                        onOpen: { openSystemNotification($0) },
+                        onDismiss: { dismissSystemNotification($0) }
+                    )
                 }
                 HomeVideoCarousel()
                 hero
@@ -47,6 +49,12 @@ struct HomeDashboardView: View {
             .padding(.bottom, 0)
         }
         .background(Color.iumrahPageBackground)
+    }
+
+
+    private func dismissSystemNotification(_ notification: ClientSystemNotification) {
+        IumrahHaptics.selection()
+        clientNotifications.dismissFromHome(notification)
     }
 
     private func openSystemNotification(_ notification: ClientSystemNotification) {
