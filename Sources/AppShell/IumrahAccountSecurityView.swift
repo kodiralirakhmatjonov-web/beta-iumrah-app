@@ -18,6 +18,7 @@ struct IumrahAccountSecurityView: View {
     @State private var isTerminating = false
     @State private var appleNonce = ""
     @State private var isLinkingApple = false
+    @State private var showingEmailSheet = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -26,6 +27,7 @@ struct IumrahAccountSecurityView: View {
 
                 if let overview {
                     primaryDeviceCard(overview)
+                    emailCard(overview)
                     appleCard(overview)
                     sessionsCard(overview)
                 } else if isLoading {
@@ -56,6 +58,11 @@ struct IumrahAccountSecurityView: View {
         .refreshable { await load() }
         .task { await load() }
         .sheet(isPresented: $showingPrimarySheet) { primaryDeviceSheet }
+        .sheet(isPresented: $showingEmailSheet, onDismiss: { Task { await load() } }) {
+            IumrahEmailVerificationView(existingEmail: overview?.loginEmail?.email)
+                .environmentObject(account)
+                .environmentObject(settings)
+        }
         .confirmationDialog(
             tr("End this session?", "Завершить этот сеанс?", "Seans tugatilsinmi?", "Сеанс тугатилсинми?"),
             isPresented: Binding(
@@ -219,6 +226,61 @@ struct IumrahAccountSecurityView: View {
         .iumrahCard()
     }
 
+    private func emailCard(_ value: IumrahSecurityOverview) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle(icon: "envelope.badge.shield.half.filled", title: tr("Email sign-in", "Вход по почте", "Email orqali kirish", "Email орқали кириш"), tint: .blue)
+
+            if let loginEmail = value.loginEmail {
+                statusRow(
+                    icon: "checkmark.circle.fill",
+                    title: loginEmail.email,
+                    detail: tr(
+                        "Verified for sign-in and password recovery.",
+                        "Подтверждена для входа и восстановления пароля.",
+                        "Kirish va parolni tiklash uchun tasdiqlangan.",
+                        "Кириш ва паролни тиклаш учун тасдиқланган."
+                    ),
+                    tint: Color.iumrahCareLight
+                )
+            } else {
+                Text(tr(
+                    "Add and verify an email to sign in without remembering your iumrah ID and to recover your password.",
+                    "Добавьте и подтвердите почту, чтобы входить без запоминания iumrah ID и восстанавливать пароль.",
+                    "iumrah ID ni eslamasdan kirish va parolni tiklash uchun email qo‘shing va tasdiqlang.",
+                    "iumrah ID ни эсламасдан кириш ва паролни тиклаш учун email қўшинг ва тасдиқланг."
+                ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button {
+                showingEmailSheet = true
+            } label: {
+                Label(
+                    value.loginEmail == nil
+                        ? tr("Add email", "Добавить почту", "Email qo‘shish", "Email қўшиш")
+                        : tr("Change email", "Изменить почту", "Emailni o‘zgartirish", "Emailни ўзгартириш"),
+                    systemImage: "envelope.arrow.triangle.branch"
+                )
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(IumrahSecondaryButtonStyle())
+            .disabled(!value.currentDeviceIsPrimary)
+            .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
+
+            if !value.currentDeviceIsPrimary {
+                Label(
+                    tr("Only the primary device can change the sign-in email.", "Почту для входа может изменить только основное устройство.", "Kirish emailini faqat asosiy qurilma o‘zgartira oladi.", "Кириш emailини фақат асосий қурилма ўзгартира олади."),
+                    systemImage: "lock.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .iumrahCard()
+    }
+
     private func sessionsCard(_ value: IumrahSecurityOverview) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -305,10 +367,10 @@ struct IumrahAccountSecurityView: View {
     private var privacyNote: some View {
         Label(
             tr(
-                "iumrah never receives your Apple password. Apple is stored only as a secure key to your existing six-digit iumrah ID.",
-                "iumrah никогда не получает Ваш пароль Apple. Apple хранится только как защищённый ключ к существующему шестизначному iumrah ID.",
-                "iumrah Apple parolingizni hech qachon olmaydi. Apple faqat mavjud olti xonali iumrah ID uchun xavfsiz kalit sifatida saqlanadi.",
-                "iumrah Apple паролингизни ҳеч қачон олмайди. Apple фақат мавжуд олти хонали iumrah ID учун хавфсиз калит сифатида сақланади."
+                "Email, Apple and your six-digit iumrah ID are secure keys to one account — never separate profiles.",
+                "Почта, Apple и шестизначный iumrah ID являются защищёнными ключами к одному аккаунту, а не отдельными профилями.",
+                "Email, Apple va olti xonali iumrah ID bitta akkauntning xavfsiz kalitlaridir — alohida profillar emas.",
+                "Email, Apple ва олти хонали iumrah ID битта аккаунтнинг хавфсиз калитларидир — алоҳида профиллар эмас."
             ),
             systemImage: "hand.raised.fill"
         )
@@ -550,11 +612,11 @@ enum IumrahAccountSecurityCopy {
         let uz: String
         let cyrl: String
         switch code {
-        case "APPLE_ACCOUNT_NOT_LINKED":
-            en = "First sign in with your six-digit iumrah ID and password, then connect Apple in Account Security."
-            ru = "Сначала войдите по шестизначному iumrah ID и паролю, затем подключите Apple в разделе «Безопасность аккаунта»."
-            uz = "Avval olti xonali iumrah ID va parol bilan kiring, keyin Akkaunt xavfsizligida Apple’ni ulang."
-            cyrl = "Аввал олти хонали iumrah ID ва парол билан киринг, кейин Аккаунт хавфсизлигида Apple’ни уланг."
+        case "APPLE_ACCOUNT_EMAIL_REQUIRED":
+            en = "Apple did not provide a verified email. Try Apple again or sign in with email or iumrah ID."
+            ru = "Apple не предоставил подтверждённую почту. Повторите вход через Apple или войдите по почте либо iumrah ID."
+            uz = "Apple tasdiqlangan email bermadi. Apple orqali qayta urinib ko‘ring yoki email yoxud iumrah ID bilan kiring."
+            cyrl = "Apple тасдиқланган email бермади. Apple орқали қайта уриниб кўринг ёки email ёхуд iumrah ID билан киринг."
         case "PRIMARY_DEVICE_REQUIRED":
             en = "Only the protected primary device can do this."
             ru = "Это действие доступно только на защищённом основном устройстве."
@@ -566,10 +628,10 @@ enum IumrahAccountSecurityCopy {
             uz = "Bu akkaunt boshqa asosiy qurilma bilan himoyalangan."
             cyrl = "Бу аккаунт бошқа асосий қурилма билан ҳимояланган."
         case "INVALID_CREDENTIALS":
-            en = "The password is incorrect."
-            ru = "Неверный пароль."
-            uz = "Parol noto‘g‘ri."
-            cyrl = "Парол нотўғри."
+            en = "The email, iumrah ID or password is incorrect."
+            ru = "Неверная почта, iumrah ID или пароль."
+            uz = "Email, iumrah ID yoki parol noto‘g‘ri."
+            cyrl = "Email, iumrah ID ёки парол нотўғри."
         case "ACCOUNT_TEMPORARILY_LOCKED":
             en = "Too many attempts. Try again in 15 minutes."
             ru = "Слишком много попыток. Повторите через 15 минут."
@@ -585,11 +647,46 @@ enum IumrahAccountSecurityCopy {
             ru = "К этому аккаунту уже подключён другой Apple ID."
             uz = "Bu akkauntga boshqa Apple ID ulangan."
             cyrl = "Бу аккаунтга бошқа Apple ID уланган."
+        case "APPLE_EMAIL_CONNECTED_TO_ANOTHER_ACCOUNT":
+            en = "The email verified by Apple already belongs to another iumrah account."
+            ru = "Подтверждённая Apple почта уже принадлежит другому аккаунту iumrah."
+            uz = "Apple tasdiqlagan email boshqa iumrah akkauntiga tegishli."
+            cyrl = "Apple тасдиқлаган email бошқа iumrah аккаунтига тегишли."
         case "APPLE_TOKEN_INVALID", "APPLE_TOKEN_REPLAYED":
             en = "Apple authorization expired. Please try again."
             ru = "Подтверждение Apple устарело. Попробуйте ещё раз."
             uz = "Apple tasdig‘i eskirgan. Qayta urinib ko‘ring."
             cyrl = "Apple тасдиғи эскирган. Қайта уриниб кўринг."
+        case "EMAIL_INVALID":
+            en = "Enter a valid email address."
+            ru = "Введите корректный адрес электронной почты."
+            uz = "To‘g‘ri email manzilini kiriting."
+            cyrl = "Тўғри email манзилини киритинг."
+        case "EMAIL_ALREADY_CONNECTED":
+            en = "This email is already connected to another iumrah account."
+            ru = "Эта почта уже подключена к другому аккаунту iumrah."
+            uz = "Bu email boshqa iumrah akkauntiga ulangan."
+            cyrl = "Бу email бошқа iumrah аккаунтига уланган."
+        case "EMAIL_RATE_LIMITED":
+            en = "Too many email requests. Please try again later."
+            ru = "Слишком много запросов. Повторите отправку позже."
+            uz = "Email so‘rovlari ko‘p. Keyinroq qayta urinib ko‘ring."
+            cyrl = "Email сўровлари кўп. Кейинроқ қайта уриниб кўринг."
+        case "EMAIL_DELIVERY_NOT_CONFIGURED", "EMAIL_DELIVERY_UNAVAILABLE":
+            en = "The verification email could not be sent right now. Please try again later."
+            ru = "Сейчас не удалось отправить письмо. Попробуйте повторить позже."
+            uz = "Hozir tasdiqlash xatini yuborib bo‘lmadi. Keyinroq qayta urinib ko‘ring."
+            cyrl = "Ҳозир тасдиқлаш хатини юбориб бўлмади. Кейинроқ қайта уриниб кўринг."
+        case "VERIFICATION_CODE_INVALID":
+            en = "The code is incorrect or expired. Request a new code."
+            ru = "Код неверный или устарел. Запросите новый код."
+            uz = "Kod noto‘g‘ri yoki muddati tugagan. Yangi kod so‘rang."
+            cyrl = "Код нотўғри ёки муддати тугаган. Янги код сўранг."
+        case "PASSWORD_TOO_WEAK":
+            en = "The password must contain at least 8 characters."
+            ru = "Пароль должен содержать не менее 8 символов."
+            uz = "Parol kamida 8 ta belgidan iborat bo‘lishi kerak."
+            cyrl = "Парол камида 8 та белгидан иборат бўлиши керак."
         default:
             en = "Account security is temporarily unavailable."
             ru = "Безопасность аккаунта временно недоступна."

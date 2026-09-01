@@ -1,77 +1,28 @@
 {
-  "patch": "iumrah-beta-update-043-account-security-apple",
-  "purpose": "Add protected client account sessions and Sign in with Apple as a second credential for the same canonical six-digit iumrah ID, without creating a second user or using email for identity.",
-  "files": [
-    {
-      "path": "BETA_SECURITY_043_APPLIED.txt",
-      "sha256": "f766bce7aa835ce094adb691e4188eeceb11bdc31a99c53b41b07793faa4715f",
-      "bytes": 1600
-    },
-    {
-      "path": "Backend/PackageEngine/migrations/0006_package_primary_hotels.sql",
-      "sha256": "04be393897714a86dbfee2a32c53b59d5ba8afbd25f9603f14b48c91c2eb5ed3",
-      "bytes": 4667
-    },
-    {
-      "path": "Backend/PackageEngine/src/client-account-security.ts",
-      "sha256": "7012dc84e63f42940347e86fce5ed447aee1c3a49177a464c9124ef320d26a3b",
-      "bytes": 28420
-    },
-    {
-      "path": "Backend/PackageEngine/src/env.ts",
-      "sha256": "96ee8c4f4271bb8598cdbeabb5ada01529fe093a11fac000df9247b3845e428d",
-      "bytes": 256
-    },
-    {
-      "path": "Backend/PackageEngine/src/index.ts",
-      "sha256": "ced1bcc71c4384e8d284961f1b37b37a9dc2037352e38ef6b0d326a0a7091606",
-      "bytes": 6669
-    },
-    {
-      "path": "Backend/PackageEngine/test/client-account-security-contract.test.mjs",
-      "sha256": "1ba9d68edeaf0e46a7bdf05f031b8831750e55394a3b47fa22b939eaa78a56bc",
-      "bytes": 1442
-    },
-    {
-      "path": "Backend/PackageEngine/wrangler.template.jsonc",
-      "sha256": "4a586dd0500d17e180072d492e849f7341fabbd9d856179054ab0faa28a5dfd5",
-      "bytes": 980
-    },
-    {
-      "path": "Resources/iumrahBeta.entitlements",
-      "sha256": "7e030f3a193257f0411e8371448760249e06f908bcd541f728ec25a6c4c4251f",
-      "bytes": 356
-    },
-    {
-      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
-      "sha256": "8f42f15f84cdb777dc23c4be45b78122eda86e572ba6e967c4b12438e2ac6f92",
-      "bytes": 31949
-    },
-    {
-      "path": "Sources/AppShell/IumrahAccountView.swift",
-      "sha256": "53b2e60985e65e366e61072b07069d013e602d21bc96a58e31b2cdc24cf637fe",
-      "bytes": 52647
-    },
-    {
-      "path": "Sources/Core/IumrahAccountSecurityIdentity.swift",
-      "sha256": "10f2fe24dcd811e2def2e7006299cf4b36c4c72be5e4ccc56ad09404b1ca7723",
-      "bytes": 6194
-    },
-    {
-      "path": "Sources/Models/IumrahAccountModels.swift",
-      "sha256": "c027291c99d7de92de47b124ba8c9bd38ecc75b1ce5984b5397a16d292cab2d6",
-      "bytes": 7092
-    },
-    {
-      "path": "Sources/Services/IumrahAccountService.swift",
-      "sha256": "2610ec751f45d82ed29c89cda1574fa4a7928089b4fea0f7f6490e8f5eec0b50",
-      "bytes": 6628
-    },
-    {
-      "path": "Sources/State/IumrahAccountStore.swift",
-      "sha256": "b90d4711fc9d3971529857f599fa85e72a9e33a694d7ce5167f161c7f650311d",
-      "bytes": 7750
-    }
+  "patch": "iumrah-beta-update-044-unified-identity-email-apple",
+  "based_on": "BETA_SECURITY_043_APPLIED",
+  "description": "Unified canonical account sign-in with verified email or six-digit iumrah ID, Resend confirmation and password recovery, and full Continue with Apple.",
+  "deployment_order": [
+    "apply_patch",
+    "configure_RESEND_API_KEY_worker_secret",
+    "deploy_package_engine",
+    "build_testflight"
   ],
-  "based_on": "BETA_HOTFIX_042_APPLIED"
+  "files": [
+    {"path":"BETA_IDENTITY_044_APPLIED.txt","sha256":"cdc91fd5b9b3f2799d8ef024dbc262f0e705185d25d0d894d347d3992662a298","bytes":1623},
+    {"path":"Backend/PackageEngine/migrations/0006_package_primary_hotels.sql","sha256":"431a9bad74f4b6324558b5848fbf5300d20e7a6674807566b433958d121501dc","bytes":6222},
+    {"path":"Backend/PackageEngine/src/client-account-security.ts","sha256":"7486dae1d539a7f3bdd0b93e5699bbdca9139fb6ed5ed751b5aa7eaace18ed36","bytes":49382},
+    {"path":"Backend/PackageEngine/src/env.ts","sha256":"f95823d96af675c5e6a6994bf9b2420aac57f595231d9f4616e1cafcf7dc6b61","bytes":349},
+    {"path":"Backend/PackageEngine/test/client-account-security-contract.test.mjs","sha256":"295d0a1538c828f8f702b460c7c8b1abc8f25dc61d85be6216e99ef650c0b4b2","bytes":3054},
+    {"path":"Backend/PackageEngine/wrangler.template.jsonc","sha256":"0c652754a70f5ba6d004a56278f26ea3a31da6883c8cd9710b906faf0c4578d1","bytes":1081},
+    {"path":"Sources/AppShell/IumrahAccountSecurityView.swift","sha256":"a99804a8713fde251b54db0f5d8ca7bebd548262f53a83a91dac3b1fd923af40","bytes":38345},
+    {"path":"Sources/AppShell/IumrahAccountView.swift","sha256":"10ebb0a493a01f86261c59eb97476b68b9100319d1f0ff1af8459e96e3e5ba50","bytes":54827},
+    {"path":"Sources/AppShell/IumrahEmailVerificationView.swift","sha256":"c2d3948919db9409a8c086df2d905dcbf6731d8ffdd500f05f5ffbb63b83275c","bytes":8782},
+    {"path":"Sources/AppShell/IumrahPasswordRecoveryView.swift","sha256":"0b0b9f2385c2bddda4d63ef228dc30d218636ad31fdde6d2e15399b6a04f46d8","bytes":10772},
+    {"path":"Sources/Core/IumrahAccountSecurityIdentity.swift","sha256":"58eccf6cd630f3f694dbd8ea0212580e2f94bb72231d6f7e5c47df945b33d5da","bytes":6196},
+    {"path":"Sources/Models/IumrahAccountModels.swift","sha256":"00acb7ae711a306c6d7eec5e7322c81152452cffba33087575d43fbf13e44df8","bytes":8497},
+    {"path":"Sources/Services/IumrahAccountService.swift","sha256":"c691d287ed9e8e95ec263ebc34778fd0877f12824619494ab34ed269b76c273e","bytes":8308},
+    {"path":"Sources/State/IumrahAccountStore.swift","sha256":"e04b3009c4d07efa88cdb7edbd3939c933e8a564af347c7dc11b8f9b1a25c9fa","bytes":9328},
+    {"path":"Sources/Views/Booking/PilgrimCheckoutView.swift","sha256":"706612b0c6138652e0b5b69199f3aa38f35d058375e3b01409034194edee491a","bytes":62432}
+  ]
 }

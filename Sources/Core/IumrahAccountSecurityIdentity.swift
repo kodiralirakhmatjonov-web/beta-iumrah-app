@@ -118,9 +118,9 @@ enum IumrahAppleSignInError: LocalizedError {
 enum IumrahAppleSignInSupport {
     static func prepare(_ request: ASAuthorizationAppleIDRequest) throws -> String {
         let nonce = try randomNonce()
-        // The six-digit iumrah ID remains the profile identity. Apple is used only
-        // as a cryptographic sign-in key, so the app does not request name or email.
-        request.requestedScopes = []
+        // Apple email is requested only to resolve or create the same canonical
+        // iumrah account. The permanent six-digit iumrah ID remains the profile ID.
+        request.requestedScopes = [.email]
         request.nonce = SHA256.hash(data: Data(nonce.utf8))
             .map { String(format: "%02x", $0) }
             .joined()

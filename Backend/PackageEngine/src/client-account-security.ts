@@ -43,6 +43,8 @@ type AppleClaims = {
   iat?: number;
   sub?: string;
   nonce?: string;
+  email?: string;
+  email_verified?: boolean | string;
 };
 
 class RouteError extends Error {
@@ -52,7 +54,10 @@ class RouteError extends Error {
 }
 
 const PASSWORD_ITERATIONS = 100_000;
+const CODE_ITERATIONS = 100_000;
 const SESSION_DAYS = 90;
+const CODE_TTL_MINUTES = 10;
+const MAX_CODE_ATTEMPTS = 5;
 let appleKeyCache: { expiresAt: number; keys: JsonWebKey[] } | null = null;
 
 function json(value: unknown, status = 200) {
@@ -68,6 +73,16 @@ function json(value: unknown, status = 200) {
 
 function cleanText(value: unknown, maxLength: number) {
   return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function normalizeEmail(value: unknown) {
+  return cleanText(value, 254).normalize("NFKC").toLowerCase();
+}
+
+function validEmail(value: string) {
+  return value.length >= 5
+    && value.length <= 254
+    && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u.test(value);
 }
 
 function validPassword(value: unknown): value is string {
@@ -102,6 +117,13 @@ function randomToken(byteCount = 32) {
   const bytes = new Uint8Array(byteCount);
   crypto.getRandomValues(bytes);
   return base64URL(bytes);
+}
+
+function randomVerificationCode() {
+  const limit = Math.floor(0x1_0000_0000 / 1_000_000) * 1_000_000;
+  const buffer = new Uint32Array(1);
+  do crypto.getRandomValues(buffer); while (buffer[0] >= limit);
+  return String(buffer[0] % 1_000_000).padStart(6, "0");
 }
 
 async function sha256Hex(value: string) {
@@ -387,12 +409,19 @@ async function securityOverview(db: D1Like, auth: DeviceAuth) {
   const apple = await db.prepare(
     "SELECT linked_at FROM iumrah_client_apple_links WHERE pilgrim_id=?1 LIMIT 1",
   ).bind(auth.pilgrimID).first<{ linked_at: string }>();
+  const accountEmail = await db.prepare(
+    `SELECT email_display,verified_at FROM iumrah_client_account_emails
+     WHERE pilgrim_id=?1 LIMIT 1`,
+  ).bind(auth.pilgrimID).first<{ email_display: string; verified_at: string }>();
   return {
     ok: true,
     iumrahID: String(auth.pilgrimID).padStart(6, "0"),
     currentSessionID: auth.sessionID,
     currentDeviceIsPrimary: auth.isPrimary,
     primaryDeviceProtected: Boolean(primary),
+    loginEmail: accountEmail
+      ? { email: accountEmail.email_display, verifiedAt: accountEmail.verified_at }
+      : null,
     apple: { linked: Boolean(apple), linkedAt: apple?.linked_at ?? null },
     sessions,
   };
@@ -519,7 +548,12 @@ async function verifyAppleIdentity(identityToken: unknown, rawNonce: unknown, bu
       || claims.nonce !== await sha256Hex(nonce)) {
     throw new RouteError("APPLE_TOKEN_INVALID", 401);
   }
-  return { token, subject: claims.sub };
+  return {
+    token,
+    subject: claims.sub,
+    email: normalizeEmail(claims.email),
+    emailVerified: claims.email_verified === true || claims.email_verified === "true",
+  };
 }
 
 async function consumeAppleAssertion(db: D1Like, identityToken: string) {
@@ -533,6 +567,237 @@ async function consumeAppleAssertion(db: D1Like, identityToken: string) {
   await db.prepare(
     "INSERT INTO iumrah_client_apple_assertions(token_hash,used_at) VALUES(?1,?2)",
   ).bind(digest, new Date().toISOString()).run();
+}
+
+async function resolveLoginPilgrimID(db: D1Like, identifierValue: unknown) {
+  const identifier = cleanText(identifierValue, 254);
+  if (/^\d{6}$/.test(identifier)) return Number(identifier);
+  const email = normalizeEmail(identifier);
+  if (!validEmail(email)) return 0;
+  const row = await db.prepare(
+    "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE email_normalized=?1 LIMIT 1",
+  ).bind(email).first<{ pilgrim_id: number }>();
+  return Number(row?.pilgrim_id ?? 0);
+}
+
+async function accountRow(db: D1Like, pilgrimID: number) {
+  return db.prepare(
+    `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+     FROM pilgrims p INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+     WHERE p.id=?1 LIMIT 1`,
+  ).bind(pilgrimID).first<PilgrimRow>();
+}
+
+async function loginWithPassword(request: Request, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    identifier?: unknown;
+    iumrahID?: unknown;
+    password?: unknown;
+    device?: unknown;
+  } | null;
+  const pilgrimID = await resolveLoginPilgrimID(db, payload?.identifier ?? payload?.iumrahID);
+  const password = String(payload?.password ?? "");
+  if (!pilgrimID || !validPassword(password)) throw new RouteError("INVALID_CREDENTIALS", 401);
+  const pilgrim = await accountRow(db, pilgrimID);
+  if (!pilgrim) throw new RouteError("INVALID_CREDENTIALS", 401);
+  await verifyAccountPassword(db, pilgrimID, password);
+  const device = parseDevice(payload?.device);
+  const session = await createAccountSession(db, pilgrimID);
+  const auth: AccountAuth = { pilgrimID, tokenHash: session.tokenHash, pilgrim };
+  let sessionID: string;
+  try {
+    sessionID = await bindCurrentSession(db, auth, device, request);
+  } catch (error) {
+    await db.prepare("UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2")
+      .bind(new Date().toISOString(), session.tokenHash).run();
+    throw error;
+  }
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE iumrah_accounts SET last_login_at=?1 WHERE pilgrim_id=?2")
+    .bind(now, pilgrimID).run();
+  await audit(db, pilgrimID, "password_sign_in", sessionID, sessionID);
+  return json({
+    ok: true,
+    account: accountProfile(pilgrim),
+    session: { token: session.token, expiresAt: session.expiresAt },
+  });
+}
+
+async function linkVerifiedEmail(
+  db: D1Like,
+  pilgrimID: number,
+  emailDisplay: string,
+  emailNormalized: string,
+) {
+  const collision = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_account_emails
+     WHERE email_normalized=?1 AND pilgrim_id<>?2 LIMIT 1`,
+  ).bind(emailNormalized, pilgrimID).first<{ pilgrim_id: number }>();
+  if (collision) throw new RouteError("EMAIL_ALREADY_CONNECTED", 409);
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO iumrah_client_account_emails(
+       pilgrim_id,email_normalized,email_display,verified_at,updated_at
+     ) VALUES(?1,?2,?3,?4,?4)
+     ON CONFLICT(pilgrim_id) DO UPDATE SET
+       email_normalized=excluded.email_normalized,
+       email_display=excluded.email_display,
+       verified_at=excluded.verified_at,
+       updated_at=excluded.updated_at`,
+  ).bind(pilgrimID, emailNormalized, emailDisplay, now).run();
+  await db.prepare("UPDATE pilgrims SET email=?1,updated_at=?2 WHERE id=?3")
+    .bind(emailDisplay, now, pilgrimID).run();
+  await db.prepare(
+    `UPDATE iumrah_client_email_challenges SET consumed_at=?1
+     WHERE pilgrim_id=?2 AND purpose='verify_email' AND consumed_at IS NULL`,
+  ).bind(now, pilgrimID).run();
+}
+
+function emailCopy(code: string, purpose: "verify_email" | "reset_password", locale: string) {
+  const language = locale.toLowerCase();
+  const russian = language.startsWith("ru");
+  const uzbek = language.startsWith("uz");
+  const title = purpose === "reset_password"
+    ? (russian ? "Восстановление пароля iumrah" : uzbek ? "iumrah parolini tiklash" : "Reset your iumrah password")
+    : (russian ? "Подтверждение почты iumrah" : uzbek ? "iumrah elektron pochtasini tasdiqlash" : "Verify your iumrah email");
+  const lead = purpose === "reset_password"
+    ? (russian ? "Код для восстановления пароля:" : uzbek ? "Parolni tiklash kodi:" : "Your password reset code:")
+    : (russian ? "Код подтверждения почты:" : uzbek ? "Elektron pochtani tasdiqlash kodi:" : "Your email verification code:");
+  const warning = russian
+    ? "Код действует 10 минут. Никому его не сообщайте. Если Вы не запрашивали код, проигнорируйте письмо."
+    : uzbek
+      ? "Kod 10 daqiqa amal qiladi. Uni hech kimga bermang. Agar kodni so‘ramagan bo‘lsangiz, xatni e’tiborsiz qoldiring."
+      : "This code expires in 10 minutes. Never share it. If you did not request it, ignore this email.";
+  return {
+    subject: title,
+    text: `${lead}\n\n${code}\n\n${warning}`,
+    html: `<!doctype html><html><body style="margin:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#111"><div style="max-width:520px;margin:32px auto;background:#fff;border-radius:28px;padding:32px"><div style="font-size:18px;font-weight:700">iumrah</div><h1 style="font-size:26px;margin:28px 0 12px">${title}</h1><p style="color:#62676d;line-height:1.5">${lead}</p><div style="font-size:36px;font-weight:750;letter-spacing:9px;padding:18px 0">${code}</div><p style="color:#62676d;line-height:1.5">${warning}</p></div></body></html>`,
+  };
+}
+
+async function sendAccountEmail(
+  env: Env,
+  to: string,
+  copy: { subject: string; text: string; html: string },
+) {
+  const apiKey = cleanText(env.RESEND_API_KEY, 300);
+  if (!apiKey) throw new RouteError("EMAIL_DELIVERY_NOT_CONFIGURED", 503);
+  const fromAddress = cleanText(env.ACCOUNT_EMAIL_FROM, 254) || "security@iumrah.app";
+  const replyTo = cleanText(env.ACCOUNT_EMAIL_REPLY_TO, 254) || "support@iumrah.app";
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `iumrah <${fromAddress}>`,
+      to: [to],
+      reply_to: replyTo,
+      subject: copy.subject,
+      text: copy.text,
+      html: copy.html,
+    }),
+  });
+  if (!response.ok) {
+    console.error("RESEND_ACCOUNT_EMAIL_FAILED", response.status, await response.text().catch(() => ""));
+    throw new RouteError("EMAIL_DELIVERY_UNAVAILABLE", 503);
+  }
+}
+
+async function challengeRate(db: D1Like, purpose: string, email: string, pilgrimID: number | null, request: Request) {
+  const since = new Date(Date.now() - 60 * 60_000).toISOString();
+  const ip = cleanText(request.headers.get("cf-connecting-ip"), 80);
+  const ipHash = ip ? await sha256Hex(ip) : "";
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS count FROM iumrah_client_email_challenges
+     WHERE purpose=?1 AND created_at>?2
+       AND (email_normalized=?3 OR (?4<>'' AND request_ip_hash=?4)
+            OR (?5 IS NOT NULL AND pilgrim_id=?5))`,
+  ).bind(purpose, since, email, ipHash, pilgrimID).first<{ count: number }>();
+  return { limited: Number(row?.count ?? 0) >= 5, ipHash };
+}
+
+async function createEmailChallenge(
+  db: D1Like,
+  env: Env,
+  request: Request,
+  purpose: "verify_email" | "reset_password",
+  pilgrimID: number,
+  emailDisplay: string,
+  locale: string,
+) {
+  const emailNormalized = normalizeEmail(emailDisplay);
+  if (!validEmail(emailNormalized)) throw new RouteError("EMAIL_INVALID", 400);
+  const rate = await challengeRate(db, purpose, emailNormalized, pilgrimID, request);
+  if (rate.limited) throw new RouteError("EMAIL_RATE_LIMITED", 429);
+  const code = randomVerificationCode();
+  const salt = randomToken(18);
+  const codeHash = await passwordDigest(code, salt, CODE_ITERATIONS);
+  const id = `challenge-${crypto.randomUUID()}`;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + CODE_TTL_MINUTES * 60_000).toISOString();
+  await db.prepare(
+    `INSERT INTO iumrah_client_email_challenges(
+       id,purpose,pilgrim_id,email_normalized,email_display,code_salt,code_hash,
+       code_iterations,attempts,max_attempts,expires_at,created_at,request_ip_hash
+     ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,0,?9,?10,?11,?12)`,
+  ).bind(
+    id, purpose, pilgrimID, emailNormalized, emailDisplay, salt, codeHash,
+    CODE_ITERATIONS, MAX_CODE_ATTEMPTS, expiresAt, now.toISOString(), rate.ipHash,
+  ).run();
+  try {
+    await sendAccountEmail(env, emailDisplay, emailCopy(code, purpose, locale));
+  } catch (error) {
+    await db.prepare("UPDATE iumrah_client_email_challenges SET consumed_at=?1 WHERE id=?2")
+      .bind(new Date().toISOString(), id).run();
+    throw error;
+  }
+  return { id, expiresAt };
+}
+
+async function verifyEmailChallenge(
+  db: D1Like,
+  challengeID: string,
+  purpose: "verify_email" | "reset_password",
+  code: string,
+  pilgrimID?: number,
+) {
+  const row = await db.prepare(
+    `SELECT id,pilgrim_id,email_normalized,email_display,code_salt,code_hash,
+            code_iterations,attempts,max_attempts,expires_at,consumed_at
+     FROM iumrah_client_email_challenges WHERE id=?1 AND purpose=?2 LIMIT 1`,
+  ).bind(challengeID, purpose).first<{
+    id: string;
+    pilgrim_id: number;
+    email_normalized: string;
+    email_display: string;
+    code_salt: string;
+    code_hash: string;
+    code_iterations: number;
+    attempts: number;
+    max_attempts: number;
+    expires_at: string;
+    consumed_at: string | null;
+  }>();
+  if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()
+      || (pilgrimID !== undefined && Number(row.pilgrim_id) !== pilgrimID)
+      || !/^\d{6}$/.test(code) || Number(row.attempts) >= Number(row.max_attempts)) {
+    throw new RouteError("VERIFICATION_CODE_INVALID", 400);
+  }
+  const digest = await passwordDigest(code, row.code_salt, Number(row.code_iterations));
+  if (!constantTimeEqual(digest, row.code_hash)) {
+    const attempts = Number(row.attempts) + 1;
+    await db.prepare(
+      `UPDATE iumrah_client_email_challenges
+       SET attempts=?1,consumed_at=CASE WHEN ?1>=max_attempts THEN ?2 ELSE consumed_at END
+       WHERE id=?3`,
+    ).bind(attempts, new Date().toISOString(), row.id).run();
+    throw new RouteError("VERIFICATION_CODE_INVALID", 400);
+  }
+  await db.prepare("UPDATE iumrah_client_email_challenges SET consumed_at=?1 WHERE id=?2")
+    .bind(new Date().toISOString(), row.id).run();
+  return row;
 }
 
 async function register(request: Request, db: D1Like) {
@@ -587,6 +852,99 @@ async function terminateSession(request: Request, db: D1Like, sessionID: string)
   return json({ ok: true, signedOut: self });
 }
 
+async function startEmailVerification(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  const payload = await request.json().catch(() => null) as { email?: unknown; locale?: unknown } | null;
+  const email = cleanText(payload?.email, 254);
+  const normalized = normalizeEmail(email);
+  if (!validEmail(normalized)) throw new RouteError("EMAIL_INVALID", 400);
+  const challenge = await createEmailChallenge(
+    db, env, request, "verify_email", auth.pilgrimID, email, cleanText(payload?.locale, 24),
+  );
+  await audit(db, auth.pilgrimID, "email_verification_started", auth.sessionID, null);
+  return json({ ok: true, challengeID: challenge.id, expiresAt: challenge.expiresAt });
+}
+
+async function confirmEmailVerification(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  const payload = await request.json().catch(() => null) as { challengeID?: unknown; code?: unknown } | null;
+  const challenge = await verifyEmailChallenge(
+    db,
+    cleanText(payload?.challengeID, 100),
+    "verify_email",
+    cleanText(payload?.code, 12),
+    auth.pilgrimID,
+  );
+  await linkVerifiedEmail(db, auth.pilgrimID, challenge.email_display, challenge.email_normalized);
+  await audit(db, auth.pilgrimID, "login_email_verified", auth.sessionID, null);
+  return json({ ok: true, email: challenge.email_display, verifiedAt: new Date().toISOString() });
+}
+
+async function startPasswordRecovery(request: Request, env: Env, db: D1Like) {
+  if (!cleanText(env.RESEND_API_KEY, 300)) {
+    throw new RouteError("EMAIL_DELIVERY_NOT_CONFIGURED", 503);
+  }
+  const payload = await request.json().catch(() => null) as { email?: unknown; locale?: unknown } | null;
+  const email = normalizeEmail(payload?.email);
+  const publicChallengeID = `challenge-${crypto.randomUUID()}`;
+  if (!validEmail(email)) return json({ ok: true, challengeID: publicChallengeID });
+  const accountEmail = await db.prepare(
+    `SELECT pilgrim_id,email_display FROM iumrah_client_account_emails
+     WHERE email_normalized=?1 LIMIT 1`,
+  ).bind(email).first<{ pilgrim_id: number; email_display: string }>();
+  if (!accountEmail) return json({ ok: true, challengeID: publicChallengeID });
+  try {
+    const challenge = await createEmailChallenge(
+      db, env, request, "reset_password", Number(accountEmail.pilgrim_id),
+      accountEmail.email_display, cleanText(payload?.locale, 24),
+    );
+    await audit(db, Number(accountEmail.pilgrim_id), "password_reset_started", null, null);
+    return json({ ok: true, challengeID: challenge.id });
+  } catch (error) {
+    if (error instanceof RouteError && error.code === "EMAIL_RATE_LIMITED") throw error;
+    console.error("PASSWORD_RECOVERY_DELIVERY_FAILED", error);
+    return json({ ok: true, challengeID: publicChallengeID });
+  }
+}
+
+async function confirmPasswordRecovery(request: Request, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    challengeID?: unknown;
+    code?: unknown;
+    newPassword?: unknown;
+  } | null;
+  if (!validPassword(payload?.newPassword)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
+  const challenge = await verifyEmailChallenge(
+    db,
+    cleanText(payload?.challengeID, 100),
+    "reset_password",
+    cleanText(payload?.code, 12),
+  );
+  const salt = randomToken(18);
+  const passwordHash = await passwordDigest(payload.newPassword, salt, PASSWORD_ITERATIONS);
+  const now = new Date().toISOString();
+  await db.prepare(
+    `UPDATE iumrah_accounts
+     SET password_salt=?1,password_hash=?2,password_iterations=?3,password_updated_at=?4,
+         failed_attempts=0,locked_until=NULL
+     WHERE pilgrim_id=?5`,
+  ).bind(salt, passwordHash, PASSWORD_ITERATIONS, now, Number(challenge.pilgrim_id)).run();
+  await db.prepare(
+    "UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE pilgrim_id=?2 AND revoked_at IS NULL",
+  ).bind(now, Number(challenge.pilgrim_id)).run();
+  await db.prepare(
+    "UPDATE iumrah_client_devices SET is_primary=0 WHERE pilgrim_id=?1",
+  ).bind(Number(challenge.pilgrim_id)).run();
+  await audit(db, Number(challenge.pilgrim_id), "password_reset_completed", null, null);
+  return json({
+    ok: true,
+    iumrahID: String(Number(challenge.pilgrim_id)).padStart(6, "0"),
+    sessionsRevoked: true,
+  });
+}
+
 async function linkApple(request: Request, env: Env, db: D1Like) {
   const auth = await requireDevice(request, db);
   if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
@@ -618,6 +976,20 @@ async function linkApple(request: Request, env: Env, db: D1Like) {
      VALUES(?1,?2,?3,?3)
      ON CONFLICT(apple_subject) DO UPDATE SET last_used_at=excluded.last_used_at`,
   ).bind(apple.subject, auth.pilgrimID, now).run();
+  if (apple.emailVerified && validEmail(apple.email)) {
+    const emailOwner = await db.prepare(
+      "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE email_normalized=?1 LIMIT 1",
+    ).bind(apple.email).first<{ pilgrim_id: number }>();
+    if (emailOwner && Number(emailOwner.pilgrim_id) !== auth.pilgrimID) {
+      await db.prepare("DELETE FROM iumrah_client_apple_links WHERE apple_subject=?1")
+        .bind(apple.subject).run();
+      throw new RouteError("APPLE_EMAIL_CONNECTED_TO_ANOTHER_ACCOUNT", 409);
+    }
+    const currentEmail = await db.prepare(
+      "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE pilgrim_id=?1 LIMIT 1",
+    ).bind(auth.pilgrimID).first<{ pilgrim_id: number }>();
+    if (!currentEmail) await linkVerifiedEmail(db, auth.pilgrimID, apple.email, apple.email);
+  }
   await audit(db, auth.pilgrimID, "apple_id_linked", auth.sessionID, auth.sessionID);
   return json({ ok: true, appleLinked: true, iumrahID: String(auth.pilgrimID).padStart(6, "0") });
 }
@@ -634,14 +1006,78 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
     env.APPLE_BUNDLE_ID ?? "com.iumrah.beta",
   );
   await consumeAppleAssertion(db, apple.token);
-  const row = await db.prepare(
+  let row = await db.prepare(
     `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
      FROM iumrah_client_apple_links a
      INNER JOIN pilgrims p ON p.id=a.pilgrim_id
      INNER JOIN iumrah_accounts account ON account.pilgrim_id=p.id
      WHERE a.apple_subject=?1 LIMIT 1`,
   ).bind(apple.subject).first<PilgrimRow>();
-  if (!row) throw new RouteError("APPLE_ACCOUNT_NOT_LINKED", 409);
+  let createdAccount = false;
+  if (!row) {
+    if (!apple.emailVerified || !validEmail(apple.email)) {
+      throw new RouteError("APPLE_ACCOUNT_EMAIL_REQUIRED", 409);
+    }
+    const existingEmail = await db.prepare(
+      `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+       FROM iumrah_client_account_emails e
+       INNER JOIN pilgrims p ON p.id=e.pilgrim_id
+       INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+       WHERE e.email_normalized=?1 LIMIT 1`,
+    ).bind(apple.email).first<PilgrimRow>();
+    if (existingEmail) {
+      row = existingEmail;
+    } else {
+      const now = new Date().toISOString();
+      const created = await db.prepare(
+        `INSERT INTO pilgrims(email,created_at,updated_at)
+         VALUES(?1,?2,?2)
+         RETURNING id,first_name,last_name,display_name,phone,email,telegram,whatsapp`,
+      ).bind(apple.email, now).first<PilgrimRow>();
+      if (!created) throw new RouteError("APPLE_ACCOUNT_CREATION_FAILED", 503);
+      try {
+        await linkVerifiedEmail(db, Number(created.id), apple.email, apple.email);
+        const salt = randomToken(18);
+        const inaccessiblePassword = randomToken(48);
+        const passwordHash = await passwordDigest(inaccessiblePassword, salt, PASSWORD_ITERATIONS);
+        await db.prepare(
+          `INSERT INTO iumrah_accounts(
+             pilgrim_id,password_salt,password_hash,password_iterations,activated_at,password_updated_at
+           ) VALUES(?1,?2,?3,?4,?5,?5)`,
+        ).bind(Number(created.id), salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+        row = created;
+        createdAccount = true;
+      } catch (error) {
+        await db.prepare("DELETE FROM pilgrims WHERE id=?1").bind(Number(created.id)).run().catch(() => undefined);
+        const racedOwner = await db.prepare(
+          `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+           FROM iumrah_client_account_emails e
+           INNER JOIN pilgrims p ON p.id=e.pilgrim_id
+           INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+           WHERE e.email_normalized=?1 LIMIT 1`,
+        ).bind(apple.email).first<PilgrimRow>();
+        if (!racedOwner) throw error;
+        row = racedOwner;
+      }
+    }
+    try {
+      const now = new Date().toISOString();
+      await db.prepare(
+        `INSERT INTO iumrah_client_apple_links(apple_subject,pilgrim_id,linked_at,last_used_at)
+         VALUES(?1,?2,?3,?3)`,
+      ).bind(apple.subject, Number(row.id), now).run();
+    } catch (error) {
+      const linkedOwner = await db.prepare(
+        `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+         FROM iumrah_client_apple_links a
+         INNER JOIN pilgrims p ON p.id=a.pilgrim_id
+         WHERE a.apple_subject=?1 LIMIT 1`,
+      ).bind(apple.subject).first<PilgrimRow>();
+      if (!linkedOwner) throw error;
+      row = linkedOwner;
+      createdAccount = false;
+    }
+  }
   const device = parseDevice(payload?.device);
   const session = await createAccountSession(db, Number(row.id));
   const auth: AccountAuth = { pilgrimID: Number(row.id), tokenHash: session.tokenHash, pilgrim: row };
@@ -653,12 +1089,18 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
       .bind(new Date().toISOString(), session.tokenHash).run();
     throw error;
   }
+  if (createdAccount) {
+    await db.prepare(
+      `UPDATE iumrah_client_devices SET is_primary=1
+       WHERE pilgrim_id=?1 AND installation_id=?2`,
+    ).bind(Number(row.id), device.installationID).run();
+  }
   const now = new Date().toISOString();
   await db.prepare("UPDATE iumrah_client_apple_links SET last_used_at=?1 WHERE apple_subject=?2")
     .bind(now, apple.subject).run();
   await db.prepare("UPDATE iumrah_accounts SET last_login_at=?1 WHERE pilgrim_id=?2")
     .bind(now, Number(row.id)).run();
-  await audit(db, Number(row.id), "apple_sign_in", sessionID, sessionID);
+  await audit(db, Number(row.id), createdAccount ? "apple_account_created" : "apple_sign_in", sessionID, sessionID);
   return json({
     ok: true,
     account: accountProfile(row),
@@ -670,6 +1112,9 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
   if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
   const db = env.HOTELS_DB;
   try {
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/login") {
+      return await loginWithPassword(request, db);
+    }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/security/register") {
       return await register(request, db);
     }
@@ -689,6 +1134,18 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/apple/sign-in") {
       return await signInWithApple(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/email/start") {
+      return await startEmailVerification(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/email/confirm") {
+      return await confirmEmailVerification(request, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/password/recovery/start") {
+      return await startPasswordRecovery(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/password/recovery/confirm") {
+      return await confirmPasswordRecovery(request, db);
     }
     return json({ ok: false, error: "NOT_FOUND" }, 404);
   } catch (error) {

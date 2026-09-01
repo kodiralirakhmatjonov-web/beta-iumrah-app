@@ -37,6 +37,8 @@
     }
   ],
   "vars": {
-    "APPLE_BUNDLE_ID": "com.iumrah.beta"
+    "APPLE_BUNDLE_ID": "com.iumrah.beta",
+    "ACCOUNT_EMAIL_FROM": "security@iumrah.app",
+    "ACCOUNT_EMAIL_REPLY_TO": "support@iumrah.app"
   }
 }

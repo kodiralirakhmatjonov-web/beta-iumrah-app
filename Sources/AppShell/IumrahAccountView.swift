@@ -17,6 +17,7 @@ struct IumrahAccountView: View {
     @State private var loginError: String?
     @State private var appleNonce = ""
     @State private var isAppleSigningIn = false
+    @State private var showPasswordRecovery = false
 
     @State private var firstName = ""
     @State private var lastName = ""
@@ -74,6 +75,11 @@ struct IumrahAccountView: View {
         .sheet(isPresented: $showProfileEditor) {
             profileEditorSheet
         }
+        .sheet(isPresented: $showPasswordRecovery) {
+            IumrahPasswordRecoveryView()
+                .environmentObject(account)
+                .environmentObject(settings)
+        }
         .fullScreenCover(isPresented: $showIdentityFullscreen) {
             identityFullscreenView
         }
@@ -85,7 +91,7 @@ struct IumrahAccountView: View {
                 Text("Account")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
                     .tracking(-1)
-                Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in with your permanent iumrah ID", "Войдите по постоянному iumrah ID", "Doimiy iumrah ID orqali kiring", "Доимий iumrah ID орқали киринг"))
+                Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in with email, iumrah ID or Apple", "Войдите по почте, iumrah ID или через Apple", "Email, iumrah ID yoki Apple orqali kiring", "Email, iumrah ID ёки Apple орқали киринг"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -497,7 +503,26 @@ struct IumrahAccountView: View {
                         accountField(tr("First name", "Имя", "Ism", "Исм"), text: $firstName, contentType: .givenName)
                         accountField(tr("Last name", "Фамилия", "Familiya", "Фамилия"), text: $lastName, contentType: .familyName)
                         accountField(tr("Phone", "Телефон", "Telefon", "Телефон"), text: $phone, keyboard: .phonePad, contentType: .telephoneNumber)
-                        accountField("Email", text: $email, keyboard: .emailAddress, contentType: .emailAddress, autocapitalization: .never)
+                        HStack(spacing: 12) {
+                            Image(systemName: "envelope.badge.shield.half.filled")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(email.isEmpty ? "Email" : email)
+                                    .font(.subheadline.weight(.semibold))
+                                Text(tr(
+                                    "Manage and verify your sign-in email in Account Security.",
+                                    "Добавить или изменить почту для входа можно в разделе «Безопасность аккаунта».",
+                                    "Kirish emailini Akkaunt xavfsizligida boshqaring va tasdiqlang.",
+                                    "Кириш emailини Аккаунт хавфсизлигида бошқаринг ва тасдиқланг."
+                                ))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 4)
+                        .frame(minHeight: 58)
                         accountField("Telegram", text: $telegram, autocapitalization: .never)
                         accountField("WhatsApp", text: $whatsapp, keyboard: .phonePad, contentType: .telephoneNumber)
                     }
@@ -634,19 +659,17 @@ struct IumrahAccountView: View {
 
     private var loginCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(icon: "key.fill", title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"), subtitle: tr("Use your six-digit iumrah ID and password", "Введите шестизначный iumrah ID и пароль", "Olti xonali iumrah ID va parolni kiriting", "Олти хонали iumrah ID ва паролни киритинг"))
+            sectionHeader(icon: "key.fill", title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"), subtitle: tr("Use your email or six-digit iumrah ID", "Введите почту или шестизначный iumrah ID", "Email yoki olti xonali iumrah ID ni kiriting", "Email ёки олти хонали iumrah ID ни киритинг"))
 
             HStack(spacing: 11) {
-                Image(systemName: "number")
+                Image(systemName: loginID.contains("@") ? "envelope.fill" : "person.text.rectangle.fill")
                     .foregroundStyle(.secondary)
                     .frame(width: 22)
-                TextField("000016", text: $loginID)
-                    .keyboardType(.numberPad)
-                    .font(.body.monospaced())
-                    .onChange(of: loginID) { _, value in
-                        let digits = String(value.filter(\.isNumber).prefix(6))
-                        if digits != value { loginID = digits }
-                    }
+                TextField(tr("Email or iumrah ID", "Почта или iumrah ID", "Email yoki iumrah ID", "Email ёки iumrah ID"), text: $loginID)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
             }
             .padding(.horizontal, 16)
             .frame(height: 56)
@@ -682,7 +705,17 @@ struct IumrahAccountView: View {
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(loginID.filter(\.isNumber).count != 6 || loginPassword.count < 8 || isLoggingIn)
+            .disabled(loginID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loginPassword.count < 8 || isLoggingIn)
+
+            Button {
+                showPasswordRecovery = true
+            } label: {
+                Text(tr("Forgot password?", "Забыли пароль?", "Parolni unutdingizmi?", "Паролни унутдингизми?"))
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.blue)
 
             HStack(spacing: 12) {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
@@ -692,7 +725,7 @@ struct IumrahAccountView: View {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
             }
 
-            SignInWithAppleButton(.signIn) { request in
+            SignInWithAppleButton(.continue) { request in
                 prepareAppleSignIn(request)
             } onCompletion: { result in
                 completeAppleSignIn(result)
@@ -703,10 +736,10 @@ struct IumrahAccountView: View {
             .disabled(isAppleSigningIn || isLoggingIn)
 
             Text(tr(
-                "Apple opens the same account after it has been connected to your six-digit iumrah ID in Account Security.",
-                "Apple открывает тот же аккаунт после привязки к шестизначному iumrah ID в разделе «Безопасность аккаунта».",
-                "Apple Akkaunt xavfsizligida olti xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
-                "Apple Аккаунт хавфсизлигида олти хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
+                "Apple securely finds or creates your single iumrah account. Your six-digit iumrah ID remains permanent.",
+                "Apple безопасно найдёт или создаст Ваш единый аккаунт. Шестизначный iumrah ID останется постоянным.",
+                "Apple yagona iumrah akkauntingizni xavfsiz topadi yoki yaratadi. Olti xonali iumrah ID doimiy qoladi.",
+                "Apple ягона iumrah аккаунтингизни хавфсиз топади ёки яратади. Олти хонали iumrah ID доимий қолади."
             ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -941,12 +974,16 @@ struct IumrahAccountView: View {
         loginError = nil
         defer { isLoggingIn = false }
         do {
-            let profile = try await account.login(iumrahID: loginID, password: loginPassword)
+            let profile = try await account.login(
+                identifier: loginID.trimmingCharacters(in: .whitespacesAndNewlines),
+                password: loginPassword,
+                locale: settings.language.rawValue
+            )
             await completeAuthenticatedLogin(profile)
             loginPassword = ""
             IumrahHaptics.success()
         } catch {
-            loginError = L10n.error(error, settings.language)
+            loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
             IumrahHaptics.error()
         }
     }

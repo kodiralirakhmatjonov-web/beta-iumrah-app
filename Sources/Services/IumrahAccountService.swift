@@ -11,10 +11,14 @@ struct IumrahAccountService {
         )
     }
 
-    func login(iumrahID: String, password: String) async throws -> IumrahAccountAuthResponse {
+    func login(identifier: String, password: String, locale: String) async throws -> IumrahAccountAuthResponse {
         try await api.post(
-            "/api/catalog/hotels/client/account/login",
-            body: IumrahAccountLoginRequest(iumrahID: iumrahID, password: password)
+            "/api/package/client/account/login",
+            body: IumrahAccountLoginRequest(
+                identifier: identifier,
+                password: password,
+                device: IumrahAccountDeviceIdentity.current(locale: locale)
+            )
         )
     }
 
@@ -152,6 +156,40 @@ struct IumrahAccountService {
             "/api/package/client/account/apple/link",
             body: IumrahAppleRequest(identityToken: credential.identityToken, nonce: credential.nonce),
             headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func startEmailVerification(email: String, locale: String, token: String) async throws -> IumrahEmailChallengeStartResponse {
+        try await api.post(
+            "/api/package/client/account/email/start",
+            body: IumrahEmailChallengeStartRequest(email: email, locale: locale),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func confirmEmailVerification(challengeID: String, code: String, token: String) async throws -> IumrahEmailChallengeConfirmResponse {
+        try await api.post(
+            "/api/package/client/account/email/confirm",
+            body: IumrahEmailChallengeConfirmRequest(challengeID: challengeID, code: code),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func startPasswordRecovery(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
+        try await api.post(
+            "/api/package/client/account/password/recovery/start",
+            body: IumrahEmailChallengeStartRequest(email: email, locale: locale)
+        )
+    }
+
+    func confirmPasswordRecovery(challengeID: String, code: String, newPassword: String) async throws -> IumrahPasswordRecoveryResponse {
+        try await api.post(
+            "/api/package/client/account/password/recovery/confirm",
+            body: IumrahPasswordRecoveryConfirmRequest(
+                challengeID: challengeID,
+                code: code,
+                newPassword: newPassword
+            )
         )
     }
 }

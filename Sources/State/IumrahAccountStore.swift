@@ -59,10 +59,9 @@ final class IumrahAccountStore: ObservableObject {
     }
 
     @discardableResult
-    func login(iumrahID: String, password: String) async throws -> IumrahAccountProfile {
-        let response = try await service.login(iumrahID: iumrahID, password: password)
+    func login(identifier: String, password: String, locale: String = Locale.current.identifier) async throws -> IumrahAccountProfile {
+        let response = try await service.login(identifier: identifier, password: password, locale: locale)
         setSession(response)
-        _ = try? await service.registerCurrentSession(token: response.session.token, locale: Locale.current.identifier)
         return response.account
     }
 
@@ -115,6 +114,39 @@ final class IumrahAccountStore: ObservableObject {
     func linkApple(_ credential: IumrahAppleCredential) async throws -> IumrahAppleLinkResponse {
         guard let token else { throw APIError.status(401) }
         return try await service.linkApple(credential, token: token)
+    }
+
+    func startEmailVerification(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.startEmailVerification(email: email, locale: locale, token: token)
+    }
+
+    func confirmEmailVerification(challengeID: String, code: String) async throws -> IumrahEmailChallengeConfirmResponse {
+        guard let token else { throw APIError.status(401) }
+        let response = try await service.confirmEmailVerification(challengeID: challengeID, code: code, token: token)
+        if let profile = account {
+            let updated = IumrahAccountProfile(
+                iumrahID: profile.iumrahID,
+                displayName: profile.displayName,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+                phone: profile.phone,
+                email: response.email,
+                telegram: profile.telegram,
+                whatsapp: profile.whatsapp
+            )
+            account = updated
+            IumrahAccountVault.save(.init(token: token, account: updated))
+        }
+        return response
+    }
+
+    func startPasswordRecovery(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
+        try await service.startPasswordRecovery(email: email, locale: locale)
+    }
+
+    func confirmPasswordRecovery(challengeID: String, code: String, newPassword: String) async throws -> IumrahPasswordRecoveryResponse {
+        try await service.confirmPasswordRecovery(challengeID: challengeID, code: code, newPassword: newPassword)
     }
 
     func linkBooking(bookingID: String, bookingToken: String) async throws -> IumrahAccountLinkBookingResponse {

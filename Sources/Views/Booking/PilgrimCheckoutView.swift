@@ -548,7 +548,7 @@ struct PilgrimCheckoutView: View {
         isSubmittingAccount = true; errorMessage = nil
         defer { isSubmittingAccount = false }
         do {
-            _ = try await account.login(iumrahID: value.iumrahID, password: loginPassword)
+            _ = try await account.login(identifier: value.iumrahID, password: loginPassword)
             bookings.setAccountToken(account.bearerToken)
             if let token = account.bearerToken { await bookings.restoreAccountTrips(token: token) }
             await loadCheckout(showLoader: false)

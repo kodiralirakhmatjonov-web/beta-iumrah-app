@@ -14,6 +14,26 @@ struct IumrahAccountProfile: Codable, Hashable {
         case iumrahID, displayName, firstName, lastName, phone, email, telegram, whatsapp
     }
 
+    init(
+        iumrahID: String,
+        displayName: String,
+        firstName: String,
+        lastName: String,
+        phone: String,
+        email: String,
+        telegram: String,
+        whatsapp: String
+    ) {
+        self.iumrahID = iumrahID
+        self.displayName = displayName
+        self.firstName = firstName
+        self.lastName = lastName
+        self.phone = phone
+        self.email = email
+        self.telegram = telegram
+        self.whatsapp = whatsapp
+    }
+
     init(from decoder: Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         iumrahID = try box.decode(String.self, forKey: .iumrahID)
@@ -53,8 +73,9 @@ struct IumrahAccountSessionResponse: Decodable {
 }
 
 struct IumrahAccountLoginRequest: Encodable {
-    let iumrahID: String
+    let identifier: String
     let password: String
+    let device: IumrahClientDevice
 }
 
 struct IumrahAccountActivateRequest: Encodable {
@@ -205,12 +226,18 @@ struct IumrahAppleConnectionStatus: Decodable, Hashable {
     let linkedAt: String?
 }
 
+struct IumrahVerifiedLoginEmail: Decodable, Hashable {
+    let email: String
+    let verifiedAt: String
+}
+
 struct IumrahSecurityOverview: Decodable, Hashable {
     let ok: Bool
     let iumrahID: String
     let currentSessionID: String
     let currentDeviceIsPrimary: Bool
     let primaryDeviceProtected: Bool
+    let loginEmail: IumrahVerifiedLoginEmail?
     let apple: IumrahAppleConnectionStatus
     let sessions: [IumrahSecuritySession]
 }
@@ -234,6 +261,40 @@ struct IumrahAppleLinkResponse: Decodable {
     let ok: Bool
     let appleLinked: Bool
     let iumrahID: String
+}
+
+struct IumrahEmailChallengeStartRequest: Encodable {
+    let email: String
+    let locale: String
+}
+
+struct IumrahEmailChallengeStartResponse: Decodable {
+    let ok: Bool
+    let challengeID: String
+    let expiresAt: String?
+}
+
+struct IumrahEmailChallengeConfirmRequest: Encodable {
+    let challengeID: String
+    let code: String
+}
+
+struct IumrahEmailChallengeConfirmResponse: Decodable {
+    let ok: Bool
+    let email: String
+    let verifiedAt: String
+}
+
+struct IumrahPasswordRecoveryConfirmRequest: Encodable {
+    let challengeID: String
+    let code: String
+    let newPassword: String
+}
+
+struct IumrahPasswordRecoveryResponse: Decodable {
+    let ok: Bool
+    let iumrahID: String
+    let sessionsRevoked: Bool
 }
 
 struct IumrahTerminateSessionResponse: Decodable {

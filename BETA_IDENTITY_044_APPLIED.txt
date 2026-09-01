@@ -1,0 +1,32 @@
+iumrah Beta update 044 — unified email / iumrah ID / Apple identity
+
+Based on BETA_SECURITY_043_APPLIED.
+
+Canonical identity
+- pilgrims.id remains the only internal user ID.
+- Its zero-padded presentation remains the permanent six-digit iumrah ID.
+- A verified email and Apple subject are unique alternate credentials pointing
+  to that same pilgrims.id. They never create parallel profiles.
+
+Sign-in and recovery
+- The login field accepts a verified email or six-digit iumrah ID plus password.
+- Continue with Apple can resolve an existing account through a verified email
+  or create one canonical iumrah account on first use.
+- Email verification and password recovery use six-digit, ten-minute codes sent
+  through Resend. Codes are PBKDF2-hashed and rate/attempt limited.
+- Password recovery revokes all account sessions and releases the former primary
+  device designation so the recovered owner can protect a new device.
+
+Security
+- Profile email text is not trusted for login until separately verified.
+- Secondary sessions can still terminate only themselves.
+- Only the protected primary device can change the login email or link Apple.
+- Apple JWT signature, issuer, audience, expiry, nonce and replay are checked on
+  the server.
+
+Deployment
+- Apply migrations/0006_package_primary_hotels.sql to the existing iumrah-hotels D1.
+- Configure the Package Engine Worker secret RESEND_API_KEY.
+- The default sender is iumrah <security@iumrah.app>; iumrah.app must be verified
+  in Resend, or ACCOUNT_EMAIL_FROM must be changed to another verified sender.
+- Deploy Package Engine before building the TestFlight app.
