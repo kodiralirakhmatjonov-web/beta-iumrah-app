@@ -711,6 +711,13 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
         real.invalidateHotelPrices()
     }
 
+    /// Clears all flight/hotel discovery state after the authoritative TripDraft changes.
+    /// JourneyStore owns the trip lifecycle, while this facade owns the concrete
+    /// RealFlightPackageSearchService instance, so reset requests must be forwarded here.
+    func invalidateSession() {
+        real.invalidateSession()
+    }
+
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await real.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
     }
