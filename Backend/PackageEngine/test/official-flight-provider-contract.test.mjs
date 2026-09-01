@@ -25,8 +25,12 @@ assert.ok(!index.includes('/api/admin/package/primary-hotels'), 'legacy package_
 assert.ok(!generator.includes('package_primary_hotels'), 'Primary Hotel resolution must not depend on legacy package rates');
 assert.match(cleanupMigration, /DROP TABLE IF EXISTS package_flight_cache_v1/);
 assert.match(cleanupMigration, /DROP TABLE IF EXISTS package_quote_audits_v2/);
+assert.match(cleanupMigration, /CREATE TABLE IF NOT EXISTS package_primary_hotels/);
 assert.match(cleanupMigration, /DELETE FROM package_primary_hotels/);
+assert.ok(!cleanupMigration.includes('INSERT INTO package_primary_hotels'), 'compatibility shell must stay empty');
 assert.ok(!wrangler.includes('\"name\": \"SEARCH_SESSIONS\"'), 'retired Durable Object binding must be absent');
 assert.match(wrangler, /v2-remove-package-search-session/);
 assert.ok(wrangler.includes('\"deleted_classes\": [\"PackageSearchSession\"]'));
-console.log('flight/server cleanup contract OK');
+assert.match(index, /\/api\/package\/flights\/search/);
+assert.match(index, /searchIgnavFlights/);
+console.log('flight/server cleanup + Ignav boundary contract OK');

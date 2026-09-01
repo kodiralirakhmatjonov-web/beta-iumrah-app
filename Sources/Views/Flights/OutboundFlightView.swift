@@ -236,11 +236,32 @@ struct OutboundFlightView: View {
         chrome.setImmersive(shouldShowImmersive)
     }
 
+    private func mergeCandidates(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
+        var result = lhs.filter(\.isDisplayableCandidate)
+        var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.deduplicationKey, $0.offset) })
+        for candidate in rhs where candidate.isDisplayableCandidate {
+            if let index = indexByKey[candidate.deduplicationKey] {
+                if candidate.observedAt > result[index].observedAt { result[index] = candidate }
+            } else {
+                indexByKey[candidate.deduplicationKey] = result.count
+                result.append(candidate)
+            }
+        }
+        return result
+    }
+
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {
-        var map: [String: FlightOffer] = [:]
-        for offer in lhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) { map[offer.deduplicationKey] = offer }
-        for offer in rhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) { map[offer.deduplicationKey] = offer }
-        return Array(map.values)
+        var result = lhs.filter { $0.isVerifiedForBooking && isValidOutboundDate($0.departureAt, airportCode: $0.origin) }
+        var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.deduplicationKey, $0.offset) })
+        for offer in rhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) {
+            if let index = indexByKey[offer.deduplicationKey] {
+                result[index] = offer
+            } else {
+                indexByKey[offer.deduplicationKey] = result.count
+                result.append(offer)
+            }
+        }
+        return result
     }
 
     private func isValidOutboundDate(_ date: Date, airportCode: String) -> Bool {

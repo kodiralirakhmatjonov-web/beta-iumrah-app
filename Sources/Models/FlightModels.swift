@@ -71,6 +71,11 @@ struct FlightSegment: Identifiable, Hashable, Codable {
     }
 }
 
+struct FlightBaggageAllowance: Hashable, Codable {
+    let carryOn: Int?
+    let checked: Int?
+}
+
 struct FlightLayover: Identifiable, Hashable {
     let id: String
     let airport: FlightAirportSnapshot
@@ -125,6 +130,10 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     let fareScope: FlightFareScope?
     let fareObservedAt: Date?
     let fareSourceURL: String?
+    let providerItineraryID: String?
+    let cabinClass: String?
+    let baggage: FlightBaggageAllowance?
+    let requiresSelfTransfer: Bool?
 
     init(
         id: String,
@@ -149,7 +158,11 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         fareAmount: Decimal? = nil,
         fareScope: FlightFareScope? = nil,
         fareObservedAt: Date? = nil,
-        fareSourceURL: String? = nil
+        fareSourceURL: String? = nil,
+        providerItineraryID: String? = nil,
+        cabinClass: String? = nil,
+        baggage: FlightBaggageAllowance? = nil,
+        requiresSelfTransfer: Bool? = nil
     ) {
         self.id = id
         self.direction = direction
@@ -174,6 +187,10 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         self.fareScope = fareScope
         self.fareObservedAt = fareObservedAt
         self.fareSourceURL = fareSourceURL?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? fareSourceURL : nil
+        self.providerItineraryID = providerItineraryID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? providerItineraryID : nil
+        self.cabinClass = cabinClass?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? cabinClass : nil
+        self.baggage = baggage
+        self.requiresSelfTransfer = requiresSelfTransfer
     }
 
     /// Stable itinerary identity shared with LiveFlightCandidate. Upstream APIs
@@ -281,7 +298,10 @@ struct FlightOffer: Identifiable, Hashable, Codable {
                   segment.origin.code != segment.destination.code,
                   segment.departureAt < segment.arrivalAt else { return false }
             if index == 0, code != primaryCode { return false }
-            if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
+            if index > 0 {
+                guard segments[index - 1].destination.code == segment.origin.code,
+                      segments[index - 1].arrivalAt <= segment.departureAt else { return false }
+            }
         }
 
         if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }

@@ -23,7 +23,7 @@ struct FlightDetailsView: View {
                     }
                 }
 
-                packagePriceSection
+                fareSection
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -233,16 +233,102 @@ struct FlightDetailsView: View {
         }
     }
 
-    private var packagePriceSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(L10n.text("flight_whole_package", settings.language))
-                .font(.headline)
-            Text(L10n.text("flight_details_price_note", settings.language))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            PackagePriceView(amount: offer.totalPackagePrice, currency: offer.currency)
+    private var fareSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(fareTitle)
+                        .font(.headline)
+                    Text(fareSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 12)
+                PackagePriceView(
+                    amount: offer.totalPackagePrice,
+                    currency: offer.currency,
+                    showsPerPerson: offer.fareScope == .perPassenger
+                )
+            }
+
+            if offer.baggage != nil || offer.requiresSelfTransfer != nil {
+                Divider()
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 12) {
+                    if let carryOn = offer.baggage?.carryOn {
+                        detailValue(title: baggageTitle(carryOn: true), value: "×\(carryOn)")
+                    }
+                    if let checked = offer.baggage?.checked {
+                        detailValue(title: baggageTitle(carryOn: false), value: "×\(checked)")
+                    }
+                    if let selfTransfer = offer.requiresSelfTransfer {
+                        detailValue(title: selfTransferTitle, value: selfTransfer ? selfTransferRequired : selfTransferNotRequired)
+                    }
+                }
+            }
         }
         .iumrahCard()
+    }
+
+    private func detailValue(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private var fareTitle: String {
+        switch settings.language {
+        case .russian: return offer.fareScope == .totalParty ? "Авиабилет для всех паломников" : "Тариф на пассажира"
+        case .english: return offer.fareScope == .totalParty ? "Flight fare for all pilgrims" : "Fare per passenger"
+        case .uzbek: return offer.fareScope == .totalParty ? "Barcha ziyoratchilar uchun aviachipta" : "Bir yo‘lovchi uchun tarif"
+        case .uzbekCyrillic: return offer.fareScope == .totalParty ? "Барча зиёратчилар учун авиачипта" : "Бир йўловчи учун тариф"
+        }
+    }
+
+    private var fareSubtitle: String {
+        switch settings.language {
+        case .russian: return "Актуальный тариф, полученный во время этого поиска"
+        case .english: return "Current fare returned during this search"
+        case .uzbek: return "Ushbu qidiruv vaqtida olingan joriy tarif"
+        case .uzbekCyrillic: return "Ушбу қидирув вақтида олинган жорий тариф"
+        }
+    }
+
+    private func baggageTitle(carryOn: Bool) -> String {
+        switch settings.language {
+        case .russian: return carryOn ? "Ручная кладь" : "Багаж"
+        case .english: return carryOn ? "Carry-on" : "Checked baggage"
+        case .uzbek: return carryOn ? "Qo‘l yuki" : "Bagaj"
+        case .uzbekCyrillic: return carryOn ? "Қўл юки" : "Багаж"
+        }
+    }
+
+    private var selfTransferTitle: String {
+        switch settings.language {
+        case .russian: return "Билеты на пересадке"
+        case .english: return "Connection tickets"
+        case .uzbek: return "Ulanish chiptalari"
+        case .uzbekCyrillic: return "Уланиш чипталари"
+        }
+    }
+    private var selfTransferRequired: String {
+        switch settings.language {
+        case .russian: return "Отдельные билеты"
+        case .english: return "Separate tickets"
+        case .uzbek: return "Alohida chiptalar"
+        case .uzbekCyrillic: return "Алоҳида чипталар"
+        }
+    }
+    private var selfTransferNotRequired: String {
+        switch settings.language {
+        case .russian: return "Отдельные билеты не обнаружены"
+        case .english: return "No separate tickets detected"
+        case .uzbek: return "Alohida chiptalar aniqlanmadi"
+        case .uzbekCyrillic: return "Алоҳида чипталар аниқланмади"
+        }
     }
 
     private func detailValue(titleKey: String, value: String?) -> some View {

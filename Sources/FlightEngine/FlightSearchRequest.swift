@@ -4,6 +4,85 @@ enum FlightCandidateRequirement: String, Codable, Hashable {
     case displayable
 }
 
+enum FlightCabinClass: String, CaseIterable, Codable, Hashable, Identifiable {
+    case economy
+    case premiumEconomy = "premium_economy"
+    case business
+    case first
+
+    var id: String { rawValue }
+}
+
+enum FlightStopsPreference: String, CaseIterable, Codable, Hashable, Identifiable {
+    case any
+    case nonstop
+    case upToOne
+    case upToTwo
+
+    var id: String { rawValue }
+    var maxStops: Int? {
+        switch self {
+        case .any: return nil
+        case .nonstop: return 0
+        case .upToOne: return 1
+        case .upToTwo: return 2
+        }
+    }
+}
+
+enum FlightTimeWindow: String, CaseIterable, Codable, Hashable, Identifiable {
+    case any
+    case night
+    case morning
+    case afternoon
+    case evening
+
+    var id: String { rawValue }
+    var hours: ClosedRange<Int>? {
+        switch self {
+        case .any: return nil
+        case .night: return 0...5
+        case .morning: return 6...11
+        case .afternoon: return 12...17
+        case .evening: return 18...23
+        }
+    }
+}
+
+enum FlightInfantSeating: String, CaseIterable, Codable, Hashable, Identifiable {
+    case lap
+    case seat
+
+    var id: String { rawValue }
+}
+
+struct FlightSearchFilters: Codable, Hashable {
+    var cabinClass: FlightCabinClass = .economy
+    var stops: FlightStopsPreference = .any
+    var minCarryOnBags: Int = 0
+    var minCheckedBags: Int = 0
+    var maxPriceUSD: Int? = nil
+    var departureWindow: FlightTimeWindow = .any
+    var arrivalWindow: FlightTimeWindow = .any
+    var airlinesInclude: [String] = []
+    var airlinesExclude: [String] = []
+    var allowSelfTransfer: Bool = false
+    var infantSeating: FlightInfantSeating = .lap
+
+    static let `default` = FlightSearchFilters()
+
+    var normalizedAirlinesInclude: [String] { normalized(airlinesInclude) }
+    var normalizedAirlinesExclude: [String] { normalized(airlinesExclude) }
+
+    private func normalized(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
+            .filter { $0.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil }
+            .filter { seen.insert($0).inserted }
+    }
+}
+
 /// Provider-neutral request used by the generator. The next flight integration
 /// (Ignav) plugs into this model without any airline-specific WebKit/server bot code.
 struct FlightSearchRequest: Hashable, Codable {
@@ -16,6 +95,7 @@ struct FlightSearchRequest: Hashable, Codable {
     let children: Int
     let infants: Int
     let cabin: String
+    let filters: FlightSearchFilters
 
     init(
         id: String = UUID().uuidString,
@@ -26,7 +106,8 @@ struct FlightSearchRequest: Hashable, Codable {
         adults: Int,
         children: Int,
         infants: Int,
-        cabin: String = "economy"
+        cabin: String = "economy",
+        filters: FlightSearchFilters = .default
     ) {
         self.id = id
         self.direction = direction
@@ -37,6 +118,7 @@ struct FlightSearchRequest: Hashable, Codable {
         self.children = children
         self.infants = infants
         self.cabin = cabin
+        self.filters = filters
     }
 }
 
@@ -71,6 +153,10 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
     let airlineCode: String?
     let segments: [FlightSegment]?
     let connectionAirports: [FlightAirportSnapshot]?
+    let providerItineraryID: String?
+    let cabinClass: String?
+    let baggage: FlightBaggageAllowance?
+    let requiresSelfTransfer: Bool?
 
     init(
         id: String,
@@ -93,7 +179,11 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         rawFingerprint: String? = nil,
         airlineCode: String? = nil,
         segments: [FlightSegment]? = nil,
-        connectionAirports: [FlightAirportSnapshot]? = nil
+        connectionAirports: [FlightAirportSnapshot]? = nil,
+        providerItineraryID: String? = nil,
+        cabinClass: String? = nil,
+        baggage: FlightBaggageAllowance? = nil,
+        requiresSelfTransfer: Bool? = nil
     ) {
         self.id = id
         self.sourceID = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -118,6 +208,10 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: normalizedFlightNumber)
         self.segments = segments?.isEmpty == false ? segments : nil
         self.connectionAirports = connectionAirports?.isEmpty == false ? connectionAirports : nil
+        self.providerItineraryID = providerItineraryID?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
+        self.cabinClass = cabinClass?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
+        self.baggage = baggage
+        self.requiresSelfTransfer = requiresSelfTransfer
     }
 
     var deduplicationKey: String {
@@ -169,7 +263,10 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
                   segment.origin.code != segment.destination.code,
                   segment.departureAt < segment.arrivalAt else { return false }
             if index == 0, code != primaryCode { return false }
-            if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
+            if index > 0 {
+                guard segments[index - 1].destination.code == segment.origin.code,
+                      segments[index - 1].arrivalAt <= segment.departureAt else { return false }
+            }
         }
 
         if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }

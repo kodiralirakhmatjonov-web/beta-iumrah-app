@@ -33,8 +33,9 @@ struct AirlineLogoView: View {
     }
 
     private var verifiedCode: String? {
-        guard let airlineCode,
-              FlightReferenceCatalog.airline(code: airlineCode) != nil else { return nil }
-        return airlineCode.uppercased()
+        guard let airlineCode else { return nil }
+        let code = airlineCode.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return nil }
+        return code
     }
 }

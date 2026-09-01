@@ -25,8 +25,8 @@ enum FlightEngineAvailabilityError: LocalizedError, Equatable {
 /// - normalize/deduplicate provider results;
 /// - never calculate the final Umrah package price (LocalPackagePricingEngine owns it).
 ///
-/// Airline-specific server/WebKit bots were intentionally removed. The next
-/// integration is a single FlightInventoryProviding implementation (Ignav).
+/// Airline-specific server/WebKit bots are retired. Flight inventory now enters
+/// the generator through a single Ignav-backed FlightInventoryProviding boundary.
 @MainActor
 final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComponentProviding {
     private let flightProvider: FlightInventoryProviding
@@ -39,7 +39,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     private var hotelPriceTask: Task<HotelPriceSearchSnapshot, Never>?
 
     init(
-        flightProvider: FlightInventoryProviding = UnconfiguredFlightInventoryProvider(),
+        flightProvider: FlightInventoryProviding = IgnavFlightInventoryProvider(),
         hotelPriceService: HotelLivePriceSearchService = HotelLivePriceSearchService()
     ) {
         self.flightProvider = flightProvider
@@ -82,7 +82,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         startInboundPrewarm(trip: trip)
 
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingHotels))
-        onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingProvider(flightProvider.sourceName)))
+        onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
 
         let request = makeOutboundRequest(trip)
         let dates = FlightDatePlanner.dates(anchor: trip.departureDate, flexibility: trip.flexibility)
@@ -131,7 +131,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             let offers = ranked(cachedInbound.compactMap(offer(from:)), anchor: trip.returnDate)
             onUpdate(.init(discoveredCandidates: cachedInbound, pricedOffers: offers, isSearching: true, status: .continuing))
         } else {
-            onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingProvider(flightProvider.sourceName)))
+            onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
         }
 
         let request = makeInboundRequest(trip)
@@ -210,6 +210,13 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         cachedHotels = nil
     }
 
+    func invalidateFlightInventory() {
+        inboundPrewarmTask?.cancel()
+        inboundPrewarmTask = nil
+        activeSignature = nil
+        cachedInbound = []
+    }
+
     func invalidateSession() {
         inboundPrewarmTask?.cancel()
         hotelPriceTask?.cancel()
@@ -285,7 +292,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             fareAmount: candidate.observedFare,
             fareScope: candidate.fareScope,
             fareObservedAt: candidate.observedAt,
-            fareSourceURL: candidate.sourceURL
+            fareSourceURL: candidate.sourceURL,
+            providerItineraryID: candidate.providerItineraryID,
+            cabinClass: candidate.cabinClass,
+            baggage: candidate.baggage,
+            requiresSelfTransfer: candidate.requiresSelfTransfer
         )
         return value.isVerifiedForBooking ? value : nil
     }
@@ -313,10 +324,13 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             let lo = abs(dayOffset(lhs.departureAt, from: anchor))
             let ro = abs(dayOffset(rhs.departureAt, from: anchor))
             if lo != ro { return lo < ro }
+            // Within the same calendar distance prefer simpler itineraries first,
+            // then price, duration and departure time. This keeps direct flights
+            // ahead of cheaper but materially more complex connections.
+            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
             if lhs.currency == rhs.currency, lhs.totalPackagePrice != rhs.totalPackagePrice {
                 return lhs.totalPackagePrice < rhs.totalPackagePrice
             }
-            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
             if lhs.durationMinutes != rhs.durationMinutes { return lhs.durationMinutes < rhs.durationMinutes }
             return lhs.departureAt < rhs.departureAt
         }
@@ -339,7 +353,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             date: trip.departureDate,
             adults: trip.adults,
             children: trip.children,
-            infants: trip.infants
+            infants: trip.infants,
+            cabin: trip.effectiveFlightFilters.cabinClass.rawValue,
+            filters: trip.effectiveFlightFilters
         )
     }
 
@@ -351,22 +367,37 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             date: trip.returnDate,
             adults: trip.adults,
             children: trip.children,
-            infants: trip.infants
+            infants: trip.infants,
+            cabin: trip.effectiveFlightFilters.cabinClass.rawValue,
+            filters: trip.effectiveFlightFilters
         )
     }
 
     private func makeSignature(_ trip: TripDraft) -> String {
         let formatter = ISO8601DateFormatter()
+        let filters = trip.effectiveFlightFilters
         return [
             trip.originCode,
             trip.outboundDestinationCode,
             trip.returnOriginCode,
+            formatter.string(from: trip.departureDate),
             formatter.string(from: trip.returnDate),
             trip.flexibility.rawValue,
             String(trip.adults),
             String(trip.children),
             String(trip.infants),
-            String(trip.rooms)
+            String(trip.rooms),
+            filters.cabinClass.rawValue,
+            filters.stops.rawValue,
+            String(filters.minCarryOnBags),
+            String(filters.minCheckedBags),
+            filters.maxPriceUSD.map(String.init) ?? "-",
+            filters.departureWindow.rawValue,
+            filters.arrivalWindow.rawValue,
+            filters.normalizedAirlinesInclude.joined(separator: ","),
+            filters.normalizedAirlinesExclude.joined(separator: ","),
+            filters.allowSelfTransfer ? "self-transfer" : "protected",
+            filters.infantSeating.rawValue
         ].joined(separator: "|")
     }
 }
@@ -375,7 +406,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorComponentProviding {
     private let coordinator: RealFlightPackageSearchService
 
-    init(flightProvider: FlightInventoryProviding = UnconfiguredFlightInventoryProvider()) {
+    init(flightProvider: FlightInventoryProviding = IgnavFlightInventoryProvider()) {
         self.coordinator = RealFlightPackageSearchService(flightProvider: flightProvider)
     }
 
@@ -402,6 +433,7 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
     }
 
     func invalidateHotelPrices() { coordinator.invalidateHotelPrices() }
+    func invalidateFlightInventory() { coordinator.invalidateFlightInventory() }
     func invalidateSession() { coordinator.invalidateSession() }
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {

@@ -73,6 +73,16 @@ struct L10n {
                 return text("flight_search_failed", language)
             }
         }
+        if let providerError = error as? IgnavFlightProviderError {
+            switch providerError {
+            case .invalidRequest:
+                return text("flight_search_failed", language)
+            case .serverUnavailable:
+                return text("error_network", language)
+            case .searchFailed:
+                return text("flight_search_failed", language)
+            }
+        }
         if let urlError = error as? URLError {
             switch urlError.code {
             case .notConnectedToInternet, .networkConnectionLost:
@@ -438,7 +448,7 @@ struct L10n {
             "error_network": "A network error occurred. Please try again.",
             "error_unknown": "Something went wrong. Please try again.",
             "flight_search_failed": "Search did not finish",
-            "flight_provider_not_configured": "Flight search is being prepared for the new provider.",
+            "flight_provider_not_configured": "Flight search is not configured yet.",
             "flight_challenge_title": "Verification required",
             "flight_challenge_body": "%@ requires a human verification. Complete it and retry the search. The session stays on this iPhone.",
             "flight_select_hotel_first": "Choose a hotel first.",
@@ -917,7 +927,7 @@ struct L10n {
             "error_network": "Произошла ошибка сети. Повторите попытку.",
             "error_unknown": "Что-то пошло не так. Повторите попытку.",
             "flight_search_failed": "Поиск не завершён",
-            "flight_provider_not_configured": "Поиск авиабилетов готовится к подключению нового провайдера.",
+            "flight_provider_not_configured": "Поиск авиабилетов пока не настроен.",
             "flight_challenge_title": "Нужна проверка",
             "flight_challenge_body": "%@ запросил человеческую проверку. Пройдите её и повторите поиск. Сессия сохраняется на этом iPhone.",
             "flight_select_hotel_first": "Сначала выберите отель.",
@@ -1396,7 +1406,7 @@ struct L10n {
             "error_network": "Tarmoq xatosi yuz berdi. Qayta urinib ko‘ring.",
             "error_unknown": "Nimadir xato ketdi. Qayta urinib ko‘ring.",
             "flight_search_failed": "Qidiruv yakunlanmadi",
-            "flight_provider_not_configured": "Aviachiptalar qidiruvi yangi provayder ulanishiga tayyorlanmoqda.",
+            "flight_provider_not_configured": "Aviachiptalar qidiruvi hali sozlanmagan.",
             "flight_challenge_title": "Tekshiruv kerak",
             "flight_challenge_body": "%@ inson tekshiruvini so‘radi. Uni yakunlab, qidiruvni qayta boshlang. Sessiya shu iPhone’da saqlanadi.",
             "flight_select_hotel_first": "Avval mehmonxonani tanlang.",
@@ -1875,7 +1885,7 @@ struct L10n {
             "error_network": "Тармоқ хатоси юз берди. Қайта уриниб кўринг.",
             "error_unknown": "Нимадир хато кетди. Қайта уриниб кўринг.",
             "flight_search_failed": "Қидирув якунланмади",
-            "flight_provider_not_configured": "Авиачипталар қидируви янги провайдер уланишига тайёрланмоқда.",
+            "flight_provider_not_configured": "Авиачипталар қидируви ҳали созланмаган.",
             "flight_challenge_title": "Текширув керак",
             "flight_challenge_body": "%@ инсон текширувини сўради. Уни якунлаб, қидирувни қайта бошланг. Сессия шу iPhone’да сақланади.",
             "flight_select_hotel_first": "Аввал меҳмонхонани танланг.",

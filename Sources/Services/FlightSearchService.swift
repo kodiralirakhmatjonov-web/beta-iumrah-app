@@ -77,8 +77,8 @@ enum FlightInventoryProviderError: LocalizedError, Equatable {
     }
 }
 
-/// Clean boundary for the single external flight source. The upcoming Ignav
-/// adapter will implement this protocol. No airline-specific server or WebKit
+/// Clean boundary for the single external flight source. Ignav implements this
+/// protocol through the iumrah backend. No airline-specific server or WebKit
 /// discovery belongs above this boundary.
 @MainActor
 protocol FlightInventoryProviding: AnyObject {

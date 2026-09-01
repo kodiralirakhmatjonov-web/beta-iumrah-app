@@ -149,6 +149,15 @@ final class JourneyStore: ObservableObject {
         (flightService as? AutomaticFlightSearchService)?.invalidateSession()
     }
 
+    func updateFlightFilters(_ filters: FlightSearchFilters) {
+        guard trip.effectiveFlightFilters != filters else { return }
+        trip.flightFilters = filters == .default ? nil : filters
+        selectedOutbound = nil
+        selectedInbound = nil
+        quote = nil
+        (flightService as? AutomaticFlightSearchService)?.invalidateFlightInventory()
+    }
+
     func chooseHotel(_ hotel: HotelSummary) {
         if selectedHotel?.id != hotel.id {
             selectedRoom = nil

@@ -95,8 +95,10 @@ struct TripDraft: Codable, Hashable {
     var hotelStars: Int = 4
     var packageTier: PackageTier = .standard
     var scope: JourneyScope = .makkahAndMadinah
+    var flightFilters: FlightSearchFilters? = nil
 
     var travelerCount: Int { adults + children + infants }
+    var effectiveFlightFilters: FlightSearchFilters { flightFilters ?? .default }
     var isWeekendUmrah: Bool { flexibility == .weekend }
 
     var originCode: String {
@@ -150,6 +152,7 @@ struct TripDraft: Codable, Hashable {
     var canContinue: Bool {
         originCode.count == 3 &&
         adults > 0 &&
+        travelerCount <= 9 &&
         rooms > 0 &&
         returnDate > departureDate
     }

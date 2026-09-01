@@ -5,11 +5,6 @@ struct AirlineReference: Hashable {
     let name: String
     let websiteDomain: String?
 
-    var logoURL: URL? {
-        let code = iata.uppercased()
-        guard code.count == 2 else { return nil }
-        return URL(string: "https://www.gstatic.com/flights/airline_logos/70px/\(code).png")
-    }
 }
 
 struct AirportReference: Hashable {
@@ -104,6 +99,10 @@ enum FlightReferenceCatalog {
         "TIF": .init(iata: "TIF", city: "Taif", name: "Taif International Airport", country: "Saudi Arabia", timeZoneIdentifier: "Asia/Riyadh")
     ]
 
+    static var filterAirlines: [AirlineReference] {
+        airlines.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     static func airline(code: String?) -> AirlineReference? {
         guard let code else { return nil }
         return airlines[code.uppercased()]
@@ -158,9 +157,12 @@ enum FlightReferenceCatalog {
         // A user-facing flight number must be an actual carrier designator plus
         // one-to-four digits. Internal placeholders (REF-*, provider IDs, dates,
         // prices, etc.) can never satisfy this contract.
-        guard compact.range(of: #"^[A-Z0-9]{2}[0-9]{1,4}$"#, options: .regularExpression) != nil else { return nil }
+        guard compact.range(of: #"^[A-Z0-9]{2}[0-9]{1,4}[A-Z]?$"#, options: .regularExpression) != nil else { return nil }
         let code = String(compact.prefix(2))
-        guard airlines[code] != nil else { return nil }
+        // Ignav is authoritative for the carrier designator. The local catalog is
+        // presentation enrichment only and must not reject valid airlines that are
+        // not yet curated inside iumrah.
+        guard code.range(of: #"^[A-Z0-9]{2}$"#, options: .regularExpression) != nil else { return nil }
         return "\(code) \(compact.dropFirst(2))"
     }
 

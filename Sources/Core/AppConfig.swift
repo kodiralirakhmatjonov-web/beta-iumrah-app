@@ -4,9 +4,9 @@ enum AppConfig {
     static let appName = "iumrah Beta"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
-    /// Intentionally false in cleanup update 013. The next update will inject
-    /// one Ignav-backed implementation through FlightInventoryProviding.
-    static let flightInventoryConfigured = false
+    /// Flight inventory is resolved only through the iumrah backend, which keeps
+    /// the Ignav API key in a Cloudflare Worker secret.
+    static let flightInventoryConfigured = true
 
     static let hotelPriceProviderTimeoutSeconds: Double = 17
     static let hotelPriceSearchHardTimeoutSeconds: Double = 46

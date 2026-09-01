@@ -12,6 +12,7 @@ struct TripBuilderView: View {
                 routeCard
                 datesCard
                 travelersCard
+                FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
                 hotelClassCard
                 packageCard
 
@@ -342,6 +343,13 @@ struct TripBuilderView: View {
         }
     }
 
+    private var flightFiltersBinding: Binding<FlightSearchFilters> {
+        Binding(
+            get: { journey.trip.effectiveFlightFilters },
+            set: { journey.updateFlightFilters($0) }
+        )
+    }
+
     private var travelersCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(L10n.text("trip_travelers_title", settings.language), systemImage: "person.2")
@@ -353,11 +361,29 @@ struct TripBuilderView: View {
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 4)
 
-            CounterRow(title: L10n.text("adults", settings.language), subtitle: nil, value: $journey.trip.adults, minimum: 1, maximum: 10)
+            CounterRow(
+                title: L10n.text("adults", settings.language),
+                subtitle: nil,
+                value: $journey.trip.adults,
+                minimum: 1,
+                maximum: max(1, 9 - journey.trip.children - journey.trip.infants)
+            )
             Divider()
-            CounterRow(title: L10n.text("children", settings.language), subtitle: L10n.text("children_age", settings.language), value: $journey.trip.children, minimum: 0, maximum: 8)
+            CounterRow(
+                title: L10n.text("children", settings.language),
+                subtitle: L10n.text("children_age", settings.language),
+                value: $journey.trip.children,
+                minimum: 0,
+                maximum: max(0, 9 - journey.trip.adults - journey.trip.infants)
+            )
             Divider()
-            CounterRow(title: L10n.text("infants", settings.language), subtitle: L10n.text("infants_age", settings.language), value: $journey.trip.infants, minimum: 0, maximum: 4)
+            CounterRow(
+                title: L10n.text("infants", settings.language),
+                subtitle: L10n.text("infants_age", settings.language),
+                value: $journey.trip.infants,
+                minimum: 0,
+                maximum: min(4, max(0, 9 - journey.trip.adults - journey.trip.children))
+            )
             Divider()
             CounterRow(title: L10n.text("rooms", settings.language), subtitle: nil, value: $journey.trip.rooms, minimum: 1, maximum: 6)
         }

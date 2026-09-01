@@ -82,6 +82,10 @@ struct FlightCard: View {
                 .foregroundStyle(.secondary)
             }
 
+            if showsFareMetadata {
+                fareMetadataRow
+            }
+
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -93,7 +97,11 @@ struct FlightCard: View {
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
-                PackagePriceView(amount: offer.totalPackagePrice, currency: offer.currency)
+                PackagePriceView(
+                    amount: offer.totalPackagePrice,
+                    currency: offer.currency,
+                    showsPerPerson: offer.fareScope == .perPassenger
+                )
             }
         }
         .iumrahCard()
@@ -116,10 +124,71 @@ struct FlightCard: View {
 
     private var ticketPriceSubtitle: String {
         switch settings.language {
-        case .russian: return "Реальная цена из источника авиакомпании"
-        case .english: return "Observed on the airline booking source"
-        case .uzbek: return "Aviakompaniya bron manbasidagi haqiqiy narx"
-        case .uzbekCyrillic: return "Авиакомпания брон манбасидаги ҳақиқий нарх"
+        case .russian: return "Актуальный тариф на момент поиска"
+        case .english: return "Current fare at search time"
+        case .uzbek: return "Qidiruv vaqtidagi joriy tarif"
+        case .uzbekCyrillic: return "Қидирув вақтидаги жорий тариф"
+        }
+    }
+
+    private var showsFareMetadata: Bool {
+        offer.cabinClass != nil || offer.baggage != nil || offer.requiresSelfTransfer == true
+    }
+
+    private var fareMetadataRow: some View {
+        HStack(spacing: 8) {
+            if let cabin = offer.cabinClass {
+                metadataPill(systemImage: "seat.recline.normal", text: cabinText(cabin), warning: false)
+            }
+            if let baggage = offer.baggage {
+                if let checked = baggage.checked {
+                    metadataPill(systemImage: "suitcase.fill", text: bagText(checked, checked: true), warning: false)
+                } else if let carryOn = baggage.carryOn {
+                    metadataPill(systemImage: "bag.fill", text: bagText(carryOn, checked: false), warning: false)
+                }
+            }
+            if offer.requiresSelfTransfer == true {
+                metadataPill(systemImage: "exclamationmark.triangle.fill", text: separateTicketsText, warning: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.caption2.weight(.semibold))
+    }
+
+    private func metadataPill(systemImage: String, text: String, warning: Bool) -> some View {
+        Label(text, systemImage: systemImage)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .background((warning ? Color.orange.opacity(0.12) : Color.iumrahRaisedBackground), in: Capsule())
+            .foregroundStyle(warning ? Color.orange : Color.secondary)
+    }
+
+    private func cabinText(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "business": return settings.language == .russian ? "Бизнес" : (settings.language == .english ? "Business" : "Biznes")
+        case "premium_economy": return settings.language == .russian ? "Премиум" : "Premium"
+        case "first": return settings.language == .russian ? "Первый" : (settings.language == .english ? "First" : "Birinchi")
+        default: return settings.language == .russian ? "Эконом" : (settings.language == .english ? "Economy" : "Ekonom")
+        }
+    }
+
+    private func bagText(_ count: Int, checked: Bool) -> String {
+        switch settings.language {
+        case .russian: return checked ? "Багаж ×\(count)" : "Ручная кладь ×\(count)"
+        case .english: return checked ? "Checked ×\(count)" : "Carry-on ×\(count)"
+        case .uzbek: return checked ? "Bagaj ×\(count)" : "Qo‘l yuki ×\(count)"
+        case .uzbekCyrillic: return checked ? "Багаж ×\(count)" : "Қўл юки ×\(count)"
+        }
+    }
+
+    private var separateTicketsText: String {
+        switch settings.language {
+        case .russian: return "Отдельные билеты"
+        case .english: return "Separate tickets"
+        case .uzbek: return "Alohida chiptalar"
+        case .uzbekCyrillic: return "Алоҳида чипталар"
         }
     }
 

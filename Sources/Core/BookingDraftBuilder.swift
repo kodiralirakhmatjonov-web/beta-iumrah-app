@@ -50,7 +50,7 @@ enum BookingDraftBuilder {
                 from: trip.originAirport?.city ?? trip.originCode,
                 originCode: trip.originCode,
                 arrivalAirportCode: trip.outboundDestinationCode,
-                cabinClass: "economy",
+                cabinClass: outbound.cabinClass ?? trip.effectiveFlightFilters.cabinClass.rawValue,
                 preferredPlan: trip.packageTier.rawValue,
                 startDate: day(trip.departureDate),
                 endDate: day(trip.returnDate),
@@ -178,17 +178,6 @@ enum BookingDraftBuilder {
             madinahCheckIn: windows.madinah.map { day($0.checkIn) },
             madinahCheckOut: windows.madinah.map { day($0.checkOut) }
         )
-    }
-
-    private static func flexibleDays(_ flexibility: DateFlexibility) -> Int {
-        switch flexibility {
-        case .exact, .weekend:
-            return 0
-        case .plusMinusOne:
-            return 1
-        case .plusMinusTwo:
-            return 2
-        }
     }
 
     private static func day(_ date: Date) -> String {
