@@ -236,6 +236,24 @@ struct OutboundFlightView: View {
         chrome.setImmersive(shouldShowImmersive)
     }
 
+    private func grouped(rows: [FlightResultRowModel], anchor: Date) -> [(offset: Int, rows: [FlightResultRowModel])] {
+        let byOffset = Dictionary(grouping: rows) { dayOffset($0.departureAt, from: anchor) }
+        let keys: [Int]
+        if journey.trip.flexibility.isWeeklyDiscovery {
+            keys = byOffset.keys.sorted()
+        } else {
+            keys = byOffset.keys.sorted { abs($0) == abs($1) ? $0 < $1 : abs($0) < abs($1) }
+        }
+        return keys.map { ($0, byOffset[$0, default: []]) }
+    }
+
+    private func dayOffset(_ date: Date, from anchor: Date) -> Int {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: anchor)
+        let value = calendar.startOfDay(for: date)
+        return calendar.dateComponents([.day], from: start, to: value).day ?? 0
+    }
+
     private func mergeCandidates(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
         var result = lhs.filter(\.isDisplayableCandidate)
         var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.deduplicationKey, $0.offset) })
