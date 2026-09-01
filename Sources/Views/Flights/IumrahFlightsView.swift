@@ -51,14 +51,14 @@ struct IumrahFlightsView: View {
                     tripFlightSearchCard
                     friendsCard
                     accessPrincipleCard
+                    flightsWordmarkFooter
                 }
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 22)
                 .padding(.bottom, 50)
             }
         }
-        .background(Color.black.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -68,7 +68,7 @@ struct IumrahFlightsView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .frame(width: 42, height: 42)
                         .iumrahGlass(in: Circle())
                 }
@@ -95,30 +95,38 @@ struct IumrahFlightsView: View {
 
     private var globeHero: some View {
         VStack(spacing: 0) {
-            // Keep the supplied transparent wordmark at the very beginning of the page,
-            // independently from the globe camera content.
-            Image("IumrahFlightsWordmark")
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: 340)
+            Text("iumrah Flights")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .tracking(-0.9)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 24)
-                .padding(.top, 10)
-                .padding(.bottom, 2)
-                .shadow(color: .black.opacity(0.42), radius: 18, y: 8)
-                .accessibilityLabel("iumrah Flights")
-                .allowsHitTesting(false)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
 
             ZStack(alignment: .bottom) {
                 IumrahInteractiveGlobe(presentation: .flightRoute)
                     .frame(height: 520)
+                    .mask(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.00),
+                                .init(color: .black, location: 0.08),
+                                .init(color: .black, location: 0.70),
+                                .init(color: .clear, location: 1.00)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
 
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0.00),
-                        .init(color: .clear, location: 0.40),
-                        .init(color: .black.opacity(0.15), location: 0.56),
-                        .init(color: .black.opacity(0.74), location: 0.77),
-                        .init(color: .black, location: 0.96)
+                        .init(color: Color.iumrahPageBackground.opacity(0.00), location: 0.00),
+                        .init(color: Color.iumrahPageBackground.opacity(0.08), location: 0.46),
+                        .init(color: Color.iumrahPageBackground.opacity(0.78), location: 0.70),
+                        .init(color: Color.iumrahPageBackground, location: 0.88),
+                        .init(color: Color.iumrahPageBackground, location: 1.00)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -131,12 +139,12 @@ struct IumrahFlightsView: View {
                         Text(IumrahFlightsCopy.text(.heroTitle, settings.language))
                             .font(.system(size: 36, weight: .bold, design: .rounded))
                             .tracking(-1.0)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                             .multilineTextAlignment(.center)
 
                         Text(IumrahFlightsCopy.text(.heroBody, settings.language))
                             .font(.system(size: 16, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.68))
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -150,7 +158,7 @@ struct IumrahFlightsView: View {
             .frame(height: 590)
             .clipped()
         }
-        .background(Color.black)
+        .background(Color.iumrahPageBackground)
     }
 
     private var accessBadge: some View {
@@ -164,7 +172,7 @@ struct IumrahFlightsView: View {
             .lineLimit(1)
         }
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.white.opacity(0.92))
+        .foregroundStyle(.primary)
         .padding(.horizontal, 14)
         .frame(height: 38)
         .iumrahGlass(in: Capsule())
@@ -185,7 +193,7 @@ struct IumrahFlightsView: View {
 
             Text(IumrahFlightsCopy.text(.liveBody, settings.language))
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             flightStatusPreview
@@ -214,7 +222,7 @@ struct IumrahFlightsView: View {
                         .lineLimit(1)
                     Text(flightNumber)
                         .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.48))
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 HStack(spacing: 6) {
@@ -228,7 +236,7 @@ struct IumrahFlightsView: View {
                     )
                 }
                 .font(.caption.weight(.bold))
-                .foregroundStyle(.white.opacity(0.80))
+                .foregroundStyle(.secondary)
             }
 
             HStack(alignment: .center, spacing: 14) {
@@ -241,7 +249,7 @@ struct IumrahFlightsView: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [.white.opacity(0.15), .blue.opacity(0.85), .white.opacity(0.15)],
+                                colors: [Color.primary.opacity(0.12), .blue.opacity(0.85), Color.primary.opacity(0.12)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -275,10 +283,10 @@ struct IumrahFlightsView: View {
             }
         }
         .padding(18)
-        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(Color.iumrahRaisedBackground.opacity(0.62), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
         }
     }
 
@@ -286,14 +294,14 @@ struct IumrahFlightsView: View {
         Text(code.uppercased())
             .font(.system(size: 28, weight: .bold, design: .rounded))
             .tracking(0.5)
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
     }
 
     private func statusMetric(title: String, value: String, alignment: HorizontalAlignment = .leading) -> some View {
         VStack(alignment: alignment, spacing: 4) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(.secondary)
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
         }
@@ -311,7 +319,7 @@ struct IumrahFlightsView: View {
 
             Text(IumrahFlightsCopy.text(.notificationBody, settings.language))
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             notificationPreview
@@ -333,10 +341,10 @@ struct IumrahFlightsView: View {
                     }
                 }
                 .font(.headline)
-                .foregroundStyle(.black)
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
                 .padding(.horizontal, 18)
                 .frame(height: 56)
-                .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -356,7 +364,7 @@ struct IumrahFlightsView: View {
                     )
                 Image(systemName: "airplane")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
             }
             .frame(width: 42, height: 42)
 
@@ -367,13 +375,13 @@ struct IumrahFlightsView: View {
                     Spacer()
                     Text(IumrahFlightsCopy.text(.now, settings.language))
                         .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.44))
+                        .foregroundStyle(.secondary)
                 }
                 Text(IumrahFlightsCopy.text(.sampleNotificationTitle, settings.language))
                     .font(.subheadline.weight(.bold))
                 Text(IumrahFlightsCopy.text(.sampleNotificationBody, settings.language))
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.64))
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -381,7 +389,7 @@ struct IumrahFlightsView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.09), lineWidth: 1)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
         }
     }
 
@@ -394,7 +402,7 @@ struct IumrahFlightsView: View {
                 Spacer()
                 Image(systemName: hasAccess ? "checkmark.shield.fill" : "lock.fill")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(hasAccess ? .green : .white.opacity(0.55))
+                    .foregroundStyle(hasAccess ? .green : .secondary)
             }
 
             Text(IumrahFlightsCopy.text(.searchTitle, settings.language))
@@ -406,34 +414,34 @@ struct IumrahFlightsView: View {
                     : IumrahFlightsCopy.text(.searchLockedBody, settings.language)
             )
             .font(.body)
-            .foregroundStyle(.white.opacity(0.62))
+            .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 11) {
                 Image(systemName: hasAccess ? "magnifyingglass" : "lock.fill")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(.secondary)
                 TextField(IumrahFlightsCopy.text(.searchPlaceholder, settings.language), text: $flightQuery)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .disabled(!hasAccess)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 if !flightQuery.isEmpty, hasAccess {
                     Button {
                         flightQuery = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.white.opacity(0.42))
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
             .frame(height: 58)
-            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Color.iumrahRaisedBackground.opacity(0.70), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
             }
 
             if hasAccess {
@@ -454,7 +462,7 @@ struct IumrahFlightsView: View {
                     .foregroundStyle(.blue)
                 Text(IumrahFlightsCopy.text(.searchNoMatch, settings.language))
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.58))
+                    .foregroundStyle(.secondary)
             }
             .padding(.vertical, 8)
         } else {
@@ -463,7 +471,7 @@ struct IumrahFlightsView: View {
                     HStack(spacing: 13) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                .fill(Color.white.opacity(0.07))
+                                .fill(Color.iumrahRaisedBackground)
                             Image(systemName: offer.direction == .outbound ? "airplane.departure" : "airplane.arrival")
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(.blue)
@@ -475,7 +483,7 @@ struct IumrahFlightsView: View {
                                 .font(.headline.monospaced())
                             Text("\(offer.origin) → \(offer.destination) · \(offer.airline)")
                                 .font(.caption)
-                                .foregroundStyle(.white.opacity(0.50))
+                                .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
 
@@ -485,7 +493,7 @@ struct IumrahFlightsView: View {
                             .foregroundStyle(.green)
                     }
                     .padding(12)
-                    .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .background(Color.iumrahRaisedBackground.opacity(0.54), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
             }
         }
@@ -494,9 +502,9 @@ struct IumrahFlightsView: View {
     private var lockedSearchPreview: some View {
         VStack(spacing: 0) {
             lockedRow(icon: "airplane", title: "Uzbekistan Airways", subtitle: "HY • TAS")
-            Divider().overlay(Color.white.opacity(0.08))
+            Divider().overlay(Color.primary.opacity(0.07))
             lockedRow(icon: "building.2.fill", title: "Tashkent", subtitle: "TAS • Tashkent International Airport")
-            Divider().overlay(Color.white.opacity(0.08))
+            Divider().overlay(Color.primary.opacity(0.07))
             lockedRow(icon: "mappin.and.ellipse", title: "Jeddah", subtitle: "JED • King Abdulaziz International Airport")
         }
         .opacity(0.54)
@@ -508,8 +516,8 @@ struct IumrahFlightsView: View {
             .font(.caption.weight(.bold))
             .padding(.horizontal, 13)
             .frame(height: 36)
-            .background(.black.opacity(0.72), in: Capsule())
-            .overlay { Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1) }
+            .background(Color.iumrahCardBackground.opacity(0.94), in: Capsule())
+            .overlay { Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 1) }
         }
     }
 
@@ -518,10 +526,10 @@ struct IumrahFlightsView: View {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
                 .frame(width: 42, height: 42)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold))
-                Text(subtitle).font(.caption).foregroundStyle(.white.opacity(0.48)).lineLimit(1)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
         }
@@ -544,7 +552,7 @@ struct IumrahFlightsView: View {
 
             Text(IumrahFlightsCopy.text(.friendsBody, settings.language))
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(spacing: 0) {
@@ -559,11 +567,11 @@ struct IumrahFlightsView: View {
                 friendStatus(icon: "moon.stars.fill", title: IumrahFlightsCopy.text(.friendUmrah, settings.language), value: "05:20")
             }
             .padding(.horizontal, 15)
-            .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+            .background(Color.iumrahRaisedBackground.opacity(0.54), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
 
             Label(IumrahFlightsCopy.text(.friendsPrivacy, settings.language), systemImage: "hand.raised.fill")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.56))
+                .foregroundStyle(.secondary)
         }
         .darkCard()
     }
@@ -580,12 +588,12 @@ struct IumrahFlightsView: View {
         Text(initial)
             .font(.caption.weight(.bold))
             .frame(width: 34, height: 34)
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
             .background(
                 LinearGradient(colors: [.blue.opacity(0.95), .purple.opacity(0.90)], startPoint: .topLeading, endPoint: .bottomTrailing),
                 in: Circle()
             )
-            .overlay { Circle().strokeBorder(Color.black, lineWidth: 2) }
+            .overlay { Circle().strokeBorder(Color.iumrahCardBackground, lineWidth: 2) }
     }
 
     private func friendStatus(icon: String, title: String, value: String) -> some View {
@@ -600,14 +608,14 @@ struct IumrahFlightsView: View {
             Spacer()
             Text(value)
                 .font(.caption.monospacedDigit().weight(.bold))
-                .foregroundStyle(.white.opacity(0.58))
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 12)
     }
 
     private var friendDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.065))
+            .fill(Color.primary.opacity(0.065))
             .frame(height: 1)
             .padding(.leading, 46)
     }
@@ -618,7 +626,7 @@ struct IumrahFlightsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .frame(width: 58, height: 58)
                 .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
 
@@ -628,7 +636,7 @@ struct IumrahFlightsView: View {
 
             Text(IumrahFlightsCopy.text(.principleBody, settings.language))
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let accessSession {
@@ -652,10 +660,10 @@ struct IumrahFlightsView: View {
                         Image(systemName: "arrow.right")
                     }
                     .font(.headline)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Color.iumrahPrimaryButtonText)
                     .padding(.horizontal, 18)
                     .frame(height: 56)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -663,7 +671,7 @@ struct IumrahFlightsView: View {
         .padding(22)
         .background(
             LinearGradient(
-                colors: [Color.blue.opacity(0.24), Color.indigo.opacity(0.12), Color.white.opacity(0.035)],
+                colors: [Color.blue.opacity(0.18), Color.indigo.opacity(0.09), Color.iumrahCardBackground],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
@@ -671,8 +679,22 @@ struct IumrahFlightsView: View {
         )
         .overlay {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.09), lineWidth: 1)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
         }
+    }
+
+    private var flightsWordmarkFooter: some View {
+        Image("IumrahFlightsWordmark")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(.primary)
+            .frame(maxWidth: 300)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 16)
+            .padding(.bottom, 6)
+            .accessibilityLabel("iumrah Flights")
+            .allowsHitTesting(false)
     }
 
     // MARK: - Shared UI
@@ -681,7 +703,7 @@ struct IumrahFlightsView: View {
         Label(text.uppercased(), systemImage: icon)
             .font(.caption2.weight(.bold))
             .tracking(0.8)
-            .foregroundStyle(.white.opacity(0.48))
+            .foregroundStyle(.secondary)
     }
 
     private func featurePill(icon: String, text: String) -> some View {
@@ -691,13 +713,13 @@ struct IumrahFlightsView: View {
                 .foregroundStyle(.blue)
             Text(text)
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.64))
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 64)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color.iumrahRaisedBackground.opacity(0.56), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func timeText(_ date: Date) -> String {
@@ -769,12 +791,12 @@ private struct IumrahFlightsDarkCard: ViewModifier {
         content
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.075), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(0.065), lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.34), radius: 28, y: 16)
+            .shadow(color: .black.opacity(0.07), radius: 24, y: 12)
     }
 }
 

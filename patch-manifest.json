@@ -1,17 +1,17 @@
 {
-  "patch": "iumrah-beta-update-042-generator-contract-compile-hotfix",
-  "purpose": "Repair the current Generator V2 flight-service contract exposed by the failed simulator build: room-aware GeneratorComponentProviding conformance, production-only real flight facade, and hotel/session invalidation forwarding.",
+  "patch": "iumrah-beta-update-041-flights-adaptive-light-dark",
+  "purpose": "Replace the top Flights wordmark with a native text title, move the supplied wordmark to the end of the page, and make IumrahFlightsView fully adaptive to the iPhone system Light/Dark appearance while preserving the interactive globe and trip-only Flights behavior.",
   "files": [
     {
-      "path": "BETA_HOTFIX_042_APPLIED.txt",
-      "sha256": "df39773282a305c426207e3986c8d8b29fb50da2a331566eb6496ce019ec11b5",
-      "bytes": 695
+      "path": "BETA_UI_041_APPLIED.txt",
+      "sha256": "eedeaad153bb901ebb059d29f1d44b315fd5b1ce06c281e9e6b338211648d9c5",
+      "bytes": 595
     },
     {
-      "path": "Sources/Services/RealFlightPackageSearchService.swift",
-      "sha256": "bbcda1d41d17a140fcaf1bcda4307a7fe2d72975cb7a925be1b2c3d3bd341241",
-      "bytes": 23916
+      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
+      "sha256": "34914b089af63727249b36c379a5c2144b6e5b6988ea0e3b5e4e0fe6c29e9537",
+      "bytes": 55345
     }
   ],
-  "based_on_commit": "620d29066ee8d338bf4ec33da23145b9b535ae0b"
+  "based_on": "BETA_UI_040_APPLIED"
 }

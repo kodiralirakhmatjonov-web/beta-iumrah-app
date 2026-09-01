@@ -1,0 +1,12 @@
+BETA_UI_041_APPLIED
+
+Flights adaptive appearance update.
+
+- Removed the large transparent iumrah Flights wordmark from the top of IumrahFlightsView.
+- Added a native text title, “iumrah Flights”, at the beginning of the page.
+- Moved the supplied iumrah Flights wordmark to the end of the Flights page.
+- Removed the forced dark color scheme from IumrahFlightsView.
+- Made page background, cards, text, controls, borders and buttons respond to the iPhone system Light/Dark appearance.
+- Preserved the interactive MapKit globe and active-trip Flights behavior.
+
+Based on BETA_UI_040_APPLIED.
