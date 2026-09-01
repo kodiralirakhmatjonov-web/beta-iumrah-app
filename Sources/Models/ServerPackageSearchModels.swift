@@ -4,5 +4,5 @@ import Foundation
 /// existing booking path. The former server PackageSearch/flight-bot models were removed.
 enum ServerIntercityTransport: String, Codable, Hashable {
     case road
-    case haramain
+    case haramainTrain
 }

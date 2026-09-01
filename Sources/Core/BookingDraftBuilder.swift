@@ -116,8 +116,8 @@ enum BookingDraftBuilder {
             flightNumbers: offer.flightNumbersSummary,
             origin: offer.origin,
             destination: offer.destination,
-            departureAt: isoDateTime.string(from: offer.departureAt),
-            arrivalAt: isoDateTime.string(from: offer.arrivalAt),
+            departureAt: isoDateTimeString(offer.departureAt),
+            arrivalAt: isoDateTimeString(offer.arrivalAt),
             source: offer.sourceLabel,
             stops: offer.stops,
             durationMinutes: offer.durationMinutes > 0 ? offer.durationMinutes : nil,
@@ -128,8 +128,8 @@ enum BookingDraftBuilder {
                     flightNumber: segment.flightNumber,
                     origin: segment.origin.code,
                     destination: segment.destination.code,
-                    departureAt: isoDateTime.string(from: segment.departureAt),
-                    arrivalAt: isoDateTime.string(from: segment.arrivalAt),
+                    departureAt: isoDateTimeString(segment.departureAt),
+                    arrivalAt: isoDateTimeString(segment.arrivalAt),
                     originTerminal: segment.origin.terminal,
                     destinationTerminal: segment.destination.terminal,
                     aircraft: segment.aircraft,
@@ -157,11 +157,11 @@ enum BookingDraftBuilder {
         )
     }
 
-    private static let isoDateTime: ISO8601DateFormatter = {
+    private static func isoDateTimeString(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
+        return formatter.string(from: date)
+    }
 
     private struct StayDates {
         let makkahCheckIn: String
@@ -180,15 +180,23 @@ enum BookingDraftBuilder {
         )
     }
 
-    private static func day(_ date: Date) -> String {
-        formatter.string(from: date)
+    private static func flexibleDays(_ flexibility: DateFlexibility) -> Int {
+        switch flexibility {
+        case .exact, .weekend:
+            return 0
+        case .plusMinusOne, .plusMinusTwo:
+            // Both legacy flexible raw values now represent the seven-day
+            // discovery window (anchor ±3 days). Keep booking metadata aligned
+            // with the dates the user was actually allowed to select.
+            return 3
+        }
     }
 
-    private static let formatter: DateFormatter = {
+    private static func day(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
+        return formatter.string(from: date)
+    }
 }
