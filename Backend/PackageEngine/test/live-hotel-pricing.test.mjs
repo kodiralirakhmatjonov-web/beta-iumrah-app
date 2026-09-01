@@ -1,22 +1,27 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
-const pricing = fs.readFileSync(new URL("../src/pricing.ts", import.meta.url), "utf8");
-const hotelCosts = fs.readFileSync(new URL("../src/hotel-costs.ts", import.meta.url), "utf8");
-const flightOptions = fs.readFileSync(new URL("../src/flight-options.ts", import.meta.url), "utf8");
+const service = fs.readFileSync(new URL('../../../Sources/HotelPricing/HotelLivePriceSearchService.swift', import.meta.url), 'utf8');
+const coordinator = fs.readFileSync(new URL('../../../Sources/Services/RealFlightPackageSearchService.swift', import.meta.url), 'utf8');
+const journey = fs.readFileSync(new URL('../../../Sources/State/JourneyStore.swift', import.meta.url), 'utf8');
 
-// A Booking/Expedia total for the requested stay must never be multiplied by
-// room count a second time in the Package Engine.
-assert.match(pricing, /if \(cost\.unit === "totalStay"\) return amount/);
+// Live hotel verification remains and is keyed to actual itinerary + selected room/category.
+assert.match(service, /TripStayPlanner\.windows\(for: trip/);
+assert.match(service, /selectedRoomId: makkahRoomId/);
+assert.match(service, /selectedRoomName: makkahRoomName/);
+assert.match(service, /selectedRoomId: madinahRoomId/);
+assert.match(service, /selectedRoomName: madinahRoomName/);
 
-// Live hotel observations must be pinned to the exact selected hotel and stay.
-assert.match(hotelCosts, /observation\.hotelId !== hotelId/);
-assert.match(hotelCosts, /observation\.checkInDate !== expected\.checkIn/);
-assert.match(hotelCosts, /observation\.checkOutDate !== expected\.checkOut/);
-assert.match(hotelCosts, /LIVE_PROVIDERS = new Set\(\["booking", "expedia"\]\)/);
+// Makkah and Madinah are checked concurrently when both are required.
+assert.match(service, /async let makkahValue/);
+assert.match(service, /async let madinahValue/);
 
-// Every flight-option package quote resolves hotel costs for that exact date pair.
-assert.match(flightOptions, /const pairContext = adjustedContextForPair/);
-assert.match(flightOptions, /await resolveHotelCosts\(pairContext, env\)/);
+// Hotel verification starts before the unified flight provider is awaited.
+const hotelStart = coordinator.indexOf('startHotelPriceCheck(trip: trip');
+const flightAwait = coordinator.indexOf('try await flightProvider.search');
+assert.ok(hotelStart >= 0 && flightAwait > hotelStart, 'hotel verification must start in parallel before flight provider await');
 
-console.log("live hotel pricing contract OK");
+// Final local pricing refuses a missing live hotel price; it must not use package_primary_hotels.
+assert.match(journey, /throw LocalPricingError\.missingHotelPrice\(city\)/);
+assert.ok(!journey.includes('configuredHotelComponentPrice('));
+console.log('live hotel verification contract OK');

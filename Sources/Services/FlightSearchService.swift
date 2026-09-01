@@ -18,16 +18,16 @@ enum GeneratorSearchStage: Hashable {
         case (.checkingProvider(let name), .english): return "Checking \(name)"
         case (.checkingProvider(let name), .uzbek): return "\(name) tekshirilmoqda"
         case (.checkingProvider(let name), .uzbekCyrillic): return "\(name) текширилмоқда"
-        case (.checkingAirlines, .russian): return "Проверяем актуальные рейсы"
-        case (.checkingAirlines, .english): return "Checking current flights"
-        case (.checkingAirlines, .uzbek): return "Dolzarb reyslarni tekshiryapmiz"
-        case (.checkingAirlines, .uzbekCyrillic): return "Долзарб рейсларни текширяпмиз"
+        case (.checkingAirlines, .russian): return "Подбираем актуальные рейсы"
+        case (.checkingAirlines, .english): return "Finding current flights"
+        case (.checkingAirlines, .uzbek): return "Dolzarb reyslarni qidiryapmiz"
+        case (.checkingAirlines, .uzbekCyrillic): return "Долзарб рейсларни қидиряпмиз"
         case (.checkingHotels, .russian): return "Проверяем цены выбранных Primary Hotels"
         case (.checkingHotels, .english): return "Checking your selected Primary Hotels"
         case (.checkingHotels, .uzbek): return "Tanlangan Primary Hotel narxlarini tekshiryapmiz"
         case (.checkingHotels, .uzbekCyrillic): return "Танланган Primary Hotel нархларини текширяпмиз"
         case (.comparingFares, .russian): return "Сравниваем найденные тарифы"
-        case (.comparingFares, .english): return "Comparing verified fares"
+        case (.comparingFares, .english): return "Comparing current fares"
         case (.comparingFares, .uzbek): return "Topilgan tariflarni solishtiryapmiz"
         case (.comparingFares, .uzbekCyrillic): return "Топилган тарифларни солиштиряпмиз"
         case (.continuing, .russian): return "Продолжаем искать другие варианты"
@@ -43,20 +43,17 @@ struct FlightSearchProgress {
     let pricedOffers: [FlightOffer]
     let isSearching: Bool
     let status: GeneratorSearchStage?
-    let providerEvents: [FlightProviderSearchEvent]
 
     init(
         discoveredCandidates: [LiveFlightCandidate],
         pricedOffers: [FlightOffer],
         isSearching: Bool,
-        status: GeneratorSearchStage? = nil,
-        providerEvents: [FlightProviderSearchEvent] = []
+        status: GeneratorSearchStage? = nil
     ) {
         self.discoveredCandidates = discoveredCandidates
         self.pricedOffers = pricedOffers
         self.isSearching = isSearching
         self.status = status
-        self.providerEvents = providerEvents
     }
 
     static let emptySearching = FlightSearchProgress(
@@ -68,6 +65,47 @@ struct FlightSearchProgress {
 }
 
 typealias FlightSearchProgressHandler = @MainActor (FlightSearchProgress) -> Void
+
+enum FlightInventoryProviderError: LocalizedError, Equatable {
+    case notConfigured
+
+    var errorDescription: String? {
+        switch self {
+        case .notConfigured:
+            return "Flight data provider is not configured yet."
+        }
+    }
+}
+
+/// Clean boundary for the single external flight source. The upcoming Ignav
+/// adapter will implement this protocol. No airline-specific server or WebKit
+/// discovery belongs above this boundary.
+@MainActor
+protocol FlightInventoryProviding: AnyObject {
+    var sourceName: String { get }
+
+    func search(
+        request: FlightSearchRequest,
+        dates: [Date],
+        onUpdate: @escaping @MainActor ([LiveFlightCandidate]) -> Void
+    ) async throws -> [LiveFlightCandidate]
+}
+
+@MainActor
+final class UnconfiguredFlightInventoryProvider: FlightInventoryProviding {
+    let sourceName = "Flight API"
+
+    func search(
+        request: FlightSearchRequest,
+        dates: [Date],
+        onUpdate: @escaping @MainActor ([LiveFlightCandidate]) -> Void
+    ) async throws -> [LiveFlightCandidate] {
+        _ = request
+        _ = dates
+        _ = onUpdate
+        throw FlightInventoryProviderError.notConfigured
+    }
+}
 
 @MainActor
 protocol GeneratorComponentProviding: AnyObject {
@@ -116,13 +154,9 @@ protocol FlightSearchServicing {
         outbound: FlightOffer,
         onUpdate: @escaping FlightSearchProgressHandler
     ) async throws -> [FlightOffer]
-
-    func resumeFlightChallenge(_ challenge: FlightBotChallenge) async -> [FlightOffer]
 }
 
 extension FlightSearchServicing {
-    func resumeFlightChallenge(_ challenge: FlightBotChallenge) async -> [FlightOffer] { [] }
-
     func searchOutboundProgressive(
         trip: TripDraft,
         makkahHotel: HotelSummary,

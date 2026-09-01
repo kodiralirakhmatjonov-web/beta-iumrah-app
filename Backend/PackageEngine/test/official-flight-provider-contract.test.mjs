@@ -1,25 +1,32 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
-const source = fs.readFileSync(new URL("../src/flight-options.ts", import.meta.url), "utf8");
-const match = source.match(/const ALLOWED_PROVIDER_IDS = new Set\(\[([\s\S]*?)\]\);/);
-assert.ok(match, "ALLOWED_PROVIDER_IDS must remain explicit");
-const providers = [...match[1].matchAll(/"([A-Za-z0-9]+)"/g)].map((item) => item[1]);
+const index = fs.readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
+const generator = fs.readFileSync(new URL('../src/generator-components.ts', import.meta.url), 'utf8');
+const wrangler = fs.readFileSync(new URL('../wrangler.template.jsonc', import.meta.url), 'utf8');
+const packageJson = fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+const cleanupMigration = fs.readFileSync(new URL('../migrations/0006_package_primary_hotels.sql', import.meta.url), 'utf8');
 
-for (const required of [
-  "uzbekistanAirways",
-  "qanotSharq",
-  "centrumAir",
-  "airSamarkand",
+for (const banned of [
+  '/api/package/flights/provider-search',
+  '/api/package/flight-options/quote',
+  '/api/package/search-sessions',
+  'SEARCH_SESSIONS',
+  'server-flight-bots',
+  'providerFlightSearch',
 ]) {
-  assert.ok(providers.includes(required), `missing official Uzbek carrier provider: ${required}`);
+  assert.ok(!index.includes(banned), `active Package Engine must not contain ${banned}`);
+  assert.ok(!generator.includes(banned), `generator component surface must not contain ${banned}`);
+  assert.ok(!wrangler.includes(banned), `Wrangler config must not contain ${banned}`);
 }
 
-assert.ok(!providers.includes("googleFlights"), "Google Flights must never enter package pricing");
-assert.ok(!providers.includes("skyscanner"), "Skyscanner must never enter package pricing");
-
-console.log("official flight provider contract OK");
-
-for (const future of ["flyKhiva", "silkAvia", "flynas", "saudia", "turkishAirlines", "airArabia", "jazeeraAirways", "flydubai", "airAstana", "flyArystan"]) {
-  assert.ok(!providers.includes(future), `uncertified provider must not enter production pricing boundary: ${future}`);
-}
+assert.ok(!packageJson.includes('0006_package_primary_hotels.sql'), 'deploy scripts must not recreate legacy package hotel-rate schema');
+assert.ok(!index.includes('/api/admin/package/primary-hotels'), 'legacy package_primary_hotels admin route must stay removed');
+assert.ok(!generator.includes('package_primary_hotels'), 'Primary Hotel resolution must not depend on legacy package rates');
+assert.match(cleanupMigration, /DROP TABLE IF EXISTS package_flight_cache_v1/);
+assert.match(cleanupMigration, /DROP TABLE IF EXISTS package_quote_audits_v2/);
+assert.match(cleanupMigration, /DELETE FROM package_primary_hotels/);
+assert.ok(!wrangler.includes('\"name\": \"SEARCH_SESSIONS\"'), 'retired Durable Object binding must be absent');
+assert.match(wrangler, /v2-remove-package-search-session/);
+assert.ok(wrangler.includes('\"deleted_classes\": [\"PackageSearchSession\"]'));
+console.log('flight/server cleanup contract OK');

@@ -4,7 +4,6 @@ struct ReturnFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
-    @StateObject private var challengeCenter = FlightBotChallengeCenter.shared
 
     @State private var candidates: [LiveFlightCandidate] = []
     @State private var offers: [FlightOffer] = []
@@ -13,15 +12,13 @@ struct ReturnFlightView: View {
     @State private var fatalErrorText: String?
     @State private var searchStatus: GeneratorSearchStage? = .starting
     @State private var searchGeneration = UUID()
-    @State private var presentedChallenge: FlightBotChallenge?
-    @State private var providerEvents: [FlightProviderSearchEvent] = []
 
     var body: some View {
         Group {
             if hasVerifiedResults {
                 resultsView
                     .iumrahInternalNavigation(progress: .flight)
-            } else if currentChallenge != nil || (!isSearching && !isInitialLoading) {
+            } else if !isSearching && !isInitialLoading {
                 searchGate
                     .iumrahInternalNavigation(progress: .flight)
             } else {
@@ -32,21 +29,6 @@ struct ReturnFlightView: View {
         .task { await search(continueExisting: false) }
         .onAppear { updateImmersive() }
         .onChange(of: isInitialLoading) { _, _ in updateImmersive() }
-        .onReceive(challengeCenter.$pending) { value in
-            guard let value, value.request.direction == .inbound else { return }
-            guard challengeMatchesCurrentTrip(value) else { return }
-            updateImmersive()
-        }
-        .sheet(item: $presentedChallenge) { challenge in
-            FlightChallengeSheet(
-                challenge: challenge,
-                onCompleted: {
-                    presentedChallenge = nil
-                    Task { await resumeChallenge(challenge) }
-                },
-                onCancelled: { presentedChallenge = nil }
-            )
-        }
         .onDisappear { chrome.setImmersive(false) }
     }
 
@@ -56,12 +38,7 @@ struct ReturnFlightView: View {
             anchorDate: journey.trip.returnDate,
             flexibility: journey.trip.flexibility,
             message: fatalErrorText ?? searchGateFallbackMessage,
-            providerEvents: providerEvents,
-            challenge: currentChallenge,
-            onRetry: { Task { await search(continueExisting: true) } },
-            onOpenChallenge: {
-                if let challenge = currentChallenge { presentedChallenge = challenge }
-            }
+            onRetry: { Task { await search(continueExisting: true) } }
         )
     }
 
@@ -84,17 +61,12 @@ struct ReturnFlightView: View {
                     subtitle: L10n.text("flight_return_body", settings.language)
                 )
 
-                if let challenge = currentChallenge {
-                    FlightProviderVerificationCard(challenge: challenge) {
-                        presentedChallenge = challenge
-                    }
-                }
 
                 flightGroups
 
                 FlightSearchProgressCard(
                     isSearching: isSearching,
-                    hasResults: !candidates.isEmpty || !offers.isEmpty,
+                    hasResults: !offers.isEmpty,
                     liveStatus: searchStatus,
                     onContinue: { Task { await search(continueExisting: true) } }
                 )
@@ -210,7 +182,6 @@ struct ReturnFlightView: View {
         if !continueExisting {
             candidates = []
             offers = []
-            providerEvents = []
             journey.selectedInbound = nil
             journey.quote = nil
         }
@@ -231,12 +202,11 @@ struct ReturnFlightView: View {
                 outbound: outbound,
                 onUpdate: { progress in
                     guard searchGeneration == generation else { return }
-                    providerEvents = FlightSearchDiagnostics.merge(providerEvents, progress.providerEvents)
                     candidates = mergeCandidates(candidates, progress.discoveredCandidates)
                     offers = mergeOffers(offers, progress.pricedOffers)
                     searchStatus = progress.status
                     isSearching = progress.isSearching
-                    if !candidates.isEmpty || !offers.isEmpty || !progress.isSearching {
+                    if !offers.isEmpty || !progress.isSearching {
                         withAnimation(.easeInOut(duration: 0.22)) { isInitialLoading = false }
                     }
                 }
@@ -255,64 +225,14 @@ struct ReturnFlightView: View {
         if !offers.isEmpty { IumrahHaptics.success() }
     }
 
-    private var currentChallenge: FlightBotChallenge? {
-        guard let challenge = challengeCenter.pending,
-              challenge.request.direction == .inbound,
-              challengeMatchesCurrentTrip(challenge) else { return nil }
-        return challenge
-    }
-
-    private func challengeMatchesCurrentTrip(_ challenge: FlightBotChallenge) -> Bool {
-        challenge.request.origin == journey.trip.returnOriginCode.uppercased() &&
-        challenge.request.destination == journey.trip.originCode.uppercased()
-    }
-
-    private var hasVerifiedResults: Bool { !candidates.isEmpty || !offers.isEmpty }
+    private var hasVerifiedResults: Bool { !offers.isEmpty }
 
     private var shouldShowImmersive: Bool {
-        !hasVerifiedResults && currentChallenge == nil && (isSearching || isInitialLoading)
+        !hasVerifiedResults && (isSearching || isInitialLoading)
     }
 
     private func updateImmersive() {
         chrome.setImmersive(shouldShowImmersive)
-    }
-
-    private func grouped(rows: [FlightResultRowModel], anchor: Date) -> [(offset: Int, rows: [FlightResultRowModel])] {
-        let byOffset = Dictionary(grouping: rows) { dayOffset($0.departureAt, from: anchor) }
-        let keys: [Int]
-        if journey.trip.flexibility.isWeeklyDiscovery {
-            keys = byOffset.keys.sorted()
-        } else {
-            keys = byOffset.keys.sorted { abs($0) == abs($1) ? $0 < $1 : abs($0) < abs($1) }
-        }
-        return keys.map { ($0, byOffset[$0, default: []]) }
-    }
-
-    private func dayOffset(_ date: Date, from anchor: Date) -> Int {
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: anchor)
-        let value = calendar.startOfDay(for: date)
-        return calendar.dateComponents([.day], from: start, to: value).day ?? 0
-    }
-
-    private func mergeCandidates(_ lhs: [LiveFlightCandidate], _ rhs: [LiveFlightCandidate]) -> [LiveFlightCandidate] {
-        var result = lhs
-        var keys = Set(lhs.map(\.deduplicationKey))
-        for candidate in rhs where candidate.isDisplayableCandidate && isValidReturnDate(candidate.departureAt, airportCode: candidate.origin) {
-            if keys.insert(candidate.deduplicationKey).inserted { result.append(candidate) }
-        }
-        return result
-    }
-
-    @MainActor
-    private func resumeChallenge(_ challenge: FlightBotChallenge) async {
-        let resumed = await journey.flightService.resumeFlightChallenge(challenge)
-        if !resumed.isEmpty {
-            offers = mergeOffers(offers, resumed)
-            fatalErrorText = nil
-            isInitialLoading = false
-        }
-        await search(continueExisting: true)
     }
 
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {

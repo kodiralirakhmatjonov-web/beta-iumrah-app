@@ -1,0 +1,13 @@
+BETA_FLIGHT_API_CLEANUP_013_APPLIED
+
+Flight architecture reset before Ignav integration.
+
+- Removed active server airline bots, provider search, SearchSession/Durable Object and server flight quote paths.
+- Removed active iOS/WKWebView airline bots, airline challenges and provider-specific bot telemetry.
+- Removed legacy server package-pricing / package_primary_hotels rate flow from the active worker.
+- Primary Hotel selection remains based on primary_hotels.
+- Current Makkah/Madinah hotel price verification remains in HotelLivePriceSearchService and runs concurrently with flight inventory search.
+- LocalPackagePricingEngine remains authoritative and unchanged.
+- Flight inventory now has one clean FlightInventoryProviding boundary; it is intentionally unconfigured until the next Ignav update.
+
+Some historical filenames remain as inert stubs because the repository's ZIP-overlay workflow does not delete existing files.

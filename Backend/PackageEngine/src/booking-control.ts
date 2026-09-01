@@ -1,4 +1,4 @@
-import type { D1Like, D1PreparedStatementLike } from "./primary-hotels";
+import type { D1Like, D1PreparedStatementLike } from "./d1";
 import { ensureBookingRoomColumns, findHotelRoomCategory, parseRoomCategory } from "./room-categories";
 
 type BookingD1 = D1Like & {

@@ -1,22 +1,13 @@
-name = "iumrah-beta-package-engine"
+name = "iumrah-package-api"
 main = "src/index.ts"
 compatibility_date = "2026-08-24"
 
-[vars]
-PRICING_VERSION = "iumrah-web-v1-beta-0.15"
-CBU_FX_URL = "https://cbu.uz/en/arkhiv-kursov-valyut/json/"
-
-# Bind the EXISTING iumrah-hotels D1 database when this worker is deployed.
-# Do not create a second hotel database.
-# [[d1_databases]]
-# binding = "HOTELS_DB"
-# database_name = "iumrah-hotels"
-# database_id = "<existing Cloudflare D1 database id>"
-
-[[durable_objects.bindings]]
-name = "SEARCH_SESSIONS"
-class_name = "PackageSearchSession"
-
+# No SEARCH_SESSIONS binding remains. Keep the historical creation migration so
+# Cloudflare can apply the deletion migration to the already-provisioned class.
 [[migrations]]
 tag = "v1-package-search-session"
 new_sqlite_classes = ["PackageSearchSession"]
+
+[[migrations]]
+tag = "v2-remove-package-search-session"
+deleted_classes = ["PackageSearchSession"]

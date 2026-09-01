@@ -119,8 +119,8 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     let segments: [FlightSegment]?
     let connectionAirports: [FlightAirportSnapshot]?
 
-    /// Actual ticket fare observed by the airline bot. Generator V2 keeps fare
-    /// components separate from the package selling price.
+    /// Actual ticket fare observed by the active flight data provider. Generator
+    /// keeps fare components separate from the package selling price.
     let fareAmount: Decimal?
     let fareScope: FlightFareScope?
     let fareObservedAt: Date?
@@ -176,9 +176,9 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         self.fareSourceURL = fareSourceURL?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? fareSourceURL : nil
     }
 
-    /// Stable itinerary identity shared with LiveFlightCandidate. Server and
-    /// device discovery can assign different source IDs to the same physical
-    /// flight; UI deduplication must therefore use flight/route/time/segments.
+    /// Stable itinerary identity shared with LiveFlightCandidate. Upstream APIs
+    /// can assign different IDs to the same physical itinerary, so deduplication
+    /// uses flight/route/time/segments rather than provider IDs.
     var deduplicationKey: String {
         let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber) ?? flightNumber.uppercased()
         let epoch = Int(departureAt.timeIntervalSince1970 / 300)
@@ -240,51 +240,55 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         return values.filter { seen.insert($0).inserted }.joined(separator: " + ")
     }
 
-    /// Final client-side safety gate. Only an itinerary made of exact carrier
-    /// flight numbers and complete contiguous segments can be booked. Pricing
-    /// references and aggregator placeholders are deliberately rejected here.
+    /// Final client-side safety gate. Provider-specific response validation is
+    /// performed by the flight API adapter; this model verifies the normalized
+    /// itinerary/fare contract without any airline-bot registry dependency.
     var isVerifiedForBooking: Bool {
-        let source = sourceLabel.lowercased()
-        guard !source.contains("google flights"),
-              !source.contains("skyscanner"),
-              !source.contains("ref-google"),
-              !source.contains("ref-skyscanner"),
+        let source = sourceLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowerSource = source.lowercased()
+        let age = fareObservedAt.map { Date().timeIntervalSince($0) }
+        guard !source.isEmpty,
+              !lowerSource.contains("google flights"),
+              !lowerSource.contains("skyscanner"),
+              !lowerSource.contains("ref-google"),
+              !lowerSource.contains("ref-skyscanner"),
               let exactPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
               let primaryCode = FlightReferenceCatalog.airlineCode(from: exactPrimary),
-              let primaryCarrier = FlightReferenceCatalog.airline(code: primaryCode),
-              airline.caseInsensitiveCompare(primaryCarrier.name) == .orderedSame,
+              !airline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let fareAmount, fareAmount > 0,
               let fareScope, fareScope != .unknown,
-              let fareObservedAt,
-              Date().timeIntervalSince(fareObservedAt) >= -5 * 60,
-              Date().timeIntervalSince(fareObservedAt) <= 30 * 60,
-              let fareSourceURL, let fareSource = URL(string: fareSourceURL),
-              let provider = FlightBotProviderRegistry.providers.first(where: { $0.displayName.caseInsensitiveCompare(sourceLabel) == .orderedSame }),
-              provider.acceptsSourceURL(fareSource),
-              provider.acceptsPrimaryFlightNumber(exactPrimary),
-              currency.range(of: "^[A-Za-z]{3}$", options: .regularExpression) != nil,
+              let age, age >= -5 * 60, age <= 30 * 60,
+              currency.uppercased().range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              origin.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              destination.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              origin != destination,
               departureAt < arrivalAt,
+              durationMinutes > 0,
+              stops >= 0,
               let segments, !segments.isEmpty, segments.count == stops + 1 else { return false }
 
-        guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == exactPrimary else { return false }
-        guard segments.allSatisfy({ segment in
-            guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
-                  provider.acceptsPrimaryFlightNumber(normalized),
-                  let code = FlightReferenceCatalog.airlineCode(from: normalized),
-                  let carrier = FlightReferenceCatalog.airline(code: code) else { return false }
-            return segment.airline.caseInsensitiveCompare(carrier.name) == .orderedSame &&
-                   segment.origin.code != segment.destination.code &&
-                   segment.departureAt < segment.arrivalAt
-        }) else { return false }
-        guard segments.first?.origin.code == origin, segments.last?.destination.code == destination else { return false }
-        guard zip(segments, segments.dropFirst()).allSatisfy({ $0.destination.code == $1.origin.code }) else { return false }
-        if stops == 0, let connectionAirports, !connectionAirports.isEmpty { return false }
-        if stops > 0 {
-            guard let connectionAirports, connectionAirports.count == stops else { return false }
-            guard connectionAirports.map(\.code) == segments.dropLast().map(\.destination.code) else { return false }
+        if let fareSourceURL {
+            guard let url = URL(string: fareSourceURL), ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { return false }
         }
-        return !flightNumbersSummary.isEmpty && !airlinesSummary.isEmpty
+
+        guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == exactPrimary,
+              segments.first?.origin.code == origin,
+              segments.last?.destination.code == destination else { return false }
+
+        for (index, segment) in segments.enumerated() {
+            guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
+                  let code = FlightReferenceCatalog.airlineCode(from: normalized),
+                  segment.origin.code != segment.destination.code,
+                  segment.departureAt < segment.arrivalAt else { return false }
+            if index == 0, code != primaryCode { return false }
+            if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
+        }
+
+        if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }
+        guard let connectionAirports, connectionAirports.count == stops else { return false }
+        return connectionAirports.map(\.code) == segments.dropLast().map(\.destination.code)
     }
+
 }
 
 struct PackageQuote: Hashable, Codable {

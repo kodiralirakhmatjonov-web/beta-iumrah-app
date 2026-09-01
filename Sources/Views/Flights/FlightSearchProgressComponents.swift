@@ -216,19 +216,19 @@ struct FlightSearchProgressCard: View {
         case .russian:
             return hasResults
                 ? "Найденные рейсы уже можно сравнивать. Новые варианты появятся здесь автоматически."
-                : "Проверяем официальные сайты авиакомпаний. Первый подтверждённый рейс появится сразу."
+                : "Получаем актуальные рейсы. Первый подтверждённый вариант появится сразу."
         case .english:
             return hasResults
                 ? "You can already compare verified flights. New options will appear automatically."
-                : "Checking official airline booking sites. The first verified flight will appear immediately."
+                : "Fetching current flights. The first verified option will appear immediately."
         case .uzbek:
             return hasResults
                 ? "Topilgan reyslarni hozirdanoq solishtiring. Yangi variantlar avtomatik qo‘shiladi."
-                : "Aviakompaniyalarning rasmiy saytlarini tekshiryapmiz. Birinchi tasdiqlangan reys darhol chiqadi."
+                : "Dolzarb reyslarni olyapmiz. Birinchi tasdiqlangan variant darhol chiqadi."
         case .uzbekCyrillic:
             return hasResults
                 ? "Топилган рейсларни ҳозирданоқ солиштиринг. Янги вариантлар автоматик қўшилади."
-                : "Авиакомпанияларнинг расмий сайтларини текширяпмиз. Биринчи тасдиқланган рейс дарҳол чиқади."
+                : "Долзарб рейсларни оляпмиз. Биринчи тасдиқланган вариант дарҳол чиқади."
         }
     }
 

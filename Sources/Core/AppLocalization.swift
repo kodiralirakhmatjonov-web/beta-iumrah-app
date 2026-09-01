@@ -65,43 +65,11 @@ struct L10n {
         }
         if let flightError = error as? FlightEngineAvailabilityError {
             switch flightError {
+            case .flightProviderNotConfigured:
+                return text("flight_provider_not_configured", language)
             case .realOutboundRequired:
                 return text("flight_error_outbound", language)
             case .noVerifiedFlights:
-                return text("flight_search_failed", language)
-            }
-        }
-        if let pricingError = error as? FlightPricingBridgeError {
-            switch pricingError {
-            case .unresolvedFareScope(let provider):
-                return format("flight_error_fare_scope", language, provider)
-            case .candidateMissing(let id):
-                return format("flight_error_candidate", language, id)
-            case .insufficientQuotedOptions(let found, let minimum):
-                return format("flight_error_minimum", language, found, minimum)
-            }
-        }
-        // Keep orchestration errors decoupled from FlightBotOrchestrator's nested
-        // error enum. That type changed across Flight Engine revisions, and a hard
-        // enum-case reference here can make unrelated UI updates fail to compile.
-        // The orchestrator already exposes a user-readable LocalizedError message.
-        if String(describing: type(of: error)).contains("OrchestratorError"),
-           let localizedError = error as? LocalizedError,
-           let description = localizedError.errorDescription,
-           !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return description
-        }
-        if let botError = error as? FlightBotRunner.BotError {
-            switch botError {
-            case .invalidPage:
-                return text("flight_bot_invalid_page", language)
-            case .challengeRequired(let challenge):
-                return format("flight_bot_challenge", language, challenge.providerName)
-            case .noCandidates:
-                return text("flight_bot_no_candidates", language)
-            case .timeout:
-                return text("flight_bot_timeout", language)
-            case .superseded:
                 return text("flight_search_failed", language)
             }
         }
@@ -470,6 +438,7 @@ struct L10n {
             "error_network": "A network error occurred. Please try again.",
             "error_unknown": "Something went wrong. Please try again.",
             "flight_search_failed": "Search did not finish",
+            "flight_provider_not_configured": "Flight search is being prepared for the new provider.",
             "flight_challenge_title": "Verification required",
             "flight_challenge_body": "%@ requires a human verification. Complete it and retry the search. The session stays on this iPhone.",
             "flight_select_hotel_first": "Choose a hotel first.",
@@ -948,6 +917,7 @@ struct L10n {
             "error_network": "Произошла ошибка сети. Повторите попытку.",
             "error_unknown": "Что-то пошло не так. Повторите попытку.",
             "flight_search_failed": "Поиск не завершён",
+            "flight_provider_not_configured": "Поиск авиабилетов готовится к подключению нового провайдера.",
             "flight_challenge_title": "Нужна проверка",
             "flight_challenge_body": "%@ запросил человеческую проверку. Пройдите её и повторите поиск. Сессия сохраняется на этом iPhone.",
             "flight_select_hotel_first": "Сначала выберите отель.",
@@ -1426,6 +1396,7 @@ struct L10n {
             "error_network": "Tarmoq xatosi yuz berdi. Qayta urinib ko‘ring.",
             "error_unknown": "Nimadir xato ketdi. Qayta urinib ko‘ring.",
             "flight_search_failed": "Qidiruv yakunlanmadi",
+            "flight_provider_not_configured": "Aviachiptalar qidiruvi yangi provayder ulanishiga tayyorlanmoqda.",
             "flight_challenge_title": "Tekshiruv kerak",
             "flight_challenge_body": "%@ inson tekshiruvini so‘radi. Uni yakunlab, qidiruvni qayta boshlang. Sessiya shu iPhone’da saqlanadi.",
             "flight_select_hotel_first": "Avval mehmonxonani tanlang.",
@@ -1904,6 +1875,7 @@ struct L10n {
             "error_network": "Тармоқ хатоси юз берди. Қайта уриниб кўринг.",
             "error_unknown": "Нимадир хато кетди. Қайта уриниб кўринг.",
             "flight_search_failed": "Қидирув якунланмади",
+            "flight_provider_not_configured": "Авиачипталар қидируви янги провайдер уланишига тайёрланмоқда.",
             "flight_challenge_title": "Текширув керак",
             "flight_challenge_body": "%@ инсон текширувини сўради. Уни якунлаб, қидирувни қайта бошланг. Сессия шу iPhone’да сақланади.",
             "flight_select_hotel_first": "Аввал меҳмонхонани танланг.",

@@ -1,4 +1,4 @@
-import type { D1Like } from "./primary-hotels";
+import type { D1Like } from "./d1";
 
 export type IumrahRoomCategory = "DOUBLE" | "TRIPLE" | "QUADRUPLE";
 

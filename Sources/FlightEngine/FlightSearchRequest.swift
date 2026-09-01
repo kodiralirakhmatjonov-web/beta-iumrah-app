@@ -1,12 +1,12 @@
 import Foundation
 
 enum FlightCandidateRequirement: String, Codable, Hashable {
-    /// Production flight discovery has one contract only: exact carrier flight
-    /// number, complete route/segments, source-local times and a real fare.
     case displayable
 }
 
-struct FlightBotSearchRequest: Hashable, Codable {
+/// Provider-neutral request used by the generator. The next flight integration
+/// (Ignav) plugs into this model without any airline-specific WebKit/server bot code.
+struct FlightSearchRequest: Hashable, Codable {
     let id: String
     let direction: FlightDirection
     let origin: String
@@ -46,10 +46,13 @@ enum FlightFareScope: String, Codable, Hashable {
     case unknown
 }
 
+/// Normalized flight result independent of the transport used to discover it.
+/// `sourceID`/`sourceName` describe the upstream data source (for example Ignav),
+/// while the actual airline remains represented by `airline`/`flightNumber`.
 struct LiveFlightCandidate: Identifiable, Hashable, Codable {
     let id: String
-    let providerID: FlightBotProviderID
-    let providerName: String
+    let sourceID: String
+    let sourceName: String
     let direction: FlightDirection
     let airline: String
     let flightNumber: String
@@ -63,16 +66,16 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
     let observedCurrency: String
     let fareScope: FlightFareScope
     let observedAt: Date
-    let sourceURL: String
-    let rawTextFingerprint: String
+    let sourceURL: String?
+    let rawFingerprint: String?
     let airlineCode: String?
     let segments: [FlightSegment]?
     let connectionAirports: [FlightAirportSnapshot]?
 
     init(
         id: String,
-        providerID: FlightBotProviderID,
-        providerName: String,
+        sourceID: String,
+        sourceName: String,
         direction: FlightDirection,
         airline: String,
         flightNumber: String,
@@ -86,17 +89,17 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         observedCurrency: String,
         fareScope: FlightFareScope,
         observedAt: Date,
-        sourceURL: String,
-        rawTextFingerprint: String,
+        sourceURL: String? = nil,
+        rawFingerprint: String? = nil,
         airlineCode: String? = nil,
         segments: [FlightSegment]? = nil,
         connectionAirports: [FlightAirportSnapshot]? = nil
     ) {
         self.id = id
-        self.providerID = providerID
-        self.providerName = providerName
+        self.sourceID = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.sourceName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
         self.direction = direction
-        self.airline = airline
+        self.airline = airline.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedFlightNumber = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber)
             ?? flightNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         self.flightNumber = normalizedFlightNumber
@@ -107,11 +110,11 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         self.stops = stops
         self.durationMinutes = durationMinutes
         self.observedFare = observedFare
-        self.observedCurrency = observedCurrency
+        self.observedCurrency = observedCurrency.uppercased()
         self.fareScope = fareScope
         self.observedAt = observedAt
-        self.sourceURL = sourceURL
-        self.rawTextFingerprint = rawTextFingerprint
+        self.sourceURL = sourceURL?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
+        self.rawFingerprint = rawFingerprint?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
         self.airlineCode = airlineCode?.uppercased() ?? FlightReferenceCatalog.airlineCode(from: normalizedFlightNumber)
         self.segments = segments?.isEmpty == false ? segments : nil
         self.connectionAirports = connectionAirports?.isEmpty == false ? connectionAirports : nil
@@ -128,30 +131,33 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         return "\(normalized)|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)".lowercased()
     }
 
-    /// Hard boundary between internal fare references and itineraries that may be
-    /// rendered or persisted as the user's selected flight.
+    /// Final provider-neutral safety gate before a result can be rendered.
+    /// Source-specific validation belongs in the API adapter; this layer checks
+    /// itinerary/fare coherence without depending on old airline-bot registries.
     var isDisplayableCandidate: Bool {
-        // Aggregators and internal reference rows are categorically forbidden at
-        // the model boundary. A UI bug can therefore never turn Google Flights,
-        // Skyscanner or REF-* metadata into a purchasable itinerary.
-        guard !providerID.isAggregator,
-              let provider = FlightBotProviderRegistry.providers.first(where: { $0.id == providerID }),
+        let age = Date().timeIntervalSince(observedAt)
+        guard !sourceID.isEmpty,
+              !sourceName.isEmpty,
               let normalizedPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
-              provider.acceptsPrimaryFlightNumber(normalizedPrimary),
-              let airlineCode = FlightReferenceCatalog.airlineCode(from: normalizedPrimary),
-              let canonicalAirline = FlightReferenceCatalog.airline(code: airlineCode),
-              airline.caseInsensitiveCompare(canonicalAirline.name) == .orderedSame,
+              let primaryCode = FlightReferenceCatalog.airlineCode(from: normalizedPrimary),
               observedFare > 0,
               fareScope != .unknown,
-              observedCurrency.range(of: "^[A-Za-z]{3}$", options: .regularExpression) != nil,
-              let source = URL(string: sourceURL), provider.acceptsSourceURL(source),
-              Date().timeIntervalSince(observedAt) >= -5 * 60,
-              Date().timeIntervalSince(observedAt) <= 30 * 60,
+              observedCurrency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              age >= -5 * 60,
+              age <= 30 * 60,
+              origin.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              destination.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
               origin != destination,
               departureAt < arrivalAt,
+              stops >= 0,
+              durationMinutes > 0,
               let segments,
-              segments.count == stops + 1,
-              !segments.isEmpty else { return false }
+              !segments.isEmpty,
+              segments.count == stops + 1 else { return false }
+
+        if let sourceURL {
+            guard let url = URL(string: sourceURL), ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { return false }
+        }
 
         guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == normalizedPrimary,
               segments.first?.origin.code == origin,
@@ -159,30 +165,22 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
 
         for (index, segment) in segments.enumerated() {
             guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
-                  provider.acceptsPrimaryFlightNumber(normalized),
                   let code = FlightReferenceCatalog.airlineCode(from: normalized),
-                  let reference = FlightReferenceCatalog.airline(code: code),
-                  segment.airline.caseInsensitiveCompare(reference.name) == .orderedSame,
                   segment.origin.code != segment.destination.code,
                   segment.departureAt < segment.arrivalAt else { return false }
+            if index == 0, code != primaryCode { return false }
             if index > 0, segments[index - 1].destination.code != segment.origin.code { return false }
         }
 
         if stops == 0 { return connectionAirports == nil || connectionAirports?.isEmpty == true }
         guard let connectionAirports, connectionAirports.count == stops else { return false }
-        let expectedConnections = segments.dropLast().map(\.destination.code)
-        return connectionAirports.map(\.code) == expectedConnections
+        return connectionAirports.map(\.code) == segments.dropLast().map(\.destination.code)
     }
 }
 
-struct FlightBotSearchSummary: Hashable, Codable {
-    let searchID: String
-    let requestedAt: Date
-    let providersStarted: Int
-    let providersSucceeded: Int
-    let providersBlocked: Int
-    let rawCandidateCount: Int
-    let deduplicatedCandidateCount: Int
-    let minimumTarget: Int
-    let preferredTarget: Int
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
 }
