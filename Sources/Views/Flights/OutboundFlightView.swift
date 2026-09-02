@@ -61,7 +61,7 @@ struct OutboundFlightView: View {
                     subtitle: L10n.text("flight_out_body", settings.language)
                 )
 
-
+                resultCountLabel
                 flightGroups
 
                 FlightSearchProgressCard(
@@ -156,6 +156,22 @@ struct OutboundFlightView: View {
 
     private var recommendedOfferID: String? { recommendedOffer?.id }
 
+    private var resultCountLabel: some View {
+        Label(resultCountText, systemImage: "list.number")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var resultCountText: String {
+        switch settings.language {
+        case .russian: return "Найдено актуальных маршрутов: \(offers.count)"
+        case .english: return "Current journeys found: \(offers.count)"
+        case .uzbek: return "Topilgan joriy yo‘nalishlar: \(offers.count)"
+        case .uzbekCyrillic: return "Топилган жорий йўналишлар: \(offers.count)"
+        }
+    }
+
     private func orderedRows(_ rows: [FlightResultRowModel]) -> [FlightResultRowModel] {
         guard let recommendedOfferID else { return rows }
         return rows.enumerated().sorted { lhs, rhs in
@@ -225,7 +241,10 @@ struct OutboundFlightView: View {
         journey.errorMessage = nil
         if candidates.isEmpty && offers.isEmpty { isInitialLoading = true }
 
-
+        // Hotel pricing runs beside Ignav discovery instead of starting only after
+        // the user reaches FinalPackageView. The JourneyStore-owned task survives
+        // navigation and is reused by the final quote calculation.
+        journey.scheduleHotelPricePrefetch()
         do {
             let final = try await journey.flightService.searchOutboundProgressive(
                 trip: journey.trip,
@@ -303,12 +322,12 @@ struct OutboundFlightView: View {
 
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {
         var result = lhs.filter { $0.isVerifiedForBooking && isValidOutboundDate($0.departureAt, airportCode: $0.origin) }
-        var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.deduplicationKey, $0.offset) })
+        var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.resultIdentityKey, $0.offset) })
         for offer in rhs where offer.isVerifiedForBooking && isValidOutboundDate(offer.departureAt, airportCode: offer.origin) {
-            if let index = indexByKey[offer.deduplicationKey] {
+            if let index = indexByKey[offer.resultIdentityKey] {
                 result[index] = offer
             } else {
-                indexByKey[offer.deduplicationKey] = result.count
+                indexByKey[offer.resultIdentityKey] = result.count
                 result.append(offer)
             }
         }

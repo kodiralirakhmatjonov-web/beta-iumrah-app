@@ -18,6 +18,7 @@ final class HotelPriceBotRunner {
         let url: String
         let score: Double
         let roomEvidence: Bool
+        let dateEvidence: Bool
     }
 
     private let provider: HotelPriceProvider
@@ -37,8 +38,35 @@ final class HotelPriceBotRunner {
 
     func run(timeoutSeconds: Double = AppConfig.hotelPriceProviderTimeoutSeconds) async throws -> HotelPriceObservation {
         let deadline = Date().addingTimeInterval(max(6, timeoutSeconds))
-        let url = provider.searchURL(for: request)
-        webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeoutSeconds))
+        let urls = provider.searchURLs(for: request)
+        var lastError: Error = BotError.noMatchingHotel
+
+        for (index, url) in urls.enumerated() {
+            try Task.checkCancellation()
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 1 else { break }
+            let attemptsLeft = max(1, urls.count - index)
+            let slice: Double
+            if index == 0, urls.count > 1 {
+                slice = min(10, max(6, remaining - 6))
+            } else {
+                slice = max(4, remaining / Double(attemptsLeft))
+            }
+            do {
+                return try await run(url: url, deadline: min(deadline, Date().addingTimeInterval(slice)))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
+    private func run(url: URL, deadline: Date) async throws -> HotelPriceObservation {
+        webView.stopLoading()
+        let timeout = max(4, deadline.timeIntervalSinceNow)
+        webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout))
 
         var lastCard: ExtractedCard?
         while Date() < deadline {
@@ -50,7 +78,9 @@ final class HotelPriceBotRunner {
                     provider: provider,
                     hotelName: request.hotel.name,
                     roomName: nil,
-                    sourceIdentity: request.pricingSource(for: provider.id)
+                    sourceIdentity: request.pricingSource(for: provider.id),
+                    checkInDate: Self.dayFormatter.string(from: request.checkIn),
+                    checkOutDate: Self.dayFormatter.string(from: request.checkOut)
                 )
                 if let json = try? await evaluate(script) as? String,
                    !json.isEmpty,
@@ -71,13 +101,17 @@ final class HotelPriceBotRunner {
     }
 
     private func makeObservation(card: ExtractedCard, sourceURL: URL) -> HotelPriceObservation? {
-        guard card.score >= 0.62 else { return nil }
+        guard card.score >= 0.62, card.dateEvidence else { return nil }
         // The current provider surface verifies the concrete hotel/stay/occupancy.
         // iumrah room category IDs are internal IDs, not Booking/Expedia inventory
         // identifiers, so missing room-name text on a search result must not turn a
         // valid hotel price into a false negative.
         let combined = "\(card.metaText) \(card.priceText) \(card.body)"
-        guard let parsed = HotelPriceTextParser.parse(text: combined, preferred: "\(card.metaText) \(card.priceText)") else { return nil }
+        guard let parsed = HotelPriceTextParser.parse(
+            text: combined,
+            priceText: card.priceText,
+            metaText: card.metaText
+        ) else { return nil }
 
         let resolvedSourceURL = URL(string: card.url).flatMap { candidate -> URL? in
             guard candidate.scheme?.lowercased() == "https", let host = candidate.host?.lowercased(), provider.id.accepts(host: host) else { return nil }

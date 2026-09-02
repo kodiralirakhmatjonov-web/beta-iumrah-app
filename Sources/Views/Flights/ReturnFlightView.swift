@@ -61,7 +61,7 @@ struct ReturnFlightView: View {
                     subtitle: L10n.text("flight_return_body", settings.language)
                 )
 
-
+                resultCountLabel
                 flightGroups
 
                 FlightSearchProgressCard(
@@ -155,6 +155,22 @@ struct ReturnFlightView: View {
     }
 
     private var recommendedOfferID: String? { recommendedOffer?.id }
+
+    private var resultCountLabel: some View {
+        Label(resultCountText, systemImage: "list.number")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var resultCountText: String {
+        switch settings.language {
+        case .russian: return "Совместимых актуальных маршрутов: \(offers.count)"
+        case .english: return "Compatible current journeys: \(offers.count)"
+        case .uzbek: return "Mos joriy yo‘nalishlar: \(offers.count)"
+        case .uzbekCyrillic: return "Мос жорий йўналишлар: \(offers.count)"
+        }
+    }
 
     private func orderedRows(_ rows: [FlightResultRowModel]) -> [FlightResultRowModel] {
         guard let recommendedOfferID else { return rows }
@@ -302,12 +318,12 @@ struct ReturnFlightView: View {
 
     private func mergeOffers(_ lhs: [FlightOffer], _ rhs: [FlightOffer]) -> [FlightOffer] {
         var result = lhs.filter { $0.isVerifiedForBooking && isValidReturnDate($0.departureAt, airportCode: $0.origin) }
-        var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.deduplicationKey, $0.offset) })
+        var indexByKey = Dictionary(uniqueKeysWithValues: result.enumerated().map { ($0.element.resultIdentityKey, $0.offset) })
         for offer in rhs where offer.isVerifiedForBooking && isValidReturnDate(offer.departureAt, airportCode: offer.origin) {
-            if let index = indexByKey[offer.deduplicationKey] {
+            if let index = indexByKey[offer.resultIdentityKey] {
                 result[index] = offer
             } else {
-                indexByKey[offer.deduplicationKey] = result.count
+                indexByKey[offer.resultIdentityKey] = result.count
                 result.append(offer)
             }
         }

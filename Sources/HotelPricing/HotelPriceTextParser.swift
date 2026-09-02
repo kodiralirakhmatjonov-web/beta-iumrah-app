@@ -7,13 +7,12 @@ enum HotelPriceTextParser {
         let unit: HotelPriceUnit
     }
 
-    static func parse(text: String, preferred: String) -> ParsedPrice? {
+    static func parse(text: String, priceText: String, metaText: String) -> ParsedPrice? {
         let lower = text.lowercased()
-        let hasStayContext = lower.range(
-            of: #"(?:total|price for|for\s+\d+\s+nights?|\d+\s+nights?)"#,
-            options: .regularExpression
-        ) != nil
-        let perNight = lower.contains("per night") || lower.contains("/ night") || lower.contains("nightly")
+        let preferred = "\(metaText) \(priceText)"
+        let preferredLower = preferred.lowercased()
+        let hasStayContext = containsStayContext(preferredLower) || containsStayContext(lower)
+        let perNight = containsPerNightContext(preferredLower) || containsPerNightContext(lower)
         let promotionalMarkers = ["starting at", "prices from", "price from", "rates from", "dan boshlab"]
         let currencyFrom = lower.range(
             of: #"\bfrom\s+(?:US\$|USD|[$€£]|EUR|SAR|AED|GBP)"#,
@@ -25,25 +24,46 @@ enum HotelPriceTextParser {
         ) != nil
         guard !promotionalMarkers.contains(where: { lower.contains($0) }), !currencyFrom, !russianFrom else { return nil }
 
-        if let total = moneyNearStayContext(in: text) {
+        // Prefer an explicitly labelled total from the compact price surface. The
+        // full card/page body may also contain taxes, loyalty credits or unrelated
+        // room prices, so it is deliberately considered only second.
+        if let total = moneyNearStayContext(in: preferred) ?? moneyNearStayContext(in: text) {
             return ParsedPrice(amount: total.amount, currency: total.currency, unit: .totalStay)
         }
 
-        let preferredValues = moneyValues(in: preferred)
-        let allValues = preferredValues.isEmpty ? moneyValues(in: text) : preferredValues
+        let priceValues = moneyValues(in: priceText)
+        let metaValues = moneyValues(in: metaText)
+        let allValues = !priceValues.isEmpty ? priceValues : (!metaValues.isEmpty ? metaValues : moneyValues(in: text))
         guard !allValues.isEmpty else { return nil }
 
+        // A minimum is safe only inside provider elements explicitly identified as
+        // room-price widgets. It selects the current discounted/entry room rate
+        // without repeating the old bug of taking a tiny tax or loyalty credit from
+        // the whole page. Less precise meta/body fallbacks keep the last active value.
+        let value = priceValues.min(by: { $0.amount < $1.amount }) ?? allValues.last!
         if perNight && !hasStayContext {
-            let value = allValues.min(by: { $0.amount < $1.amount })!
             return ParsedPrice(amount: value.amount, currency: value.currency, unit: .perRoomNight)
         }
 
         if hasStayContext {
-            let value = allValues.min(by: { $0.amount < $1.amount })!
             return ParsedPrice(amount: value.amount, currency: value.currency, unit: .totalStay)
         }
 
         return nil
+    }
+
+    private static func containsStayContext(_ lower: String) -> Bool {
+        lower.range(
+            of: #"(?:total|price for|stay|for\s+\d+\s+nights?|\d+\s+nights?)"#,
+            options: .regularExpression
+        ) != nil
+    }
+
+    private static func containsPerNightContext(_ lower: String) -> Bool {
+        lower.contains("per night") ||
+        lower.contains("/ night") ||
+        lower.contains("nightly") ||
+        lower.contains("each night")
     }
 
     static func normalizedDecimal(_ raw: String) -> Decimal? {
@@ -81,8 +101,8 @@ enum HotelPriceTextParser {
 
     private static func moneyNearStayContext(in text: String) -> (amount: Decimal, currency: String)? {
         let patterns = [
-            #"(?:total|price for|for\s+\d+\s+nights?)[^\n]{0,120}?(US\$|USD|\$|EUR|€|SAR|AED|GBP|£)\s*([0-9][0-9\s,.]*)"#,
-            #"(US\$|USD|\$|EUR|€|SAR|AED|GBP|£)\s*([0-9][0-9\s,.]*)[^\n]{0,80}?(?:total|for\s+\d+\s+nights?)"#
+            #"(?:total(?:\s+price)?|price for|for\s+\d+\s+nights?|\d+\s+nights?)[^\n|]{0,120}?(US\$|USD|\$|EUR|€|SAR|AED|GBP|£)\s*([0-9][0-9\s,.]*)"#,
+            #"(US\$|USD|\$|EUR|€|SAR|AED|GBP|£)\s*([0-9][0-9\s,.]*)[^\n|]{0,80}?(?:total(?:\s+price)?|for\s+\d+\s+nights?|\d+\s+nights?)"#
         ]
         for pattern in patterns {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }

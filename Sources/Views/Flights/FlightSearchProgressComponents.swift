@@ -256,22 +256,23 @@ struct FlightResultRowModel: Identifiable {
         let verifiedCandidates = candidates.filter(\.isDisplayableCandidate)
         let verifiedOffers = offers.filter(\.isVerifiedForBooking)
 
-        var offerByItinerary: [String: FlightOffer] = [:]
-        for offer in verifiedOffers {
-            offerByItinerary[offer.deduplicationKey] = offer
-        }
-
-        var output = verifiedCandidates.map { candidate in
+        let candidateByLeg = Dictionary(
+            verifiedCandidates.map { ($0.deduplicationKey, $0) },
+            uniquingKeysWith: { existing, replacement in
+                replacement.observedAt > existing.observedAt ? replacement : existing
+            }
+        )
+        var output = verifiedOffers.map { offer in
             FlightResultRowModel(
-                id: candidate.id,
-                candidate: candidate,
-                offer: offerByItinerary[candidate.deduplicationKey]
+                id: offer.resultIdentityKey,
+                candidate: candidateByLeg[offer.deduplicationKey],
+                offer: offer
             )
         }
-        let candidateKeys = Set(verifiedCandidates.map(\.deduplicationKey))
-        output.append(contentsOf: verifiedOffers.compactMap { offer in
-            guard !candidateKeys.contains(offer.deduplicationKey) else { return nil }
-            return FlightResultRowModel(id: offer.sourceCandidateID ?? offer.id, candidate: nil, offer: offer)
+        let pricedLegKeys = Set(verifiedOffers.map(\.deduplicationKey))
+        output.append(contentsOf: verifiedCandidates.compactMap { candidate in
+            guard !pricedLegKeys.contains(candidate.deduplicationKey) else { return nil }
+            return FlightResultRowModel(id: candidate.id, candidate: candidate, offer: nil)
         })
         return output.sorted { lhs, rhs in
             let calendar = Calendar.current

@@ -76,6 +76,38 @@ struct FlightBaggageAllowance: Hashable, Codable {
     let checked: Int?
 }
 
+/// Compact snapshot of the other leg belonging to the same complete Ignav fare.
+/// It lets the outbound list render every API itinerary without presenting several
+/// visually identical outbound cards whose different return flights are hidden.
+struct FlightPairedLeg: Hashable, Codable {
+    let airline: String
+    let flightNumber: String
+    let origin: String
+    let destination: String
+    let departureAt: Date
+    let arrivalAt: Date
+    let stops: Int
+    let durationMinutes: Int
+    let segments: [FlightSegment]?
+
+    init(candidate: LiveFlightCandidate) {
+        airline = candidate.airline
+        flightNumber = candidate.flightNumber
+        origin = candidate.origin
+        destination = candidate.destination
+        departureAt = candidate.departureAt
+        arrivalAt = candidate.arrivalAt
+        stops = candidate.stops
+        durationMinutes = candidate.durationMinutes
+        segments = candidate.segments
+    }
+
+    var primaryAirlineCode: String? {
+        FlightReferenceCatalog.airlineCode(from: flightNumber) ??
+        segments?.compactMap { FlightReferenceCatalog.airlineCode(from: $0.flightNumber) }.first
+    }
+}
+
 struct FlightLayover: Identifiable, Hashable {
     let id: String
     let airport: FlightAirportSnapshot
@@ -134,6 +166,7 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     let cabinClass: String?
     let baggage: FlightBaggageAllowance?
     let requiresSelfTransfer: Bool?
+    let pairedLeg: FlightPairedLeg?
 
     init(
         id: String,
@@ -162,7 +195,8 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         providerItineraryID: String? = nil,
         cabinClass: String? = nil,
         baggage: FlightBaggageAllowance? = nil,
-        requiresSelfTransfer: Bool? = nil
+        requiresSelfTransfer: Bool? = nil,
+        pairedLeg: FlightPairedLeg? = nil
     ) {
         self.id = id
         self.direction = direction
@@ -191,6 +225,7 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         self.cabinClass = cabinClass?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? cabinClass : nil
         self.baggage = baggage
         self.requiresSelfTransfer = requiresSelfTransfer
+        self.pairedLeg = pairedLeg
     }
 
     /// Stable itinerary identity shared with LiveFlightCandidate. Upstream APIs
@@ -205,6 +240,17 @@ struct FlightOffer: Identifiable, Hashable, Codable {
         }.joined(separator: "+")
         let connectionKey = (connectionAirports ?? []).map(\.code).joined(separator: "+")
         return "\(normalized)|\(origin)|\(destination)|\(epoch)|\(segmentKey)|\(connectionKey)".lowercased()
+    }
+
+    /// Identity of one complete upstream fare result. Several Ignav itineraries can
+    /// share the same physical outbound/return leg while differing in the paired
+    /// leg, baggage or complete-journey fare. UI result merging must preserve those
+    /// offers instead of collapsing them by the physical-leg deduplication key.
+    var resultIdentityKey: String {
+        if let providerItineraryID, !providerItineraryID.isEmpty {
+            return "\(direction.rawValue)|\(providerItineraryID)".lowercased()
+        }
+        return "\(direction.rawValue)|\(id)".lowercased()
     }
 
     var displaySegments: [FlightSegment] {

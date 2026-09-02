@@ -8,6 +8,7 @@ final class HotelLivePriceSearchService {
     }
 
     private var cache: [String: CacheEntry] = [:]
+    private var inFlight: [String: Task<HotelPriceSearchSnapshot, Never>] = [:]
     private let cacheLifetime: TimeInterval = 5 * 60
     private let packageEngine = RemotePackageEngineClient()
 
@@ -41,6 +42,53 @@ final class HotelLivePriceSearchService {
             return cached.value
         }
 
+        // The hotel-selection screen, outbound search and final-price screen can
+        // reach this method within a few seconds of one another. Coalesce them into
+        // one provider lookup so the app neither opens duplicate WKWebViews nor
+        // waits for a second identical search at the end of generation.
+        if let existing = inFlight[key] {
+            return await existing.value
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return HotelPriceSearchSnapshot.empty }
+            return await self.performSearch(
+                trip: trip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                makkahRoomId: makkahRoomId,
+                makkahRoomName: makkahRoomName,
+                makkahRoomCapacity: makkahRoomCapacity,
+                madinahRoomId: madinahRoomId,
+                madinahRoomName: madinahRoomName,
+                madinahRoomCapacity: madinahRoomCapacity
+            )
+        }
+        inFlight[key] = task
+        let snapshot = await task.value
+        inFlight.removeValue(forKey: key)
+
+        // Never negative-cache a provider failure/challenge. A failed search must be
+        // retryable immediately from the final-price screen instead of getting stuck
+        // behind a five-minute empty cache entry.
+        let isComplete = !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
+        if isComplete {
+            cache[key] = CacheEntry(createdAt: Date(), value: snapshot)
+        }
+        return snapshot
+    }
+
+    private func performSearch(
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomId: String?,
+        makkahRoomName: String?,
+        makkahRoomCapacity: Int?,
+        madinahRoomId: String?,
+        madinahRoomName: String?,
+        madinahRoomCapacity: Int?
+    ) async -> HotelPriceSearchSnapshot {
         async let makkahSourcesTask = fetchPricingSources(hotelID: makkahHotel.id)
         async let madinahSourcesTask = fetchPricingSources(hotelID: madinahHotel?.id)
         let (makkahSources, madinahSources) = await (makkahSourcesTask, madinahSourcesTask)
@@ -59,20 +107,13 @@ final class HotelLivePriceSearchService {
             madinahPricingSources: madinahSources
         )
         let values = await searchHotelsProgressively(makkah: requests.makkah, madinah: requests.madinah)
-        let snapshot = HotelPriceSearchSnapshot(makkah: values.makkah, madinah: values.madinah)
-
-        // Never negative-cache a provider failure/challenge. A failed search must be
-        // retryable immediately from the final-price screen instead of getting stuck
-        // behind a 5/12 minute empty cache entry.
-        let isComplete = !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
-        if isComplete {
-            cache[key] = CacheEntry(createdAt: Date(), value: snapshot)
-        }
-        return snapshot
+        return HotelPriceSearchSnapshot(makkah: values.makkah, madinah: values.madinah)
     }
 
     func invalidateAll() {
         cache.removeAll()
+        inFlight.values.forEach { $0.cancel() }
+        inFlight.removeAll()
     }
 
     /// Verifies Makkah and Madinah concurrently without allowing more than two

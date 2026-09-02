@@ -197,29 +197,36 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     }
 
     private func outboundOffers(from journeys: [LiveFlightJourneyCandidate]) -> [FlightOffer] {
-        cheapestUniqueOffers(journeys: journeys, leg: { $0.outbound })
+        allJourneyOffers(journeys: journeys, leg: { $0.outbound })
     }
 
     private func returnOffers(from journeys: [LiveFlightJourneyCandidate]) -> [FlightOffer] {
-        cheapestUniqueOffers(journeys: journeys, leg: { $0.inbound })
+        // Do not collapse complete Ignav itinerary results merely because their
+        // physical return leg is the same. Fare, baggage and the paired itinerary
+        // can differ; every upstream result compatible with the chosen outbound is
+        // available to the user on the return screen.
+        allJourneyOffers(journeys: journeys, leg: { $0.inbound })
     }
 
-    private func cheapestUniqueOffers(
+    func pairedOutbound(for inbound: FlightOffer) -> FlightOffer? {
+        guard inbound.direction == .inbound,
+              let itineraryID = inbound.providerItineraryID,
+              let journey = cachedJourneys.first(where: { $0.providerItineraryID == itineraryID }) else { return nil }
+        return offer(from: journey.outbound, journey: journey)
+    }
+
+    private func allJourneyOffers(
         journeys: [LiveFlightJourneyCandidate],
         leg: (LiveFlightJourneyCandidate) -> LiveFlightCandidate
     ) -> [FlightOffer] {
-        var byKey: [String: FlightOffer] = [:]
+        var seen = Set<String>()
+        var values: [FlightOffer] = []
         for journey in journeys where journey.isDisplayableCandidate {
             guard let value = offer(from: leg(journey), journey: journey) else { continue }
-            if let existing = byKey[value.deduplicationKey] {
-                if value.currency == existing.currency && value.totalPackagePrice < existing.totalPackagePrice {
-                    byKey[value.deduplicationKey] = value
-                }
-            } else {
-                byKey[value.deduplicationKey] = value
-            }
+            guard seen.insert(value.resultIdentityKey).inserted else { continue }
+            values.append(value)
         }
-        return Array(byKey.values)
+        return values
     }
 
     private func offer(from candidate: LiveFlightCandidate, journey: LiveFlightJourneyCandidate) -> FlightOffer? {
@@ -251,7 +258,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             providerItineraryID: journey.providerItineraryID,
             cabinClass: candidate.cabinClass,
             baggage: journey.baggage ?? candidate.baggage,
-            requiresSelfTransfer: journey.requiresSelfTransfer ?? candidate.requiresSelfTransfer
+            requiresSelfTransfer: journey.requiresSelfTransfer ?? candidate.requiresSelfTransfer,
+            pairedLeg: FlightPairedLeg(candidate: candidate.direction == .outbound ? journey.inbound : journey.outbound)
         )
         return value.isVerifiedForBooking ? value : nil
     }
@@ -365,6 +373,7 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
     func invalidateHotelPrices() { coordinator.invalidateHotelPrices() }
     func invalidateFlightInventory() { coordinator.invalidateFlightInventory() }
     func invalidateSession() { coordinator.invalidateSession() }
+    func pairedOutbound(for inbound: FlightOffer) -> FlightOffer? { coordinator.pairedOutbound(for: inbound) }
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await coordinator.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)

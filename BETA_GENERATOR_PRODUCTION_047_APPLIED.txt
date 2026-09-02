@@ -1,0 +1,10 @@
+iumrah Beta — one-package current-price pipeline, update 047
+
+- Starts current hotel-rate discovery before FinalPackageView and coalesces identical lookups.
+- Uses Business-curated Booking.com/Expedia property identities first, with dated search fallback.
+- Accepts only a visible price tied to the selected hotel and requested check-in/check-out dates.
+- Keeps all valid Ignav complete-journey results instead of collapsing them by a shared flight leg.
+- Keeps the selected outbound and return on the same Ignav itinerary/fare.
+- Leaves the three-package Economy/Comfort/Luxury comparison for the planned next phase.
+
+This update does not fabricate hotel rates and does not perform final availability repricing.

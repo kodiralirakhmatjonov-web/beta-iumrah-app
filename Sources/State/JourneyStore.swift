@@ -19,6 +19,7 @@ final class JourneyStore: ObservableObject {
     @Published var selectedInbound: FlightOffer?
     @Published var quote: PackageQuote?
     @Published private(set) var hotelPriceSnapshot: HotelPriceSearchSnapshot?
+    @Published private(set) var isSearchingHotelPrices = false
     @Published private(set) var pricingMakkahRoomID: String?
     @Published private(set) var pricingMadinahRoomID: String?
 
@@ -31,6 +32,8 @@ final class JourneyStore: ObservableObject {
     let flightService: FlightSearchServicing
     let quoteService: PackageQuoteServicing
     private let packageEngine = RemotePackageEngineClient()
+    private var hotelPricePrefetchTask: Task<Void, Never>?
+    private var hotelPricePrefetchGeneration = UUID()
 
     init() {
         self.hotelService = HotelCatalogService()
@@ -145,6 +148,7 @@ final class JourneyStore: ObservableObject {
         trip.saudiArrivalDate = nil
         quote = nil
         hotelPriceSnapshot = nil
+        cancelHotelPricePrefetch()
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
         (flightService as? AutomaticFlightSearchService)?.invalidateSession()
@@ -167,18 +171,21 @@ final class JourneyStore: ObservableObject {
         }
         selectedHotel = hotel
         invalidateHotelPriceAndQuote()
+        scheduleHotelPricePrefetch()
     }
 
     func chooseRoom(_ room: HotelRoom?) {
         selectedRoom = room
         if room != nil { selectedRoomCategory = nil }
         invalidateHotelPriceAndQuote()
+        scheduleHotelPricePrefetch()
     }
 
     func chooseRoomCategory(_ category: IumrahRoomCategoryOption?) {
         selectedRoomCategory = category
         if category != nil { selectedRoom = nil }
         invalidateHotelPriceAndQuote()
+        scheduleHotelPricePrefetch()
     }
 
     /// Weekly flight discovery may return a flight on another day in the seven-day
@@ -191,6 +198,7 @@ final class JourneyStore: ObservableObject {
         selectedInbound = nil
         quote = nil
         hotelPriceSnapshot = nil
+        cancelHotelPricePrefetch()
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
 
@@ -203,12 +211,14 @@ final class JourneyStore: ObservableObject {
         if departureChanged || arrivalChanged {
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
         }
+        scheduleHotelPricePrefetch()
     }
 
     func chooseInboundFlight(_ offer: FlightOffer) {
         selectedInbound = offer
         quote = nil
         hotelPriceSnapshot = nil
+        cancelHotelPricePrefetch()
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
 
@@ -217,6 +227,10 @@ final class JourneyStore: ObservableObject {
             trip.returnDate = selectedDay
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
         }
+        if let paired = (flightService as? AutomaticFlightSearchService)?.pairedOutbound(for: offer) {
+            selectedOutbound = paired
+        }
+        scheduleHotelPricePrefetch()
     }
 
     func chooseMadinahHotel(_ hotel: HotelSummary) {
@@ -226,27 +240,90 @@ final class JourneyStore: ObservableObject {
         }
         selectedMadinahHotel = hotel
         invalidateHotelPriceAndQuote()
+        scheduleHotelPricePrefetch()
     }
 
     func chooseMadinahRoom(_ room: HotelRoom?) {
         selectedMadinahRoom = room
         if room != nil { selectedMadinahRoomCategory = nil }
         invalidateHotelPriceAndQuote()
+        scheduleHotelPricePrefetch()
     }
 
     func chooseMadinahRoomCategory(_ category: IumrahRoomCategoryOption?) {
         selectedMadinahRoomCategory = category
         if category != nil { selectedMadinahRoom = nil }
         invalidateHotelPriceAndQuote()
+        scheduleHotelPricePrefetch()
     }
 
 
     private func invalidateHotelPriceAndQuote() {
         quote = nil
         hotelPriceSnapshot = nil
+        cancelHotelPricePrefetch()
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
         (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
+    }
+
+    /// Starts current-price discovery as soon as the selected hotel/room and travel
+    /// dates are known. The task is intentionally independent from a particular
+    /// SwiftUI screen, so moving from hotel selection to flights does not cancel the
+    /// lookup. HotelLivePriceSearchService coalesces this with the final quote call.
+    func scheduleHotelPricePrefetch(forceRefresh: Bool = false) {
+        guard let components = flightService as? GeneratorComponentProviding,
+              let makkahHotel = selectedHotel else { return }
+        if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return }
+
+        cancelHotelPricePrefetch()
+        let generation = UUID()
+        hotelPricePrefetchGeneration = generation
+        isSearchingHotelPrices = true
+
+        let tripSnapshot = trip
+        let madinahHotel = selectedMadinahHotel
+        let makkahRoomId = selectedRoom?.id ?? selectedRoomCategory?.id
+        let makkahRoomName = selectedRoom?.name ?? selectedRoomCategory?.displayName
+        let makkahRoomCapacity = selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests
+        let madinahRoomId = selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id
+        let madinahRoomName = selectedMadinahRoom?.name ?? selectedMadinahRoomCategory?.displayName
+        let madinahRoomCapacity = selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests
+
+        hotelPricePrefetchTask = Task { @MainActor [weak self] in
+            // Coalesce the hotel + room callbacks emitted by HotelDetailView before
+            // opening provider pages. A forced retry bypasses this tiny debounce.
+            if !forceRefresh { try? await Task.sleep(for: .milliseconds(180)) }
+            guard !Task.isCancelled else {
+                if self?.hotelPricePrefetchGeneration == generation { self?.isSearchingHotelPrices = false }
+                return
+            }
+            let snapshot = await components.ensureHotelPrices(
+                trip: tripSnapshot,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                makkahRoomId: makkahRoomId,
+                makkahRoomName: makkahRoomName,
+                makkahRoomCapacity: makkahRoomCapacity,
+                madinahRoomId: madinahRoomId,
+                madinahRoomName: madinahRoomName,
+                madinahRoomCapacity: madinahRoomCapacity,
+                forceRefresh: forceRefresh
+            )
+            guard let self,
+                  !Task.isCancelled,
+                  self.hotelPricePrefetchGeneration == generation else { return }
+            self.hotelPriceSnapshot = snapshot
+            self.isSearchingHotelPrices = false
+            self.hotelPricePrefetchTask = nil
+        }
+    }
+
+    private func cancelHotelPricePrefetch() {
+        hotelPricePrefetchGeneration = UUID()
+        hotelPricePrefetchTask?.cancel()
+        hotelPricePrefetchTask = nil
+        isSearchingHotelPrices = false
     }
 
     var hasFinalGeneratorQuote: Bool {

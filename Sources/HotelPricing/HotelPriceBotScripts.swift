@@ -13,13 +13,17 @@ enum HotelPriceBotScripts {
         provider: HotelPriceProvider,
         hotelName: String,
         roomName: String?,
-        sourceIdentity: HotelPricingSourceIdentity?
+        sourceIdentity: HotelPricingSourceIdentity?,
+        checkInDate: String,
+        checkOutDate: String
     ) -> String {
         let escapedName = jsEscape(hotelName)
         let escapedRoom = jsEscape(roomName ?? "")
         let providerID = provider.id.rawValue
         let expectedHotelID = jsEscape(sourceIdentity?.providerHotelID ?? "")
         let expectedURL = jsEscape(sourceIdentity?.canonicalURL ?? sourceIdentity?.sourceURL ?? "")
+        let expectedCheckIn = jsEscape(checkInDate)
+        let expectedCheckOut = jsEscape(checkOutDate)
         return #"""
         (() => {
           const provider = '\#(providerID)';
@@ -27,6 +31,8 @@ enum HotelPriceBotScripts {
           const wantedRoom = '\#(escapedRoom)';
           const expectedHotelID = '\#(expectedHotelID)'.toLowerCase();
           const expectedURL = '\#(expectedURL)'.toLowerCase();
+          const expectedCheckIn = '\#(expectedCheckIn)';
+          const expectedCheckOut = '\#(expectedCheckOut)';
           const clean = v => (v || '').replace(/\s+/g,' ').trim();
           const normalize = v => clean(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ');
           const stop = new Set(['hotel','hotels','makkah','mecca','madinah','medina','the','al','by','and','resort','apartments']);
@@ -56,7 +62,46 @@ enum HotelPriceBotScripts {
             }
             return false;
           };
+          const currentURL = location.href || '';
+          const inputValues = Array.from(document.querySelectorAll('input')).map(input => String(input.value || ''));
+          const hasRequestedDate = value => currentURL.includes(value) || inputValues.some(input => input.includes(value));
+          const dateEvidence = hasRequestedDate(expectedCheckIn) && hasRequestedDate(expectedCheckOut);
           const money = /(?:US\$|USD|\$|€|EUR|SAR|AED|GBP|£)\s*[0-9][0-9\s,.]*/i;
+          const priceSelectors = provider === 'booking'
+            ? [
+                '[data-testid="price-and-discounted-price"]',
+                '[data-testid="availability-rate-information"] [data-testid*="price"]',
+                '.prco-valign-middle-helper',
+                '[class*="price" i]'
+              ]
+            : [
+                '[data-stid="price-lockup-text"]',
+                '[data-stid="price-summary"]',
+                '[data-stid*="price" i]',
+                '[class*="price" i]'
+              ];
+          const metaSelectors = provider === 'booking'
+            ? ['[data-testid="price-for-x-nights"]', '[data-testid="taxes-and-charges"]', '[data-testid="availability-rate-information"]']
+            : ['[data-stid="price-summary"]', '[data-stid*="price-lockup" i]', '[data-stid*="tax" i]'];
+          const textsFor = (root, selectors, max = 24) => {
+            const seen = new Set();
+            const output = [];
+            for (const selector of selectors) {
+              for (const node of Array.from(root.querySelectorAll(selector))) {
+                if (!visible(node)) continue;
+                const value = clean(node.innerText || node.textContent || '');
+                if (!value || !money.test(value) || seen.has(value)) continue;
+                seen.add(value);
+                output.push(value);
+                if (output.length >= max) return output;
+              }
+            }
+            return output;
+          };
+          const titleFor = root => clean(
+            root.querySelector('[data-testid="title"], [data-stid*="content-hotel-title"], h1, h2, h3')?.innerText ||
+            root.querySelector('[data-testid="title"], [data-stid*="content-hotel-title"], h1, h2, h3')?.textContent || ''
+          );
           const selector = provider === 'booking'
             ? '[data-testid="property-card"]'
             : '[data-stid*="property-listing"], article, li[data-stid], [role=listitem]';
@@ -66,8 +111,7 @@ enum HotelPriceBotScripts {
           let best = null;
           let bestScore = 0;
           for (const card of cards.slice(0, 120)) {
-            const titleEl = card.querySelector('[data-testid="title"],h2,h3,[data-stid*="content-hotel-title"],[aria-label*="hotel" i]');
-            const title = clean(titleEl?.innerText || titleEl?.textContent || '');
+            const title = titleFor(card);
             const body = clean(card.innerText || '');
             const anchor = card.querySelector('a[href]');
             const href = anchor?.href || '';
@@ -81,17 +125,8 @@ enum HotelPriceBotScripts {
             } else if (nameScore < 0.62) continue;
             if (!money.test(body)) continue;
 
-            let priceText = '';
-            let metaText = '';
-            if (provider === 'booking') {
-              priceText = clean(card.querySelector('[data-testid="price-and-discounted-price"]')?.innerText || '');
-              metaText = clean(card.querySelector('[data-testid="price-for-x-nights"]')?.innerText || '');
-            } else {
-              const priceNodes = Array.from(card.querySelectorAll('[data-stid*="price"],[class*="price" i]')).filter(visible);
-              priceText = clean(priceNodes.map(x => x.innerText).filter(Boolean).join(' '));
-              const totalNode = Array.from(card.querySelectorAll('*')).find(el => /total|for \d+ nights?/i.test(clean(el.innerText)) && money.test(clean(el.innerText)));
-              metaText = clean(totalNode?.innerText || '');
-            }
+            let priceText = clean(textsFor(card, priceSelectors).join(' | '));
+            let metaText = clean(textsFor(card, metaSelectors, 12).join(' | '));
             if (!priceText) {
               const candidates = (body.match(/(?:US\$|USD|\$|€|EUR|SAR|AED|GBP|£)\s*[0-9][0-9\s,.]*/ig) || []);
               priceText = clean(candidates.join(' | '));
@@ -99,9 +134,26 @@ enum HotelPriceBotScripts {
 
             if (!best || score > bestScore) {
               bestScore = score;
-              let absoluteURL = location.href;
-              try { if (href) absoluteURL = new URL(href, location.href).href; } catch (_) {}
-              best = { title, priceText, metaText, body: body.slice(0, 4200), url: absoluteURL, score, roomEvidence: true };
+              best = { title, priceText, metaText, body: body.slice(0, 6000), url: currentURL, score, roomEvidence: true, dateEvidence };
+            }
+          }
+
+          // A curated canonical URL opens the exact property page rather than a
+          // list card. Read its visible availability/price surface as a second
+          // shape while keeping the same strict hotel and requested-date checks.
+          if (!best) {
+            const root = document.querySelector('main') || document.body;
+            const body = clean(root?.innerText || '');
+            const title = titleFor(root || document);
+            const exactIdentity = identityMatch(currentURL);
+            const nameScore = Math.max(similarity(title), similarity(body) * 0.82);
+            if ((exactIdentity || nameScore >= 0.82) && dateEvidence && money.test(body)) {
+              const priceText = clean(textsFor(root, priceSelectors, 40).join(' | '));
+              const metaText = clean(textsFor(root, metaSelectors, 20).join(' | '));
+              if (priceText) {
+                bestScore = Math.min(1, nameScore + (exactIdentity ? 0.28 : 0));
+                best = { title, priceText, metaText, body: body.slice(0, 9000), url: currentURL, score: bestScore, roomEvidence: true, dateEvidence };
+              }
             }
           }
           return best ? JSON.stringify(best) : '';
