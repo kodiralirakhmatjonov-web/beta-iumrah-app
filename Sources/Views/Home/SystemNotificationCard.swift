@@ -9,122 +9,111 @@ struct SystemNotificationCard: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var isUnread: Bool { !notification.isRead }
+    private let cardCorner: CGFloat = 24
+    private let cardHeight: CGFloat = 158
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    Label {
-                        Text("iumrah Signal")
-                            .font(.caption.weight(.bold))
-                            .tracking(0.45)
-                    } icon: {
-                        Image(systemName: "bell.badge.fill")
-                            .font(.system(size: 13, weight: .bold))
-                    }
-                    .foregroundStyle(topAccentColor)
-
-                    Spacer(minLength: 8)
-
-                    if isUnread {
-                        Text(tr("New", "Новое", "Yangi", "Янги"))
-                            .font(.caption2.weight(.black))
-                            .tracking(0.4)
-                            .padding(.horizontal, 9)
-                            .frame(height: 22)
-                            .background(Color.white.opacity(colorScheme == .dark ? 0.94 : 0.88), in: Capsule())
-                            .foregroundStyle(Color.iumrahCareDark)
-                    } else {
-                        Text(tr("Read", "Прочитано", "O‘qilgan", "Ўқилган"))
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 9)
-                            .frame(height: 22)
-                            .background(readChipBackground, in: Capsule())
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 10) {
+                Label {
+                    Text("iumrah Signal")
+                        .font(.caption.weight(.bold))
+                        .tracking(0.35)
+                } icon: {
+                    Image(systemName: "bell.badge.fill")
+                        .font(.system(size: 13, weight: .bold))
                 }
+                .foregroundStyle(topAccentColor)
 
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(notification.title)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .tracking(-0.3)
-                        .foregroundStyle(primaryTextColor)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
 
-                    Text(notification.body)
-                        .font(.subheadline)
-                        .foregroundStyle(secondaryTextColor)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(closeIconColor)
+                        .frame(width: 28, height: 28)
+                        .background(closeBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-
-                HStack(spacing: 10) {
-                    Label(destinationTitle, systemImage: destinationIcon)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(secondaryTextColor)
-                        .lineLimit(1)
-
-                    Spacer(minLength: 8)
-
-                    HStack(spacing: 6) {
-                        Text(tr("Open", "Открыть", "Ochish", "Очиш"))
-                            .font(.caption.weight(.bold))
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption.weight(.bold))
-                    }
-                    .foregroundStyle(primaryActionColor)
-                }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 15)
 
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(closeIconColor)
-                    .frame(width: 28, height: 28)
-                    .background(closeBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 7) {
+                Text(notification.title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .tracking(-0.25)
+                    .foregroundStyle(primaryTextColor)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(notification.body)
+                    .font(.subheadline)
+                    .foregroundStyle(secondaryTextColor)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(.plain)
-            .padding(12)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 10) {
+                Label(destinationTitle, systemImage: destinationIcon)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(secondaryTextColor)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                HStack(spacing: 6) {
+                    Text(tr("Open", "Открыть", "Ochish", "Очиш"))
+                        .font(.caption.weight(.bold))
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundStyle(primaryActionColor)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight, alignment: .topLeading)
+        .padding(16)
+        .background {
+            RoundedRectangle(cornerRadius: cardCorner, style: .continuous)
+                .fill(cardBackground)
+                .shadow(color: shadowColor, radius: 18, x: 0, y: 8)
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: cardCorner, style: .continuous)
                 .strokeBorder(cardStroke, lineWidth: 1)
         }
-        .shadow(color: shadowColor, radius: 22, y: 10)
-        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: cardCorner, style: .continuous))
         .onTapGesture(perform: onOpen)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("iumrah Signal. \(notification.title). \(notification.body)")
     }
 
-    private var cardBackground: some ShapeStyle {
+    private var cardBackground: LinearGradient {
         if isUnread {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.040, green: 0.255, blue: 0.150),
-                        Color(red: 0.090, green: 0.430, blue: 0.235),
-                        Color(red: 0.340, green: 0.630, blue: 0.450)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.050, green: 0.255, blue: 0.160),
+                    Color(red: 0.100, green: 0.430, blue: 0.245),
+                    Color(red: 0.355, green: 0.635, blue: 0.455)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         }
-        return AnyShapeStyle(
-            LinearGradient(
+
+        if colorScheme == .dark {
+            return LinearGradient(
                 colors: [Color.iumrahCardBackground, Color.iumrahRaisedBackground],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+        }
+
+        return LinearGradient(
+            colors: [Color.white, Color(red: 0.965, green: 0.968, blue: 0.974)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
     }
 
@@ -133,7 +122,7 @@ struct SystemNotificationCard: View {
     }
 
     private var shadowColor: Color {
-        isUnread ? Color.iumrahCareDark.opacity(0.22) : Color.black.opacity(0.06)
+        isUnread ? Color.iumrahCareDark.opacity(0.16) : Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08)
     }
 
     private var primaryTextColor: Color {
@@ -145,25 +134,21 @@ struct SystemNotificationCard: View {
     }
 
     private var topAccentColor: Color {
-        isUnread ? Color.white.opacity(0.94) : Color.iumrahCareDark
+        isUnread ? Color.white.opacity(0.96) : Color.iumrahCareDark
     }
 
     private var primaryActionColor: Color {
         isUnread ? Color.white.opacity(0.96) : .primary
     }
 
-    private var readChipBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)
-    }
-
     private var closeBackground: Color {
         isUnread
-            ? Color.white.opacity(0.14)
+            ? Color.white.opacity(0.16)
             : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
     }
 
     private var closeIconColor: Color {
-        isUnread ? Color.white.opacity(0.88) : .secondary
+        isUnread ? Color.white.opacity(0.90) : .secondary
     }
 
     private var destinationIcon: String {
