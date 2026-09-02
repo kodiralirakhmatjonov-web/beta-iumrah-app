@@ -194,40 +194,54 @@ final class JourneyStore: ObservableObject {
     /// Hotel verification is then repeated against those actual dates before
     /// local package pricing runs.
     func chooseOutboundFlight(_ offer: FlightOffer) {
+        let previousHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
         selectedOutbound = offer
         selectedInbound = nil
         quote = nil
-        hotelPriceSnapshot = nil
-        cancelHotelPricePrefetch()
-        pricingMakkahRoomID = nil
-        pricingMadinahRoomID = nil
 
         let selectedDepartureDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
         let selectedArrivalDay = travelCalendarDay(for: offer.arrivalAt, airportCode: offer.destination)
         let departureChanged = !Calendar.current.isDate(selectedDepartureDay, inSameDayAs: trip.departureDate)
-        let arrivalChanged = trip.saudiArrivalDate.map { !Calendar.current.isDate($0, inSameDayAs: selectedArrivalDay) } ?? true
         if departureChanged { trip.departureDate = selectedDepartureDay }
         trip.saudiArrivalDate = selectedArrivalDay
-        if departureChanged || arrivalChanged {
+
+        let newHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
+        if newHotelWindows != previousHotelWindows {
+            // Only throw away a successful background hotel lookup when the actual
+            // selected flight truly changes the hotel stay dates. Selecting another
+            // flight on the same stay must not restart Booking/Expedia from zero.
+            hotelPriceSnapshot = nil
+            cancelHotelPricePrefetch()
+            pricingMakkahRoomID = nil
+            pricingMadinahRoomID = nil
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
+            scheduleHotelPricePrefetch()
+        } else if hotelPriceSnapshot == nil && !isSearchingHotelPrices {
+            scheduleHotelPricePrefetch()
         }
-        scheduleHotelPricePrefetch()
     }
 
     func chooseInboundFlight(_ offer: FlightOffer) {
+        let previousHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
         selectedInbound = offer
         quote = nil
-        hotelPriceSnapshot = nil
-        cancelHotelPricePrefetch()
-        pricingMakkahRoomID = nil
-        pricingMadinahRoomID = nil
 
         let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
         if selectedDay > trip.departureDate, !Calendar.current.isDate(selectedDay, inSameDayAs: trip.returnDate) {
             trip.returnDate = selectedDay
-            (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
         }
-        scheduleHotelPricePrefetch()
+
+        let newHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
+        if newHotelWindows != previousHotelWindows {
+            hotelPriceSnapshot = nil
+            cancelHotelPricePrefetch()
+            pricingMakkahRoomID = nil
+            pricingMadinahRoomID = nil
+            (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
+            scheduleHotelPricePrefetch()
+        } else if hotelPriceSnapshot == nil && !isSearchingHotelPrices {
+            scheduleHotelPricePrefetch()
+        }
     }
 
     func chooseMadinahHotel(_ hotel: HotelSummary) {
@@ -295,7 +309,7 @@ final class JourneyStore: ObservableObject {
                 if self?.hotelPricePrefetchGeneration == generation { self?.isSearchingHotelPrices = false }
                 return
             }
-            let snapshot = await components.ensureHotelPrices(
+            var snapshot = await components.ensureHotelPrices(
                 trip: tripSnapshot,
                 makkahHotel: makkahHotel,
                 madinahHotel: madinahHotel,
@@ -307,6 +321,29 @@ final class JourneyStore: ObservableObject {
                 madinahRoomCapacity: madinahRoomCapacity,
                 forceRefresh: forceRefresh
             )
+
+            // A browser price surface can occasionally finish half-loaded or be
+            // redirected once. Use the time while the pilgrim is selecting flights
+            // to perform ONE automatic retry instead of making FinalPackageView wait.
+            let firstAttemptComplete = !snapshot.makkah.isEmpty &&
+                (tripSnapshot.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
+            if !firstAttemptComplete, !forceRefresh, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(900))
+                guard !Task.isCancelled else { return }
+                snapshot = await components.ensureHotelPrices(
+                    trip: tripSnapshot,
+                    makkahHotel: makkahHotel,
+                    madinahHotel: madinahHotel,
+                    makkahRoomId: makkahRoomId,
+                    makkahRoomName: makkahRoomName,
+                    makkahRoomCapacity: makkahRoomCapacity,
+                    madinahRoomId: madinahRoomId,
+                    madinahRoomName: madinahRoomName,
+                    madinahRoomCapacity: madinahRoomCapacity,
+                    forceRefresh: true
+                )
+            }
+
             guard let self,
                   !Task.isCancelled,
                   self.hotelPricePrefetchGeneration == generation else { return }
@@ -321,6 +358,71 @@ final class JourneyStore: ObservableObject {
         hotelPricePrefetchTask?.cancel()
         hotelPricePrefetchTask = nil
         isSearchingHotelPrices = false
+    }
+
+    /// Calculates the public package price for a candidate flight combination using
+    /// the hotel prices already found in the background. This never starts a hotel
+    /// bot and never mutates the booking quote; it exists only for flight-card UI.
+    /// On the outbound screen `inbound` is the cheapest current return fare loaded
+    /// in the background. On the return screen it is the row being displayed.
+    func packagePreviewPricePerPerson(outbound: FlightOffer, inbound: FlightOffer?) async -> Decimal? {
+        guard let hotel = selectedHotel,
+              let snapshot = hotelPriceSnapshot,
+              outbound.isVerifiedForBooking,
+              let outboundFare = outbound.fareAmount,
+              let outboundScope = outbound.fareScope else { return nil }
+
+        if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return nil }
+        if trip.isRoundTripFlight {
+            guard let inbound,
+                  inbound.isVerifiedForBooking,
+                  inbound.fareAmount != nil,
+                  inbound.fareScope != nil else { return nil }
+        }
+
+        do {
+            let outboundFareUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
+            let inboundFareUsd: Decimal?
+            if let inbound, let fare = inbound.fareAmount {
+                inboundFareUsd = try await LocalFXRateService.shared.usd(fare, currency: inbound.currency)
+            } else {
+                inboundFareUsd = nil
+            }
+
+            let makkah = try await resolveHotelComponent(
+                hotel: hotel,
+                city: "Makkah",
+                roomID: selectedRoom?.id ?? selectedRoomCategory?.id,
+                roomCapacity: selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests,
+                observations: snapshot.makkah
+            )
+            let madinah: LocalHotelPriceComponent?
+            if trip.scope == .makkahAndMadinah, let hotel = selectedMadinahHotel {
+                madinah = try await resolveHotelComponent(
+                    hotel: hotel,
+                    city: "Madinah",
+                    roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
+                    roomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
+                    observations: snapshot.madinah
+                )
+            } else {
+                madinah = nil
+            }
+
+            return try LocalPackagePricingEngine.calculate(
+                trip: trip,
+                outboundFareUsd: outboundFareUsd,
+                outboundScope: outboundScope,
+                outboundOffer: outbound,
+                inboundFareUsd: inboundFareUsd,
+                inboundScope: inbound?.fareScope,
+                inboundOffer: inbound,
+                makkahHotel: makkah,
+                madinahHotel: madinah
+            ).pricePerPerson
+        } catch {
+            return nil
+        }
     }
 
     var hasFinalGeneratorQuote: Bool {

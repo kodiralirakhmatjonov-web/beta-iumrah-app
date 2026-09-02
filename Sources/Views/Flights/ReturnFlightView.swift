@@ -12,6 +12,9 @@ struct ReturnFlightView: View {
     @State private var fatalErrorText: String?
     @State private var searchStatus: GeneratorSearchStage? = .starting
     @State private var searchGeneration = UUID()
+    @State private var packagePricesPerPerson: [String: Decimal] = [:]
+    @State private var isCalculatingPackagePrices = false
+    @State private var packagePriceGeneration = UUID()
 
     var body: some View {
         Group {
@@ -29,6 +32,9 @@ struct ReturnFlightView: View {
         .task { await search(continueExisting: false) }
         .onAppear { updateImmersive() }
         .onChange(of: isInitialLoading) { _, _ in updateImmersive() }
+        .onChange(of: journey.hotelPriceSnapshot) { _, _ in
+            Task { await refreshPackagePrices() }
+        }
         .onDisappear { chrome.setImmersive(false) }
     }
 
@@ -113,8 +119,9 @@ struct ReturnFlightView: View {
                         offer: offer,
                         isSelected: journey.selectedInbound?.id == offer.id,
                         isRecommended: recommendedOfferID == offer.id,
-                        referenceOffer: recommendedOffer,
-                        travelerCount: journey.trip.travelerCount
+                        packagePricePerPerson: packagePricesPerPerson[offer.id],
+                        isPackagePriceLoading: shouldShowPackagePriceLoading,
+                        packagePriceContext: returnPackagePriceContext
                     )
                 }
                 .buttonStyle(.plain)
@@ -181,6 +188,43 @@ struct ReturnFlightView: View {
         }.map(\.element)
     }
 
+    private var shouldShowPackagePriceLoading: Bool {
+        isCalculatingPackagePrices || journey.isSearchingHotelPrices
+    }
+
+    private var returnPackagePriceContext: String {
+        switch settings.language {
+        case .russian: return "Полный пакет · с выбранным перелётом туда"
+        case .english: return "Full package · with your selected outbound flight"
+        case .uzbek: return "To‘liq paket · tanlangan borish reysi bilan"
+        case .uzbekCyrillic: return "Тўлиқ пакет · танланган бориш рейси билан"
+        }
+    }
+
+    @MainActor
+    private func refreshPackagePrices() async {
+        guard let outbound = journey.selectedOutbound,
+              !offers.isEmpty,
+              journey.hotelPriceSnapshot != nil else {
+            if journey.hotelPriceSnapshot == nil { packagePricesPerPerson = [:] }
+            return
+        }
+
+        let generation = UUID()
+        packagePriceGeneration = generation
+        isCalculatingPackagePrices = true
+        var values: [String: Decimal] = [:]
+        for offer in offers where offer.isVerifiedForBooking {
+            guard packagePriceGeneration == generation else { return }
+            if let price = await journey.packagePreviewPricePerPerson(outbound: outbound, inbound: offer) {
+                values[offer.id] = price
+            }
+        }
+        guard packagePriceGeneration == generation else { return }
+        packagePricesPerPerson = values
+        isCalculatingPackagePrices = false
+    }
+
     private func selectRecommendedIfNeeded() {
         guard let recommendedOffer else { return }
         if journey.selectedInbound == nil {
@@ -229,6 +273,7 @@ struct ReturnFlightView: View {
         if !continueExisting {
             candidates = []
             offers = []
+            packagePricesPerPerson = [:]
             journey.selectedInbound = nil
             journey.quote = nil
         }
@@ -240,6 +285,12 @@ struct ReturnFlightView: View {
         journey.errorMessage = nil
         if candidates.isEmpty && offers.isEmpty { isInitialLoading = true }
 
+        // Usually this is already running from OutboundFlightView. Calling the
+        // JourneyStore scheduler here only covers interrupted/resumed navigation;
+        // the hotel service coalesces an identical in-flight lookup.
+        if journey.hotelPriceSnapshot == nil && !journey.isSearchingHotelPrices {
+            journey.scheduleHotelPricePrefetch()
+        }
 
         do {
             let final = try await journey.flightService.searchReturnProgressive(
@@ -270,6 +321,7 @@ struct ReturnFlightView: View {
         isSearching = false
         isInitialLoading = false
         selectRecommendedIfNeeded()
+        await refreshPackagePrices()
         if !offers.isEmpty { IumrahHaptics.success() }
     }
 

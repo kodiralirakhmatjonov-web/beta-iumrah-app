@@ -1,105 +1,32 @@
 import SwiftUI
 
+/// Flight result card for the independent-leg Ignav architecture.
+///
+/// The provider fare itself is deliberately not presented as the primary number on
+/// this screen. Pilgrims compare Umrah packages, so the large number is always the
+/// public package price per pilgrim for the flight combination represented by the
+/// current row. The raw Ignav fare remains available in FlightDetailsView and in the
+/// Business pricing report.
 struct FlightCard: View {
     @EnvironmentObject private var settings: AppSettingsStore
+
     let offer: FlightOffer
     let isSelected: Bool
     var isRecommended: Bool = false
-    var referenceOffer: FlightOffer? = nil
-    var travelerCount: Int = 1
+    var packagePricePerPerson: Decimal? = nil
+    var isPackagePriceLoading: Bool = false
+    var packagePriceContext: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 17) {
-            HStack(spacing: 8) {
-                Label(ticketTypeLabel, systemImage: offer.pairedLeg == nil ? "arrow.right" : "arrow.left.arrow.right")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 10)
-                    .frame(height: 30)
-                    .background(Color.iumrahRaisedBackground, in: Capsule())
-                Spacer(minLength: 8)
-                Text(offer.sourceLabel)
-                    .font(.caption2.monospaced().weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-
-            HStack(alignment: .center, spacing: 11) {
-                AirlineLogoView(airlineCode: offer.primaryAirlineCode, size: 42)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(airlineLabel)
-                        .font(.headline.weight(.semibold))
-                    Text(offer.flightNumbersSummary.isEmpty ? flightNumberPendingLabel : flightNumbersLabel)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(offer.flightNumbersSummary.isEmpty ? Color.secondary : Color.primary)
-                        .lineLimit(2)
-                    Text(departureDateLabel)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                if isRecommended {
-                    Text(L10n.text("flight_recommended", settings.language))
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(Color.primary)
-                        .foregroundStyle(Color.iumrahCardBackground)
-                        .clipShape(Capsule())
-                } else if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title3)
-                }
-            }
-
-            Label(outboundTitle, systemImage: "airplane.departure")
-                .font(.subheadline.weight(.bold))
-
-            HStack(alignment: .center, spacing: 12) {
-                routePoint(segment: offer.displaySegments.first, isOrigin: true, trailing: false)
-                VStack(spacing: 5) {
-                    Text(durationText(offer.durationMinutes))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    HStack(spacing: 4) {
-                        Circle().frame(width: 4, height: 4)
-                        Rectangle().frame(height: 1)
-                        Image(systemName: "airplane")
-                            .font(.caption2)
-                        Rectangle().frame(height: 1)
-                        Circle().frame(width: 4, height: 4)
-                    }
-                    .foregroundStyle(.tertiary)
-                    Text(stopLabel)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity)
-                routePoint(segment: offer.displaySegments.last, isOrigin: false, trailing: true)
-            }
-
-            if offer.direction == .outbound, let paired = offer.pairedLeg {
-                Divider()
-                pairedReturnSection(paired)
-            }
+        VStack(alignment: .leading, spacing: 18) {
+            topBar
+            airlineHeader
+            routeSection
 
             if let layover = offer.layovers.first {
-                HStack(spacing: 8) {
-                    Image(systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath")
-                    Text(layoverSummary(layover))
-                        .lineLimit(2)
-                    Spacer(minLength: 0)
-                }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                layoverRow(layover)
             } else if let connection = offer.connectionAirports?.first {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.branch")
-                    Text(connectionSummary(connection))
-                        .lineLimit(2)
-                    Spacer(minLength: 0)
-                }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                connectionRow(connection)
             }
 
             if showsFareMetadata {
@@ -107,232 +34,199 @@ struct FlightCard: View {
             }
 
             Divider()
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(ticketPriceTitle)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Text(ticketPriceSubtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Text(actualFareText)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Color.primary)
-            }
+            packagePriceSection
         }
         .iumrahCard()
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
-                    .strokeBorder(Color.primary, lineWidth: 1.5)
+                    .strokeBorder(Color.primary.opacity(0.9), lineWidth: 1.5)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 9) {
+            Label(directionLabel, systemImage: directionSystemImage)
+                .font(.caption.weight(.bold))
+                .padding(.horizontal, 11)
+                .frame(height: 31)
+                .background(Color.iumrahRaisedBackground, in: Capsule())
+
+            if isRecommended {
+                Text(L10n.text("flight_recommended", settings.language))
+                    .font(.caption2.weight(.bold))
+                    .padding(.horizontal, 10)
+                    .frame(height: 31)
+                    .background(Color.primary, in: Capsule())
+                    .foregroundStyle(Color.iumrahCardBackground)
+            }
+
+            Spacer(minLength: 8)
+
+            Text("IGNAV")
+                .font(.caption2.monospaced().weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private var airlineHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            AirlineLogoView(airlineCode: offer.primaryAirlineCode, size: 46)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(airlineLabel)
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text(offer.flightNumbersSummary.isEmpty ? flightNumberPendingLabel : flightNumbersLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(offer.flightNumbersSummary.isEmpty ? Color.secondary : Color.primary)
+                    .lineLimit(2)
+
+                Text(departureDateLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 6)
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 23, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
             }
         }
     }
 
-    private var ticketPriceTitle: String {
-        switch settings.language {
-        case .russian: return offer.pairedLeg == nil ? "Цена билета в одну сторону" : "Цена билета туда и обратно"
-        case .english: return offer.pairedLeg == nil ? "One-way ticket price" : "Round-trip ticket price"
-        case .uzbek: return offer.pairedLeg == nil ? "Bir tomonlama chipta narxi" : "Borish-qaytish chiptasi narxi"
-        case .uzbekCyrillic: return offer.pairedLeg == nil ? "Бир томонлама чипта нархи" : "Бориш-қайтиш чиптаси нархи"
-        }
-    }
+    private var routeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                routePoint(segment: offer.displaySegments.first, isOrigin: true, trailing: false)
 
-    private func pairedReturnSection(_ paired: FlightPairedLeg) -> some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack(spacing: 9) {
-                Image(systemName: "airplane.arrival")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 32, height: 32)
-                    .background(Color.iumrahRaisedBackground, in: Circle())
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(pairedReturnTitle)
-                        .font(.subheadline.weight(.bold))
-                    Text(pairedFlightNumbers(paired).isEmpty ? flightNumberPendingLabel : pairedFlightNumbers(paired))
+                VStack(spacing: 6) {
+                    Text(durationText(offer.durationMinutes))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                Text(pairedDateFormatter(paired).string(from: paired.departureAt))
-                    .font(.caption.weight(.semibold))
-            }
 
-            HStack(alignment: .center, spacing: 12) {
-                pairedRoutePoint(paired, isOrigin: true, trailing: false)
-                VStack(spacing: 5) {
-                    Text(durationText(paired.durationMinutes))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Circle().frame(width: 4, height: 4)
                         Rectangle().frame(height: 1)
                         Image(systemName: "airplane")
-                            .font(.caption2)
+                            .font(.caption)
                         Rectangle().frame(height: 1)
                         Circle().frame(width: 4, height: 4)
                     }
                     .foregroundStyle(.tertiary)
-                    Text(pairedStopLabel(paired))
+
+                    Text(stopLabel)
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 .frame(maxWidth: .infinity)
-                pairedRoutePoint(paired, isOrigin: false, trailing: true)
+
+                routePoint(segment: offer.displaySegments.last, isOrigin: false, trailing: true)
             }
         }
     }
 
-    private var pairedReturnTitle: String {
-        switch settings.language {
-        case .russian: return "Обратно"
-        case .english: return "Return"
-        case .uzbek: return "Qaytish"
-        case .uzbekCyrillic: return "Қайтиш"
+    private var packagePriceSection: some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(packagePriceTitle)
+                    .font(.subheadline.weight(.semibold))
+
+                Text(packagePriceSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 10)
+
+            if let packagePricePerPerson {
+                Text(packagePriceText(packagePricePerPerson))
+                    .font(.system(size: 31, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            } else if isPackagePriceLoading {
+                ProgressView()
+                    .controlSize(.regular)
+                    .frame(width: 42, height: 42)
+            } else {
+                Text("—")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
-    private var outboundTitle: String {
+    private var packagePriceTitle: String {
         switch settings.language {
-        case .russian: return "Туда"
-        case .english: return "Outbound"
-        case .uzbek: return "Borish"
-        case .uzbekCyrillic: return "Бориш"
+        case .russian: return "Пакет на 1 человека"
+        case .english: return "Package per pilgrim"
+        case .uzbek: return "1 ziyoratchi uchun paket"
+        case .uzbekCyrillic: return "1 зиёратчи учун пакет"
         }
     }
 
-    private var ticketTypeLabel: String {
-        switch (offer.pairedLeg != nil, settings.language) {
-        case (true, .russian): return "Билет туда и обратно"
-        case (true, .english): return "Round-trip ticket"
-        case (true, .uzbek): return "Borish-qaytish chiptasi"
-        case (true, .uzbekCyrillic): return "Бориш-қайтиш чиптаси"
-        case (false, .russian): return "Билет в одну сторону"
-        case (false, .english): return "One-way ticket"
-        case (false, .uzbek): return "Bir tomonlama chipta"
-        case (false, .uzbekCyrillic): return "Бир томонлама чипта"
+    private var packagePriceSubtitle: String {
+        if packagePricePerPerson == nil && isPackagePriceLoading {
+            switch settings.language {
+            case .russian: return "Рассчитываем перелёты, отели и услуги"
+            case .english: return "Calculating flights, hotels and services"
+            case .uzbek: return "Parvoz, mehmonxona va xizmatlar hisoblanmoqda"
+            case .uzbekCyrillic: return "Парвоз, меҳмонхона ва хизматлар ҳисобланмоқда"
+            }
         }
+        if let packagePriceContext, !packagePriceContext.isEmpty { return packagePriceContext }
+        switch settings.language {
+        case .russian: return "Итоговая цена Umrah с этим вариантом"
+        case .english: return "Total Umrah price with this option"
+        case .uzbek: return "Ushbu variant bilan Umrah umumiy narxi"
+        case .uzbekCyrillic: return "Ушбу вариант билан Umrah умумий нархи"
+        }
+    }
+
+    private func packagePriceText(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = 0
+        formatter.minimumFractionDigits = 0
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        return formatter.string(from: NSDecimalNumber(decimal: amount))
+            ?? "$\(NSDecimalNumber(decimal: amount).intValue)"
+    }
+
+    private var directionLabel: String {
+        switch (offer.direction, settings.language) {
+        case (.outbound, .russian): return "Перелёт туда"
+        case (.inbound, .russian): return "Перелёт обратно"
+        case (.outbound, .english): return "Outbound flight"
+        case (.inbound, .english): return "Return flight"
+        case (.outbound, .uzbek): return "Borish reysi"
+        case (.inbound, .uzbek): return "Qaytish reysi"
+        case (.outbound, .uzbekCyrillic): return "Бориш рейси"
+        case (.inbound, .uzbekCyrillic): return "Қайтиш рейси"
+        }
+    }
+
+    private var directionSystemImage: String {
+        offer.direction == .outbound ? "airplane.departure" : "airplane.arrival"
     }
 
     private var flightNumberPendingLabel: String {
         switch settings.language {
-        case .russian: return "Номер рейса уточняется у перевозчика"
-        case .english: return "Flight number pending from carrier"
-        case .uzbek: return "Reys raqami tashuvchidan aniqlanmoqda"
-        case .uzbekCyrillic: return "Рейс рақами ташувчидан аниқланмоқда"
-        }
-    }
-
-    private func pairedFlightNumbers(_ paired: FlightPairedLeg) -> String {
-        var seen = Set<String>()
-        let values = (paired.segments ?? []).compactMap { FlightReferenceCatalog.normalizedVerifiedFlightNumber($0.flightNumber) }
-            .filter { seen.insert($0).inserted }
-        let fallback = FlightReferenceCatalog.normalizedVerifiedFlightNumber(paired.flightNumber) ?? ""
-        return values.isEmpty ? fallback : values.joined(separator: " · ")
-    }
-
-    private func pairedDateFormatter(_ paired: FlightPairedLeg) -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
-        formatter.dateFormat = "d MMM"
-        if let identifier = paired.segments?.first?.origin.timeZoneIdentifier,
-           let timeZone = TimeZone(identifier: identifier) { formatter.timeZone = timeZone }
-        return formatter
-    }
-
-    private func pairedTimeFormatter(_ paired: FlightPairedLeg) -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        if let identifier = paired.segments?.first?.origin.timeZoneIdentifier,
-           let timeZone = TimeZone(identifier: identifier) { formatter.timeZone = timeZone }
-        return formatter
-    }
-
-    @ViewBuilder
-    private func pairedRoutePoint(_ paired: FlightPairedLeg, isOrigin: Bool, trailing: Bool) -> some View {
-        let segment = isOrigin ? paired.segments?.first : paired.segments?.last
-        let airport = isOrigin ? segment?.origin : segment?.destination
-        let date = isOrigin ? (segment?.departureAt ?? paired.departureAt) : (segment?.arrivalAt ?? paired.arrivalAt)
-        VStack(alignment: trailing ? .trailing : .leading, spacing: 2) {
-            Text(timeFormatter(for: airport?.timeZoneIdentifier).string(from: date))
-                .font(.title3.monospacedDigit().weight(.bold))
-            Text(airport?.code ?? (isOrigin ? paired.origin : paired.destination))
-                .font(.caption.weight(.semibold))
-            if let city = airport?.city {
-                Text(city)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Text(shortDateFormatter(for: airport?.timeZoneIdentifier).string(from: date))
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.tertiary)
-        }
-        .frame(minWidth: 82, alignment: trailing ? .trailing : .leading)
-    }
-
-    private func pairedStopLabel(_ paired: FlightPairedLeg) -> String {
-        guard paired.stops > 0 else { return L10n.text("flight_direct", settings.language) }
-        let base = L10n.format("flight_stops", settings.language, paired.stops)
-        guard let airport = paired.segments?.dropLast().first?.destination else { return base }
-        let country = FlightReferenceCatalog.airportCountry(airport.code)
-        return [base, airport.code, country].compactMap { $0 }.joined(separator: " · ")
-    }
-
-    private var ticketPriceSubtitle: String {
-        switch settings.language {
-        case .russian: return isRecommended ? "За всех пассажиров · самый дешёвый найденный" : "За всех пассажиров · \(relativePriceText) к самому дешёвому"
-        case .english: return isRecommended ? "All passengers · lowest fare found" : "All passengers · \(relativePriceText) vs lowest"
-        case .uzbek: return isRecommended ? "Barcha yo‘lovchilar · eng arzon topilgan" : "Barcha yo‘lovchilar · eng arzonga \(relativePriceText)"
-        case .uzbekCyrillic: return isRecommended ? "Барча йўловчилар · энг арзон топилган" : "Барча йўловчилар · энг арзонга \(relativePriceText)"
-        }
-    }
-
-    private var actualFareText: String {
-        guard let amount = partyFare(for: offer) else { return "—" }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = offer.currency.uppercased()
-        formatter.maximumFractionDigits = 0
-        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
-        return formatter.string(from: NSDecimalNumber(decimal: amount))
-            ?? "\(NSDecimalNumber(decimal: amount)) \(offer.currency.uppercased())"
-    }
-
-    private var relativePriceAmount: Decimal {
-        guard let referenceOffer,
-              referenceOffer.currency.caseInsensitiveCompare(offer.currency) == .orderedSame,
-              let current = partyFare(for: offer),
-              let baseline = partyFare(for: referenceOffer) else { return 0 }
-        return current - baseline
-    }
-
-    private var relativePriceText: String {
-        let amount = relativePriceAmount
-        let rounded = NSDecimalNumber(decimal: amount).doubleValue.rounded()
-        let absolute = Int(abs(rounded))
-        let sign = rounded < 0 ? "−" : "+"
-        let currency: String
-        switch offer.currency.uppercased() {
-        case "USD": currency = "$"
-        case "EUR": currency = "€"
-        case "GBP": currency = "£"
-        case "SAR": currency = "SAR"
-        case "AED": currency = "AED"
-        default: currency = offer.currency.uppercased()
-        }
-        return "\(sign)\(absolute) \(currency)"
-    }
-
-    private func partyFare(for value: FlightOffer) -> Decimal? {
-        guard let amount = value.fareAmount, let scope = value.fareScope, amount > 0 else { return nil }
-        switch scope {
-        case .totalParty: return amount
-        case .perPassenger: return amount * Decimal(max(1, travelerCount))
-        case .unknown: return nil
+        case .russian: return "Номер рейса уточняется"
+        case .english: return "Flight number pending"
+        case .uzbek: return "Reys raqami aniqlanmoqda"
+        case .uzbekCyrillic: return "Рейс рақами аниқланмоқда"
         }
     }
 
@@ -363,10 +257,10 @@ struct FlightCard: View {
     private func metadataPill(systemImage: String, text: String, warning: Bool) -> some View {
         Label(text, systemImage: systemImage)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
+            .minimumScaleFactor(0.72)
             .padding(.horizontal, 9)
-            .frame(height: 28)
-            .background((warning ? Color.orange.opacity(0.12) : Color.iumrahRaisedBackground), in: Capsule())
+            .frame(height: 29)
+            .background(warning ? Color.orange.opacity(0.12) : Color.iumrahRaisedBackground, in: Capsule())
             .foregroundStyle(warning ? Color.orange : Color.secondary)
     }
 
@@ -407,9 +301,10 @@ struct FlightCard: View {
 
     private var departureDateLabel: String {
         let formatter = DateFormatter()
-        formatter.locale = settings.language == .russian ? Locale(identifier: "ru_RU") : Locale(identifier: "en_US_POSIX")
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
         formatter.dateFormat = "d MMM yyyy"
-        if let zone = offer.displaySegments.first?.origin.timeZoneIdentifier, let timeZone = TimeZone(identifier: zone) {
+        if let zone = offer.displaySegments.first?.origin.timeZoneIdentifier,
+           let timeZone = TimeZone(identifier: zone) {
             formatter.timeZone = timeZone
         }
         return formatter.string(from: offer.departureAt)
@@ -444,11 +339,12 @@ struct FlightCard: View {
     private func routePoint(segment: FlightSegment?, isOrigin: Bool, trailing: Bool) -> some View {
         let airport = isOrigin ? segment?.origin : segment?.destination
         let date = isOrigin ? segment?.departureAt : segment?.arrivalAt
-        VStack(alignment: trailing ? .trailing : .leading, spacing: 2) {
+        VStack(alignment: trailing ? .trailing : .leading, spacing: 3) {
             Text(timeFormatter(for: airport?.timeZoneIdentifier).string(from: date ?? (isOrigin ? offer.departureAt : offer.arrivalAt)))
-                .font(.title3.monospacedDigit().weight(.bold))
+                .font(.system(size: 25, weight: .bold, design: .rounded))
+                .monospacedDigit()
             Text(airport?.code ?? (isOrigin ? offer.origin : offer.destination))
-                .font(.caption.weight(.semibold))
+                .font(.caption.weight(.bold))
             if let city = airport?.city {
                 Text(city)
                     .font(.caption2)
@@ -456,11 +352,33 @@ struct FlightCard: View {
                     .lineLimit(1)
             }
             Text(shortDateFormatter(for: airport?.timeZoneIdentifier).string(from: date ?? (isOrigin ? offer.departureAt : offer.arrivalAt)))
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
         }
         .frame(minWidth: 82, alignment: trailing ? .trailing : .leading)
+    }
+
+    private func layoverRow(_ layover: FlightLayover) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath")
+            Text(layoverSummary(layover))
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+    }
+
+    private func connectionRow(_ airport: FlightAirportSnapshot) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: "arrow.triangle.branch")
+            Text(connectionSummary(airport))
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
     }
 
     private func layoverSummary(_ layover: FlightLayover) -> String {
@@ -480,7 +398,6 @@ struct FlightCard: View {
         }
     }
 
-
     private func connectionSummary(_ airport: FlightAirportSnapshot) -> String {
         let country = FlightReferenceCatalog.airportCountry(airport.code)
         let place = [airport.displayCity, country].compactMap { $0 }.joined(separator: ", ")
@@ -495,10 +412,10 @@ struct FlightCard: View {
     private func durationText(_ minutes: Int) -> String {
         if minutes <= 0 {
             switch settings.language {
-            case .russian: return "Время по данным источника"
-            case .english: return "Duration from source"
-            case .uzbek: return "Vaqt manba ma’lumotida"
-            case .uzbekCyrillic: return "Вақт манба маълумотида"
+            case .russian: return "По данным источника"
+            case .english: return "From provider"
+            case .uzbek: return "Manba bo‘yicha"
+            case .uzbekCyrillic: return "Манба бўйича"
             }
         }
         let hours = minutes / 60

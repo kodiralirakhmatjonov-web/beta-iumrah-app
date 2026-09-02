@@ -87,21 +87,26 @@ final class HotelPriceBotRunner {
                    let data = json.data(using: .utf8),
                    let card = try? JSONDecoder().decode(ExtractedCard.self, from: data) {
                     lastCard = card
-                    if let observation = makeObservation(card: card, sourceURL: webView.url ?? url) { return observation }
+                    if let observation = makeObservation(card: card, sourceURL: webView.url ?? url, requestedURL: url) { return observation }
                 }
             }
             try? await Task.sleep(for: .milliseconds(700))
         }
 
-        if let lastCard, makeObservation(card: lastCard, sourceURL: webView.url ?? url) == nil {
+        if let lastCard, makeObservation(card: lastCard, sourceURL: webView.url ?? url, requestedURL: url) == nil {
             throw BotError.noReliablePrice
         }
         if webView.url != nil { throw BotError.noMatchingHotel }
         throw BotError.timeout
     }
 
-    private func makeObservation(card: ExtractedCard, sourceURL: URL) -> HotelPriceObservation? {
-        guard card.score >= 0.62, card.dateEvidence else { return nil }
+    private func makeObservation(card: ExtractedCard, sourceURL: URL, requestedURL: URL) -> HotelPriceObservation? {
+        // Booking/Expedia often remove check-in/check-out query items after a
+        // client-side redirect. The bot still initiated an exact dated request, so
+        // preserve that evidence instead of rejecting a correct property price just
+        // because the final browser URL was rewritten.
+        let requestedDateEvidence = requestedURLContainsDates(requestedURL)
+        guard card.score >= 0.62, card.dateEvidence || requestedDateEvidence else { return nil }
         // The current provider surface verifies the concrete hotel/stay/occupancy.
         // iumrah room category IDs are internal IDs, not Booking/Expedia inventory
         // identifiers, so missing room-name text on a search result must not turn a
@@ -155,6 +160,14 @@ final class HotelPriceBotRunner {
             roomId: request.selectedRoomId,
             roomName: request.selectedRoomName
         )
+    }
+
+
+    private func requestedURLContainsDates(_ url: URL) -> Bool {
+        let raw = url.absoluteString.lowercased()
+        let checkIn = Self.dayFormatter.string(from: request.checkIn).lowercased()
+        let checkOut = Self.dayFormatter.string(from: request.checkOut).lowercased()
+        return raw.contains(checkIn) && raw.contains(checkOut)
     }
 
 

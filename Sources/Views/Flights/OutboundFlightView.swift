@@ -30,6 +30,10 @@ struct OutboundFlightView: View {
     @State private var sortMode: FlightResultSortMode = .recommended
     @State private var stopsFilter: FlightResultStopsFilter = .all
     @State private var airlineFilter: String? = nil
+    @State private var previewReturnOffers: [FlightOffer] = []
+    @State private var packagePricesPerPerson: [String: Decimal] = [:]
+    @State private var isCalculatingPackagePrices = false
+    @State private var packagePriceGeneration = UUID()
 
     var body: some View {
         Group {
@@ -47,6 +51,9 @@ struct OutboundFlightView: View {
         .task { await search(continueExisting: false) }
         .onAppear { updateImmersive() }
         .onChange(of: isInitialLoading) { _, _ in updateImmersive() }
+        .onChange(of: journey.hotelPriceSnapshot) { _, _ in
+            Task { await refreshPackagePrices() }
+        }
         .onDisappear { chrome.setImmersive(false) }
     }
 
@@ -142,8 +149,9 @@ struct OutboundFlightView: View {
                         offer: offer,
                         isSelected: journey.selectedOutbound?.id == offer.id,
                         isRecommended: recommendedOfferID == offer.id,
-                        referenceOffer: recommendedOffer,
-                        travelerCount: journey.trip.travelerCount
+                        packagePricePerPerson: packagePricesPerPerson[offer.id],
+                        isPackagePriceLoading: shouldShowPackagePriceLoading,
+                        packagePriceContext: outboundPackagePriceContext
                     )
                 }
                 .buttonStyle(.plain)
@@ -317,6 +325,8 @@ struct OutboundFlightView: View {
         if !continueExisting {
             candidates = []
             offers = []
+            previewReturnOffers = []
+            packagePricesPerPerson = [:]
             journey.selectedOutbound = nil
             journey.selectedInbound = nil
             journey.quote = nil
@@ -333,6 +343,13 @@ struct OutboundFlightView: View {
         // the user reaches FinalPackageView. The JourneyStore-owned task survives
         // navigation and is reused by the final quote calculation.
         journey.scheduleHotelPricePrefetch()
+        if journey.trip.isRoundTripFlight {
+            startReturnPrefetchForPackagePrices(
+                generation: generation,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel
+            )
+        }
         do {
             let final = try await journey.flightService.searchOutboundProgressive(
                 trip: journey.trip,
@@ -363,7 +380,91 @@ struct OutboundFlightView: View {
         isSearching = false
         isInitialLoading = false
         selectRecommendedIfNeeded()
+        await refreshPackagePrices()
         if !offers.isEmpty { IumrahHaptics.success() }
+    }
+
+    private func startReturnPrefetchForPackagePrices(
+        generation: UUID,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?
+    ) {
+        Task { @MainActor in
+            do {
+                let values = try await journey.flightService.prefetchReturn(
+                    trip: journey.trip,
+                    makkahHotel: makkahHotel,
+                    madinahHotel: madinahHotel
+                )
+                guard searchGeneration == generation else { return }
+                previewReturnOffers = values.filter(\.isVerifiedForBooking)
+                await refreshPackagePrices()
+            } catch {
+                // Outbound discovery must stay usable even if the background return
+                // preview fails. ReturnFlightView can still retry the independent
+                // return search normally.
+            }
+        }
+    }
+
+    private var previewReturnOffer: FlightOffer? {
+        let sameDay = previewReturnOffers.filter { dayOffset($0.departureAt, from: journey.trip.returnDate) == 0 }
+        let pool = sameDay.isEmpty ? previewReturnOffers : sameDay
+        return pool.min { lhs, rhs in
+            if lhs.currency == rhs.currency, lhs.totalPackagePrice != rhs.totalPackagePrice {
+                return lhs.totalPackagePrice < rhs.totalPackagePrice
+            }
+            if lhs.stops != rhs.stops { return lhs.stops < rhs.stops }
+            return lhs.durationMinutes < rhs.durationMinutes
+        }
+    }
+
+    private var shouldShowPackagePriceLoading: Bool {
+        isCalculatingPackagePrices || journey.isSearchingHotelPrices || (journey.trip.isRoundTripFlight && previewReturnOffer == nil)
+    }
+
+    private var outboundPackagePriceContext: String {
+        if journey.trip.isRoundTripFlight {
+            switch settings.language {
+            case .russian: return "Полный пакет · с рекомендуемым обратным рейсом"
+            case .english: return "Full package · with recommended return flight"
+            case .uzbek: return "To‘liq paket · tavsiya etilgan qaytish reysi bilan"
+            case .uzbekCyrillic: return "Тўлиқ пакет · тавсия этилган қайтиш рейси билан"
+            }
+        }
+        switch settings.language {
+        case .russian: return "Полный пакет · с этим перелётом"
+        case .english: return "Full package · with this flight"
+        case .uzbek: return "To‘liq paket · ushbu reys bilan"
+        case .uzbekCyrillic: return "Тўлиқ пакет · ушбу рейс билан"
+        }
+    }
+
+    @MainActor
+    private func refreshPackagePrices() async {
+        guard !offers.isEmpty, journey.hotelPriceSnapshot != nil else {
+            if journey.hotelPriceSnapshot == nil { packagePricesPerPerson = [:] }
+            return
+        }
+        let inbound = journey.trip.isRoundTripFlight ? previewReturnOffer : nil
+        if journey.trip.isRoundTripFlight, inbound == nil { return }
+
+        let generation = UUID()
+        packagePriceGeneration = generation
+        isCalculatingPackagePrices = true
+
+        var values: [String: Decimal] = [:]
+        // Calculate only verified visible provider fares. This is local arithmetic +
+        // cached FX/hotel data; it does not create extra Ignav or hotel-bot calls.
+        for offer in offers where offer.isVerifiedForBooking {
+            guard packagePriceGeneration == generation else { return }
+            if let price = await journey.packagePreviewPricePerPerson(outbound: offer, inbound: inbound) {
+                values[offer.id] = price
+            }
+        }
+        guard packagePriceGeneration == generation else { return }
+        packagePricesPerPerson = values
+        isCalculatingPackagePrices = false
     }
 
     private var hasVerifiedResults: Bool { !offers.isEmpty }

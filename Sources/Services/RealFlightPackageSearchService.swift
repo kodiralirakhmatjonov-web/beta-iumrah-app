@@ -30,6 +30,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     private var activeSignature: String?
     private var cachedOutboundJourneys: [LiveFlightJourneyCandidate] = []
     private var cachedReturnJourneys: [LiveFlightJourneyCandidate] = []
+    private var cachedReturnSearchComplete = false
     private var cachedHotels: HotelPriceSearchSnapshot?
 
     init() {
@@ -66,6 +67,13 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             outbound: outbound,
             onUpdate: { _ in }
         )
+    }
+
+    func prefetchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
+        _ = makkahHotel
+        _ = madinahHotel
+        guard trip.isRoundTripFlight else { return [] }
+        return try await searchReturnInventoryProgressive(trip: trip, onUpdate: { _ in })
     }
 
     func searchOutboundProgressive(
@@ -132,7 +140,29 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         guard trip.isRoundTripFlight, outbound.isVerifiedForBooking else {
             throw FlightEngineAvailabilityError.realOutboundRequired
         }
+        return try await searchReturnInventoryProgressive(trip: trip, onUpdate: onUpdate)
+    }
+
+    /// The return search is independent from the outbound choice. Keeping it as a
+    /// separate provider request preserves the old reliable two-ticket architecture,
+    /// while allowing the first screen to pre-load return fares for package previews.
+    private func searchReturnInventoryProgressive(
+        trip: TripDraft,
+        onUpdate: @escaping FlightSearchProgressHandler
+    ) async throws -> [FlightOffer] {
         prepareForReturn(trip)
+
+        if cachedReturnSearchComplete, !cachedReturnJourneys.isEmpty {
+            let offers = ranked(offers(from: cachedReturnJourneys, direction: .inbound), anchor: trip.returnDate)
+            onUpdate(.init(
+                discoveredCandidates: cachedReturnJourneys.map { candidate($0.outbound, direction: .inbound) },
+                pricedOffers: offers,
+                isSearching: false,
+                status: .continuing
+            ))
+            return offers
+        }
+
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .starting))
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
 
@@ -161,6 +191,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             }
             live = mergeJourneys(live, final)
             cachedReturnJourneys = live
+            cachedReturnSearchComplete = !live.isEmpty
             let offers = ranked(offers(from: live, direction: .inbound), anchor: trip.returnDate)
             onUpdate(.init(
                 discoveredCandidates: live.map { candidate($0.outbound, direction: .inbound) },
@@ -221,12 +252,14 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         activeSignature = nil
         cachedOutboundJourneys = []
         cachedReturnJourneys = []
+        cachedReturnSearchComplete = false
     }
 
     func invalidateSession() {
         activeSignature = nil
         cachedOutboundJourneys = []
         cachedReturnJourneys = []
+        cachedReturnSearchComplete = false
         cachedHotels = nil
         hotelPriceService.invalidateAll()
     }
@@ -237,6 +270,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         activeSignature = signature
         cachedOutboundJourneys = []
         cachedReturnJourneys = []
+        cachedReturnSearchComplete = false
         cachedHotels = nil
     }
 
@@ -246,6 +280,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         activeSignature = signature
         cachedOutboundJourneys = []
         cachedReturnJourneys = []
+        cachedReturnSearchComplete = false
         cachedHotels = nil
     }
 
@@ -454,6 +489,10 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
 
     func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer] {
         try await coordinator.searchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel, outbound: outbound)
+    }
+
+    func prefetchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
+        try await coordinator.prefetchReturn(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)
     }
 
     func searchOutboundProgressive(
