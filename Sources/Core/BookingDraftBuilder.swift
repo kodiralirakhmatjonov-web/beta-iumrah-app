@@ -13,7 +13,7 @@ enum BookingDraftBuilder {
         authoritativeMadinahRoomId: String? = nil,
         intercityTransport: ServerIntercityTransport? = nil,
         outbound: FlightOffer,
-        inbound: FlightOffer,
+        inbound: FlightOffer?,
         quote: PackageQuote,
         language: AppSettingsStore.Language,
         pilgrimProfile: BookingPilgrimProfile?
@@ -57,6 +57,7 @@ enum BookingDraftBuilder {
                 flexibleDays: flexibleDays(trip.flexibility),
                 hotelPreference: String(trip.hotelStars),
                 includeMadinah: includeMadinah,
+                flightTripType: trip.resolvedFlightTripType.rawValue,
                 travelers: .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms)
             ),
             route: .init(
@@ -75,7 +76,7 @@ enum BookingDraftBuilder {
                 madinahNights: stay.madinahNights
             ),
             selection: .init(
-                flightId: "\(outbound.id)|\(inbound.id)",
+                flightId: [outbound.id, inbound?.id].compactMap { $0 }.joined(separator: "|"),
                 makkahHotelId: hotel.id,
                 madinahHotelId: includeMadinah ? madinahHotel?.id : nil,
                 makkahRoomId: room?.id ?? roomCategory?.id ?? authoritativeMakkahRoomId,
@@ -96,15 +97,16 @@ enum BookingDraftBuilder {
                 makkah: hotel.name,
                 madinah: includeMadinah ? (madinahHotel?.name ?? L10n.text("recommended_madinah_hotel", language)) : ""
             ),
-            flight: "\(outbound.airlinesSummary) \(outbound.flightNumbersSummary) · \(inbound.airlinesSummary) \(inbound.flightNumbersSummary)",
+            flight: flightSummary(outbound: outbound, inbound: inbound),
             pilgrimProfile: pilgrimProfile,
             generatorTrace: .init(
-                quoteId: quote.quoteId ?? inbound.quoteId,
+                quoteId: quote.quoteId ?? inbound?.quoteId ?? outbound.quoteId,
                 outbound: generatorFlight(outbound),
-                inbound: generatorFlight(inbound),
+                inbound: inbound.map(generatorFlight),
                 makkahHotel: generatorHotel(hotel, room: room, roomCategory: roomCategory, authoritativeRoomId: authoritativeMakkahRoomId),
                 madinahHotel: madinahHotel.map { generatorHotel($0, room: madinahRoom, roomCategory: madinahRoomCategory, authoritativeRoomId: authoritativeMadinahRoomId) }
-            )
+            ),
+            pricingSnapshot: quote.pricingSnapshot
         )
         return BookingCreateEnvelope(lang: language.rawValue, booking: draft)
     }
@@ -139,6 +141,17 @@ enum BookingDraftBuilder {
             },
             connectionAirports: offer.connectionAirports?.map(\.code)
         )
+    }
+
+    private static func flightSummary(outbound: FlightOffer, inbound: FlightOffer?) -> String {
+        let outboundValue = [outbound.airlinesSummary, outbound.flightNumbersSummary]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: " · ")
+        guard let inbound else { return outboundValue }
+        let inboundValue = [inbound.airlinesSummary, inbound.flightNumbersSummary]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: " · ")
+        return [outboundValue, inboundValue].filter { !$0.isEmpty }.joined(separator: " / ")
     }
 
     private static func generatorHotel(

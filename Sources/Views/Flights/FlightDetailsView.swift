@@ -23,6 +23,11 @@ struct FlightDetailsView: View {
                     }
                 }
 
+
+                if let paired = offer.pairedLeg {
+                    pairedReturnDetails(paired)
+                }
+
                 fareSection
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
@@ -48,6 +53,8 @@ struct FlightDetailsView: View {
             .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
+                Label(offer.pairedLeg == nil ? oneWayTicketTitle : roundTripTicketTitle, systemImage: offer.pairedLeg == nil ? "arrow.right" : "arrow.left.arrow.right")
+                Text("•")
                 Label(durationText(offer.durationMinutes), systemImage: "clock")
                 Text("•")
                 Text(stopLabel)
@@ -55,6 +62,88 @@ struct FlightDetailsView: View {
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .padding(.top, 3)
+        }
+    }
+
+    private func pairedReturnDetails(_ paired: FlightPairedLeg) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label(returnTitle, systemImage: "airplane.arrival")
+                .font(.title3.weight(.bold))
+
+            ForEach(Array(pairedSegments(paired).enumerated()), id: \.element.id) { index, segment in
+                VStack(alignment: .leading, spacing: 13) {
+                    HStack(spacing: 10) {
+                        AirlineLogoView(airlineCode: segment.airlineCode, size: 38)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(FlightReferenceCatalog.airlineName(code: segment.airlineCode, fallback: segment.airline))
+                                .font(.headline)
+                            Text(FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) ?? flightNumberPendingTitle)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if pairedSegments(paired).count > 1 {
+                            Text("\(index + 1)/\(pairedSegments(paired).count)")
+                                .font(.caption.monospaced().weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    routeTimeline(segment)
+                }
+                if index < pairedSegments(paired).count - 1 { Divider() }
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func pairedSegments(_ paired: FlightPairedLeg) -> [FlightSegment] {
+        if let segments = paired.segments, !segments.isEmpty { return segments }
+        return [FlightSegment(
+            id: "paired-\(offer.id)",
+            airline: paired.airline,
+            airlineCode: paired.primaryAirlineCode,
+            flightNumber: paired.flightNumber,
+            origin: FlightAirportSnapshot(code: paired.origin),
+            destination: FlightAirportSnapshot(code: paired.destination),
+            departureAt: paired.departureAt,
+            arrivalAt: paired.arrivalAt,
+            durationMinutes: paired.durationMinutes
+        )]
+    }
+
+    private var roundTripTicketTitle: String {
+        switch settings.language {
+        case .russian: return "Билет туда и обратно"
+        case .english: return "Round-trip ticket"
+        case .uzbek: return "Borish-qaytish chiptasi"
+        case .uzbekCyrillic: return "Бориш-қайтиш чиптаси"
+        }
+    }
+
+    private var oneWayTicketTitle: String {
+        switch settings.language {
+        case .russian: return "Билет в одну сторону"
+        case .english: return "One-way ticket"
+        case .uzbek: return "Bir tomonlama chipta"
+        case .uzbekCyrillic: return "Бир томонлама чипта"
+        }
+    }
+
+    private var returnTitle: String {
+        switch settings.language {
+        case .russian: return "Обратный перелёт — часть этого билета"
+        case .english: return "Return flight — included in this ticket"
+        case .uzbek: return "Qaytish reysi — ushbu chipta tarkibida"
+        case .uzbekCyrillic: return "Қайтиш рейси — ушбу чипта таркибида"
+        }
+    }
+
+    private var flightNumberPendingTitle: String {
+        switch settings.language {
+        case .russian: return "Номер уточняется"
+        case .english: return "Flight number pending"
+        case .uzbek: return "Reys raqami aniqlanmoqda"
+        case .uzbekCyrillic: return "Рейс рақами аниқланмоқда"
         }
     }
 
@@ -385,7 +474,8 @@ struct FlightDetailsView: View {
     private func enrichAirports() async {
         let codes = Set(
             offer.displaySegments.flatMap { [$0.origin.code, $0.destination.code] } +
-            (offer.connectionAirports ?? []).map(\.code)
+            (offer.connectionAirports ?? []).map(\.code) +
+            (offer.pairedLeg?.segments ?? []).flatMap { [$0.origin.code, $0.destination.code] }
         )
         let service = AirportSearchService()
         for code in codes where enrichedAirports[code] == nil {

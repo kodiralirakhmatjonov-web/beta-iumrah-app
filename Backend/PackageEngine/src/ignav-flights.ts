@@ -128,9 +128,9 @@ function normalizeRequestLeg(raw: LegBody) {
 }
 
 function validateSearchBody(raw: SearchBody) {
-  if (!Array.isArray(raw.legs) || raw.legs.length !== 2) throw new Error("INVALID_LEGS");
+  if (!Array.isArray(raw.legs) || raw.legs.length < 1 || raw.legs.length > 2) throw new Error("INVALID_LEGS");
   const legs = raw.legs.map(normalizeRequestLeg);
-  if (legs[1].departure_date < legs[0].departure_date) throw new Error("INVALID_DATE_ORDER");
+  if (legs.length === 2 && legs[1].departure_date < legs[0].departure_date) throw new Error("INVALID_DATE_ORDER");
 
   const adults = finiteInt(raw.adults ?? 1, 1, 9);
   const children = finiteInt(raw.children ?? 0, 0, 8);
@@ -156,18 +156,22 @@ function validateSearchBody(raw: SearchBody) {
   if (raw.allow_self_transfer !== undefined && typeof raw.allow_self_transfer !== "boolean") throw new Error("INVALID_SELF_TRANSFER");
 
   return {
-    legs,
+    legs: legs.map(({ origin, destination, departure_date }) => ({
+      origin,
+      destination,
+      departure_date,
+      max_stops: undefined,
+      departure_time_range: undefined,
+    })),
     adults,
     children,
     infants_in_seat: infantsInSeat,
     infants_on_lap: infantsOnLap,
     cabin_class: cabin,
-    min_carry_on_bags: minCarryOn,
-    min_checked_bags: minChecked,
-    max_price: maxPrice,
-    airlines_include: include,
-    airlines_exclude: exclude,
-    allow_self_transfer: raw.allow_self_transfer ?? false,
+    // Search Ignav as broadly as possible. Price, airline, baggage, stop and
+    // transfer preferences belong to the client-side result filters; sending
+    // them upstream makes valid provider itineraries disappear permanently.
+    allow_self_transfer: true,
     market: "US",
   };
 }
@@ -221,9 +225,18 @@ function safeTimestamp(value: unknown): string | null {
   return Number.isFinite(Date.parse(value)) ? value : null;
 }
 
+function normalizedInstant(primary: unknown, fallback: unknown): string | null {
+  const primaryValue = safeTimestamp(primary);
+  if (primaryValue) return primaryValue;
+  const fallbackValue = safeTimestamp(fallback);
+  if (!fallbackValue) return null;
+  const date = new Date(fallbackValue);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
 function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<typeof normalizeRequestLeg>, cabin: string) {
   const segments = Array.isArray(leg?.segments) ? leg!.segments! : [];
-  if (segments.length === 0 || segments.length > 4) return null;
+  if (segments.length === 0 || segments.length > 8) return null;
   const normalizedSegments = segments.map((segment) => {
     const airlineCode = String(segment.marketing_carrier_code ?? "").trim().toUpperCase();
     const number = String(segment.flight_number ?? "").trim().toUpperCase().replace(/^\D+/, "");
@@ -231,21 +244,25 @@ function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<ty
     const destination = String(segment.arrival_airport ?? "").trim().toUpperCase();
     const departureLocal = safeTimestamp(segment.departure_time_local);
     const arrivalLocal = safeTimestamp(segment.arrival_time_local);
-    const departureUTC = safeTimestamp(segment.departure_time_utc);
-    const arrivalUTC = safeTimestamp(segment.arrival_time_utc);
-    const duration = Number(segment.duration_minutes ?? 0);
-    if (!IATA_AIRLINE.test(airlineCode) || !FLIGHT_NUMBER.test(number) || !IATA_AIRPORT.test(origin) || !IATA_AIRPORT.test(destination)) return null;
-    if (!departureLocal || !arrivalLocal || !departureUTC || !arrivalUTC || duration <= 0 || duration > 48 * 60) return null;
+    const departureUTC = normalizedInstant(segment.departure_time_utc, segment.departure_time_local);
+    const arrivalUTC = normalizedInstant(segment.arrival_time_utc, segment.arrival_time_local);
+    if (!IATA_AIRPORT.test(origin) || !IATA_AIRPORT.test(destination) || origin === destination) return null;
+    if (!departureUTC || !arrivalUTC || Date.parse(departureUTC) >= Date.parse(arrivalUTC)) return null;
+    const suppliedDuration = Number(segment.duration_minutes ?? 0);
+    const duration = Number.isFinite(suppliedDuration) && suppliedDuration > 0
+      ? suppliedDuration
+      : Math.round((Date.parse(arrivalUTC) - Date.parse(departureUTC)) / 60_000);
+    if (duration <= 0 || duration > 48 * 60) return null;
     return {
-      marketing_carrier_code: airlineCode,
-      flight_number: number,
+      marketing_carrier_code: IATA_AIRLINE.test(airlineCode) ? airlineCode : "",
+      flight_number: FLIGHT_NUMBER.test(number) ? number : "",
       operating_carrier_name: typeof segment.operating_carrier_name === "string" ? segment.operating_carrier_name.trim() || null : null,
       departure_airport: origin,
-      departure_time_local: departureLocal,
+      departure_time_local: departureLocal ?? departureUTC,
       departure_timezone: typeof segment.departure_timezone === "string" ? segment.departure_timezone : null,
       departure_time_utc: departureUTC,
       arrival_airport: destination,
-      arrival_time_local: arrivalLocal,
+      arrival_time_local: arrivalLocal ?? arrivalUTC,
       arrival_timezone: typeof segment.arrival_timezone === "string" ? segment.arrival_timezone : null,
       arrival_time_utc: arrivalUTC,
       duration_minutes: duration,
@@ -255,17 +272,20 @@ function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<ty
   if (normalizedSegments.some((segment) => segment === null)) return null;
   const safeSegments = normalizedSegments as NonNullable<(typeof normalizedSegments)[number]>[];
   if (safeSegments[0].departure_airport !== expected.origin || safeSegments.at(-1)?.arrival_airport !== expected.destination) return null;
-  if (!safeSegments[0].departure_time_local.startsWith(expected.departure_date)) return null;
+  if (!safeSegments[0].departure_time_local.startsWith(expected.departure_date) && !safeSegments[0].departure_time_utc.startsWith(expected.departure_date)) return null;
   for (let index = 1; index < safeSegments.length; index += 1) {
     if (safeSegments[index - 1].arrival_airport !== safeSegments[index].departure_airport) return null;
     if (Date.parse(safeSegments[index].departure_time_utc) < Date.parse(safeSegments[index - 1].arrival_time_utc)) return null;
   }
-  const duration = Number(leg?.duration_minutes ?? 0);
-  if (!Number.isFinite(duration) || duration <= 0 || duration > 72 * 60) return null;
+  const suppliedLegDuration = Number(leg?.duration_minutes ?? 0);
+  const calculatedLegDuration = Math.round((Date.parse(safeSegments.at(-1)!.arrival_time_utc) - Date.parse(safeSegments[0].departure_time_utc)) / 60_000);
+  const duration = Number.isFinite(suppliedLegDuration) && suppliedLegDuration > 0 ? suppliedLegDuration : calculatedLegDuration;
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 96 * 60) return null;
   const primary = safeSegments[0];
+  const exactFlightNumber = [primary.marketing_carrier_code, primary.flight_number].filter(Boolean).join(" ");
   return {
     airline: typeof leg?.carrier === "string" && leg.carrier.trim() ? leg.carrier.trim() : (primary.operating_carrier_name ?? primary.marketing_carrier_code),
-    flight_number: `${primary.marketing_carrier_code} ${primary.flight_number}`,
+    flight_number: exactFlightNumber,
     airline_code: primary.marketing_carrier_code,
     origin: expected.origin,
     destination: expected.destination,
@@ -278,13 +298,15 @@ function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<ty
   };
 }
 
-function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeof validateSearchBody>, observedAt: string) {
+function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeof validateSearchBody>, observedAt: string, index: number) {
   const price = itinerary.price;
-  if (!price || !["verified", "unverified"].includes(String(price.status ?? "")) || typeof price.amount !== "number" || !Number.isFinite(price.amount) || price.amount <= 0) return null;
+  if (!price || typeof price.amount !== "number" || !Number.isFinite(price.amount) || price.amount <= 0) return null;
   const currency = String(price.currency ?? "").toUpperCase();
   if (!CURRENCY.test(currency)) return null;
-  if (typeof itinerary.ignav_id !== "string" || itinerary.ignav_id.length < 8 || itinerary.ignav_id.length > 160) return null;
-  if (!Array.isArray(itinerary.legs) || itinerary.legs.length !== 2) return null;
+  const sourceID = typeof itinerary.ignav_id === "string" && itinerary.ignav_id.length >= 1 && itinerary.ignav_id.length <= 160
+    ? itinerary.ignav_id
+    : `fallback-${observedAt.replace(/[^0-9]/g, "")}-${index + 1}`;
+  if (!Array.isArray(itinerary.legs) || itinerary.legs.length !== request.legs.length) return null;
 
   const legs = itinerary.legs.map((leg, index) => normalizeResponseLeg(leg, request.legs[index], typeof itinerary.cabin_class === "string" ? itinerary.cabin_class : request.cabin_class));
   if (legs.some((leg) => leg === null)) return null;
@@ -295,20 +317,41 @@ function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeo
   } : null;
 
   return {
-    id: itinerary.ignav_id,
+    id: sourceID,
     source: "ignav",
     source_name: "Ignav",
     observed_at: observedAt,
     // Ignav returns the price for the passenger mix submitted in this search.
     // Keep it as one complete-trip party amount so the client never adds the two legs.
     fare_scope: "total_party",
-    price: { amount: price.amount, currency, status: price.status },
+    price: { amount: price.amount, currency, status: String(price.status || "unverified") },
     legs,
     cabin_class: typeof itinerary.cabin_class === "string" ? itinerary.cabin_class : request.cabin_class,
     bags,
     requires_self_transfer: itinerary.requires_self_transfer ?? null,
-    ignav_id: itinerary.ignav_id,
+    ignav_id: sourceID,
   };
+}
+
+async function recordSuccessfulIgnavRequest(env: Env, observedAt: string) {
+  if (!env.HOTELS_DB) return;
+  const period = observedAt.slice(0, 7);
+  await env.HOTELS_DB.prepare(`CREATE TABLE IF NOT EXISTS ignav_api_usage_monthly (
+    period TEXT PRIMARY KEY,
+    successful_requests INTEGER NOT NULL DEFAULT 0,
+    first_success_at TEXT,
+    last_success_at TEXT,
+    updated_at TEXT NOT NULL
+  )`).run();
+  await env.HOTELS_DB.prepare(`INSERT INTO ignav_api_usage_monthly (
+    period, successful_requests, first_success_at, last_success_at, updated_at
+  ) VALUES (?, 1, ?, ?, ?)
+  ON CONFLICT(period) DO UPDATE SET
+    successful_requests = successful_requests + 1,
+    first_success_at = COALESCE(first_success_at, excluded.first_success_at),
+    last_success_at = excluded.last_success_at,
+    updated_at = excluded.updated_at`)
+    .bind(period, observedAt, observedAt, observedAt).run();
 }
 
 export async function searchIgnavFlights(request: Request, env: Env): Promise<Response> {
@@ -324,8 +367,11 @@ export async function searchIgnavFlights(request: Request, env: Env): Promise<Re
   try {
     const observedAt = new Date().toISOString();
     const upstream = await fetchIgnav(env.IGNAV_API_KEY, body as unknown as Record<string, unknown>);
+    // Ignav bills successful HTTP 200 searches. Track exactly one unit after the
+    // retry loop reaches its successful response, regardless of itinerary count.
+    await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
     const itineraries = (upstream.itineraries ?? [])
-      .map((itinerary) => normalizeItinerary(itinerary, body, observedAt))
+      .map((itinerary, index) => normalizeItinerary(itinerary, body, observedAt, index))
       .filter((value): value is NonNullable<typeof value> => value !== null);
 
     return json({

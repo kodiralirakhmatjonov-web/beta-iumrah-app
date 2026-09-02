@@ -19,13 +19,14 @@ struct BookingDraftRequest: Encodable {
     let flight: String
     let pilgrimProfile: BookingPilgrimProfile?
     let generatorTrace: BookingGeneratorTrace?
+    let pricingSnapshot: GeneratorPricingSnapshot?
 }
 
 
 struct BookingGeneratorTrace: Codable, Hashable {
     let quoteId: String?
     let outbound: BookingGeneratorFlightSnapshot
-    let inbound: BookingGeneratorFlightSnapshot
+    let inbound: BookingGeneratorFlightSnapshot?
     let makkahHotel: BookingGeneratorHotelSnapshot
     let madinahHotel: BookingGeneratorHotelSnapshot?
 }
@@ -94,6 +95,7 @@ struct BookingInput: Encodable {
     let flexibleDays: Int
     let hotelPreference: String
     let includeMadinah: Bool
+    let flightTripType: String
     let travelers: BookingTravelers
 }
 
@@ -414,4 +416,3 @@ struct BookingCustomizationUpdateRequest: Encodable {
     let ziyaratMakkah: Bool
     let ziyaratMadinah: Bool
 }
-

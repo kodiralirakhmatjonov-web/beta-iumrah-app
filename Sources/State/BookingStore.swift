@@ -42,7 +42,7 @@ final class BookingStore: ObservableObject {
         authoritativeMadinahRoomId: String? = nil,
         intercityTransport: ServerIntercityTransport? = nil,
         outbound: FlightOffer,
-        inbound: FlightOffer,
+        inbound: FlightOffer?,
         quote: PackageQuote,
         language: AppSettingsStore.Language,
         pilgrimProfile: BookingPilgrimProfile?

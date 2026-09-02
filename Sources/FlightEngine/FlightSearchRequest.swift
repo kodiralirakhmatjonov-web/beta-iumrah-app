@@ -127,8 +127,8 @@ struct FlightJourneySearchRequest: Hashable, Codable {
     let id: String
     let outboundOrigin: String
     let outboundDestination: String
-    let inboundOrigin: String
-    let inboundDestination: String
+    let inboundOrigin: String?
+    let inboundDestination: String?
     let adults: Int
     let children: Int
     let infants: Int
@@ -139,8 +139,8 @@ struct FlightJourneySearchRequest: Hashable, Codable {
         id: String = UUID().uuidString,
         outboundOrigin: String,
         outboundDestination: String,
-        inboundOrigin: String,
-        inboundDestination: String,
+        inboundOrigin: String? = nil,
+        inboundDestination: String? = nil,
         adults: Int,
         children: Int,
         infants: Int,
@@ -150,8 +150,8 @@ struct FlightJourneySearchRequest: Hashable, Codable {
         self.id = id
         self.outboundOrigin = outboundOrigin.uppercased()
         self.outboundDestination = outboundDestination.uppercased()
-        self.inboundOrigin = inboundOrigin.uppercased()
-        self.inboundDestination = inboundDestination.uppercased()
+        self.inboundOrigin = inboundOrigin?.uppercased()
+        self.inboundDestination = inboundDestination?.uppercased()
         self.adults = adults
         self.children = children
         self.infants = infants
@@ -162,7 +162,7 @@ struct FlightJourneySearchRequest: Hashable, Codable {
 
 struct FlightJourneyDatePair: Hashable, Codable {
     let outbound: Date
-    let inbound: Date
+    let inbound: Date?
 }
 
 enum FlightFareScope: String, Codable, Hashable {
@@ -275,8 +275,6 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
         let age = Date().timeIntervalSince(observedAt)
         guard !sourceID.isEmpty,
               !sourceName.isEmpty,
-              let normalizedPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
-              let primaryCode = FlightReferenceCatalog.airlineCode(from: normalizedPrimary),
               observedFare > 0,
               fareScope != .unknown,
               observedCurrency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
@@ -296,16 +294,12 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
             guard let url = URL(string: sourceURL), ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { return false }
         }
 
-        guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == normalizedPrimary,
-              segments.first?.origin.code == origin,
+        guard segments.first?.origin.code == origin,
               segments.last?.destination.code == destination else { return false }
 
         for (index, segment) in segments.enumerated() {
-            guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
-                  let code = FlightReferenceCatalog.airlineCode(from: normalized),
-                  segment.origin.code != segment.destination.code,
+            guard segment.origin.code != segment.destination.code,
                   segment.departureAt < segment.arrivalAt else { return false }
-            if index == 0, code != primaryCode { return false }
             if index > 0 {
                 guard segments[index - 1].destination.code == segment.origin.code,
                       segments[index - 1].arrivalAt <= segment.departureAt else { return false }
@@ -329,19 +323,20 @@ struct LiveFlightJourneyCandidate: Identifiable, Hashable, Codable {
     let observedAt: Date
     let providerItineraryID: String
     let outbound: LiveFlightCandidate
-    let inbound: LiveFlightCandidate
+    let inbound: LiveFlightCandidate?
     let baggage: FlightBaggageAllowance?
     let requiresSelfTransfer: Bool?
 
     var isDisplayableCandidate: Bool {
-        totalFare > 0 &&
-        fareScope != .unknown &&
-        outbound.isDisplayableCandidate &&
-        inbound.isDisplayableCandidate &&
-        outbound.direction == .outbound &&
-        inbound.direction == .inbound &&
-        outbound.observedCurrency.caseInsensitiveCompare(currency) == .orderedSame &&
-        inbound.observedCurrency.caseInsensitiveCompare(currency) == .orderedSame
+        guard totalFare > 0,
+              fareScope != .unknown,
+              outbound.isDisplayableCandidate,
+              outbound.direction == .outbound,
+              outbound.observedCurrency.caseInsensitiveCompare(currency) == .orderedSame else { return false }
+        guard let inbound else { return true }
+        return inbound.isDisplayableCandidate &&
+            inbound.direction == .inbound &&
+            inbound.observedCurrency.caseInsensitiveCompare(currency) == .orderedSame
     }
 }
 

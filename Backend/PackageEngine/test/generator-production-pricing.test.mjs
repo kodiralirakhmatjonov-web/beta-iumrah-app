@@ -64,12 +64,13 @@ assert.match(journey, /normalizedRoomNightUsd\s*>?=\s*15/);
 assert.match(finalView, /recalculatePrice\(forceHotelRefresh:\s*true\)/);
 assert.match(finalView, /Retry price lookup/);
 
-// Fare deltas are now deltas between complete two-leg itineraries.
+// Cards show the absolute provider fare prominently; a delta is secondary context.
 assert.match(flightCard, /referenceOffer:\s*FlightOffer\?/);
 assert.match(flightCard, /current\s*-\s*baseline/);
-assert.match(flightCard, /Round-trip price difference/);
+assert.match(flightCard, /Round-trip ticket price/);
+assert.match(flightCard, /actualFareText/);
 assert.match(outbound, /referenceOffer:\s*recommendedOffer/);
-assert.match(outbound, /chooseOutboundFlight\(recommendedOffer\)/);
+assert.match(outbound, /chooseFlightJourney\(recommendedOffer\)/);
 assert.match(inbound, /referenceOffer:\s*recommendedOffer/);
 assert.match(inbound, /chooseInboundFlight\(recommendedOffer\)/);
 
@@ -87,10 +88,19 @@ assert.match(coordinator, /seen\.insert\(value\.resultIdentityKey\)/);
 assert.match(flightRows, /id: offer\.resultIdentityKey/);
 for (const source of [outbound, inbound]) {
   assert.match(source, /indexByKey\[offer\.resultIdentityKey\]/);
-  assert.match(source, /Current journeys found|Compatible current journeys/);
+  assert.match(source, /tickets found|Compatible current journeys/);
 }
 assert.match(coordinator, /func pairedOutbound\(for inbound: FlightOffer\)/);
 assert.match(journey, /pairedOutbound\(for: offer\)/);
-assert.match(flightCard, /pairedReturnRow\(paired\)/);
+assert.match(coordinator, /func pairedInbound\(for outbound: FlightOffer\)/);
+assert.match(journey, /chooseFlightJourney/);
+assert.match(flightCard, /pairedReturnSection\(paired\)/);
+
+// The exact component report follows the booking into iumrah Business.
+assert.match(localPricing, /GeneratorPricingSnapshot/);
+assert.match(localPricing, /local-one-package-v3/);
+assert.match(localPricing, /supplierCostUsd:\s*totalCost/);
+assert.match(localPricing, /markupRate:\s*packageMarkupRate/);
+assert.match(localPricing, /paymentFeeRate:\s*paymentFeeRate/);
 
 console.log('production journey + hotel pricing contract OK');

@@ -19,7 +19,7 @@ struct FinalPackageView: View {
         journey.hasFinalGeneratorQuote &&
         journey.selectedHotel != nil &&
         journey.selectedOutbound?.isVerifiedForBooking == true &&
-        journey.selectedInbound?.isVerifiedForBooking == true &&
+        (!journey.trip.isRoundTripFlight || journey.selectedInbound?.isVerifiedForBooking == true) &&
         (!needsMadinah || journey.selectedMadinahHotel != nil)
     }
 
@@ -150,10 +150,10 @@ struct FinalPackageView: View {
 
     private var calculatingPriceBody: String {
         switch settings.language {
-        case .russian: return "Используем найденную стоимость маршрута туда и обратно и получаем текущую цену выбранных Primary Hotels, затем рассчитываем пакет."
-        case .english: return "Using the found complete-journey fare and current Primary Hotel prices, then calculating the package."
-        case .uzbek: return "Topilgan borish-qaytish yo‘nalishi narxi va Primary Hotel joriy narxlari asosida paket hisoblanadi."
-        case .uzbekCyrillic: return "Топилган бориш-қайтиш йўналиши нархи ва Primary Hotel жорий нархлари асосида пакет ҳисобланади."
+        case .russian: return journey.trip.isRoundTripFlight ? "Используем актуальную стоимость билета туда и обратно и текущие цены выбранных Primary Hotels." : "Используем актуальную стоимость билета в одну сторону и текущие цены выбранных Primary Hotels."
+        case .english: return journey.trip.isRoundTripFlight ? "Using the current round-trip fare and current Primary Hotel prices." : "Using the current one-way fare and current Primary Hotel prices."
+        case .uzbek: return journey.trip.isRoundTripFlight ? "Borish-qaytish chiptasi va Primary Hotel joriy narxlari asosida paket hisoblanadi." : "Bir tomonlama chipta va Primary Hotel joriy narxlari asosida paket hisoblanadi."
+        case .uzbekCyrillic: return journey.trip.isRoundTripFlight ? "Бориш-қайтиш чиптаси ва Primary Hotel жорий нархлари асосида пакет ҳисобланади." : "Бир томонлама чипта ва Primary Hotel жорий нархлари асосида пакет ҳисобланади."
         }
     }
 
@@ -217,7 +217,7 @@ struct FinalPackageView: View {
     private func premiumPriceCard(_ quote: PackageQuote) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
-                Label(L10n.text("final_price", settings.language), systemImage: "checkmark.seal.fill")
+                Label(indicativePriceTitle, systemImage: "chart.line.uptrend.xyaxis")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.72))
                 Spacer()
@@ -462,9 +462,10 @@ struct FinalPackageView: View {
         guard !isSubmitting,
               let hotel = journey.selectedHotel,
               let outbound = journey.selectedOutbound,
-              let inbound = journey.selectedInbound,
               let quote = journey.quote else { return }
-        guard outbound.isVerifiedForBooking, inbound.isVerifiedForBooking else {
+        let inbound = journey.selectedInbound
+        guard outbound.isVerifiedForBooking,
+              (!journey.trip.isRoundTripFlight || inbound?.isVerifiedForBooking == true) else {
             errorMessage = invalidFlightSelectionMessage
             IumrahHaptics.error()
             return
@@ -510,10 +511,19 @@ struct FinalPackageView: View {
 
     private var invalidFlightSelectionMessage: String {
         switch settings.language {
-        case .russian: return "Перед бронированием выберите перелёты с подтверждёнными номерами всех рейсов."
-        case .english: return "Before booking, select flights with confirmed flight numbers for every segment."
-        case .uzbek: return "Bron qilishdan oldin barcha segmentlari tasdiqlangan reys raqamlariga ega parvozlarni tanlang."
-        case .uzbekCyrillic: return "Брон қилишдан олдин барча сегментлари тасдиқланган рейс рақамларига эга парвозларни танланг."
+        case .russian: return "Перед созданием заявки выберите актуальный маршрут с ценой от Ignav. Наличие подтвердит менеджер."
+        case .english: return "Select a current Ignav itinerary and fare. Availability will be confirmed by a manager."
+        case .uzbek: return "Ignav joriy yo‘nalishi va narxini tanlang. Mavjudlikni menejer tasdiqlaydi."
+        case .uzbekCyrillic: return "Ignav жорий йўналиши ва нархини танланг. Мавжудликни менежер тасдиқлайди."
+        }
+    }
+
+    private var indicativePriceTitle: String {
+        switch settings.language {
+        case .russian: return "Актуальная расчётная цена"
+        case .english: return "Current indicative price"
+        case .uzbek: return "Joriy hisoblangan narx"
+        case .uzbekCyrillic: return "Жорий ҳисобланган нарх"
         }
     }
 

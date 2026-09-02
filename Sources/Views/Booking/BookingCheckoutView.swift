@@ -154,8 +154,9 @@ struct BookingCheckoutView: View {
         guard !isSubmitting,
               let hotel = journey.selectedHotel,
               let outbound = journey.selectedOutbound,
-              let inbound = journey.selectedInbound,
               let quote = journey.quote else { return }
+        let inbound = journey.selectedInbound
+        guard !journey.trip.isRoundTripFlight || inbound != nil else { return }
 
         isSubmitting = true
         errorMessage = nil

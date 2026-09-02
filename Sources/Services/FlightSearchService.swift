@@ -160,9 +160,18 @@ protocol FlightSearchServicing {
         outbound: FlightOffer,
         onUpdate: @escaping FlightSearchProgressHandler
     ) async throws -> [FlightOffer]
+
+    /// Returns the second leg belonging to the same provider itinerary. One-way
+    /// searches and services without complete-journey inventory return nil.
+    func pairedInbound(for outbound: FlightOffer) -> FlightOffer?
 }
 
 extension FlightSearchServicing {
+    func pairedInbound(for outbound: FlightOffer) -> FlightOffer? {
+        _ = outbound
+        return nil
+    }
+
     func searchOutboundProgressive(
         trip: TripDraft,
         makkahHotel: HotelSummary,

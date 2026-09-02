@@ -1,5 +1,20 @@
 import SwiftUI
 
+private enum FlightResultSortMode: String, CaseIterable, Identifiable {
+    case recommended
+    case cheapest
+    case fastest
+    var id: String { rawValue }
+}
+
+private enum FlightResultStopsFilter: String, CaseIterable, Identifiable {
+    case all
+    case nonstop
+    case oneStop
+    case multipleStops
+    var id: String { rawValue }
+}
+
 struct OutboundFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var chrome: AppChromeStore
@@ -12,6 +27,9 @@ struct OutboundFlightView: View {
     @State private var fatalErrorText: String?
     @State private var searchStatus: GeneratorSearchStage? = .starting
     @State private var searchGeneration = UUID()
+    @State private var sortMode: FlightResultSortMode = .recommended
+    @State private var stopsFilter: FlightResultStopsFilter = .all
+    @State private var airlineFilter: String? = nil
 
     var body: some View {
         Group {
@@ -62,6 +80,7 @@ struct OutboundFlightView: View {
                 )
 
                 resultCountLabel
+                resultFilters
                 flightGroups
 
                 FlightSearchProgressCard(
@@ -77,7 +96,7 @@ struct OutboundFlightView: View {
         }
         .background(Color.iumrahPageBackground)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if journey.selectedOutbound != nil {
+            if hasCompleteSelection {
                 floatingContinueBar
             }
         }
@@ -85,17 +104,27 @@ struct OutboundFlightView: View {
 
     @ViewBuilder
     private var flightGroups: some View {
-        let rows = FlightResultRowModel.merge(candidates: candidates, offers: offers)
+        let rows = visibleOffers.map {
+            FlightResultRowModel(id: $0.resultIdentityKey, candidate: nil, offer: $0)
+        }
         let groups = grouped(rows: rows, anchor: journey.trip.departureDate)
 
-        ForEach(groups, id: \.offset) { group in
-            VStack(alignment: .leading, spacing: 12) {
-                if journey.trip.flexibility.isFlexibleDayRange || group.offset != 0 {
-                    flexibleDateHeader(offset: group.offset, date: group.rows.first?.departureAt)
-                }
+        if rows.isEmpty {
+            Text(noFilteredResultsText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .iumrahCard()
+        } else {
+            ForEach(groups, id: \.offset) { group in
+                VStack(alignment: .leading, spacing: 12) {
+                    if journey.trip.flexibility.isFlexibleDayRange || group.offset != 0 {
+                        flexibleDateHeader(offset: group.offset, date: group.rows.first?.departureAt)
+                    }
 
-                ForEach(orderedRows(group.rows)) { row in
-                    resultRow(row)
+                    ForEach(group.rows) { row in
+                        resultRow(row)
+                    }
                 }
             }
         }
@@ -106,7 +135,7 @@ struct OutboundFlightView: View {
         if let offer = row.offer {
             VStack(spacing: 10) {
                 Button {
-                    journey.chooseOutboundFlight(offer)
+                    journey.chooseFlightJourney(offer)
                     IumrahHaptics.selection()
                 } label: {
                     FlightCard(
@@ -163,29 +192,85 @@ struct OutboundFlightView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var resultCountText: String {
-        switch settings.language {
-        case .russian: return "Найдено актуальных маршрутов: \(offers.count)"
-        case .english: return "Current journeys found: \(offers.count)"
-        case .uzbek: return "Topilgan joriy yo‘nalishlar: \(offers.count)"
-        case .uzbekCyrillic: return "Топилган жорий йўналишлар: \(offers.count)"
+    private var resultFilters: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 9) {
+                Label(ticketTypeLabel, systemImage: journey.trip.isRoundTripFlight ? "arrow.left.arrow.right" : "arrow.right")
+                    .font(.subheadline.weight(.bold))
+                Spacer(minLength: 8)
+                Text("IGNAV")
+                    .font(.caption2.monospaced().weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+
+            filterSection(title: sortTitle) {
+                ForEach(FlightResultSortMode.allCases) { value in
+                    filterChip(sortLabel(value), selected: sortMode == value) {
+                        sortMode = value
+                    }
+                }
+            }
+
+            filterSection(title: stopsTitle) {
+                ForEach(FlightResultStopsFilter.allCases) { value in
+                    filterChip(stopsLabel(value), selected: stopsFilter == value) {
+                        stopsFilter = value
+                    }
+                }
+            }
+
+            if !allAirlineCodes.isEmpty {
+                filterSection(title: airlinesTitle) {
+                    filterChip(allAirlinesTitle, selected: airlineFilter == nil) { airlineFilter = nil }
+                    ForEach(allAirlineCodes, id: \.self) { code in
+                        filterChip(FlightReferenceCatalog.airlineName(code: code, fallback: code), selected: airlineFilter == code) {
+                            airlineFilter = code
+                        }
+                    }
+                }
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func filterSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.bold))
+                .tracking(0.8)
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) { content() }
+            }
         }
     }
 
-    private func orderedRows(_ rows: [FlightResultRowModel]) -> [FlightResultRowModel] {
-        guard let recommendedOfferID else { return rows }
-        return rows.enumerated().sorted { lhs, rhs in
-            let lhsRecommended = lhs.element.offer?.id == recommendedOfferID
-            let rhsRecommended = rhs.element.offer?.id == recommendedOfferID
-            if lhsRecommended != rhsRecommended { return lhsRecommended }
-            return lhs.offset < rhs.offset
-        }.map(\.element)
+    private func filterChip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .frame(height: 36)
+                .background(selected ? Color.primary : Color.iumrahRaisedBackground, in: Capsule())
+                .foregroundStyle(selected ? Color.iumrahCardBackground : Color.primary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var resultCountText: String {
+        switch settings.language {
+        case .russian: return "Показано \(visibleOffers.count) из \(offers.count) найденных билетов"
+        case .english: return "Showing \(visibleOffers.count) of \(offers.count) tickets found"
+        case .uzbek: return "Topilgan \(offers.count) chiptadan \(visibleOffers.count) tasi ko‘rsatilmoqda"
+        case .uzbekCyrillic: return "Топилган \(offers.count) чиптадан \(visibleOffers.count) таси кўрсатилмоқда"
+        }
     }
 
     private func selectRecommendedIfNeeded() {
         guard let recommendedOffer else { return }
         if journey.selectedOutbound == nil {
-            journey.chooseOutboundFlight(recommendedOffer)
+            journey.chooseFlightJourney(recommendedOffer)
         }
     }
 
@@ -193,10 +278,10 @@ struct OutboundFlightView: View {
         VStack(spacing: 0) {
             Divider().opacity(0.35)
             NavigationLink {
-                ReturnFlightView()
+                FinalPackageView()
             } label: {
                 HStack(spacing: 10) {
-                    Text(L10n.text("flight_choose_return", settings.language))
+                    Text(continuePackageTitle)
                     Spacer(minLength: 12)
                     Image(systemName: "arrow.right")
                         .font(.system(size: 16, weight: .bold))
@@ -279,6 +364,161 @@ struct OutboundFlightView: View {
     }
 
     private var hasVerifiedResults: Bool { !offers.isEmpty }
+
+    private var hasCompleteSelection: Bool {
+        journey.selectedOutbound != nil && (!journey.trip.isRoundTripFlight || journey.selectedInbound != nil)
+    }
+
+    private var visibleOffers: [FlightOffer] {
+        let filtered = offers.filter { offer in
+            let stops = max(offer.stops, offer.pairedLeg?.stops ?? 0)
+            let matchesStops: Bool
+            switch stopsFilter {
+            case .all: matchesStops = true
+            case .nonstop: matchesStops = stops == 0
+            case .oneStop: matchesStops = stops == 1
+            case .multipleStops: matchesStops = stops >= 2
+            }
+            let matchesAirline = airlineFilter.map { airlineCodes(for: offer).contains($0) } ?? true
+            return matchesStops && matchesAirline
+        }
+
+        return filtered.sorted { lhs, rhs in
+            let lhsDay = abs(dayOffset(lhs.departureAt, from: journey.trip.departureDate))
+            let rhsDay = abs(dayOffset(rhs.departureAt, from: journey.trip.departureDate))
+            if lhsDay != rhsDay { return lhsDay < rhsDay }
+            switch sortMode {
+            case .recommended:
+                if lhs.id == recommendedOfferID { return true }
+                if rhs.id == recommendedOfferID { return false }
+                if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
+                let leftStops = max(lhs.stops, lhs.pairedLeg?.stops ?? 0)
+                let rightStops = max(rhs.stops, rhs.pairedLeg?.stops ?? 0)
+                if leftStops != rightStops { return leftStops < rightStops }
+            case .cheapest:
+                if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
+            case .fastest:
+                let leftDuration = lhs.durationMinutes + (lhs.pairedLeg?.durationMinutes ?? 0)
+                let rightDuration = rhs.durationMinutes + (rhs.pairedLeg?.durationMinutes ?? 0)
+                if leftDuration != rightDuration { return leftDuration < rightDuration }
+            }
+            return lhs.departureAt < rhs.departureAt
+        }
+    }
+
+    private var allAirlineCodes: [String] {
+        Array(Set(offers.flatMap { airlineCodes(for: $0) })).sorted()
+    }
+
+    private func airlineCodes(for offer: FlightOffer) -> [String] {
+        let outbound = [offer.airlineCode, offer.primaryAirlineCode] + offer.displaySegments.map(\.airlineCode)
+        let inbound = [offer.pairedLeg?.primaryAirlineCode] + (offer.pairedLeg?.segments ?? []).map(\.airlineCode)
+        return Array(Set((outbound + inbound).compactMap { code in
+            guard let code = code?.uppercased(), code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return nil }
+            return code
+        }))
+    }
+
+    private var ticketTypeLabel: String {
+        switch (journey.trip.isRoundTripFlight, settings.language) {
+        case (true, .russian): return "Билет туда и обратно"
+        case (true, .english): return "Round-trip ticket"
+        case (true, .uzbek): return "Borish-qaytish chiptasi"
+        case (true, .uzbekCyrillic): return "Бориш-қайтиш чиптаси"
+        case (false, .russian): return "Билет в одну сторону"
+        case (false, .english): return "One-way ticket"
+        case (false, .uzbek): return "Bir tomonlama chipta"
+        case (false, .uzbekCyrillic): return "Бир томонлама чипта"
+        }
+    }
+
+    private var continuePackageTitle: String {
+        switch settings.language {
+        case .russian: return "Выбрать билет и рассчитать пакет"
+        case .english: return "Select ticket and calculate package"
+        case .uzbek: return "Chiptani tanlash va paketni hisoblash"
+        case .uzbekCyrillic: return "Чиптани танлаш ва пакетни ҳисоблаш"
+        }
+    }
+
+    private var sortTitle: String {
+        switch settings.language {
+        case .russian: return "Сортировка"
+        case .english: return "Sort"
+        case .uzbek: return "Saralash"
+        case .uzbekCyrillic: return "Саралаш"
+        }
+    }
+
+    private func sortLabel(_ value: FlightResultSortMode) -> String {
+        switch (value, settings.language) {
+        case (.recommended, .russian): return "Рекомендуемые"
+        case (.recommended, .english): return "Recommended"
+        case (.recommended, .uzbek), (.recommended, .uzbekCyrillic): return "Tavsiya"
+        case (.cheapest, .russian): return "Самые дешёвые"
+        case (.cheapest, .english): return "Cheapest"
+        case (.cheapest, .uzbek), (.cheapest, .uzbekCyrillic): return "Eng arzon"
+        case (.fastest, .russian): return "Самые быстрые"
+        case (.fastest, .english): return "Fastest"
+        case (.fastest, .uzbek), (.fastest, .uzbekCyrillic): return "Eng tez"
+        }
+    }
+
+    private var stopsTitle: String {
+        switch settings.language {
+        case .russian: return "Пересадки"
+        case .english: return "Stops"
+        case .uzbek: return "To‘xtashlar"
+        case .uzbekCyrillic: return "Тўхташлар"
+        }
+    }
+
+    private func stopsLabel(_ value: FlightResultStopsFilter) -> String {
+        switch (value, settings.language) {
+        case (.all, .russian): return "Все билеты"
+        case (.all, .english): return "All tickets"
+        case (.all, .uzbek): return "Barcha chiptalar"
+        case (.all, .uzbekCyrillic): return "Барча чипталар"
+        case (.nonstop, .russian): return "Прямые"
+        case (.nonstop, .english): return "Nonstop"
+        case (.nonstop, .uzbek): return "To‘g‘ridan-to‘g‘ri"
+        case (.nonstop, .uzbekCyrillic): return "Тўғридан-тўғри"
+        case (.oneStop, .russian): return "1 пересадка"
+        case (.oneStop, .english): return "1 stop"
+        case (.oneStop, .uzbek): return "1 ta ulanish"
+        case (.oneStop, .uzbekCyrillic): return "1 та уланиш"
+        case (.multipleStops, .russian): return "2+ пересадки"
+        case (.multipleStops, .english): return "2+ stops"
+        case (.multipleStops, .uzbek): return "2+ ulanish"
+        case (.multipleStops, .uzbekCyrillic): return "2+ уланиш"
+        }
+    }
+
+    private var airlinesTitle: String {
+        switch settings.language {
+        case .russian: return "Авиакомпании"
+        case .english: return "Airlines"
+        case .uzbek: return "Aviakompaniyalar"
+        case .uzbekCyrillic: return "Авиакомпаниялар"
+        }
+    }
+
+    private var allAirlinesTitle: String {
+        switch settings.language {
+        case .russian: return "Все"
+        case .english: return "All"
+        case .uzbek, .uzbekCyrillic: return "Barchasi"
+        }
+    }
+
+    private var noFilteredResultsText: String {
+        switch settings.language {
+        case .russian: return "По выбранным фильтрам вариантов нет. Сбросьте фильтр — все ответы Ignav остаются в списке."
+        case .english: return "No matches for these filters. Clear a filter; every Ignav result remains available."
+        case .uzbek: return "Tanlangan filtrlarda variant yo‘q. Filtrni olib tashlang — barcha Ignav natijalari saqlangan."
+        case .uzbekCyrillic: return "Танланган фильтрларда вариант йўқ. Фильтрни олиб ташланг — барча Ignav натижалари сақланган."
+        }
+    }
 
     private var shouldShowImmersive: Bool {
         !hasVerifiedResults && (isSearching || isInitialLoading)

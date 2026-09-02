@@ -100,12 +100,12 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     ) async throws -> [FlightOffer] {
         _ = makkahHotel
         _ = madinahHotel
-        guard outbound.isVerifiedForBooking else { throw FlightEngineAvailabilityError.realOutboundRequired }
+        guard trip.isRoundTripFlight, outbound.isVerifiedForBooking else { throw FlightEngineAvailabilityError.realOutboundRequired }
 
         var compatible = compatibleJourneys(with: outbound)
         if !compatible.isEmpty {
             let offers = rankedReturn(returnOffers(from: compatible), anchor: trip.returnDate)
-            onUpdate(.init(discoveredCandidates: compatible.map(\.inbound), pricedOffers: offers, isSearching: false, status: .comparingFares))
+            onUpdate(.init(discoveredCandidates: compatible.compactMap(\.inbound), pricedOffers: offers, isSearching: false, status: .comparingFares))
             if !offers.isEmpty { return offers }
         }
 
@@ -122,7 +122,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             cachedJourneys = mergeJourneys(cachedJourneys, fresh)
             compatible = compatibleJourneys(with: outbound)
             let offers = rankedReturn(returnOffers(from: compatible), anchor: trip.returnDate)
-            onUpdate(.init(discoveredCandidates: compatible.map(\.inbound), pricedOffers: offers, isSearching: false, status: .continuing))
+            onUpdate(.init(discoveredCandidates: compatible.compactMap(\.inbound), pricedOffers: offers, isSearching: false, status: .continuing))
             if offers.isEmpty { throw FlightEngineAvailabilityError.noVerifiedFlights }
             return offers
         } catch FlightInventoryProviderError.notConfigured {
@@ -208,6 +208,14 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         allJourneyOffers(journeys: journeys, leg: { $0.inbound })
     }
 
+    func pairedInbound(for outbound: FlightOffer) -> FlightOffer? {
+        guard outbound.direction == .outbound,
+              let itineraryID = outbound.providerItineraryID,
+              let journey = cachedJourneys.first(where: { $0.providerItineraryID == itineraryID }),
+              let inbound = journey.inbound else { return nil }
+        return offer(from: inbound, journey: journey)
+    }
+
     func pairedOutbound(for inbound: FlightOffer) -> FlightOffer? {
         guard inbound.direction == .inbound,
               let itineraryID = inbound.providerItineraryID,
@@ -217,12 +225,13 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 
     private func allJourneyOffers(
         journeys: [LiveFlightJourneyCandidate],
-        leg: (LiveFlightJourneyCandidate) -> LiveFlightCandidate
+        leg: (LiveFlightJourneyCandidate) -> LiveFlightCandidate?
     ) -> [FlightOffer] {
         var seen = Set<String>()
         var values: [FlightOffer] = []
         for journey in journeys where journey.isDisplayableCandidate {
-            guard let value = offer(from: leg(journey), journey: journey) else { continue }
+            guard let candidate = leg(journey),
+                  let value = offer(from: candidate, journey: journey) else { continue }
             guard seen.insert(value.resultIdentityKey).inserted else { continue }
             values.append(value)
         }
@@ -231,6 +240,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 
     private func offer(from candidate: LiveFlightCandidate, journey: LiveFlightJourneyCandidate) -> FlightOffer? {
         guard candidate.isDisplayableCandidate, journey.isDisplayableCandidate else { return nil }
+        let pairedCandidate: LiveFlightCandidate? = candidate.direction == .outbound
+            ? journey.inbound
+            : journey.outbound
         let value = FlightOffer(
             id: "fare:\(journey.providerItineraryID):\(candidate.direction.rawValue)",
             direction: candidate.direction,
@@ -259,7 +271,7 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             cabinClass: candidate.cabinClass,
             baggage: journey.baggage ?? candidate.baggage,
             requiresSelfTransfer: journey.requiresSelfTransfer ?? candidate.requiresSelfTransfer,
-            pairedLeg: FlightPairedLeg(candidate: candidate.direction == .outbound ? journey.inbound : journey.outbound)
+            pairedLeg: pairedCandidate.map { FlightPairedLeg(candidate: $0) }
         )
         return value.isVerifiedForBooking ? value : nil
     }
@@ -300,8 +312,11 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         let baseReturn = calendar.startOfDay(for: trip.returnDate)
         return outboundDates.compactMap { outbound in
             let offset = calendar.dateComponents([.day], from: baseDeparture, to: calendar.startOfDay(for: outbound)).day ?? 0
-            guard let inbound = calendar.date(byAdding: .day, value: offset, to: baseReturn), inbound >= outbound else { return nil }
-            return FlightJourneyDatePair(outbound: outbound, inbound: inbound)
+            if trip.isRoundTripFlight {
+                guard let inbound = calendar.date(byAdding: .day, value: offset, to: baseReturn), inbound >= outbound else { return nil }
+                return FlightJourneyDatePair(outbound: outbound, inbound: inbound)
+            }
+            return FlightJourneyDatePair(outbound: outbound, inbound: nil)
         }
     }
 
@@ -314,8 +329,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         FlightJourneySearchRequest(
             outboundOrigin: trip.originCode,
             outboundDestination: trip.outboundDestinationCode,
-            inboundOrigin: trip.returnOriginCode,
-            inboundDestination: trip.originCode,
+            inboundOrigin: trip.isRoundTripFlight ? trip.returnOriginCode : nil,
+            inboundDestination: trip.isRoundTripFlight ? trip.originCode : nil,
             adults: trip.adults,
             children: trip.children,
             infants: trip.infants,
@@ -328,7 +343,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         let formatter = ISO8601DateFormatter()
         let filters = trip.effectiveFlightFilters
         return [
-            trip.originCode, trip.outboundDestinationCode, trip.returnOriginCode,
+            trip.originCode, trip.outboundDestinationCode, trip.isRoundTripFlight ? trip.returnOriginCode : "-",
+            trip.resolvedFlightTripType.rawValue,
             formatter.string(from: trip.departureDate), formatter.string(from: trip.returnDate),
             trip.flexibility.rawValue, String(trip.adults), String(trip.children), String(trip.infants),
             filters.cabinClass.rawValue, filters.stops.rawValue,
@@ -374,6 +390,7 @@ final class AutomaticFlightSearchService: FlightSearchServicing, GeneratorCompon
     func invalidateFlightInventory() { coordinator.invalidateFlightInventory() }
     func invalidateSession() { coordinator.invalidateSession() }
     func pairedOutbound(for inbound: FlightOffer) -> FlightOffer? { coordinator.pairedOutbound(for: inbound) }
+    func pairedInbound(for outbound: FlightOffer) -> FlightOffer? { coordinator.pairedInbound(for: outbound) }
 
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
         try await coordinator.searchOutbound(trip: trip, makkahHotel: makkahHotel, madinahHotel: madinahHotel)

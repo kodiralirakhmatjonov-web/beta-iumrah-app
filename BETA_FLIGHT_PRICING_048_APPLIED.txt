@@ -1,0 +1,29 @@
+iumrah Beta update 048
+
+Flight search
+- Trip Builder asks for round-trip or one-way before the search.
+- Ignav receives a broad one- or two-leg search without airline, stop, baggage,
+  time-window, maximum-price or self-transfer exclusions.
+- Every returned Ignav itinerary keeps its provider identity and stays available
+  in the results list.
+- Results can be sorted by recommendation, price or duration and filtered by
+  stops and airline inside the app.
+- Round-trip cards show both legs and the complete current party fare clearly.
+
+Package pricing
+- One selected provider itinerary is priced exactly once.
+- The current hotel components and every package cost component are embedded in
+  the booking as a generator pricing snapshot.
+- The displayed package price is explicitly indicative, not final-confirmed.
+- The existing 50 percent markup, 2 percent payment fee and public rounding are
+  recorded in the snapshot for iumrah Business.
+
+Operations
+- Successful Ignav responses increment the shared monthly D1 usage counter.
+- Configure IGNAV_MONTHLY_REQUEST_BUDGET if the deployment budget is not 3000.
+
+Required deployment order
+1. Apply this patch to the Beta repository.
+2. Deploy Backend/PackageEngine.
+3. Build and distribute the iOS application.
+

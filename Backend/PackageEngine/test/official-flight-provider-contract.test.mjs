@@ -35,10 +35,16 @@ assert.match(index, /\/api\/package\/flights\/search/);
 assert.match(index, /searchIgnavFlights/);
 
 const ignav = fs.readFileSync(new URL('../src/ignav-flights.ts', import.meta.url), 'utf8');
+const clientProvider = fs.readFileSync(new URL('../../../Sources/Services/IgnavFlightInventoryProvider.swift', import.meta.url), 'utf8');
 assert.match(ignav, /IGNAV_BASE_URL}\/fares\/search/);
-assert.match(ignav, /raw\.legs\.length !== 2/);
-assert.match(ignav, /itinerary\.legs\.length !== 2/);
+assert.match(ignav, /raw\.legs\.length < 1 \|\| raw\.legs\.length > 2/);
+assert.match(ignav, /itinerary\.legs\.length !== request\.legs\.length/);
 assert.ok(!ignav.includes('/fares/one-way'), 'Umrah flight search must not price outbound and return as separate one-way products');
-assert.match(ignav, /\["verified", "unverified"\]/, 'indicative launch pricing should keep Ignav current search-price hints');
+assert.match(ignav, /String\(price\.status \|\| "unverified"\)/, 'current search-price hints must remain usable without final-price confirmation');
+assert.match(ignav, /recordSuccessfulIgnavRequest/);
+assert.match(ignav, /successful_requests = successful_requests \+ 1/);
+assert.match(clientProvider, /allowSelfTransfer = true/);
+assert.match(clientProvider, /minCarryOnBags = nil/);
+assert.match(clientProvider, /airlinesInclude = nil/);
 
-console.log('flight/server cleanup + Ignav open-jaw boundary contract OK');
+console.log('flight/server cleanup + complete Ignav inventory boundary contract OK');

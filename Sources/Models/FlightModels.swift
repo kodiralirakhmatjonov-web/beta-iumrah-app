@@ -104,7 +104,9 @@ struct FlightPairedLeg: Hashable, Codable {
 
     var primaryAirlineCode: String? {
         FlightReferenceCatalog.airlineCode(from: flightNumber) ??
-        segments?.compactMap { FlightReferenceCatalog.airlineCode(from: $0.flightNumber) }.first
+        segments?.compactMap { segment in
+            segment.airlineCode ?? FlightReferenceCatalog.airlineCode(from: segment.flightNumber)
+        }.first
     }
 }
 
@@ -278,6 +280,9 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     }
 
     var primaryAirlineCode: String? {
+        if let airlineCode, airlineCode.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil {
+            return airlineCode
+        }
         if let code = FlightReferenceCatalog.airlineCode(from: flightNumber) { return code }
         for segment in displaySegments {
             if let code = FlightReferenceCatalog.airlineCode(from: segment.flightNumber) { return code }
@@ -296,11 +301,14 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     var airlinesSummary: String {
         var seen = Set<String>()
         let values = displaySegments.compactMap { segment -> String? in
-            guard let code = FlightReferenceCatalog.airlineCode(from: segment.flightNumber),
-                  let reference = FlightReferenceCatalog.airline(code: code) else { return nil }
-            return reference.name
+            let code = segment.airlineCode ?? FlightReferenceCatalog.airlineCode(from: segment.flightNumber)
+            let value = FlightReferenceCatalog.airlineName(code: code, fallback: segment.airline)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.isEmpty ? nil : value
         }
-        return values.filter { seen.insert($0).inserted }.joined(separator: " + ")
+        let summary = values.filter { seen.insert($0).inserted }.joined(separator: " + ")
+        if !summary.isEmpty { return summary }
+        return airline.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Final client-side safety gate. Provider-specific response validation is
@@ -315,8 +323,6 @@ struct FlightOffer: Identifiable, Hashable, Codable {
               !lowerSource.contains("skyscanner"),
               !lowerSource.contains("ref-google"),
               !lowerSource.contains("ref-skyscanner"),
-              let exactPrimary = FlightReferenceCatalog.normalizedVerifiedFlightNumber(flightNumber),
-              let primaryCode = FlightReferenceCatalog.airlineCode(from: exactPrimary),
               !airline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let fareAmount, fareAmount > 0,
               let fareScope, fareScope != .unknown,
@@ -334,16 +340,12 @@ struct FlightOffer: Identifiable, Hashable, Codable {
             guard let url = URL(string: fareSourceURL), ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { return false }
         }
 
-        guard FlightReferenceCatalog.normalizedVerifiedFlightNumber(segments[0].flightNumber) == exactPrimary,
-              segments.first?.origin.code == origin,
+        guard segments.first?.origin.code == origin,
               segments.last?.destination.code == destination else { return false }
 
         for (index, segment) in segments.enumerated() {
-            guard let normalized = FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber),
-                  let code = FlightReferenceCatalog.airlineCode(from: normalized),
-                  segment.origin.code != segment.destination.code,
+            guard segment.origin.code != segment.destination.code,
                   segment.departureAt < segment.arrivalAt else { return false }
-            if index == 0, code != primaryCode { return false }
             if index > 0 {
                 guard segments[index - 1].destination.code == segment.origin.code,
                       segments[index - 1].arrivalAt <= segment.departureAt else { return false }
@@ -357,12 +359,111 @@ struct FlightOffer: Identifiable, Hashable, Codable {
 
 }
 
+struct GeneratorPricingSnapshot: Hashable, Codable {
+    let quoteId: String
+    let pricingVersion: String
+    let currency: String
+    let context: GeneratorPricingContext
+    let selectedPricingInputs: GeneratorPricingInputs
+    let components: [GeneratorPricingComponent]
+    let totals: GeneratorPricingTotals
+}
+
+struct GeneratorPricingContext: Hashable, Codable {
+    let tier: String
+    let tripType: String
+    let includeMadinah: Bool
+    let totalDays: Int
+    let travelers: BookingTravelers
+    let roomCount: Int
+    let vehicleCount: Int
+}
+
+struct GeneratorPricingInputs: Hashable, Codable {
+    let journeyFare: GeneratorPricingFare
+    let outbound: GeneratorPricingFare?
+    let inbound: GeneratorPricingFare?
+    let makkahHotel: GeneratorPricingHotelInput
+    let madinahHotel: GeneratorPricingHotelInput?
+
+    init(
+        journeyFare: GeneratorPricingFare,
+        outbound: GeneratorPricingFare? = nil,
+        inbound: GeneratorPricingFare? = nil,
+        makkahHotel: GeneratorPricingHotelInput,
+        madinahHotel: GeneratorPricingHotelInput?
+    ) {
+        self.journeyFare = journeyFare
+        self.outbound = outbound
+        self.inbound = inbound
+        self.makkahHotel = makkahHotel
+        self.madinahHotel = madinahHotel
+    }
+}
+
+struct GeneratorPricingFare: Hashable, Codable {
+    let candidateId: String
+    let amount: Decimal
+    let currency: String
+    let fareScope: String
+    let providerId: String
+    let observedAt: String
+    let travelDate: String
+    let normalizedGroupUsd: Decimal
+}
+
+struct GeneratorPricingHotelInput: Hashable, Codable {
+    let amountUsd: Decimal
+    let unit: String
+    let nights: Int
+    let hotelId: String?
+    let roomId: String?
+    let pricingMode: String?
+}
+
+struct GeneratorPricingComponent: Hashable, Codable {
+    let code: String
+    let label: String
+    let supplierCostUsd: Decimal
+}
+
+struct GeneratorPricingTotals: Hashable, Codable {
+    let supplierCostUsd: Decimal
+    let markupRate: Decimal
+    let markupAmountUsd: Decimal
+    let subtotalAfterMarkupUsd: Decimal
+    let paymentFeeRate: Decimal
+    let paymentFeeAmountUsd: Decimal
+    let calculatedSellingPriceUsd: Decimal
+    let publicPricePerPilgrimUsd: Decimal
+    let publicTotalUsd: Decimal
+    let roundingDifferenceUsd: Decimal
+    let estimatedProfitUsd: Decimal
+}
+
 struct PackageQuote: Hashable, Codable {
     let totalPackagePrice: Decimal
     let pricePerPerson: Decimal
     let currency: String
     let isEstimated: Bool
     let quoteId: String?
+    let pricingSnapshot: GeneratorPricingSnapshot?
+
+    init(
+        totalPackagePrice: Decimal,
+        pricePerPerson: Decimal,
+        currency: String,
+        isEstimated: Bool,
+        quoteId: String?,
+        pricingSnapshot: GeneratorPricingSnapshot? = nil
+    ) {
+        self.totalPackagePrice = totalPackagePrice
+        self.pricePerPerson = pricePerPerson
+        self.currency = currency
+        self.isEstimated = isEstimated
+        self.quoteId = quoteId
+        self.pricingSnapshot = pricingSnapshot
+    }
 }
 
 private extension String {

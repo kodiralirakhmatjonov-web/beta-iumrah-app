@@ -111,10 +111,10 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
         expectedPair: FlightJourneyDatePair,
         observedAt: Date
     ) -> LiveFlightJourneyCandidate? {
-        guard ["verified", "unverified"].contains(itinerary.price.status.lowercased()),
-              itinerary.price.amount > 0,
+        let expectsReturn = request.inboundOrigin != nil && request.inboundDestination != nil && expectedPair.inbound != nil
+        guard itinerary.price.amount > 0,
               itinerary.price.currency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
-              itinerary.legs.count == 2,
+              itinerary.legs.count == (expectsReturn ? 2 : 1),
               itinerary.fareScope == "total_party" else { return nil }
 
         guard let outbound = legCandidate(
@@ -125,15 +125,26 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
             expectedDestination: request.outboundDestination,
             expectedDate: expectedPair.outbound,
             observedAt: observedAt
-        ), let inbound = legCandidate(
-            itinerary.legs[1],
-            itinerary: itinerary,
-            direction: .inbound,
-            expectedOrigin: request.inboundOrigin,
-            expectedDestination: request.inboundDestination,
-            expectedDate: expectedPair.inbound,
-            observedAt: observedAt
         ) else { return nil }
+
+        let inbound: LiveFlightCandidate?
+        if expectsReturn,
+           let inboundOrigin = request.inboundOrigin,
+           let inboundDestination = request.inboundDestination,
+           let inboundDate = expectedPair.inbound {
+            guard let value = legCandidate(
+                itinerary.legs[1],
+                itinerary: itinerary,
+                direction: .inbound,
+                expectedOrigin: inboundOrigin,
+                expectedDestination: inboundDestination,
+                expectedDate: inboundDate,
+                observedAt: observedAt
+            ) else { return nil }
+            inbound = value
+        } else {
+            inbound = nil
+        }
 
         let value = LiveFlightJourneyCandidate(
             id: "ignav:\(itinerary.ignavId)",
@@ -162,16 +173,18 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
         observedAt: Date
     ) -> LiveFlightCandidate? {
         let segments: [FlightSegment] = leg.segments.compactMap { value in
-            guard value.marketingCarrierCode.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil,
-                  value.flightNumber.range(of: "^[0-9]{1,4}[A-Z]?$", options: .regularExpression) != nil,
-                  let departure = try? parseISO8601(value.departureTimeUTC),
+            guard let departure = try? parseISO8601(value.departureTimeUTC),
                   let arrival = try? parseISO8601(value.arrivalTimeUTC), departure < arrival,
                   value.durationMinutes > 0 else { return nil }
+            let exactNumber = [value.marketingCarrierCode, value.flightNumber]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
             return FlightSegment(
-                id: "ignav:\(itinerary.ignavId):\(direction.rawValue):\(value.marketingCarrierCode)\(value.flightNumber):\(value.departureAirport)",
+                id: "ignav:\(itinerary.ignavId):\(direction.rawValue):\(value.departureAirport):\(value.arrivalAirport):\(value.departureTimeUTC)",
                 airline: value.operatingCarrierName ?? leg.airline,
-                airlineCode: value.marketingCarrierCode,
-                flightNumber: "\(value.marketingCarrierCode) \(value.flightNumber)",
+                airlineCode: value.marketingCarrierCode.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil ? value.marketingCarrierCode : nil,
+                flightNumber: exactNumber,
                 origin: FlightAirportSnapshot(code: value.departureAirport, timeZoneIdentifier: value.departureTimezone),
                 destination: FlightAirportSnapshot(code: value.arrivalAirport, timeZoneIdentifier: value.arrivalTimezone),
                 departureAt: departure,
@@ -190,10 +203,6 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
               leg.durationMinutes > 0,
               calendarDay(expectedDate) == calendarDay(first.departureAt, timeZoneIdentifier: first.origin.timeZoneIdentifier) else { return nil }
 
-        for segment in segments {
-            guard let originZone = segment.origin.timeZoneIdentifier, TimeZone(identifier: originZone) != nil,
-                  let destinationZone = segment.destination.timeZoneIdentifier, TimeZone(identifier: destinationZone) != nil else { return nil }
-        }
         for index in 1..<segments.count {
             guard segments[index - 1].destination.code == segments[index].origin.code,
                   segments[index - 1].arrivalAt <= segments[index].departureAt else { return nil }
@@ -284,11 +293,15 @@ private struct ProxySearchBody: Encodable, Sendable {
 
     init(request: FlightJourneySearchRequest, pair: FlightJourneyDatePair) {
         let filters = request.filters
-        let timeRange = ProxyTimeRange(departure: filters.departureWindow, arrival: filters.arrivalWindow)
-        legs = [
-            ProxySearchLeg(origin: request.outboundOrigin, destination: request.outboundDestination, departureDate: Self.day(pair.outbound), maxStops: filters.stops.maxStops, departureTimeRange: timeRange),
-            ProxySearchLeg(origin: request.inboundOrigin, destination: request.inboundDestination, departureDate: Self.day(pair.inbound), maxStops: filters.stops.maxStops, departureTimeRange: timeRange)
+        var requestedLegs = [
+            ProxySearchLeg(origin: request.outboundOrigin, destination: request.outboundDestination, departureDate: Self.day(pair.outbound), maxStops: nil, departureTimeRange: nil)
         ]
+        if let inboundOrigin = request.inboundOrigin,
+           let inboundDestination = request.inboundDestination,
+           let inboundDate = pair.inbound {
+            requestedLegs.append(ProxySearchLeg(origin: inboundOrigin, destination: inboundDestination, departureDate: Self.day(inboundDate), maxStops: nil, departureTimeRange: nil))
+        }
+        legs = requestedLegs
         adults = request.adults
         children = request.children
         if filters.infantSeating == .lap {
@@ -299,14 +312,15 @@ private struct ProxySearchBody: Encodable, Sendable {
             infantsInSeat = request.infants
         }
         cabinClass = filters.cabinClass.rawValue
-        minCarryOnBags = filters.minCarryOnBags > 0 ? filters.minCarryOnBags : nil
-        minCheckedBags = filters.minCheckedBags > 0 ? filters.minCheckedBags : nil
-        maxPrice = filters.maxPriceUSD.flatMap { $0 > 0 ? $0 : nil }
-        let include = filters.normalizedAirlinesInclude
-        let exclude = filters.normalizedAirlinesExclude.filter { !include.contains($0) }
-        airlinesInclude = include.isEmpty ? nil : include
-        airlinesExclude = exclude.isEmpty ? nil : exclude
-        allowSelfTransfer = filters.allowSelfTransfer
+        // Fetch the complete provider inventory. Stops, baggage, airline and price
+        // controls belong to the results screen; sending them upstream made valid
+        // Ignav itineraries disappear before the pilgrim could compare them.
+        minCarryOnBags = nil
+        minCheckedBags = nil
+        maxPrice = nil
+        airlinesInclude = nil
+        airlinesExclude = nil
+        allowSelfTransfer = true
     }
 
     enum CodingKeys: String, CodingKey {

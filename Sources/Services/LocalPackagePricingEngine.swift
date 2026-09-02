@@ -39,6 +39,7 @@ enum LocalPackagePricingEngine {
         trip: TripDraft,
         journeyFareUsd: Decimal,
         journeyScope: FlightFareScope,
+        journeyOffer: FlightOffer,
         makkahHotel: LocalHotelPriceComponent,
         madinahHotel: LocalHotelPriceComponent?
     ) throws -> PackageQuote {
@@ -49,8 +50,9 @@ enum LocalPackagePricingEngine {
         // Ignav flexible search already returns one price for the complete ordered
         // outbound + return/open-jaw itinerary. Consume it exactly once.
         let flights = try groupFare(journeyFareUsd, scope: journeyScope, travelers: travelers)
-        let hotels = hotelCost(makkahHotel)
-            + (trip.scope == .makkahAndMadinah ? hotelCost(madinahHotel) : 0)
+        let makkahHotelCost = hotelCost(makkahHotel)
+        let madinahHotelCost = trip.scope == .makkahAndMadinah ? hotelCost(madinahHotel) : 0
+        let hotels = makkahHotelCost + madinahHotelCost
         let visa = visaPerTravellerUsd * Decimal(travelers)
         let mealTravellers = max(0, trip.adults + trip.children)
         let meals = mealRate(trip.packageTier) * Decimal(max(1, stay.totalDays)) * Decimal(mealTravellers)
@@ -71,12 +73,85 @@ enum LocalPackagePricingEngine {
         let calculatedSelling = baseSelling / (1 - paymentFeeRate)
         let perPerson = roundPublic(calculatedSelling / Decimal(travelers))
         let total = perPerson * Decimal(travelers)
+        let quoteId = "local-\(UUID().uuidString.lowercased())"
+        let markupAmount = totalCost * packageMarkupRate
+        let paymentFeeAmount = calculatedSelling - baseSelling
+        let roundingDifference = total - calculatedSelling
+        let estimatedProfit = total - totalCost - paymentFeeAmount
+        var components: [GeneratorPricingComponent] = [
+            .init(code: "flights", label: trip.isRoundTripFlight ? "Авиабилеты туда и обратно" : "Авиабилет в одну сторону", supplierCostUsd: flights),
+            .init(code: "makkah_hotel", label: "Отель в Мекке", supplierCostUsd: makkahHotelCost),
+        ]
+        if includeMadinah {
+            components.append(.init(code: "madinah_hotel", label: "Отель в Медине", supplierCostUsd: madinahHotelCost))
+        }
+        components.append(contentsOf: [
+            .init(code: "visa", label: "Визы", supplierCostUsd: visa),
+            .init(code: "meals", label: "Питание", supplierCostUsd: meals),
+            .init(code: "transfers", label: "Трансферы", supplierCostUsd: transfer),
+        ])
+        if intercity > 0 {
+            components.append(.init(code: "haramain_train", label: "Поезд Haramain", supplierCostUsd: intercity))
+        }
+        components.append(.init(code: "accompaniment", label: "Сопровождение", supplierCostUsd: guide))
+        components.append(.init(code: "ziyarat_makkah", label: "Зиярат в Мекке", supplierCostUsd: makkahZiyaratPerGroupUsd))
+        if includeMadinah {
+            components.append(.init(code: "ziyarat_madinah", label: "Зиярат в Медине", supplierCostUsd: madinahZiyaratPerGroupUsd))
+        }
+        // iumrah Care is included operationally. Its launch supplier allocation is
+        // zero until Business assigns an internal cost in the editable report.
+        components.append(.init(code: "care", label: "iumrah Care", supplierCostUsd: 0))
+
+        let observedFare = journeyOffer.fareAmount ?? journeyFareUsd
+        let pricingSnapshot = GeneratorPricingSnapshot(
+            quoteId: quoteId,
+            pricingVersion: "local-one-package-v3",
+            currency: "USD",
+            context: .init(
+                tier: trip.packageTier.rawValue,
+                tripType: trip.resolvedFlightTripType.rawValue,
+                includeMadinah: includeMadinah,
+                totalDays: stay.totalDays,
+                travelers: .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms),
+                roomCount: max(makkahHotel.rooms, madinahHotel?.rooms ?? 0),
+                vehicleCount: vehicles
+            ),
+            selectedPricingInputs: .init(
+                journeyFare: .init(
+                    candidateId: journeyOffer.providerItineraryID ?? journeyOffer.sourceCandidateID ?? journeyOffer.id,
+                    amount: observedFare,
+                    currency: journeyOffer.currency.uppercased(),
+                    fareScope: journeyScope.rawValue,
+                    providerId: journeyOffer.sourceLabel,
+                    observedAt: isoDateTime(journeyOffer.fareObservedAt ?? Date()),
+                    travelDate: day(journeyOffer.departureAt),
+                    normalizedGroupUsd: flights
+                ),
+                makkahHotel: hotelInput(makkahHotel),
+                madinahHotel: includeMadinah ? madinahHotel.map(hotelInput) : nil
+            ),
+            components: components,
+            totals: .init(
+                supplierCostUsd: totalCost,
+                markupRate: packageMarkupRate,
+                markupAmountUsd: markupAmount,
+                subtotalAfterMarkupUsd: baseSelling,
+                paymentFeeRate: paymentFeeRate,
+                paymentFeeAmountUsd: paymentFeeAmount,
+                calculatedSellingPriceUsd: calculatedSelling,
+                publicPricePerPilgrimUsd: perPerson,
+                publicTotalUsd: total,
+                roundingDifferenceUsd: roundingDifference,
+                estimatedProfitUsd: estimatedProfit
+            )
+        )
         return PackageQuote(
             totalPackagePrice: total,
             pricePerPerson: perPerson,
             currency: "USD",
-            isEstimated: false,
-            quoteId: "local-\(UUID().uuidString.lowercased())"
+            isEstimated: true,
+            quoteId: quoteId,
+            pricingSnapshot: pricingSnapshot
         )
     }
 
@@ -96,6 +171,32 @@ enum LocalPackagePricingEngine {
         case .perRoomStay: return value.amountUsd * Decimal(max(1, value.rooms))
         case .perRoomNight: return value.amountUsd * Decimal(max(1, value.rooms)) * Decimal(max(1, value.nights))
         }
+    }
+
+    private static func hotelInput(_ value: LocalHotelPriceComponent) -> GeneratorPricingHotelInput {
+        GeneratorPricingHotelInput(
+            amountUsd: value.amountUsd,
+            unit: value.unit.rawValue,
+            nights: value.nights,
+            hotelId: value.hotelId,
+            roomId: value.roomId,
+            pricingMode: value.source
+        )
+    }
+
+    private static func isoDateTime(_ value: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: value)
+    }
+
+    private static func day(_ value: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: value)
     }
 
     private static func mealRate(_ tier: PackageTier) -> Decimal {

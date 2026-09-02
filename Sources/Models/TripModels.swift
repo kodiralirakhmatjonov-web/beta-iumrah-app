@@ -81,6 +81,13 @@ enum SaudiArrivalAirport: String, CaseIterable, Codable, Identifiable, Hashable 
     }
 }
 
+enum FlightTripType: String, CaseIterable, Codable, Identifiable, Hashable {
+    case roundTrip
+    case oneWay
+
+    var id: String { rawValue }
+}
+
 struct TripDraft: Codable, Hashable {
     var origin: String = "TAS"
     var originAirport: Airport? = nil
@@ -99,10 +106,15 @@ struct TripDraft: Codable, Hashable {
     var packageTier: PackageTier = .standard
     var scope: JourneyScope = .makkahAndMadinah
     var flightFilters: FlightSearchFilters? = nil
+    /// Optional so drafts saved before one-way search was introduced continue to
+    /// decode. A missing value always means the historical round-trip flow.
+    var flightTripType: FlightTripType? = nil
 
     var travelerCount: Int { adults + children + infants }
     var hotelStayStartDate: Date { saudiArrivalDate ?? departureDate }
     var effectiveFlightFilters: FlightSearchFilters { flightFilters ?? .default }
+    var resolvedFlightTripType: FlightTripType { flightTripType ?? .roundTrip }
+    var isRoundTripFlight: Bool { resolvedFlightTripType == .roundTrip }
     var isWeekendUmrah: Bool { flexibility == .weekend }
 
     var originCode: String {

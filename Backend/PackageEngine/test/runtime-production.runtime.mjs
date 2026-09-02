@@ -202,23 +202,31 @@ test('Ignav proxy uses one flexible open-jaw request and returns multiple comple
     assert.equal(captured.body.children, 1);
     assert.equal(captured.body.infants_on_lap, 1);
     assert.equal(captured.body.legs.length, 2);
-    assert.equal(captured.body.legs[0].max_stops, 1);
+    assert.equal(captured.body.legs[0].max_stops, undefined);
     assert.equal(captured.body.legs[1].origin, 'MED');
-    assert.deepEqual(captured.body.airlines_include, ['HY']);
-    assert.equal(captured.body.allow_self_transfer, false);
+    assert.equal(captured.body.max_price, undefined);
+    assert.equal(captured.body.min_checked_bags, undefined);
+    assert.equal(captured.body.airlines_include, undefined);
+    assert.equal(captured.body.allow_self_transfer, true);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('Ignav proxy keeps an unverified current fare as an indicative price but rejects malformed itinerary timestamps', async () => {
+test('Ignav proxy keeps indicative fares, accepts local-time fallback and rejects malformed timestamps', async () => {
   const originalFetch = globalThis.fetch;
   let call = 0;
   globalThis.fetch = async () => {
     call += 1;
-    const itinerary = call === 1
-      ? validIgnavItinerary({ status: 'unverified' })
-      : validIgnavItinerary({ firstDepartureUTC: null });
+    let itinerary;
+    if (call === 1) {
+      itinerary = validIgnavItinerary({ status: 'unverified' });
+    } else if (call === 2) {
+      itinerary = validIgnavItinerary({ firstDepartureUTC: null });
+    } else {
+      itinerary = validIgnavItinerary({ firstDepartureUTC: null });
+      itinerary.legs[0].segments[0].departure_time_local = 'not-a-date';
+    }
     return new Response(JSON.stringify(validIgnavResponse([itinerary])), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   try {
@@ -229,6 +237,12 @@ test('Ignav proxy keeps an unverified current fare as an indicative price but re
     const indicativeBody = await indicative.json();
     assert.equal(indicativeBody.itineraries.length, 1);
     assert.equal(indicativeBody.itineraries[0].price.status, 'unverified');
+
+    const localFallback = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),
+    }), { IGNAV_API_KEY: 'test-secret' });
+    assert.equal(localFallback.status, 200);
+    assert.equal((await localFallback.json()).itineraries.length, 1);
 
     const malformed = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),
@@ -258,13 +272,18 @@ test('Ignav proxy does not retry non-retryable authentication failures', async (
   }
 });
 
-test('Ignav proxy rejects malformed two-leg requests before upstream call', async () => {
+test('Ignav proxy rejects malformed one-to-two-leg requests before upstream call', async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => { calls += 1; throw new Error('must not call upstream'); };
   try {
     const invalidBodies = [
-      { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' }] },
+      { ...searchBody(), legs: [] },
+      { ...searchBody(), legs: [
+        { origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' },
+        { origin: 'MED', destination: 'TAS', departure_date: '2026-10-10' },
+        { origin: 'TAS', destination: 'DXB', departure_date: '2026-10-11' },
+      ] },
       { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-02-31' }, { origin: 'MED', destination: 'TAS', departure_date: '2026-10-10' }] },
       { ...searchBody(), allow_self_transfer: 'false' },
       { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-10' }, { origin: 'MED', destination: 'TAS', departure_date: '2026-10-03' }] },
@@ -276,6 +295,34 @@ test('Ignav proxy rejects malformed two-leg requests before upstream call', asyn
       assert.equal(response.status, 400);
     }
     assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Ignav proxy accepts one-way searches and returns the complete one-leg fare', async () => {
+  const originalFetch = globalThis.fetch;
+  let captured;
+  globalThis.fetch = async (_url, init) => {
+    captured = JSON.parse(init.body);
+    const itinerary = validIgnavItinerary();
+    itinerary.legs = [itinerary.legs[0]];
+    return new Response(JSON.stringify({
+      legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' }],
+      itineraries: [itinerary],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const body = searchBody({ legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' }] });
+    const response = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    }), { IGNAV_API_KEY: 'test-secret' });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(captured.legs.length, 1);
+    assert.equal(payload.itineraries.length, 1);
+    assert.equal(payload.itineraries[0].legs.length, 1);
+    assert.equal(payload.itineraries[0].price.amount, 612);
   } finally {
     globalThis.fetch = originalFetch;
   }
