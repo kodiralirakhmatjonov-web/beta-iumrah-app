@@ -125,4 +125,8 @@ enum HotelPriceProviderRegistry {
         .init(id: .booking, displayName: "Booking.com", baseURL: URL(string: "https://www.booking.com/")!),
         .init(id: .expedia, displayName: "Expedia", baseURL: URL(string: "https://www.expedia.com/")!)
     ]
+
+    static func provider(_ id: HotelPriceProviderID) -> HotelPriceProvider? {
+        providers.first { $0.id == id }
+    }
 }

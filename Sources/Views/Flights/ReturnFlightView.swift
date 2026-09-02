@@ -142,9 +142,8 @@ struct ReturnFlightView: View {
         let selectedDay = offers.filter { dayOffset($0.departureAt, from: journey.trip.returnDate) == 0 }
         let pool = selectedDay.isEmpty ? offers : selectedDay
         return pool.min { lhs, rhs in
-            // Each offer carries the complete return/open-jaw journey fare.
-            // Recommend the lowest complete-trip price first; stops and duration
-            // only break ties instead of making a much more expensive fare the baseline.
+            // Every row is an independent one-way return ticket. Recommend the
+            // lowest current return fare first; stops and duration break ties.
             if lhs.currency == rhs.currency, lhs.totalPackagePrice != rhs.totalPackagePrice {
                 return lhs.totalPackagePrice < rhs.totalPackagePrice
             }
@@ -165,10 +164,10 @@ struct ReturnFlightView: View {
 
     private var resultCountText: String {
         switch settings.language {
-        case .russian: return "Совместимых актуальных маршрутов: \(offers.count)"
-        case .english: return "Compatible current journeys: \(offers.count)"
-        case .uzbek: return "Mos joriy yo‘nalishlar: \(offers.count)"
-        case .uzbekCyrillic: return "Мос жорий йўналишлар: \(offers.count)"
+        case .russian: return "Найдено билетов обратно: \(offers.count)"
+        case .english: return "Return tickets found: \(offers.count)"
+        case .uzbek: return "Qaytish chiptalari topildi: \(offers.count)"
+        case .uzbekCyrillic: return "Қайтиш чипталари топилди: \(offers.count)"
         }
     }
 

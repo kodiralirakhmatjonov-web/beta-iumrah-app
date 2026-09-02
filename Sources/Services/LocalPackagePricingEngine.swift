@@ -37,9 +37,12 @@ enum LocalPackagePricingEngine {
 
     static func calculate(
         trip: TripDraft,
-        journeyFareUsd: Decimal,
-        journeyScope: FlightFareScope,
-        journeyOffer: FlightOffer,
+        outboundFareUsd: Decimal,
+        outboundScope: FlightFareScope,
+        outboundOffer: FlightOffer,
+        inboundFareUsd: Decimal?,
+        inboundScope: FlightFareScope?,
+        inboundOffer: FlightOffer?,
         makkahHotel: LocalHotelPriceComponent,
         madinahHotel: LocalHotelPriceComponent?
     ) throws -> PackageQuote {
@@ -47,9 +50,20 @@ enum LocalPackagePricingEngine {
         let vehicles = max(1, Int(ceil(Double(travelers) / Double(sedanCapacity))))
         let stay = TripStayPlanner.breakdown(for: trip)
 
-        // Ignav flexible search already returns one price for the complete ordered
-        // outbound + return/open-jaw itinerary. Consume it exactly once.
-        let flights = try groupFare(journeyFareUsd, scope: journeyScope, travelers: travelers)
+        // Independent-flight architecture: each selected one-way ticket has its own
+        // supplier fare. A round trip is the sum of the two selected one-way fares.
+        let outboundFlights = try groupFare(outboundFareUsd, scope: outboundScope, travelers: travelers)
+        let inboundFlights: Decimal
+        if trip.isRoundTripFlight {
+            guard let inboundFareUsd, let inboundScope, inboundOffer != nil else {
+                throw LocalPricingError.invalidFlightFare
+            }
+            inboundFlights = try groupFare(inboundFareUsd, scope: inboundScope, travelers: travelers)
+        } else {
+            inboundFlights = 0
+        }
+        let flights = outboundFlights + inboundFlights
+
         let makkahHotelCost = hotelCost(makkahHotel)
         let madinahHotelCost = trip.scope == .makkahAndMadinah ? hotelCost(madinahHotel) : 0
         let hotels = makkahHotelCost + madinahHotelCost
@@ -78,10 +92,14 @@ enum LocalPackagePricingEngine {
         let paymentFeeAmount = calculatedSelling - baseSelling
         let roundingDifference = total - calculatedSelling
         let estimatedProfit = total - totalCost - paymentFeeAmount
+
         var components: [GeneratorPricingComponent] = [
-            .init(code: "flights", label: trip.isRoundTripFlight ? "Авиабилеты туда и обратно" : "Авиабилет в одну сторону", supplierCostUsd: flights),
-            .init(code: "makkah_hotel", label: "Отель в Мекке", supplierCostUsd: makkahHotelCost),
+            .init(code: "flight_outbound", label: "Авиабилет туда", supplierCostUsd: outboundFlights)
         ]
+        if trip.isRoundTripFlight {
+            components.append(.init(code: "flight_inbound", label: "Авиабилет обратно", supplierCostUsd: inboundFlights))
+        }
+        components.append(.init(code: "makkah_hotel", label: "Отель в Мекке", supplierCostUsd: makkahHotelCost))
         if includeMadinah {
             components.append(.init(code: "madinah_hotel", label: "Отель в Медине", supplierCostUsd: madinahHotelCost))
         }
@@ -102,10 +120,9 @@ enum LocalPackagePricingEngine {
         // zero until Business assigns an internal cost in the editable report.
         components.append(.init(code: "care", label: "iumrah Care", supplierCostUsd: 0))
 
-        let observedFare = journeyOffer.fareAmount ?? journeyFareUsd
         let pricingSnapshot = GeneratorPricingSnapshot(
             quoteId: quoteId,
-            pricingVersion: "local-one-package-v3",
+            pricingVersion: "local-independent-flights-v4",
             currency: "USD",
             context: .init(
                 tier: trip.packageTier.rawValue,
@@ -117,16 +134,21 @@ enum LocalPackagePricingEngine {
                 vehicleCount: vehicles
             ),
             selectedPricingInputs: .init(
-                journeyFare: .init(
-                    candidateId: journeyOffer.providerItineraryID ?? journeyOffer.sourceCandidateID ?? journeyOffer.id,
-                    amount: observedFare,
-                    currency: journeyOffer.currency.uppercased(),
-                    fareScope: journeyScope.rawValue,
-                    providerId: journeyOffer.sourceLabel,
-                    observedAt: isoDateTime(journeyOffer.fareObservedAt ?? Date()),
-                    travelDate: day(journeyOffer.departureAt),
-                    normalizedGroupUsd: flights
+                journeyFare: nil,
+                outbound: fareInput(
+                    offer: outboundOffer,
+                    originalAmount: outboundOffer.fareAmount ?? outboundFareUsd,
+                    scope: outboundScope,
+                    normalizedGroupUsd: outboundFlights
                 ),
+                inbound: trip.isRoundTripFlight ? inboundOffer.map { offer in
+                    fareInput(
+                        offer: offer,
+                        originalAmount: offer.fareAmount ?? inboundFareUsd ?? 0,
+                        scope: inboundScope ?? .unknown,
+                        normalizedGroupUsd: inboundFlights
+                    )
+                } : nil,
                 makkahHotel: hotelInput(makkahHotel),
                 madinahHotel: includeMadinah ? madinahHotel.map(hotelInput) : nil
             ),
@@ -171,6 +193,24 @@ enum LocalPackagePricingEngine {
         case .perRoomStay: return value.amountUsd * Decimal(max(1, value.rooms))
         case .perRoomNight: return value.amountUsd * Decimal(max(1, value.rooms)) * Decimal(max(1, value.nights))
         }
+    }
+
+    private static func fareInput(
+        offer: FlightOffer,
+        originalAmount: Decimal,
+        scope: FlightFareScope,
+        normalizedGroupUsd: Decimal
+    ) -> GeneratorPricingFare {
+        GeneratorPricingFare(
+            candidateId: offer.providerItineraryID ?? offer.sourceCandidateID ?? offer.id,
+            amount: originalAmount,
+            currency: offer.currency.uppercased(),
+            fareScope: scope.rawValue,
+            providerId: offer.sourceLabel,
+            observedAt: isoDateTime(offer.fareObservedAt ?? Date()),
+            travelDate: day(offer.departureAt),
+            normalizedGroupUsd: normalizedGroupUsd
+        )
     }
 
     private static func hotelInput(_ value: LocalHotelPriceComponent) -> GeneratorPricingHotelInput {

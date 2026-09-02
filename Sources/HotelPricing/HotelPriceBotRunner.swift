@@ -118,14 +118,34 @@ final class HotelPriceBotRunner {
             return candidate
         } ?? sourceURL
 
+        // Normalize the provider widget to ONE invariant before it reaches package
+        // pricing: total cost for this requested hotel stay and room count. Downstream
+        // code therefore never has to guess whether a scraped number was nightly.
+        let calendar = Calendar(identifier: .gregorian)
+        let nights = max(1, calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: request.checkIn),
+            to: calendar.startOfDay(for: request.checkOut)
+        ).day ?? 1)
+        let totalStayAmount: Decimal
+        switch parsed.unit {
+        case .totalStay:
+            totalStayAmount = parsed.amount
+        case .perRoomStay:
+            totalStayAmount = parsed.amount * Decimal(max(1, request.rooms))
+        case .perRoomNight:
+            totalStayAmount = parsed.amount * Decimal(max(1, request.rooms)) * Decimal(nights)
+        }
+        guard totalStayAmount > 0 else { return nil }
+
         return HotelPriceObservation(
             id: UUID().uuidString,
             hotelId: request.hotel.id,
             hotelName: request.hotel.name,
             city: request.city,
-            amount: parsed.amount,
+            amount: totalStayAmount,
             currency: parsed.currency,
-            unit: parsed.unit,
+            unit: .totalStay,
             providerId: provider.id,
             providerName: provider.displayName,
             observedAt: Self.isoFormatter.string(from: Date()),

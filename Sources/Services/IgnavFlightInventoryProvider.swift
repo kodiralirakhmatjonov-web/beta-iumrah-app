@@ -222,8 +222,9 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
             arrivalAt: last.arrivalAt,
             stops: leg.stops,
             durationMinutes: leg.durationMinutes,
-            // Every leg carries the same complete-journey fare. The local package
-            // engine consumes it only once from the selected return option.
+            // This candidate carries the fare for the exact itinerary requested.
+            // Production generator searches one leg at a time, so this is the real
+            // one-way supplier fare for the submitted passenger mix.
             observedFare: itinerary.price.amount,
             observedCurrency: itinerary.price.currency,
             fareScope: .totalParty,
@@ -243,9 +244,23 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
 
     private nonisolated static func merge(_ lhs: [LiveFlightJourneyCandidate], _ rhs: [LiveFlightJourneyCandidate]) -> [LiveFlightJourneyCandidate] {
         var result = lhs
-        var ids = Set(result.map(\.providerItineraryID))
-        for value in rhs where ids.insert(value.providerItineraryID).inserted { result.append(value) }
+        var keys = Set(result.map { resultKey($0) })
+        for value in rhs where keys.insert(resultKey(value)).inserted { result.append(value) }
         return result
+    }
+
+    /// Ignav may reuse one itinerary ID across fare/baggage variants. Collapse only
+    /// byte-equivalent normalized rows so the app can surface every distinct price
+    /// returned by the provider.
+    private nonisolated static func resultKey(_ journey: LiveFlightJourneyCandidate) -> String {
+        let fare = NSDecimalNumber(decimal: journey.totalFare).stringValue
+        let departure = Int(journey.outbound.departureAt.timeIntervalSince1970)
+        let arrival = Int(journey.outbound.arrivalAt.timeIntervalSince1970)
+        let baggage = "\(journey.baggage?.carryOn ?? -1):\(journey.baggage?.checked ?? -1)"
+        let transfer = journey.requiresSelfTransfer.map { $0 ? "self" : "protected" } ?? "unknown"
+        return [journey.providerItineraryID, fare, journey.currency.uppercased(), String(departure), String(arrival), baggage, transfer]
+            .joined(separator: "|")
+            .lowercased()
     }
 
     private nonisolated static func parseISO8601(_ value: String) throws -> Date {

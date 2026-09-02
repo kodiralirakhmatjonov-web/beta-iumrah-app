@@ -17,7 +17,13 @@ struct BookingService {
 
 
 
-    func syncBookingProfile(id: String, accessToken: String, profile: BookingPilgrimProfile, generatorTrace: BookingGeneratorTrace? = nil) async throws -> ClientTripResponse {
+    func syncBookingProfile(
+        id: String,
+        accessToken: String,
+        profile: BookingPilgrimProfile,
+        generatorTrace: BookingGeneratorTrace? = nil,
+        pricingSnapshot: GeneratorPricingSnapshot? = nil
+    ) async throws -> ClientTripResponse {
         let response: ClientTripResponse = try await api.post(
             "/api/catalog/hotels/client/trips/\(id)/sync",
             body: BookingProfileSyncRequest(
@@ -26,7 +32,28 @@ struct BookingService {
                 displayName: profile.displayName,
                 telegram: profile.telegram,
                 whatsapp: profile.whatsapp,
-                generatorTrace: generatorTrace
+                generatorTrace: generatorTrace,
+                pricingSnapshot: pricingSnapshot
+            ),
+            headers: ["x-booking-token": accessToken]
+        )
+        return response
+    }
+
+    /// Persists the exact immutable generator audit report into the operational
+    /// iumrah Business trip immediately after booking creation. This does not depend
+    /// on the pilgrim having already completed profile fields.
+    func syncGeneratorReport(
+        id: String,
+        accessToken: String,
+        generatorTrace: BookingGeneratorTrace?,
+        pricingSnapshot: GeneratorPricingSnapshot?
+    ) async throws -> ClientTripResponse {
+        let response: ClientTripResponse = try await api.post(
+            "/api/catalog/hotels/client/trips/\(id)/sync",
+            body: BookingGeneratorReportSyncRequest(
+                generatorTrace: generatorTrace,
+                pricingSnapshot: pricingSnapshot
             ),
             headers: ["x-booking-token": accessToken]
         )
@@ -141,4 +168,10 @@ private struct BookingProfileSyncRequest: Encodable {
     let telegram: String
     let whatsapp: String
     let generatorTrace: BookingGeneratorTrace?
+    let pricingSnapshot: GeneratorPricingSnapshot?
+}
+
+private struct BookingGeneratorReportSyncRequest: Encodable {
+    let generatorTrace: BookingGeneratorTrace?
+    let pricingSnapshot: GeneratorPricingSnapshot?
 }

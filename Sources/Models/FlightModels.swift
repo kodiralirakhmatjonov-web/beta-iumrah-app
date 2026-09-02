@@ -249,10 +249,18 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     /// leg, baggage or complete-journey fare. UI result merging must preserve those
     /// offers instead of collapsing them by the physical-leg deduplication key.
     var resultIdentityKey: String {
-        if let providerItineraryID, !providerItineraryID.isEmpty {
-            return "\(direction.rawValue)|\(providerItineraryID)".lowercased()
-        }
-        return "\(direction.rawValue)|\(id)".lowercased()
+        // Preserve every distinct provider fare row. Some providers reuse an
+        // itinerary identifier across fare/baggage variants, so provider ID alone
+        // is not a sufficient UI identity key.
+        let provider = providerItineraryID?.nilIfBlank ?? id
+        let fare = fareAmount.map { NSDecimalNumber(decimal: $0).stringValue } ?? NSDecimalNumber(decimal: totalPackagePrice).stringValue
+        let departure = Int(departureAt.timeIntervalSince1970)
+        let arrival = Int(arrivalAt.timeIntervalSince1970)
+        let baggageKey = "\(baggage?.carryOn ?? -1):\(baggage?.checked ?? -1)"
+        let transferKey = requiresSelfTransfer.map { $0 ? "self" : "protected" } ?? "unknown"
+        return [direction.rawValue, provider, fare, currency.uppercased(), String(departure), String(arrival), baggageKey, transferKey]
+            .joined(separator: "|")
+            .lowercased()
     }
 
     var displaySegments: [FlightSegment] {
@@ -380,14 +388,14 @@ struct GeneratorPricingContext: Hashable, Codable {
 }
 
 struct GeneratorPricingInputs: Hashable, Codable {
-    let journeyFare: GeneratorPricingFare
+    let journeyFare: GeneratorPricingFare?
     let outbound: GeneratorPricingFare?
     let inbound: GeneratorPricingFare?
     let makkahHotel: GeneratorPricingHotelInput
     let madinahHotel: GeneratorPricingHotelInput?
 
     init(
-        journeyFare: GeneratorPricingFare,
+        journeyFare: GeneratorPricingFare? = nil,
         outbound: GeneratorPricingFare? = nil,
         inbound: GeneratorPricingFare? = nil,
         makkahHotel: GeneratorPricingHotelInput,

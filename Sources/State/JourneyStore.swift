@@ -214,18 +214,6 @@ final class JourneyStore: ObservableObject {
         scheduleHotelPricePrefetch()
     }
 
-    /// A row on the results screen represents one complete provider itinerary.
-    /// Selecting it therefore selects both legs atomically for a round trip; the
-    /// pilgrim is never asked to combine unrelated one-way fares afterwards.
-    func chooseFlightJourney(_ offer: FlightOffer) {
-        chooseOutboundFlight(offer)
-        if trip.isRoundTripFlight, let inbound = flightService.pairedInbound(for: offer) {
-            chooseInboundFlight(inbound)
-        } else {
-            selectedInbound = nil
-        }
-    }
-
     func chooseInboundFlight(_ offer: FlightOffer) {
         selectedInbound = offer
         quote = nil
@@ -238,9 +226,6 @@ final class JourneyStore: ObservableObject {
         if selectedDay > trip.departureDate, !Calendar.current.isDate(selectedDay, inSameDayAs: trip.returnDate) {
             trip.returnDate = selectedDay
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
-        }
-        if let paired = (flightService as? AutomaticFlightSearchService)?.pairedOutbound(for: offer) {
-            selectedOutbound = paired
         }
         scheduleHotelPricePrefetch()
     }
@@ -346,28 +331,29 @@ final class JourneyStore: ObservableObject {
     func buildQuote(forceHotelRefresh: Bool = false) async {
         guard let hotel = selectedHotel,
               let outbound = selectedOutbound,
-              outbound.isVerifiedForBooking else {
+              outbound.isVerifiedForBooking,
+              let outboundFare = outbound.fareAmount,
+              let outboundScope = outbound.fareScope else {
             errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
             quote = nil
             return
         }
-        let pricingOffer: FlightOffer
+
+        let inbound: FlightOffer?
         if trip.isRoundTripFlight {
-            guard let inbound = selectedInbound, inbound.isVerifiedForBooking else {
+            guard let value = selectedInbound,
+                  value.isVerifiedForBooking,
+                  value.fareAmount != nil,
+                  value.fareScope != nil else {
                 errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
                 quote = nil
                 return
             }
-            pricingOffer = inbound
+            inbound = value
         } else {
-            pricingOffer = outbound
+            inbound = nil
         }
-        guard let journeyFare = pricingOffer.fareAmount,
-              let journeyScope = pricingOffer.fareScope else {
-            errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
-            quote = nil
-            return
-        }
+
         if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil {
             errorMessage = LocalPricingError.missingHotelPrice("Madinah").localizedDescription
             quote = nil
@@ -389,9 +375,18 @@ final class JourneyStore: ObservableObject {
                     forceRefresh: forceHotelRefresh
                 )
             }
-            // The selected return option carries Ignav's complete two-leg itinerary fare.
-            // Never add outbound and inbound again: that would double-count the same return ticket.
-            let journeyFareUsd = try await LocalFXRateService.shared.usd(journeyFare, currency: pricingOffer.currency)
+
+            // Each selected leg is a real independent one-way Ignav fare. Convert and
+            // price them independently; a round trip is their sum, never a hidden
+            // complete-itinerary fare copied onto both screens.
+            let outboundFareUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
+            let inboundFareUsd: Decimal?
+            if let inbound, let fare = inbound.fareAmount {
+                inboundFareUsd = try await LocalFXRateService.shared.usd(fare, currency: inbound.currency)
+            } else {
+                inboundFareUsd = nil
+            }
+
             let makkah = try await resolveHotelComponent(
                 hotel: hotel,
                 city: "Makkah",
@@ -413,11 +408,15 @@ final class JourneyStore: ObservableObject {
             }
             pricingMakkahRoomID = makkah.roomId
             pricingMadinahRoomID = madinah?.roomId
+
             quote = try LocalPackagePricingEngine.calculate(
                 trip: trip,
-                journeyFareUsd: journeyFareUsd,
-                journeyScope: journeyScope,
-                journeyOffer: pricingOffer,
+                outboundFareUsd: outboundFareUsd,
+                outboundScope: outboundScope,
+                outboundOffer: outbound,
+                inboundFareUsd: inboundFareUsd,
+                inboundScope: inbound?.fareScope,
+                inboundOffer: inbound,
                 makkahHotel: makkah,
                 madinahHotel: madinah
             )
@@ -445,10 +444,10 @@ final class JourneyStore: ObservableObject {
             throw LocalPricingError.missingHotelPrice(city)
         }
 
-        let bedOccupants = max(1, trip.adults + trip.children)
-        let capacity = max(1, roomCapacity ?? 4)
-        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / Double(capacity))))
-        let effectiveRooms = max(trip.rooms, minimumRooms)
+        // Hotel bots price the requested hotel stay. Internal Double/Triple/Quadruple
+        // categories do not change provider pricing; only the trip room count does.
+        _ = roomCapacity
+        let effectiveRooms = max(1, trip.rooms)
         var verified: [(component: LocalHotelPriceComponent, totalUsd: Decimal)] = []
 
         for observation in observations where observation.isUsable(

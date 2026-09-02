@@ -372,8 +372,9 @@ function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeo
     source: "ignav",
     source_name: "Ignav",
     observed_at: observedAt,
-    // Ignav returns the price for the passenger mix submitted in this search.
-    // Keep it as one complete-trip party amount so the client never adds the two legs.
+    // Ignav returns the fare for the passenger mix submitted in this request.
+    // Generator production sends one leg per search; `total_party` therefore means
+    // the supplier cost of that selected one-way ticket for the whole party.
     fare_scope: "total_party",
     price: { amount: price.amount, currency, status: String(price.status || "unverified") },
     legs,

@@ -135,7 +135,7 @@ struct OutboundFlightView: View {
         if let offer = row.offer {
             VStack(spacing: 10) {
                 Button {
-                    journey.chooseFlightJourney(offer)
+                    journey.chooseOutboundFlight(offer)
                     IumrahHaptics.selection()
                 } label: {
                     FlightCard(
@@ -171,9 +171,8 @@ struct OutboundFlightView: View {
         let selectedDay = offers.filter { dayOffset($0.departureAt, from: journey.trip.departureDate) == 0 }
         let pool = selectedDay.isEmpty ? offers : selectedDay
         return pool.min { lhs, rhs in
-            // Each offer carries the complete return/open-jaw journey fare.
-            // Recommend the lowest complete-trip price first; stops and duration
-            // only break ties instead of making a much more expensive fare the baseline.
+            // Every row is an independent one-way outbound ticket. Recommend the
+            // lowest current outbound fare first; stops and duration break ties.
             if lhs.currency == rhs.currency, lhs.totalPackagePrice != rhs.totalPackagePrice {
                 return lhs.totalPackagePrice < rhs.totalPackagePrice
             }
@@ -270,7 +269,7 @@ struct OutboundFlightView: View {
     private func selectRecommendedIfNeeded() {
         guard let recommendedOffer else { return }
         if journey.selectedOutbound == nil {
-            journey.chooseFlightJourney(recommendedOffer)
+            journey.chooseOutboundFlight(recommendedOffer)
         }
     }
 
@@ -278,7 +277,11 @@ struct OutboundFlightView: View {
         VStack(spacing: 0) {
             Divider().opacity(0.35)
             NavigationLink {
-                FinalPackageView()
+                if journey.trip.isRoundTripFlight {
+                    ReturnFlightView()
+                } else {
+                    FinalPackageView()
+                }
             } label: {
                 HStack(spacing: 10) {
                     Text(continuePackageTitle)
@@ -366,12 +369,12 @@ struct OutboundFlightView: View {
     private var hasVerifiedResults: Bool { !offers.isEmpty }
 
     private var hasCompleteSelection: Bool {
-        journey.selectedOutbound != nil && (!journey.trip.isRoundTripFlight || journey.selectedInbound != nil)
+        journey.selectedOutbound != nil
     }
 
     private var visibleOffers: [FlightOffer] {
         let filtered = offers.filter { offer in
-            let stops = max(offer.stops, offer.pairedLeg?.stops ?? 0)
+            let stops = offer.stops
             let matchesStops: Bool
             switch stopsFilter {
             case .all: matchesStops = true
@@ -392,14 +395,14 @@ struct OutboundFlightView: View {
                 if lhs.id == recommendedOfferID { return true }
                 if rhs.id == recommendedOfferID { return false }
                 if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
-                let leftStops = max(lhs.stops, lhs.pairedLeg?.stops ?? 0)
-                let rightStops = max(rhs.stops, rhs.pairedLeg?.stops ?? 0)
+                let leftStops = lhs.stops
+                let rightStops = rhs.stops
                 if leftStops != rightStops { return leftStops < rightStops }
             case .cheapest:
                 if lhs.totalPackagePrice != rhs.totalPackagePrice { return lhs.totalPackagePrice < rhs.totalPackagePrice }
             case .fastest:
-                let leftDuration = lhs.durationMinutes + (lhs.pairedLeg?.durationMinutes ?? 0)
-                let rightDuration = rhs.durationMinutes + (rhs.pairedLeg?.durationMinutes ?? 0)
+                let leftDuration = lhs.durationMinutes
+                let rightDuration = rhs.durationMinutes
                 if leftDuration != rightDuration { return leftDuration < rightDuration }
             }
             return lhs.departureAt < rhs.departureAt
@@ -411,9 +414,8 @@ struct OutboundFlightView: View {
     }
 
     private func airlineCodes(for offer: FlightOffer) -> [String] {
-        let outbound = [offer.airlineCode, offer.primaryAirlineCode] + offer.displaySegments.map(\.airlineCode)
-        let inbound = [offer.pairedLeg?.primaryAirlineCode] + (offer.pairedLeg?.segments ?? []).map(\.airlineCode)
-        return Array(Set((outbound + inbound).compactMap { code in
+        let leg = [offer.airlineCode, offer.primaryAirlineCode] + offer.displaySegments.map(\.airlineCode)
+        return Array(Set(leg.compactMap { code in
             guard let code = code?.uppercased(), code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return nil }
             return code
         }))
@@ -433,6 +435,14 @@ struct OutboundFlightView: View {
     }
 
     private var continuePackageTitle: String {
+        if journey.trip.isRoundTripFlight {
+            switch settings.language {
+            case .russian: return "Выбрать билет туда"
+            case .english: return "Select outbound ticket"
+            case .uzbek: return "Borish chiptasini tanlash"
+            case .uzbekCyrillic: return "Бориш чиптасини танлаш"
+            }
+        }
         switch settings.language {
         case .russian: return "Выбрать билет и рассчитать пакет"
         case .english: return "Select ticket and calculate package"
@@ -575,7 +585,8 @@ struct OutboundFlightView: View {
     }
 
     private func isValidOutboundDate(_ date: Date, airportCode: String) -> Bool {
-        travelDay(date, airportCode: airportCode) < Calendar.current.startOfDay(for: journey.trip.returnDate)
+        guard journey.trip.isRoundTripFlight else { return true }
+        return travelDay(date, airportCode: airportCode) < Calendar.current.startOfDay(for: journey.trip.returnDate)
     }
 
     private func travelDay(_ date: Date, airportCode: String) -> Date {

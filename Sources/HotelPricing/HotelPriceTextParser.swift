@@ -7,48 +7,48 @@ enum HotelPriceTextParser {
         let unit: HotelPriceUnit
     }
 
+    /// Parses only a price that has an explicit stay/total or per-night meaning.
+    /// Generic money elsewhere in the page is deliberately ignored: taxes, loyalty
+    /// credits and crossed-out prices must never become the package hotel cost.
     static func parse(text: String, priceText: String, metaText: String) -> ParsedPrice? {
-        let lower = text.lowercased()
+        let bodyLower = text.lowercased()
         let preferred = "\(metaText) \(priceText)"
         let preferredLower = preferred.lowercased()
-        let hasStayContext = containsStayContext(preferredLower) || containsStayContext(lower)
-        let perNight = containsPerNightContext(preferredLower) || containsPerNightContext(lower)
         let promotionalMarkers = ["starting at", "prices from", "price from", "rates from", "dan boshlab"]
-        let currencyFrom = lower.range(
+        let currencyFrom = bodyLower.range(
             of: #"\bfrom\s+(?:US\$|USD|[$€£]|EUR|SAR|AED|GBP)"#,
             options: .regularExpression
         ) != nil
-        let russianFrom = lower.range(
+        let russianFrom = bodyLower.range(
             of: #"\bот\s+(?:US\$|USD|[$€£]|EUR|SAR|AED|GBP|[0-9])"#,
             options: .regularExpression
         ) != nil
-        guard !promotionalMarkers.contains(where: { lower.contains($0) }), !currencyFrom, !russianFrom else { return nil }
+        guard !promotionalMarkers.contains(where: { bodyLower.contains($0) }),
+              !currencyFrom,
+              !russianFrom else { return nil }
 
-        // Prefer an explicitly labelled total from the compact price surface. The
-        // full card/page body may also contain taxes, loyalty credits or unrelated
-        // room prices, so it is deliberately considered only second.
+        // Strongest signal: an explicit total/stay label adjacent to the amount.
         if let total = moneyNearStayContext(in: preferred) ?? moneyNearStayContext(in: text) {
             return ParsedPrice(amount: total.amount, currency: total.currency, unit: .totalStay)
         }
 
+        // We only infer a unit from the compact provider price/meta widget. A random
+        // "night" word elsewhere in the hotel page cannot change the unit anymore.
         let priceValues = moneyValues(in: priceText)
         let metaValues = moneyValues(in: metaText)
-        let allValues = !priceValues.isEmpty ? priceValues : (!metaValues.isEmpty ? metaValues : moneyValues(in: text))
-        guard !allValues.isEmpty else { return nil }
+        let values = !priceValues.isEmpty ? priceValues : metaValues
+        guard !values.isEmpty else { return nil }
 
-        // A minimum is safe only inside provider elements explicitly identified as
-        // room-price widgets. It selects the current discounted/entry room rate
-        // without repeating the old bug of taking a tiny tax or loyalty credit from
-        // the whole page. Less precise meta/body fallbacks keep the last active value.
-        let value = priceValues.min(by: { $0.amount < $1.amount }) ?? allValues.last!
-        if perNight && !hasStayContext {
+        // Booking commonly renders a crossed-out old price plus the active discounted
+        // price in the same price widget. The lower value is the current payable rate;
+        // this rule is intentionally limited to that compact price widget.
+        let value = priceValues.min(by: { $0.amount < $1.amount }) ?? values.last!
+        if containsPerNightContext(preferredLower) {
             return ParsedPrice(amount: value.amount, currency: value.currency, unit: .perRoomNight)
         }
-
-        if hasStayContext {
+        if containsStayContext(preferredLower) {
             return ParsedPrice(amount: value.amount, currency: value.currency, unit: .totalStay)
         }
-
         return nil
     }
 
@@ -107,10 +107,13 @@ enum HotelPriceTextParser {
         for pattern in patterns {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
             let ns = text as NSString
-            guard let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)), match.numberOfRanges >= 3 else { continue }
+            guard let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)),
+                  match.numberOfRanges >= 3 else { continue }
             let symbol = ns.substring(with: match.range(at: 1))
             let raw = ns.substring(with: match.range(at: 2))
-            if let amount = normalizedDecimal(raw), amount > 0 { return (amount, currency(symbol)) }
+            if let amount = normalizedDecimal(raw), amount > 0 {
+                return (amount, currency(symbol))
+            }
         }
         return nil
     }
@@ -122,8 +125,9 @@ enum HotelPriceTextParser {
         ) else { return [] }
         let ns = text as NSString
         return regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).compactMap { match in
-            guard match.numberOfRanges >= 3 else { return nil }
-            guard let amount = normalizedDecimal(ns.substring(with: match.range(at: 2))), amount > 0 else { return nil }
+            guard match.numberOfRanges >= 3,
+                  let amount = normalizedDecimal(ns.substring(with: match.range(at: 2))),
+                  amount > 0 else { return nil }
             return (amount, currency(ns.substring(with: match.range(at: 1))))
         }
     }

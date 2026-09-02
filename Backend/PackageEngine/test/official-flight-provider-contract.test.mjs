@@ -39,7 +39,7 @@ const clientProvider = fs.readFileSync(new URL('../../../Sources/Services/IgnavF
 assert.match(ignav, /IGNAV_BASE_URL}\/fares\/search/);
 assert.match(ignav, /raw\.legs\.length < 1 \|\| raw\.legs\.length > 2/);
 assert.match(ignav, /itinerary\.legs\.length !== request\.legs\.length/);
-assert.ok(!ignav.includes('/fares/one-way'), 'Umrah flight search must not price outbound and return as separate one-way products');
+assert.ok(!ignav.includes('/fares/one-way'), 'Ignav integration continues to use the supported /fares/search endpoint for one- or two-leg requests');
 assert.match(ignav, /String\(price\.status \|\| "unverified"\)/, 'current search-price hints must remain usable without final-price confirmation');
 assert.match(ignav, /recordSuccessfulIgnavRequest/);
 assert.match(ignav, /successful_requests = successful_requests \+ 1/);
@@ -47,4 +47,4 @@ assert.match(clientProvider, /allowSelfTransfer = true/);
 assert.match(clientProvider, /minCarryOnBags = nil/);
 assert.match(clientProvider, /airlinesInclude = nil/);
 
-console.log('flight/server cleanup + complete Ignav inventory boundary contract OK');
+console.log('flight/server cleanup + full Ignav inventory boundary contract OK');

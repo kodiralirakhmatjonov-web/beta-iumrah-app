@@ -397,26 +397,26 @@ struct FlightDetailsView: View {
 
     private var selfTransferTitle: String {
         switch settings.language {
-        case .russian: return "Билеты на пересадке"
-        case .english: return "Connection tickets"
-        case .uzbek: return "Ulanish chiptalari"
-        case .uzbekCyrillic: return "Уланиш чипталари"
+        case .russian: return "Пересадка"
+        case .english: return "Connection"
+        case .uzbek: return "Ulanish"
+        case .uzbekCyrillic: return "Уланиш"
         }
     }
     private var selfTransferRequired: String {
         switch settings.language {
-        case .russian: return "Отдельные билеты"
-        case .english: return "Separate tickets"
-        case .uzbek: return "Alohida chiptalar"
-        case .uzbekCyrillic: return "Алоҳида чипталар"
+        case .russian: return "Самостоятельная пересадка"
+        case .english: return "Self-transfer"
+        case .uzbek: return "Mustaqil transfer"
+        case .uzbekCyrillic: return "Мустақил трансфер"
         }
     }
     private var selfTransferNotRequired: String {
         switch settings.language {
-        case .russian: return "Отдельные билеты не обнаружены"
-        case .english: return "No separate tickets detected"
-        case .uzbek: return "Alohida chiptalar aniqlanmadi"
-        case .uzbekCyrillic: return "Алоҳида чипталар аниқланмади"
+        case .russian: return "Не требуется"
+        case .english: return "Not required"
+        case .uzbek: return "Talab qilinmaydi"
+        case .uzbekCyrillic: return "Талаб қилинмайди"
         }
     }
 

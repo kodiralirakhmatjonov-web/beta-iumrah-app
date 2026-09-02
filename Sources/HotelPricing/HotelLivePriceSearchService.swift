@@ -116,50 +116,43 @@ final class HotelLivePriceSearchService {
         inFlight.removeAll()
     }
 
-    /// Verifies Makkah and Madinah concurrently without allowing more than two
-    /// hotel WKWebViews at once on smaller iPhones. Each provider is one round:
-    /// Booking checks both cities in parallel, then Expedia checks both cities.
-    /// This preserves cross-provider comparison while removing the old city-by-city
-    /// serialization that delayed Madinah verification.
+    /// Booking.com is the primary current-price bot. It checks Makkah and Madinah
+    /// concurrently. Expedia is used only for a city whose Booking lookup failed.
+    /// This avoids conflicting provider units and unnecessary duplicate WebViews.
     private func searchHotelsProgressively(
         makkah: HotelPriceSearchRequest,
         madinah: HotelPriceSearchRequest?
     ) async -> (makkah: [HotelPriceObservation], madinah: [HotelPriceObservation]) {
+        guard let booking = HotelPriceProviderRegistry.provider(.booking),
+              let expedia = HotelPriceProviderRegistry.provider(.expedia) else {
+            return ([], [])
+        }
+
+        let deadline = Date().addingTimeInterval(AppConfig.hotelPriceSearchHardTimeoutSeconds)
         guard let madinah else {
-            return (await searchHotel(makkah), [])
-        }
-
-        let deadline = Date().addingTimeInterval(AppConfig.hotelPriceSearchHardTimeoutSeconds)
-        var makkahValues: [HotelPriceObservation] = []
-        var madinahValues: [HotelPriceObservation] = []
-
-        for provider in HotelPriceProviderRegistry.providers {
-            guard Date() < deadline else { break }
-            async let makkahValue = search(provider: provider, request: makkah, deadline: deadline)
-            async let madinahValue = search(provider: provider, request: madinah, deadline: deadline)
-            let pair = await (makkahValue, madinahValue)
-            if let value = pair.0 { makkahValues.append(value) }
-            if let value = pair.1 { madinahValues.append(value) }
-        }
-
-        return (
-            makkahValues.sorted { $0.amount < $1.amount },
-            madinahValues.sorted { $0.amount < $1.amount }
-        )
-    }
-
-    private func searchHotel(_ request: HotelPriceSearchRequest) async -> [HotelPriceObservation] {
-        let deadline = Date().addingTimeInterval(AppConfig.hotelPriceSearchHardTimeoutSeconds)
-        let tasks = HotelPriceProviderRegistry.providers.map { provider in
-            Task { @MainActor in
-                await self.search(provider: provider, request: request, deadline: deadline)
+            if let value = await search(provider: booking, request: makkah, deadline: deadline) {
+                return ([value], [])
             }
+            if let fallback = await search(provider: expedia, request: makkah, deadline: deadline) {
+                return ([fallback], [])
+            }
+            return ([], [])
         }
-        var values: [HotelPriceObservation] = []
-        for task in tasks {
-            if let value = await task.value { values.append(value) }
+
+        async let makkahBooking = search(provider: booking, request: makkah, deadline: deadline)
+        async let madinahBooking = search(provider: booking, request: madinah, deadline: deadline)
+        let primary = await (makkahBooking, madinahBooking)
+
+        var makkahValue = primary.0
+        var madinahValue = primary.1
+        if makkahValue == nil, Date() < deadline {
+            makkahValue = await search(provider: expedia, request: makkah, deadline: deadline)
         }
-        return values.sorted { $0.amount < $1.amount }
+        if madinahValue == nil, Date() < deadline {
+            madinahValue = await search(provider: expedia, request: madinah, deadline: deadline)
+        }
+
+        return (makkahValue.map { [$0] } ?? [], madinahValue.map { [$0] } ?? [])
     }
 
     private func search(
@@ -193,8 +186,12 @@ final class HotelLivePriceSearchService {
         madinahPricingSources: [HotelPricingSourceIdentity]
     ) -> (makkah: HotelPriceSearchRequest, madinah: HotelPriceSearchRequest?) {
         let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
-        let makkahRooms = resolvedRoomCount(for: trip, roomCapacity: makkahRoomCapacity)
-        let madinahRooms = resolvedRoomCount(for: trip, roomCapacity: madinahRoomCapacity)
+        // Provider pricing follows the explicit trip room count only. Internal room
+        // categories (Double/Triple/Quadruple) are selection metadata, not provider
+        // rate-plan identifiers and must never multiply the hotel cost.
+        _ = makkahRoomCapacity
+        _ = madinahRoomCapacity
+        let requestedRooms = max(1, trip.rooms)
 
         let makkah = HotelPriceSearchRequest(
             hotel: makkahHotel,
@@ -204,7 +201,7 @@ final class HotelLivePriceSearchService {
             adults: trip.adults,
             children: trip.children,
             infants: trip.infants,
-            rooms: makkahRooms,
+            rooms: requestedRooms,
             // Keep the app selection attached for diagnostics/bookings, but the
             // provider bot verifies the hotel stay rather than pretending that an
             // internal iumrah room ID is a Booking/Expedia inventory ID.
@@ -223,7 +220,7 @@ final class HotelLivePriceSearchService {
                 adults: trip.adults,
                 children: trip.children,
                 infants: trip.infants,
-                rooms: madinahRooms,
+                rooms: requestedRooms,
                 selectedRoomId: madinahRoomId,
                 selectedRoomName: madinahRoomName,
                 pricingSources: madinahPricingSources
@@ -246,6 +243,8 @@ final class HotelLivePriceSearchService {
         makkahRoomCapacity: Int?,
         madinahRoomCapacity: Int?
     ) -> String {
+        _ = makkahRoomCapacity
+        _ = madinahRoomCapacity
         let formatter = ISO8601DateFormatter()
         return [
             makkahHotel.id,
@@ -253,15 +252,7 @@ final class HotelLivePriceSearchService {
             formatter.string(from: trip.hotelStayStartDate),
             formatter.string(from: trip.returnDate),
             String(trip.adults), String(trip.children), String(trip.infants),
-            String(resolvedRoomCount(for: trip, roomCapacity: makkahRoomCapacity)),
-            String(resolvedRoomCount(for: trip, roomCapacity: madinahRoomCapacity)), trip.scope.rawValue
+            String(max(1, trip.rooms)), trip.scope.rawValue
         ].joined(separator: "|")
-    }
-
-    private func resolvedRoomCount(for trip: TripDraft, roomCapacity: Int?) -> Int {
-        let bedOccupants = max(1, trip.adults + trip.children)
-        let capacity = max(1, roomCapacity ?? 4)
-        let minimumRooms = max(1, Int(ceil(Double(bedOccupants) / Double(capacity))))
-        return max(trip.rooms, minimumRooms)
     }
 }

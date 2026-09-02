@@ -87,13 +87,31 @@ final class BookingStore: ObservableObject {
             session.bookingNumber = linked.bookingNumber
             session.bookingDisplayNumber = linked.bookingDisplayNumber
         }
+        // Send the generator's complete supplier-cost audit independently from the
+        // public booking API. iumrah Business stores this snapshot verbatim and uses
+        // it for "Цена под капотом". A short retry window protects a newly-created
+        // booking from propagation races between the booking and operations workers.
+        let generatorReportResult = await syncGeneratorReportWithRetry(
+            id: session.id,
+            accessToken: session.accessToken,
+            generatorTrace: payload.booking.generatorTrace,
+            pricingSnapshot: payload.booking.pricingSnapshot
+        )
+        if let operational = generatorReportResult {
+            session.pilgrimID = operational.trip.pilgrimID
+            session.bookingNumber = operational.trip.bookingNumber ?? session.bookingNumber
+            session.bookingDisplayNumber = operational.trip.bookingDisplayNumber ?? session.bookingDisplayNumber
+            session.operationStatus = operational.trip.status
+            session.guide = operational.assignment?.guide
+        }
         if let profile = serverProfile, !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            !profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             if let response = try? await bookingService.syncBookingProfile(
                 id: session.id,
                 accessToken: session.accessToken,
                 profile: profile,
-                generatorTrace: payload.booking.generatorTrace
+                generatorTrace: generatorReportResult == nil ? payload.booking.generatorTrace : nil,
+                pricingSnapshot: generatorReportResult == nil ? payload.booking.pricingSnapshot : nil
             ) {
                 session.pilgrimID = response.trip.pilgrimID
                 session.bookingNumber = response.trip.bookingNumber ?? session.bookingNumber
@@ -120,6 +138,37 @@ final class BookingStore: ObservableObject {
             )
         }
         return session
+    }
+
+    private func syncGeneratorReportWithRetry(
+        id: String,
+        accessToken: String,
+        generatorTrace: BookingGeneratorTrace?,
+        pricingSnapshot: GeneratorPricingSnapshot?
+    ) async -> ClientTripResponse? {
+        // No report means there is nothing useful to synchronize.
+        guard generatorTrace != nil || pricingSnapshot != nil else { return nil }
+        let retryDelaysMilliseconds = [0, 350, 900]
+        for (index, delayMilliseconds) in retryDelaysMilliseconds.enumerated() {
+            if delayMilliseconds > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delayMilliseconds) * 1_000_000)
+            }
+            do {
+                return try await bookingService.syncGeneratorReport(
+                    id: id,
+                    accessToken: accessToken,
+                    generatorTrace: generatorTrace,
+                    pricingSnapshot: pricingSnapshot
+                )
+            } catch {
+                if index == retryDelaysMilliseconds.count - 1 {
+                    #if DEBUG
+                    print("[BookingStore] generator pricing report sync failed after retries: \(error)")
+                    #endif
+                }
+            }
+        }
+        return nil
     }
 
     func refreshAll() async {

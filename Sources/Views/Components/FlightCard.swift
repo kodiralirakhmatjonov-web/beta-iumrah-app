@@ -390,10 +390,10 @@ struct FlightCard: View {
 
     private var separateTicketsText: String {
         switch settings.language {
-        case .russian: return "Отдельные билеты"
-        case .english: return "Separate tickets"
-        case .uzbek: return "Alohida chiptalar"
-        case .uzbekCyrillic: return "Алоҳида чипталар"
+        case .russian: return "Самостоятельная пересадка"
+        case .english: return "Self-transfer"
+        case .uzbek: return "Mustaqil transfer"
+        case .uzbekCyrillic: return "Мустақил трансфер"
         }
     }
 
