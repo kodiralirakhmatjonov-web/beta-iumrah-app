@@ -242,7 +242,9 @@ test('Ignav proxy keeps indicative fares, accepts local-time fallback and reject
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),
     }), { IGNAV_API_KEY: 'test-secret' });
     assert.equal(localFallback.status, 200);
-    assert.equal((await localFallback.json()).itineraries.length, 1);
+    const localFallbackBody = await localFallback.json();
+    assert.equal(localFallbackBody.itineraries.length, 1);
+    assert.equal(localFallbackBody.itineraries[0].legs[0].segments[0].departure_time_utc, '2026-10-03T03:10:00.000Z');
 
     const malformed = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),

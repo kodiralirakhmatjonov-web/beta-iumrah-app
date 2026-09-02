@@ -1,0 +1,8 @@
+iumrah Beta hotfix 049
+
+- Makes Ignav local-time fallback deterministic on Cloudflare and GitHub runners.
+- Converts provider wall-clock timestamps with their declared IANA timezone.
+- Removes dependence on the operating system timezone from runtime tests.
+
+This hotfix is based on BETA_FLIGHT_PRICING_048_APPLIED.
+

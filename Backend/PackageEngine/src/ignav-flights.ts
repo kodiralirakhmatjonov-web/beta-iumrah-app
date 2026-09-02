@@ -225,13 +225,64 @@ function safeTimestamp(value: unknown): string | null {
   return Number.isFinite(Date.parse(value)) ? value : null;
 }
 
-function normalizedInstant(primary: unknown, fallback: unknown): string | null {
+function zonedLocalInstant(value: unknown, timeZone: unknown): string | null {
+  if (typeof value !== "string" || typeof timeZone !== "string") return null;
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/);
+  if (!match) return null;
+  const target = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] ?? 0),
+    millisecond: Number((match[7] ?? "0").padEnd(3, "0")),
+  };
+  const targetUTC = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute, target.second, target.millisecond);
+  if (!Number.isFinite(targetUTC)) return null;
+
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timeZone.trim(),
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+  } catch {
+    return null;
+  }
+
+  const wallClockUTC = (date: Date): number | null => {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(date)
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, Number(part.value)])
+    ) as Record<string, number>;
+    if (![parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second].every(Number.isFinite)) return null;
+    return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, target.millisecond);
+  };
+
+  // Resolve the IANA offset iteratively. The second pass covers DST boundaries;
+  // the final equality check rejects nonexistent/ambiguous malformed wall times.
+  let instant = targetUTC;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const rendered = wallClockUTC(new Date(instant));
+    if (rendered === null) return null;
+    instant += targetUTC - rendered;
+  }
+  const result = new Date(instant);
+  return wallClockUTC(result) === targetUTC ? result.toISOString() : null;
+}
+
+function normalizedInstant(primary: unknown, fallback: unknown, fallbackTimeZone: unknown): string | null {
   const primaryValue = safeTimestamp(primary);
   if (primaryValue) return primaryValue;
-  const fallbackValue = safeTimestamp(fallback);
-  if (!fallbackValue) return null;
-  const date = new Date(fallbackValue);
-  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  return zonedLocalInstant(fallback, fallbackTimeZone);
 }
 
 function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<typeof normalizeRequestLeg>, cabin: string) {
@@ -244,8 +295,8 @@ function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<ty
     const destination = String(segment.arrival_airport ?? "").trim().toUpperCase();
     const departureLocal = safeTimestamp(segment.departure_time_local);
     const arrivalLocal = safeTimestamp(segment.arrival_time_local);
-    const departureUTC = normalizedInstant(segment.departure_time_utc, segment.departure_time_local);
-    const arrivalUTC = normalizedInstant(segment.arrival_time_utc, segment.arrival_time_local);
+    const departureUTC = normalizedInstant(segment.departure_time_utc, segment.departure_time_local, segment.departure_timezone);
+    const arrivalUTC = normalizedInstant(segment.arrival_time_utc, segment.arrival_time_local, segment.arrival_timezone);
     if (!IATA_AIRPORT.test(origin) || !IATA_AIRPORT.test(destination) || origin === destination) return null;
     if (!departureUTC || !arrivalUTC || Date.parse(departureUTC) >= Date.parse(arrivalUTC)) return null;
     const suppliedDuration = Number(segment.duration_minutes ?? 0);
