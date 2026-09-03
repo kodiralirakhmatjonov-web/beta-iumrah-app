@@ -1,0 +1,10 @@
+IUMRAH BETA EXPEDIA PACKAGE PRICING 060
+2026-09-03
+
+Production pricing invariants:
+- Hotels: fresh Business catalog nightlyUSD only; cost = nightlyUSD x rooms x actual nights.
+- Round trip/open jaw: one verified complete Ignav two-leg itinerary fare, charged once.
+- UX remains sequential: choose outbound, then choose a compatible return.
+- Flight cards use Expedia-Packages style delta + package/person + full package total.
+- Unverified Ignav fares are excluded from package pricing.
+- Existing meals, transfers, visa, guide, ziyarat, 50% markup and 2% payment fee are unchanged.

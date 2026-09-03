@@ -352,6 +352,9 @@ function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<ty
 function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeof validateSearchBody>, observedAt: string, index: number) {
   const price = itinerary.price;
   if (!price || typeof price.amount !== "number" || !Number.isFinite(price.amount) || price.amount <= 0) return null;
+  // Ignav documents unverified prices as discovery hints. Package pricing may only
+  // consume a provider-verified fare because it becomes a customer-facing quote.
+  if (String(price.status || "").toLowerCase() !== "verified") return null;
   const currency = String(price.currency ?? "").toUpperCase();
   if (!CURRENCY.test(currency)) return null;
   const sourceID = typeof itinerary.ignav_id === "string" && itinerary.ignav_id.length >= 1 && itinerary.ignav_id.length <= 160
@@ -372,9 +375,9 @@ function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeo
     source: "ignav",
     source_name: "Ignav",
     observed_at: observedAt,
-    // Ignav returns the fare for the passenger mix submitted in this request.
-    // Generator production sends one leg per search; `total_party` therefore means
-    // the supplier cost of that selected one-way ticket for the whole party.
+    // Ignav returns one price for the complete itinerary and passenger mix
+    // submitted in this request. With two ordered legs this is the full
+    // round-trip/open-jaw fare; the client must charge it exactly once.
     fare_scope: "total_party",
     price: { amount: price.amount, currency, status: String(price.status || "unverified") },
     legs,

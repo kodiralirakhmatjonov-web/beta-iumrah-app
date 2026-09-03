@@ -369,20 +369,30 @@ struct FlightDetailsView: View {
     }
 
     private var fareTitle: String {
+        let isRoundTrip = offer.pairedLeg != nil
         switch settings.language {
-        case .russian: return offer.fareScope == .totalParty ? "Авиабилет для всех паломников" : "Тариф на пассажира"
-        case .english: return offer.fareScope == .totalParty ? "Flight fare for all pilgrims" : "Fare per passenger"
-        case .uzbek: return offer.fareScope == .totalParty ? "Barcha ziyoratchilar uchun aviachipta" : "Bir yo‘lovchi uchun tarif"
-        case .uzbekCyrillic: return offer.fareScope == .totalParty ? "Барча зиёратчилар учун авиачипта" : "Бир йўловчи учун тариф"
+        case .russian:
+            return isRoundTrip ? "Тариф Ignav за полный билет туда-обратно" : "Тариф Ignav за билет в одну сторону"
+        case .english:
+            return isRoundTrip ? "Ignav fare for the complete round trip" : "Ignav fare for the one-way ticket"
+        case .uzbek:
+            return isRoundTrip ? "To‘liq borish-qaytish uchun Ignav tarifi" : "Bir tomonlama chipta uchun Ignav tarifi"
+        case .uzbekCyrillic:
+            return isRoundTrip ? "Тўлиқ бориш-қайтиш учун Ignav тарифи" : "Бир томонлама чипта учун Ignav тарифи"
         }
     }
 
     private var fareSubtitle: String {
+        let forParty = offer.fareScope == .totalParty
         switch settings.language {
-        case .russian: return "Актуальный тариф, полученный во время этого поиска"
-        case .english: return "Current fare returned during this search"
-        case .uzbek: return "Ushbu qidiruv vaqtida olingan joriy tarif"
-        case .uzbekCyrillic: return "Ушбу қидирув вақтида олинган жорий тариф"
+        case .russian:
+            return forParty ? "Проверенная цена провайдера за всех выбранных путешественников. В пакете этот тариф учитывается один раз." : "Проверенная цена провайдера на одного путешественника."
+        case .english:
+            return forParty ? "Verified provider fare for all selected travelers. This fare is charged once in the package." : "Verified provider fare per traveler."
+        case .uzbek:
+            return forParty ? "Barcha tanlangan sayohatchilar uchun tekshirilgan provayder narxi. Paketda bir marta hisoblanadi." : "Bir sayohatchi uchun tekshirilgan provayder narxi."
+        case .uzbekCyrillic:
+            return forParty ? "Барча танланган саёҳатчилар учун текширилган провайдер нархи. Пакетда бир марта ҳисобланади." : "Бир саёҳатчи учун текширилган провайдер нархи."
         }
     }
 

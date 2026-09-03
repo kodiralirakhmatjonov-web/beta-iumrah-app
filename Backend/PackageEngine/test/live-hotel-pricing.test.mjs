@@ -26,7 +26,7 @@ assert.ok(!coordinator.includes('HotelLivePriceSearchService'));
 
 // Final package fails closed if the catalog cache has no usable current rate.
 assert.match(journey, /throw LocalPricingError\.missingHotelPrice\(city\)/);
-assert.match(journey, /normalizedRoomNightUsd >= 15/);
-assert.match(journey, /normalizedRoomNightUsd <= 10_000/);
+assert.match(journey, /nightlyUsd >= 15/);
+assert.match(journey, /nightlyUsd <= 10_000/);
 
 console.log('arrival-aware 48h hotel catalog pricing contract OK');

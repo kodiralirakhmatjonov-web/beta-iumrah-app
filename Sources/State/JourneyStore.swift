@@ -357,9 +357,9 @@ final class JourneyStore: ObservableObject {
         !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
     }
 
-    /// Starts return-ticket discovery while the pilgrim is still choosing the outbound
-    /// flight. Selection remains independent: this only supplies a baseline return fare
-    /// for package previews and warms the same Ignav cache used by ReturnFlightView.
+    /// Projects compatible return legs from the complete Ignav itineraries already
+    /// fetched for the outbound screen. In the normal path this does not buy/search a
+    /// second one-way ticket and does not add another fare; it only warms return UI rows.
     func prefetchReturnFlightsIfNeeded(referenceOutbound: FlightOffer) {
         guard trip.isRoundTripFlight, prefetchedInboundOffers.isEmpty, inboundFlightPrefetchTask == nil,
               let makkahHotel = selectedHotel else { return }
@@ -395,8 +395,9 @@ final class JourneyStore: ObservableObject {
         return prefetchedInboundOffers
     }
 
-    /// Uses exactly the same production pricing engine as FinalPackageView, but without
-    /// mutating the selected quote. This is what flight cards show as "package / person".
+    /// Uses the exact same Expedia-style pricing engine as FinalPackageView.
+    /// Every visible round-trip row already carries one complete Ignav itinerary fare;
+    /// previews never add two separately priced one-way tickets.
     func packagePricePreviews(
         offers: [FlightOffer],
         direction: FlightDirection,
@@ -428,29 +429,19 @@ final class JourneyStore: ObservableObject {
             }
 
             var output: [String: Decimal] = [:]
-            for offer in offers {
+            for offer in offers where offer.isVerifiedForBooking {
+                guard let fare = offer.fareAmount, let scope = offer.fareScope else { continue }
                 let outbound = direction == .outbound ? offer : oppositeLeg
-                let inbound = trip.isRoundTripFlight ? (direction == .inbound ? offer : oppositeLeg) : nil
-                guard let outbound, outbound.isVerifiedForBooking,
-                      let outboundFare = outbound.fareAmount, let outboundScope = outbound.fareScope else { continue }
-                if trip.isRoundTripFlight {
-                    guard let inbound, inbound.isVerifiedForBooking, inbound.fareAmount != nil, inbound.fareScope != nil else { continue }
-                }
-                let outboundUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
-                let inboundUsd: Decimal?
-                if let inbound, let fare = inbound.fareAmount {
-                    inboundUsd = try await LocalFXRateService.shared.usd(fare, currency: inbound.currency)
-                } else {
-                    inboundUsd = nil
-                }
+                guard let outbound, outbound.isVerifiedForBooking else { continue }
+
+                let journeyFareUsd = try await LocalFXRateService.shared.usd(fare, currency: offer.currency)
                 let preview = try LocalPackagePricingEngine.calculate(
                     trip: trip,
-                    outboundFareUsd: outboundUsd,
-                    outboundScope: outboundScope,
+                    journeyFareUsd: journeyFareUsd,
+                    journeyFareScope: scope,
+                    pricingOffer: offer,
                     outboundOffer: outbound,
-                    inboundFareUsd: inboundUsd,
-                    inboundScope: inbound?.fareScope,
-                    inboundOffer: inbound,
+                    inboundOffer: direction == .inbound ? offer : nil,
                     makkahHotel: makkah,
                     madinahHotel: madinah
                 )
@@ -470,18 +461,18 @@ final class JourneyStore: ObservableObject {
     func buildQuote(forceHotelRefresh: Bool = false) async {
         guard let hotel = selectedHotel,
               let outbound = selectedOutbound,
-              outbound.isVerifiedForBooking,
-              let outboundFare = outbound.fareAmount,
-              let outboundScope = outbound.fareScope else {
+              outbound.isVerifiedForBooking else {
             errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
             quote = nil
             return
         }
 
         let inbound: FlightOffer?
+        let pricingOffer: FlightOffer
         if trip.isRoundTripFlight {
             guard let value = selectedInbound,
                   value.isVerifiedForBooking,
+                  returnOffer(value, matches: outbound),
                   value.fareAmount != nil,
                   value.fareScope != nil else {
                 errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
@@ -489,8 +480,17 @@ final class JourneyStore: ObservableObject {
                 return
             }
             inbound = value
+            // The return row represents the exact selected outbound+return Ignav
+            // itinerary, so its fare is the authoritative complete-journey fare.
+            pricingOffer = value
         } else {
+            guard outbound.fareAmount != nil, outbound.fareScope != nil else {
+                errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
+                quote = nil
+                return
+            }
             inbound = nil
+            pricingOffer = outbound
         }
 
         if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil {
@@ -500,9 +500,6 @@ final class JourneyStore: ObservableObject {
         }
 
         do {
-            // FinalPackageView reuses the catalog cache warmed beside Ignav. The
-            // explicit retry only rechecks the current iumrah catalog record; Beta
-            // never refreshes Booking/Expedia directly.
             if let task = hotelPricePrefetchTask { await task.value }
             if forceHotelRefresh, let components = flightService as? GeneratorComponentProviding {
                 hotelPriceSnapshot = await components.ensureHotelPrices(
@@ -524,16 +521,10 @@ final class JourneyStore: ObservableObject {
                 )
             }
 
-            // Each selected leg is a real independent one-way Ignav fare. Convert and
-            // price them independently; a round trip is their sum, never a hidden
-            // complete-itinerary fare copied onto both screens.
-            let outboundFareUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
-            let inboundFareUsd: Decimal?
-            if let inbound, let fare = inbound.fareAmount {
-                inboundFareUsd = try await LocalFXRateService.shared.usd(fare, currency: inbound.currency)
-            } else {
-                inboundFareUsd = nil
+            guard let rawFare = pricingOffer.fareAmount, let fareScope = pricingOffer.fareScope else {
+                throw LocalPricingError.invalidFlightFare
             }
+            let journeyFareUsd = try await LocalFXRateService.shared.usd(rawFare, currency: pricingOffer.currency)
 
             let makkah = try await resolveHotelComponent(
                 hotel: hotel,
@@ -559,11 +550,10 @@ final class JourneyStore: ObservableObject {
 
             quote = try LocalPackagePricingEngine.calculate(
                 trip: trip,
-                outboundFareUsd: outboundFareUsd,
-                outboundScope: outboundScope,
+                journeyFareUsd: journeyFareUsd,
+                journeyFareScope: fareScope,
+                pricingOffer: pricingOffer,
                 outboundOffer: outbound,
-                inboundFareUsd: inboundFareUsd,
-                inboundScope: inbound?.fareScope,
                 inboundOffer: inbound,
                 makkahHotel: makkah,
                 madinahHotel: madinah
@@ -573,6 +563,16 @@ final class JourneyStore: ObservableObject {
             quote = nil
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func returnOffer(_ inbound: FlightOffer, matches outbound: FlightOffer) -> Bool {
+        guard let paired = inbound.pairedLeg else { return false }
+        let selectedNumbers = Set(outbound.displaySegments.compactMap { FlightReferenceCatalog.normalizedVerifiedFlightNumber($0.flightNumber) })
+        let pairedNumbers = Set((paired.segments ?? []).compactMap { FlightReferenceCatalog.normalizedVerifiedFlightNumber($0.flightNumber) })
+        if !selectedNumbers.isEmpty && selectedNumbers != pairedNumbers { return false }
+        return paired.origin.caseInsensitiveCompare(outbound.origin) == .orderedSame &&
+            paired.destination.caseInsensitiveCompare(outbound.destination) == .orderedSame &&
+            abs(paired.departureAt.timeIntervalSince(outbound.departureAt)) < 5 * 60
     }
 
     private func resolveHotelComponent(
@@ -592,59 +592,35 @@ final class JourneyStore: ObservableObject {
             throw LocalPricingError.missingHotelPrice(city)
         }
 
-        // iumrah Business stores one normalized USD room-night benchmark for the
-        // hotel. Double/Triple/Quadruple are UX selections and do not alter that
-        // catalog benchmark; only actual room count and stay nights scale the cost.
         _ = roomCapacity
         let effectiveRooms = max(1, trip.rooms)
-        var verified: [(component: LocalHotelPriceComponent, totalUsd: Decimal)] = []
 
-        for observation in observations where observation.isUsable(
+        // Production hotel pricing has exactly one unit. Any legacy total-stay or
+        // per-room-stay observation is rejected instead of silently applying a
+        // different multiplication rule.
+        for observation in observations where observation.unit == .perRoomNight && observation.isUsable(
             for: hotel,
             city: city,
             window: window,
             roomId: roomID
         ) {
             do {
-                let usd = try await LocalFXRateService.shared.usd(observation.amount, currency: observation.currency)
-                guard usd > 0, let unit = LocalHotelPriceComponent.Unit(rawValue: observation.unit.rawValue) else { continue }
-                let component = LocalHotelPriceComponent(
-                    amountUsd: usd,
-                    unit: unit,
+                let nightlyUsd = try await LocalFXRateService.shared.usd(observation.amount, currency: observation.currency)
+                guard nightlyUsd >= 15, nightlyUsd <= 10_000 else { continue }
+                return LocalHotelPriceComponent(
+                    nightlyUsd: nightlyUsd,
                     nights: max(1, window.nights),
                     rooms: effectiveRooms,
                     hotelId: hotel.id,
                     roomId: roomID,
                     source: observation.providerName
                 )
-                let totalUsd: Decimal
-                switch unit {
-                case .totalStay: totalUsd = usd
-                case .perRoomStay: totalUsd = usd * Decimal(effectiveRooms)
-                case .perRoomNight: totalUsd = usd * Decimal(effectiveRooms) * Decimal(max(1, window.nights))
-                }
-                let roomNights = Decimal(max(1, effectiveRooms * max(1, window.nights)))
-                let normalizedRoomNightUsd = totalUsd / roomNights
-                // Reject obvious parser artefacts (fees, loyalty credits, tiny
-                // fragments or malformed totals) before they can under-price a
-                // package. The range is deliberately broad; it is a corruption
-                // guard, not a hotel-category price assumption.
-                guard normalizedRoomNightUsd >= 15, normalizedRoomNightUsd <= 10_000 else { continue }
-                verified.append((component, totalUsd))
             } catch {
                 continue
             }
         }
 
-        guard !verified.isEmpty else {
-            // Never fabricate a rate. Public catalog hotels are generator-eligible
-            // only while iumrah Business has a fresh, non-expired 48-hour price.
-            throw LocalPricingError.missingHotelPrice(city)
-        }
-
-        // The active catalog architecture emits one authoritative normalized rate
-        // per hotel. `min` is retained only for backward-compatible snapshot decoding.
-        return verified.min(by: { $0.totalUsd < $1.totalUsd })!.component
+        throw LocalPricingError.missingHotelPrice(city)
     }
 
     private func travelCalendarDay(for date: Date, airportCode: String) -> Date {

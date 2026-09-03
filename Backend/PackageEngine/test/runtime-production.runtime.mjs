@@ -213,7 +213,7 @@ test('Ignav proxy uses one flexible open-jaw request and returns multiple comple
   }
 });
 
-test('Ignav proxy keeps indicative fares, accepts local-time fallback and rejects malformed timestamps', async () => {
+test('Ignav proxy rejects unverified fares, accepts local-time fallback and rejects malformed timestamps', async () => {
   const originalFetch = globalThis.fetch;
   let call = 0;
   globalThis.fetch = async () => {
@@ -235,8 +235,7 @@ test('Ignav proxy keeps indicative fares, accepts local-time fallback and reject
     }), { IGNAV_API_KEY: 'test-secret' });
     assert.equal(indicative.status, 200);
     const indicativeBody = await indicative.json();
-    assert.equal(indicativeBody.itineraries.length, 1);
-    assert.equal(indicativeBody.itineraries[0].price.status, 'unverified');
+    assert.deepEqual(indicativeBody.itineraries, []);
 
     const localFallback = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),

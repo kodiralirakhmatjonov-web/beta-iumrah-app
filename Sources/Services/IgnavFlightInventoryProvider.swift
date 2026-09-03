@@ -114,6 +114,7 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
         let expectsReturn = request.inboundOrigin != nil && request.inboundDestination != nil && expectedPair.inbound != nil
         guard itinerary.price.amount > 0,
               itinerary.price.currency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+              itinerary.price.status.caseInsensitiveCompare("verified") == .orderedSame,
               itinerary.legs.count == (expectsReturn ? 2 : 1),
               itinerary.fareScope == "total_party" else { return nil }
 
@@ -222,9 +223,9 @@ final class IgnavFlightInventoryProvider: FlightInventoryProviding {
             arrivalAt: last.arrivalAt,
             stops: leg.stops,
             durationMinutes: leg.durationMinutes,
-            // This candidate carries the fare for the exact itinerary requested.
-            // Production generator searches one leg at a time, so this is the real
-            // one-way supplier fare for the submitted passenger mix.
+            // Ignav price belongs to the complete itinerary returned for the
+            // submitted passenger mix. In round-trip mode both leg candidates carry
+            // the same trip-level fare; JourneyStore charges it exactly once.
             observedFare: itinerary.price.amount,
             observedCurrency: itinerary.price.currency,
             fareScope: .totalParty,

@@ -1,18 +1,22 @@
 import Foundation
 
+/// One authoritative hotel catalog rate from iumrah Business.
+///
+/// The server stores exactly one normalized value: USD for one room / one night.
+/// Beta never accepts legacy `totalStay` or `perRoomStay` values in production
+/// pricing. Package hotel cost is therefore one explicit multiplication:
+/// nightly USD × selected room count × actual stay nights.
 struct LocalHotelPriceComponent: Hashable {
-    enum Unit: String, Hashable {
-        case totalStay
-        case perRoomStay
-        case perRoomNight
-    }
-    let amountUsd: Decimal
-    let unit: Unit
+    let nightlyUsd: Decimal
     let nights: Int
     let rooms: Int
     let hotelId: String
     let roomId: String?
     let source: String
+
+    var totalStayUsd: Decimal {
+        nightlyUsd * Decimal(max(1, rooms)) * Decimal(max(1, nights))
+    }
 }
 
 /// Launch pricing policy for the indicative Umrah package price.
@@ -35,13 +39,19 @@ enum LocalPackagePricingEngine {
     static let sarPerUsd = Decimal(string: "3.75")!
     static let sedanCapacity = 3
 
+    /// Expedia-style flight pricing contract:
+    /// - one-way trip: `journeyFareUsd` is the complete one-way fare returned by Ignav;
+    /// - round trip/open jaw: `journeyFareUsd` is the complete two-leg itinerary fare
+    ///   returned by Ignav for the exact selected outbound + inbound combination.
+    ///
+    /// We never add two independent one-way prices for a round trip. International
+    /// airlines commonly price a return itinerary differently from two one-way tickets.
     static func calculate(
         trip: TripDraft,
-        outboundFareUsd: Decimal,
-        outboundScope: FlightFareScope,
+        journeyFareUsd: Decimal,
+        journeyFareScope: FlightFareScope,
+        pricingOffer: FlightOffer,
         outboundOffer: FlightOffer,
-        inboundFareUsd: Decimal?,
-        inboundScope: FlightFareScope?,
         inboundOffer: FlightOffer?,
         makkahHotel: LocalHotelPriceComponent,
         madinahHotel: LocalHotelPriceComponent?
@@ -50,19 +60,7 @@ enum LocalPackagePricingEngine {
         let vehicles = max(1, Int(ceil(Double(travelers) / Double(sedanCapacity))))
         let stay = TripStayPlanner.breakdown(for: trip)
 
-        // Independent-flight architecture: each selected one-way ticket has its own
-        // supplier fare. A round trip is the sum of the two selected one-way fares.
-        let outboundFlights = try groupFare(outboundFareUsd, scope: outboundScope, travelers: travelers)
-        let inboundFlights: Decimal
-        if trip.isRoundTripFlight {
-            guard let inboundFareUsd, let inboundScope, inboundOffer != nil else {
-                throw LocalPricingError.invalidFlightFare
-            }
-            inboundFlights = try groupFare(inboundFareUsd, scope: inboundScope, travelers: travelers)
-        } else {
-            inboundFlights = 0
-        }
-        let flights = outboundFlights + inboundFlights
+        let flights = try groupFare(journeyFareUsd, scope: journeyFareScope, travelers: travelers)
 
         let makkahHotelCost = hotelCost(makkahHotel)
         let madinahHotelCost = trip.scope == .makkahAndMadinah ? hotelCost(madinahHotel) : 0
@@ -94,12 +92,13 @@ enum LocalPackagePricingEngine {
         let estimatedProfit = total - totalCost - paymentFeeAmount
 
         var components: [GeneratorPricingComponent] = [
-            .init(code: "flight_outbound", label: "Авиабилет туда", supplierCostUsd: outboundFlights)
+            .init(
+                code: trip.isRoundTripFlight ? "flight_roundtrip" : "flight_outbound",
+                label: trip.isRoundTripFlight ? "Авиаперелёт туда-обратно" : "Авиабилет туда",
+                supplierCostUsd: flights
+            ),
+            .init(code: "makkah_hotel", label: "Отель в Мекке", supplierCostUsd: makkahHotelCost)
         ]
-        if trip.isRoundTripFlight {
-            components.append(.init(code: "flight_inbound", label: "Авиабилет обратно", supplierCostUsd: inboundFlights))
-        }
-        components.append(.init(code: "makkah_hotel", label: "Отель в Мекке", supplierCostUsd: makkahHotelCost))
         if includeMadinah {
             components.append(.init(code: "madinah_hotel", label: "Отель в Медине", supplierCostUsd: madinahHotelCost))
         }
@@ -120,9 +119,17 @@ enum LocalPackagePricingEngine {
         // zero until Business assigns an internal cost in the editable report.
         components.append(.init(code: "care", label: "iumrah Care", supplierCostUsd: 0))
 
+        let journeyInput = fareInput(
+            offer: pricingOffer,
+            originalAmount: pricingOffer.fareAmount ?? journeyFareUsd,
+            scope: journeyFareScope,
+            normalizedGroupUsd: flights,
+            travelDate: outboundOffer.departureAt
+        )
+
         let pricingSnapshot = GeneratorPricingSnapshot(
             quoteId: quoteId,
-            pricingVersion: "local-independent-flights-catalog-hotels-v5",
+            pricingVersion: "local-expedia-package-v6",
             currency: "USD",
             context: .init(
                 tier: trip.packageTier.rawValue,
@@ -134,21 +141,9 @@ enum LocalPackagePricingEngine {
                 vehicleCount: vehicles
             ),
             selectedPricingInputs: .init(
-                journeyFare: nil,
-                outbound: fareInput(
-                    offer: outboundOffer,
-                    originalAmount: outboundOffer.fareAmount ?? outboundFareUsd,
-                    scope: outboundScope,
-                    normalizedGroupUsd: outboundFlights
-                ),
-                inbound: trip.isRoundTripFlight ? inboundOffer.map { offer in
-                    fareInput(
-                        offer: offer,
-                        originalAmount: offer.fareAmount ?? inboundFareUsd ?? 0,
-                        scope: inboundScope ?? .unknown,
-                        normalizedGroupUsd: inboundFlights
-                    )
-                } : nil,
+                journeyFare: journeyInput,
+                outbound: nil,
+                inbound: nil,
                 makkahHotel: hotelInput(makkahHotel),
                 madinahHotel: includeMadinah ? madinahHotel.map(hotelInput) : nil
             ),
@@ -187,19 +182,16 @@ enum LocalPackagePricingEngine {
     }
 
     private static func hotelCost(_ value: LocalHotelPriceComponent?) -> Decimal {
-        guard let value else { return 0 }
-        switch value.unit {
-        case .totalStay: return value.amountUsd
-        case .perRoomStay: return value.amountUsd * Decimal(max(1, value.rooms))
-        case .perRoomNight: return value.amountUsd * Decimal(max(1, value.rooms)) * Decimal(max(1, value.nights))
-        }
+        guard let value, value.nightlyUsd > 0 else { return 0 }
+        return value.totalStayUsd
     }
 
     private static func fareInput(
         offer: FlightOffer,
         originalAmount: Decimal,
         scope: FlightFareScope,
-        normalizedGroupUsd: Decimal
+        normalizedGroupUsd: Decimal,
+        travelDate: Date
     ) -> GeneratorPricingFare {
         GeneratorPricingFare(
             candidateId: offer.providerItineraryID ?? offer.sourceCandidateID ?? offer.id,
@@ -208,15 +200,15 @@ enum LocalPackagePricingEngine {
             fareScope: scope.rawValue,
             providerId: offer.sourceLabel,
             observedAt: isoDateTime(offer.fareObservedAt ?? Date()),
-            travelDate: day(offer.departureAt),
+            travelDate: day(travelDate),
             normalizedGroupUsd: normalizedGroupUsd
         )
     }
 
     private static func hotelInput(_ value: LocalHotelPriceComponent) -> GeneratorPricingHotelInput {
         GeneratorPricingHotelInput(
-            amountUsd: value.amountUsd,
-            unit: value.unit.rawValue,
+            amountUsd: value.nightlyUsd,
+            unit: "perRoomNight",
             nights: value.nights,
             hotelId: value.hotelId,
             roomId: value.roomId,

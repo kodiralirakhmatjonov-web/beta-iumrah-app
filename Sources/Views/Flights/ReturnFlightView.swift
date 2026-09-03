@@ -237,16 +237,6 @@ struct ReturnFlightView: View {
             offers = []
             journey.selectedInbound = nil
             journey.quote = nil
-
-            let prefetched = await journey.awaitPrefetchedReturnFlights()
-            if !prefetched.isEmpty {
-                offers = mergeOffers([], prefetched)
-                isSearching = false
-                isInitialLoading = false
-                selectRecommendedIfNeeded()
-                if !offers.isEmpty { IumrahHaptics.success() }
-                return
-            }
         }
 
         let generation = UUID()

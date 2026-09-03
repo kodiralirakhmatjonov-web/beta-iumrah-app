@@ -147,8 +147,8 @@ struct OutboundFlightView: View {
                         travelerCount: journey.trip.travelerCount,
                         packagePricePerPerson: packagePrices[offer.id],
                         referencePackagePricePerPerson: recommendedOffer.flatMap { packagePrices[$0.id] },
-                        usesProvisionalOppositeLeg: journey.trip.isRoundTripFlight,
-                        isPackagePriceLoading: journey.isSearchingHotelPrices || (journey.trip.isRoundTripFlight && journey.prefetchedInboundOffers.isEmpty)
+                        usesProvisionalOppositeLeg: false,
+                        isPackagePriceLoading: journey.isSearchingHotelPrices
                     )
                 }
                 .buttonStyle(.plain)
@@ -176,9 +176,9 @@ struct OutboundFlightView: View {
         let selectedDay = offers.filter { dayOffset($0.departureAt, from: journey.trip.departureDate) == 0 }
         let pool = selectedDay.isEmpty ? offers : selectedDay
         return pool.min { lhs, rhs in
-            // Once hotel + return prefetch data is ready, recommendation follows the
-            // real package-per-person price shown on the card. Raw Ignav fare is the
-            // fallback while the background package preview is still calculating.
+            // Recommendation follows the complete package price shown on the card.
+            // Every round-trip outbound row already represents the cheapest verified
+            // complete itinerary compatible with that physical outbound leg.
             if let lp = packagePrices[lhs.id], let rp = packagePrices[rhs.id], lp != rp {
                 return lp < rp
             }
@@ -351,7 +351,6 @@ struct OutboundFlightView: View {
                     guard searchGeneration == generation else { return }
                     candidates = mergeCandidates(candidates, progress.discoveredCandidates)
                     offers = mergeOffers(offers, progress.pricedOffers)
-                    if let reference = offers.first { journey.prefetchReturnFlightsIfNeeded(referenceOutbound: reference) }
                     searchStatus = progress.status
                     isSearching = progress.isSearching
                     if !offers.isEmpty || !progress.isSearching {
@@ -361,7 +360,6 @@ struct OutboundFlightView: View {
             )
             guard searchGeneration == generation else { return }
             offers = mergeOffers(offers, final)
-            if let reference = offers.first { journey.prefetchReturnFlightsIfNeeded(referenceOutbound: reference) }
         } catch {
             guard searchGeneration == generation else { return }
             // Provider exhaustion is handled inside the progressive service. Only
@@ -424,23 +422,15 @@ struct OutboundFlightView: View {
 
     private var packagePreviewSignature: String {
         let hotelKey = journey.hotelPriceSnapshot.map { String($0.hashValue) } ?? "-"
-        let inboundKey = journey.prefetchedInboundOffers.first?.id ?? (journey.trip.isRoundTripFlight ? "waiting-return" : "one-way")
-        return [offers.map(\.id).joined(separator: ","), hotelKey, inboundKey].joined(separator: "|")
+        return [offers.map(\.id).joined(separator: ","), hotelKey].joined(separator: "|")
     }
 
     private func refreshPackagePrices() async {
         guard !offers.isEmpty else { packagePrices = [:]; return }
-        let opposite: FlightOffer?
-        if journey.trip.isRoundTripFlight {
-            opposite = journey.prefetchedInboundOffers.first
-            guard opposite != nil else { packagePrices = [:]; return }
-        } else {
-            opposite = nil
-        }
         packagePrices = await journey.packagePricePreviews(
             offers: offers,
             direction: .outbound,
-            oppositeLeg: opposite
+            oppositeLeg: nil
         )
     }
 

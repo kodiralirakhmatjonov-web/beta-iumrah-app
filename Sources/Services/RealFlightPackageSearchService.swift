@@ -14,22 +14,24 @@ enum FlightEngineAvailabilityError: LocalizedError, Equatable {
     }
 }
 
-/// Production coordinator for independent one-way flight legs.
+/// Expedia-packages style flight coordinator.
 ///
-/// A round trip is intentionally built as two independent provider searches:
-/// 1. origin -> Saudi Arabia (outbound)
-/// 2. Saudi Arabia -> origin (return)
+/// Round-trip UX is still sequential (choose outbound, then choose return), but fare
+/// discovery is NOT two separately purchased one-way tickets. Ignav receives both
+/// ordered legs in one request and returns one trip-level fare for each complete
+/// itinerary. This is critical for international pricing where two one-way tickets
+/// can be materially more expensive than the airline's return/open-jaw fare.
 ///
-/// Each Ignav result keeps its own one-way fare. The UI never pairs two legs behind
-/// the pilgrim's back and never treats a complete round-trip fare as a one-way fare.
+/// Outbound screen: one row per physical outbound leg using the cheapest compatible
+/// complete itinerary. Return screen: only return legs compatible with that outbound,
+/// each carrying the exact complete-itinerary fare for the selected pair.
 @MainActor
 final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComponentProviding {
     private let flightProvider: FlightInventoryProviding
     private let hotelCatalogService: HotelCatalogServicing
 
     private var activeSignature: String?
-    private var cachedOutboundJourneys: [LiveFlightJourneyCandidate] = []
-    private var cachedReturnJourneys: [LiveFlightJourneyCandidate] = []
+    private var cachedJourneys: [LiveFlightJourneyCandidate] = []
     private var cachedHotels: HotelPriceSearchSnapshot?
 
     init() {
@@ -76,24 +78,20 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     ) async throws -> [FlightOffer] {
         _ = makkahHotel
         _ = madinahHotel
-        prepareForOutbound(trip)
+        prepareForSearch(trip)
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .starting))
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
 
-        let request = makeOneWayRequest(
-            origin: trip.originCode,
-            destination: trip.outboundDestinationCode,
-            trip: trip
-        )
-        let dates = oneWayDatePairs(anchor: trip.departureDate, flexibility: trip.flexibility)
+        let request = makeJourneyRequest(trip)
+        let dates = journeyDatePairs(trip)
 
         do {
-            var live = cachedOutboundJourneys
+            var live = cachedJourneys
             let final = try await flightProvider.searchJourney(request: request, datePairs: dates) { values in
                 live = self.mergeJourneys(live, values)
-                self.cachedOutboundJourneys = live
+                self.cachedJourneys = live
                 let offers = self.ranked(
-                    self.offers(from: live, direction: .outbound),
+                    self.outboundOffers(from: live, roundTrip: trip.isRoundTripFlight),
                     anchor: trip.departureDate
                 )
                 onUpdate(.init(
@@ -104,8 +102,8 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
                 ))
             }
             live = mergeJourneys(live, final)
-            cachedOutboundJourneys = live
-            let offers = ranked(offers(from: live, direction: .outbound), anchor: trip.departureDate)
+            cachedJourneys = live
+            let offers = ranked(outboundOffers(from: live, roundTrip: trip.isRoundTripFlight), anchor: trip.departureDate)
             onUpdate(.init(
                 discoveredCandidates: live.map(\.outbound),
                 pricedOffers: offers,
@@ -132,53 +130,57 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         guard trip.isRoundTripFlight, outbound.isVerifiedForBooking else {
             throw FlightEngineAvailabilityError.realOutboundRequired
         }
-        prepareForReturn(trip)
         onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .starting))
-        onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
 
-        let request = makeOneWayRequest(
-            origin: trip.returnOriginCode,
-            destination: trip.originCode,
-            trip: trip
-        )
-        let dates = oneWayDatePairs(anchor: trip.returnDate, flexibility: trip.flexibility)
-
-        do {
-            var live = cachedReturnJourneys
-            let final = try await flightProvider.searchJourney(request: request, datePairs: dates) { values in
-                live = self.mergeJourneys(live, values)
-                self.cachedReturnJourneys = live
-                let offers = self.ranked(
-                    self.offers(from: live, direction: .inbound),
-                    anchor: trip.returnDate
-                )
-                onUpdate(.init(
-                    discoveredCandidates: live.map { self.candidate($0.outbound, direction: .inbound) },
-                    pricedOffers: offers,
-                    isSearching: true,
-                    status: offers.isEmpty ? .checkingAirlines : .comparingFares
-                ))
+        // Keep the exact complete-itinerary inventory fetched on the outbound
+        // screen. Selecting a flexible-date outbound may update TripDraft's anchor
+        // date; clearing the cache here would lose the provider fare that the user
+        // actually selected and force an unnecessary second API search.
+        var values = returnOffers(from: cachedJourneys, matching: outbound)
+        if values.isEmpty {
+            prepareForSearch(trip)
+            onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: true, status: .checkingAirlines))
+            let request = makeJourneyRequest(trip)
+            let dates = journeyDatePairs(trip)
+            do {
+                let final = try await flightProvider.searchJourney(request: request, datePairs: dates) { journeys in
+                    self.cachedJourneys = self.mergeJourneys(self.cachedJourneys, journeys)
+                    let offers = self.ranked(
+                        self.returnOffers(from: self.cachedJourneys, matching: outbound),
+                        anchor: trip.returnDate
+                    )
+                    let candidates = offers.compactMap { offer in
+                        self.liveCandidate(from: offer)
+                    }
+                    onUpdate(.init(
+                        discoveredCandidates: candidates,
+                        pricedOffers: offers,
+                        isSearching: true,
+                        status: offers.isEmpty ? .checkingAirlines : .comparingFares
+                    ))
+                }
+                cachedJourneys = mergeJourneys(cachedJourneys, final)
+                values = returnOffers(from: cachedJourneys, matching: outbound)
+            } catch FlightInventoryProviderError.notConfigured {
+                onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: false, status: nil))
+                throw FlightEngineAvailabilityError.flightProviderNotConfigured
             }
-            live = mergeJourneys(live, final)
-            cachedReturnJourneys = live
-            let offers = ranked(offers(from: live, direction: .inbound), anchor: trip.returnDate)
-            onUpdate(.init(
-                discoveredCandidates: live.map { candidate($0.outbound, direction: .inbound) },
-                pricedOffers: offers,
-                isSearching: false,
-                status: .continuing
-            ))
-            if offers.isEmpty { throw FlightEngineAvailabilityError.noVerifiedFlights }
-            return offers
-        } catch FlightInventoryProviderError.notConfigured {
-            onUpdate(.init(discoveredCandidates: [], pricedOffers: [], isSearching: false, status: nil))
-            throw FlightEngineAvailabilityError.flightProviderNotConfigured
         }
+
+        let offers = ranked(values, anchor: trip.returnDate)
+        onUpdate(.init(
+            discoveredCandidates: offers.compactMap { liveCandidate(from: $0) },
+            pricedOffers: offers,
+            isSearching: false,
+            status: .continuing
+        ))
+        if offers.isEmpty { throw FlightEngineAvailabilityError.noVerifiedFlights }
+        return offers
     }
 
-    /// Converts the server-maintained 48-hour hotel catalog cache into the same
-    /// normalized pricing snapshot consumed by the local package engine. Beta never
-    /// opens Booking/Expedia and never scrapes hotel prices on-device.
+    /// Converts the server-maintained 48-hour hotel catalog cache into the legacy
+    /// snapshot container used by JourneyStore. The only accepted production unit is
+    /// USD per room/night. No Booking/Expedia scraping runs on the pilgrim device.
     func ensureHotelPrices(
         trip: TripDraft,
         makkahHotel: HotelSummary,
@@ -309,119 +311,155 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
     }
 
-    func invalidateHotelPrices() {
-        cachedHotels = nil
-    }
+    func invalidateHotelPrices() { cachedHotels = nil }
 
     func invalidateFlightInventory() {
         activeSignature = nil
-        cachedOutboundJourneys = []
-        cachedReturnJourneys = []
+        cachedJourneys = []
     }
 
     func invalidateSession() {
         activeSignature = nil
-        cachedOutboundJourneys = []
-        cachedReturnJourneys = []
+        cachedJourneys = []
         cachedHotels = nil
     }
 
-    private func prepareForOutbound(_ trip: TripDraft) {
+    private func prepareForSearch(_ trip: TripDraft) {
         let signature = makeSignature(trip)
         guard activeSignature != signature else { return }
         activeSignature = signature
-        cachedOutboundJourneys = []
-        cachedReturnJourneys = []
+        cachedJourneys = []
         cachedHotels = nil
     }
 
-    private func prepareForReturn(_ trip: TripDraft) {
-        let signature = makeSignature(trip)
-        guard activeSignature != signature else { return }
-        activeSignature = signature
-        cachedOutboundJourneys = []
-        cachedReturnJourneys = []
-        cachedHotels = nil
-    }
+    // MARK: - Expedia-style itinerary projection
 
-    /// Converts every valid provider result into a visible fare row. Only exact
-    /// duplicate result rows are collapsed; distinct Ignav fare variants remain
-    /// visible even when they use the same physical flight or provider itinerary ID.
-    private func offers(from journeys: [LiveFlightJourneyCandidate], direction: FlightDirection) -> [FlightOffer] {
-        var seenResults = Set<String>()
-        var values: [FlightOffer] = []
-        for journey in journeys where journey.isDisplayableCandidate {
-            guard seenResults.insert(journeyResultKey(journey)).inserted,
-                  let value = offer(from: journey, direction: direction) else { continue }
-            values.append(value)
+    private func outboundOffers(from journeys: [LiveFlightJourneyCandidate], roundTrip: Bool) -> [FlightOffer] {
+        if !roundTrip {
+            return journeys.compactMap { journey in
+                guard journey.inbound == nil else { return nil }
+                return offer(from: journey, leg: journey.outbound, direction: .outbound, paired: nil)
+            }
         }
-        return values
+
+        var bestByLeg: [String: LiveFlightJourneyCandidate] = [:]
+        for journey in journeys where journey.isDisplayableCandidate && journey.inbound != nil {
+            let key = journey.outbound.deduplicationKey
+            if let current = bestByLeg[key] {
+                if isCheaper(journey, than: current) { bestByLeg[key] = journey }
+            } else {
+                bestByLeg[key] = journey
+            }
+        }
+        return bestByLeg.values.compactMap { journey in
+            guard let inbound = journey.inbound else { return nil }
+            return offer(
+                from: journey,
+                leg: journey.outbound,
+                direction: .outbound,
+                paired: FlightPairedLeg(candidate: inbound)
+            )
+        }
     }
 
-    private func offer(from journey: LiveFlightJourneyCandidate, direction: FlightDirection) -> FlightOffer? {
+    private func returnOffers(from journeys: [LiveFlightJourneyCandidate], matching outbound: FlightOffer) -> [FlightOffer] {
+        let outboundKey = outbound.deduplicationKey
+        var bestByLeg: [String: LiveFlightJourneyCandidate] = [:]
+        for journey in journeys where journey.isDisplayableCandidate && journey.outbound.deduplicationKey == outboundKey {
+            guard let inbound = journey.inbound else { continue }
+            let key = inbound.deduplicationKey
+            if let current = bestByLeg[key] {
+                if isCheaper(journey, than: current) { bestByLeg[key] = journey }
+            } else {
+                bestByLeg[key] = journey
+            }
+        }
+        return bestByLeg.values.compactMap { journey in
+            guard let inbound = journey.inbound else { return nil }
+            return offer(
+                from: journey,
+                leg: inbound,
+                direction: .inbound,
+                paired: FlightPairedLeg(candidate: journey.outbound)
+            )
+        }
+    }
+
+    private func isCheaper(_ lhs: LiveFlightJourneyCandidate, than rhs: LiveFlightJourneyCandidate) -> Bool {
+        if lhs.currency.caseInsensitiveCompare(rhs.currency) == .orderedSame {
+            return lhs.totalFare < rhs.totalFare
+        }
+        return lhs.observedAt > rhs.observedAt
+    }
+
+    private func offer(
+        from journey: LiveFlightJourneyCandidate,
+        leg: LiveFlightCandidate,
+        direction: FlightDirection,
+        paired: FlightPairedLeg?
+    ) -> FlightOffer? {
         guard journey.isDisplayableCandidate else { return nil }
-        let source = journey.outbound
-        let resultKey = journeyResultKey(journey)
         let value = FlightOffer(
-            id: "fare:\(direction.rawValue):\(resultKey)",
+            id: "fare:\(direction.rawValue):\(journey.providerItineraryID):\(leg.deduplicationKey)",
             direction: direction,
-            airline: source.airline,
-            flightNumber: source.flightNumber,
-            origin: source.origin,
-            destination: source.destination,
-            departureAt: source.departureAt,
-            arrivalAt: source.arrivalAt,
-            stops: source.stops,
-            durationMinutes: source.durationMinutes,
+            airline: leg.airline,
+            flightNumber: leg.flightNumber,
+            origin: leg.origin,
+            destination: leg.destination,
+            departureAt: leg.departureAt,
+            arrivalAt: leg.arrivalAt,
+            stops: leg.stops,
+            durationMinutes: leg.durationMinutes,
             totalPackagePrice: journey.totalFare,
             currency: journey.currency,
             sourceLabel: journey.sourceName,
-            packageTotalPrice: nil,
+            packageTotalPrice: journey.totalFare,
             quoteId: nil,
-            sourceCandidateID: source.id,
-            airlineCode: source.airlineCode,
-            segments: source.segments,
-            connectionAirports: source.connectionAirports,
+            sourceCandidateID: leg.id,
+            airlineCode: leg.airlineCode,
+            segments: leg.segments,
+            connectionAirports: leg.connectionAirports,
             fareAmount: journey.totalFare,
             fareScope: journey.fareScope,
             fareObservedAt: journey.observedAt,
-            fareSourceURL: source.sourceURL,
+            fareSourceURL: leg.sourceURL,
             providerItineraryID: journey.providerItineraryID,
-            cabinClass: source.cabinClass,
-            baggage: journey.baggage ?? source.baggage,
-            requiresSelfTransfer: journey.requiresSelfTransfer ?? source.requiresSelfTransfer,
-            pairedLeg: nil
+            cabinClass: leg.cabinClass,
+            baggage: journey.baggage ?? leg.baggage,
+            requiresSelfTransfer: journey.requiresSelfTransfer ?? leg.requiresSelfTransfer,
+            pairedLeg: paired
         )
         return value.isVerifiedForBooking ? value : nil
     }
 
-    private func candidate(_ source: LiveFlightCandidate, direction: FlightDirection) -> LiveFlightCandidate {
+    /// Only used for progressive status rendering on the return screen.
+    private func liveCandidate(from offer: FlightOffer) -> LiveFlightCandidate? {
         LiveFlightCandidate(
-            id: "\(source.id):\(direction.rawValue)",
-            sourceID: source.sourceID,
-            sourceName: source.sourceName,
-            direction: direction,
-            airline: source.airline,
-            flightNumber: source.flightNumber,
-            origin: source.origin,
-            destination: source.destination,
-            departureAt: source.departureAt,
-            arrivalAt: source.arrivalAt,
-            stops: source.stops,
-            durationMinutes: source.durationMinutes,
-            observedFare: source.observedFare,
-            observedCurrency: source.observedCurrency,
-            fareScope: source.fareScope,
-            observedAt: source.observedAt,
-            sourceURL: source.sourceURL,
-            rawFingerprint: source.rawFingerprint,
-            airlineCode: source.airlineCode,
-            segments: source.segments,
-            connectionAirports: source.connectionAirports,
-            providerItineraryID: source.providerItineraryID,
-            cabinClass: source.cabinClass,
-            baggage: source.baggage,
-            requiresSelfTransfer: source.requiresSelfTransfer
+            id: offer.sourceCandidateID ?? offer.id,
+            sourceID: "ignav",
+            sourceName: offer.sourceLabel,
+            direction: offer.direction,
+            airline: offer.airline,
+            flightNumber: offer.flightNumber,
+            origin: offer.origin,
+            destination: offer.destination,
+            departureAt: offer.departureAt,
+            arrivalAt: offer.arrivalAt,
+            stops: offer.stops,
+            durationMinutes: offer.durationMinutes,
+            observedFare: offer.fareAmount ?? offer.totalPackagePrice,
+            observedCurrency: offer.currency,
+            fareScope: offer.fareScope ?? .unknown,
+            observedAt: offer.fareObservedAt ?? Date(),
+            sourceURL: offer.fareSourceURL,
+            rawFingerprint: offer.providerItineraryID,
+            airlineCode: offer.airlineCode,
+            segments: offer.segments,
+            connectionAirports: offer.connectionAirports,
+            providerItineraryID: offer.providerItineraryID,
+            cabinClass: offer.cabinClass,
+            baggage: offer.baggage,
+            requiresSelfTransfer: offer.requiresSelfTransfer
         )
     }
 
@@ -434,15 +472,13 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         return values
     }
 
-    /// Exact duplicate rows are collapsed, but distinct fares returned by Ignav are
-    /// preserved even when Ignav reuses the same itinerary identifier.
     private func journeyResultKey(_ journey: LiveFlightJourneyCandidate) -> String {
         let fare = NSDecimalNumber(decimal: journey.totalFare).stringValue
-        let departure = Int(journey.outbound.departureAt.timeIntervalSince1970)
-        let arrival = Int(journey.outbound.arrivalAt.timeIntervalSince1970)
+        let outbound = journey.outbound.deduplicationKey
+        let inbound = journey.inbound?.deduplicationKey ?? "-"
         let baggage = "\(journey.baggage?.carryOn ?? -1):\(journey.baggage?.checked ?? -1)"
         let transfer = journey.requiresSelfTransfer.map { $0 ? "self" : "protected" } ?? "unknown"
-        return [journey.providerItineraryID, fare, journey.currency.uppercased(), String(departure), String(arrival), baggage, transfer]
+        return [journey.providerItineraryID, fare, journey.currency.uppercased(), outbound, inbound, baggage, transfer]
             .joined(separator: "|")
             .lowercased()
     }
@@ -461,12 +497,42 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         }
     }
 
-    private func oneWayDatePairs(anchor: Date, flexibility: DateFlexibility) -> [FlightJourneyDatePair] {
-        FlightDatePlanner.dates(
-            anchor: anchor,
-            flexibility: flexibility,
+    // MARK: - Ignav request construction
+
+    private func makeJourneyRequest(_ trip: TripDraft) -> FlightJourneySearchRequest {
+        FlightJourneySearchRequest(
+            outboundOrigin: trip.originCode,
+            outboundDestination: trip.outboundDestinationCode,
+            inboundOrigin: trip.isRoundTripFlight ? trip.returnOriginCode : nil,
+            inboundDestination: trip.isRoundTripFlight ? trip.originCode : nil,
+            adults: trip.adults,
+            children: trip.children,
+            infants: trip.infants,
+            cabin: trip.effectiveFlightFilters.cabinClass.rawValue,
+            filters: trip.effectiveFlightFilters
+        )
+    }
+
+    private func journeyDatePairs(_ trip: TripDraft) -> [FlightJourneyDatePair] {
+        let outboundDates = FlightDatePlanner.dates(
+            anchor: trip.departureDate,
+            flexibility: trip.flexibility,
             calendar: Calendar.current
-        ).map { FlightJourneyDatePair(outbound: $0, inbound: nil) }
+        )
+        guard trip.isRoundTripFlight else {
+            return outboundDates.map { FlightJourneyDatePair(outbound: $0, inbound: nil) }
+        }
+
+        // Preserve trip duration when flexible discovery is enabled instead of
+        // generating a 7×7 cross product (49 billable Ignav searches).
+        let calendar = Calendar.current
+        let anchorOutbound = calendar.startOfDay(for: trip.departureDate)
+        let anchorReturn = calendar.startOfDay(for: trip.returnDate)
+        return outboundDates.compactMap { outbound in
+            let offset = calendar.dateComponents([.day], from: anchorOutbound, to: calendar.startOfDay(for: outbound)).day ?? 0
+            guard let inbound = calendar.date(byAdding: .day, value: offset, to: anchorReturn), inbound > outbound else { return nil }
+            return FlightJourneyDatePair(outbound: outbound, inbound: inbound)
+        }
     }
 
     private func dayOffset(_ date: Date, from anchor: Date) -> Int {
@@ -476,20 +542,6 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
             from: calendar.startOfDay(for: anchor),
             to: calendar.startOfDay(for: date)
         ).day ?? 0
-    }
-
-    private func makeOneWayRequest(origin: String, destination: String, trip: TripDraft) -> FlightJourneySearchRequest {
-        FlightJourneySearchRequest(
-            outboundOrigin: origin,
-            outboundDestination: destination,
-            inboundOrigin: nil,
-            inboundDestination: nil,
-            adults: trip.adults,
-            children: trip.children,
-            infants: trip.infants,
-            cabin: trip.effectiveFlightFilters.cabinClass.rawValue,
-            filters: trip.effectiveFlightFilters
-        )
     }
 
     private func makeSignature(_ trip: TripDraft) -> String {
