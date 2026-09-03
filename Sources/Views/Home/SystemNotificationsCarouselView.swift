@@ -8,24 +8,7 @@ struct SystemNotificationsCarouselView: View {
     @State private var selectedIndex: Int = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Label("iumrah Signal", systemImage: "bell.badge.fill")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.primary)
-
-                Spacer(minLength: 8)
-
-                if notifications.count > 1 {
-                    Text("\(selectedIndex + 1)/\(notifications.count)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(Color.iumrahRaisedBackground, in: Capsule())
-                }
-            }
-
+        VStack(spacing: 10) {
             GeometryReader { proxy in
                 TabView(selection: $selectedIndex) {
                     ForEach(Array(notifications.enumerated()), id: \.element.id) { index, notification in
@@ -34,8 +17,7 @@ struct SystemNotificationsCarouselView: View {
                             onOpen: { onOpen(notification) },
                             onDismiss: { onDismiss(notification) }
                         )
-                        .frame(width: max(0, proxy.size.width - 2), height: proxy.size.height)
-                        .padding(.vertical, 2)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
                         .tag(index)
                     }
                 }
@@ -43,7 +25,7 @@ struct SystemNotificationsCarouselView: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
             }
-            .frame(height: 176)
+            .frame(height: 164)
 
             if notifications.count > 1 {
                 HStack(spacing: 7) {
@@ -58,14 +40,6 @@ struct SystemNotificationsCarouselView: View {
                 }
             }
         }
-        .padding(16)
-        .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.055), radius: 22, y: 10)
         .onAppear {
             selectedIndex = boundedSelection(selectedIndex)
         }
