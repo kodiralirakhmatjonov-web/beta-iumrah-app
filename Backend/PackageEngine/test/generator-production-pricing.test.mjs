@@ -19,6 +19,10 @@ const itineraryPlanner = fs.readFileSync(new URL('Sources/Core/BookingItineraryP
 const bookingDetail = fs.readFileSync(new URL('Sources/Views/Booking/BookingDetailView.swift', root), 'utf8');
 const finalPackage = fs.readFileSync(new URL('Sources/Views/Package/FinalPackageView.swift', root), 'utf8');
 const primaryHotel = fs.readFileSync(new URL('Sources/Views/Hotels/PrimaryHotelView.swift', root), 'utf8');
+const tripBuilder = fs.readFileSync(new URL('Sources/Views/Trip/TripBuilderView.swift', root), 'utf8');
+const hotelDetail = fs.readFileSync(new URL('Sources/Views/Hotels/HotelDetailView.swift', root), 'utf8');
+const localization = fs.readFileSync(new URL('Sources/Core/AppLocalization.swift', root), 'utf8');
+const careExplanation = fs.readFileSync(new URL('Sources/Views/Package/UmrahCarePackageExplanationView.swift', root), 'utf8');
 
 // Hotel source of truth is Business' fresh catalog rate, expressed only as USD / room / night.
 assert.match(hotelModels, /let nightlyUSD: Double\?/);
@@ -86,6 +90,20 @@ assert.ok(!primaryHotel.includes('nightlyUSD'));
 assert.ok(!primaryHotel.includes('providerDisplayName'));
 assert.ok(!finalPackage.includes('Ignav'));
 assert.ok(!flightCard.includes('sourceLabel'));
+
+// V7 brand contract: no ticket-type switch, no supplier hotel identity, no manual-price language.
+assert.ok(!tripBuilder.includes('flightTripTypeCard'));
+assert.match(tripBuilder, /journey\.trip\.flightTripType = \.roundTrip/);
+assert.ok(!hotelDetail.includes('nightlyUSD'));
+assert.ok(!hotelDetail.includes('Booking.com'));
+assert.ok(!hotelDetail.includes('Expedia'));
+assert.match(hotelDetail, /iumrah Hotels/);
+assert.match(hotelModels, /var providerDisplayName: String \{ "iumrah Hotels" \}/);
+assert.equal((localization.match(/"booking_number_short"/g) || []).length, 4);
+assert.ok(!localization.includes('confirmed manually before booking'));
+assert.ok(!localization.includes('подтверждается вручную перед бронированием'));
+assert.match(finalPackage, /Цена вашего Umrah-пакета/);
+assert.ok(!careExplanation.includes('.scaledToFill()'));
 
 // eSIM is included by default and can be removed through the same confirmation workflow.
 assert.match(bookingDraft, /"esim"/);

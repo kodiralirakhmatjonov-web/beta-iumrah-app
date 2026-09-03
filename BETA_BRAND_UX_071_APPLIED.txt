@@ -1,0 +1,13 @@
+iumrah Beta Production Client Experience V7 / 071
+Date: 2026-09-03
+
+Customer-facing brand/UX hardening:
+- Removed the ticket-type selector from Trip Builder; production journey stays complete round-trip internally.
+- Removed upstream hotel supplier identity and component pricing from customer hotel UI.
+- Hotel catalogue is presented as iumrah Hotels.
+- Fixed missing booking_number_short localization in EN/RU/UZ/UZ-Cyrillic.
+- Replaced manual/indicative final-price messaging with automatic Umrah Package System language.
+- Care explanation now states the automatic core flow and Care as an optional optimization/care layer.
+- CarePriceSupport artwork uses fit rendering in package, booking and explanation cards so the full image remains visible.
+
+This marker is informational only.

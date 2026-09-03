@@ -23,14 +23,9 @@ struct HotelCatalogPrice: Codable, Hashable {
         return expiry > Date()
     }
 
-    var providerDisplayName: String {
-        switch provider?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "booking", "booking.com": return "Booking.com"
-        case "expedia", "expedia.com": return "Expedia"
-        case let value? where !value.isEmpty: return value.capitalized
-        default: return "iumrah Hotels"
-        }
-    }
+    /// Consumer-facing source identity. The raw supplier stays internal so the
+    /// pilgrim sees one coherent iumrah hotel catalogue rather than component vendors.
+    var providerDisplayName: String { "iumrah Hotels" }
 
     var identityKey: String {
         [provider ?? "-", nightlyUSD.map { String($0) } ?? "-", fetchedAt ?? "-", expiresAt ?? "-", status].joined(separator: "|")

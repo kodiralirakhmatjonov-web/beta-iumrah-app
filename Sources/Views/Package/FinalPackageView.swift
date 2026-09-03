@@ -388,10 +388,9 @@ struct FinalPackageView: View {
         VStack(alignment: .leading, spacing: 0) {
             Image("CarePriceSupport")
                 .resizable()
-                .scaledToFill()
-                .frame(height: 168)
+                .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .clipped()
+                .background(Color.black)
 
             VStack(alignment: .leading, spacing: 12) {
                 Label("iumrah Care", systemImage: "heart.fill")
@@ -591,19 +590,19 @@ struct FinalPackageView: View {
 
     private var invalidFlightSelectionMessage: String {
         switch settings.language {
-        case .russian: return "Перед созданием заявки выберите актуальный маршрут. Доступность будет подтверждена перед оформлением."
-        case .english: return "Select a current itinerary. Availability will be confirmed before ticketing."
-        case .uzbek: return "Joriy yo‘nalishni tanlang. Rasmiylashtirishdan oldin mavjudlik tasdiqlanadi."
-        case .uzbekCyrillic: return "Жорий йўналишни танланг. Расмийлаштиришдан олдин мавжудлик тасдиқланади."
+        case .russian: return "Выберите актуальный маршрут. Система автоматически свяжет его с вашим Umrah-пакетом."
+        case .english: return "Select a current itinerary. The system will automatically connect it to your Umrah package."
+        case .uzbek: return "Joriy yo‘nalishni tanlang. Tizim uni Umra paketingiz bilan avtomatik bog‘laydi."
+        case .uzbekCyrillic: return "Жорий йўналишни танланг. Тизим уни Умра пакетингиз билан автоматик боғлайди."
         }
     }
 
     private var indicativePriceTitle: String {
         switch settings.language {
-        case .russian: return "Актуальная расчётная цена"
-        case .english: return "Current indicative price"
-        case .uzbek: return "Joriy hisoblangan narx"
-        case .uzbekCyrillic: return "Жорий ҳисобланган нарх"
+        case .russian: return "Цена вашего Umrah-пакета"
+        case .english: return "Your Umrah package price"
+        case .uzbek: return "Umra paketingiz narxi"
+        case .uzbekCyrillic: return "Умра пакетингиз нархи"
         }
     }
 

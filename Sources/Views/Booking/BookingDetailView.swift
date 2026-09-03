@@ -751,10 +751,9 @@ struct BookingDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Image("CarePriceSupport")
                 .resizable()
-                .scaledToFill()
-                .frame(height: 132)
+                .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .clipped()
+                .background(Color.black)
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(bookingCareBalanceTitle)

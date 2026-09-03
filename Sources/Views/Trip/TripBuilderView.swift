@@ -9,7 +9,6 @@ struct TripBuilderView: View {
             VStack(spacing: 22) {
                 IumrahFlowProgress(stage: .trip)
                 intro
-                flightTripTypeCard
                 routeCard
                 datesCard
                 travelersCard
@@ -33,6 +32,15 @@ struct TripBuilderView: View {
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .trip)
         .onAppear {
+            // Production flow is always a complete Umrah journey: the pilgrim
+            // chooses the outbound first and the compatible return afterwards.
+            // Do not expose an internal ticket-type switch in the customer flow.
+            if journey.trip.resolvedFlightTripType != .roundTrip {
+                journey.resetAfterTripChange()
+                journey.trip.flightTripType = .roundTrip
+            } else if journey.trip.flightTripType == nil {
+                journey.trip.flightTripType = .roundTrip
+            }
             if journey.trip.flexibility == .plusMinusOne {
                 journey.trip.flexibility = .plusMinusTwo
             }
@@ -57,25 +65,6 @@ struct TripBuilderView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var flightTripTypeCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label(ticketTypeTitle, systemImage: "arrow.left.arrow.right.circle.fill")
-                .font(.headline)
-
-            Picker(ticketTypeTitle, selection: flightTripTypeBinding) {
-                Text(roundTripTitle).tag(FlightTripType.roundTrip)
-                Text(oneWayTitle).tag(FlightTripType.oneWay)
-            }
-            .pickerStyle(.segmented)
-
-            Text(journey.trip.isRoundTripFlight ? roundTripHint : oneWayHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .iumrahCard()
     }
 
     private var routeCard: some View {
@@ -369,66 +358,6 @@ struct TripBuilderView: View {
             get: { journey.trip.effectiveFlightFilters },
             set: { journey.updateFlightFilters($0) }
         )
-    }
-
-    private var flightTripTypeBinding: Binding<FlightTripType> {
-        Binding(
-            get: { journey.trip.resolvedFlightTripType },
-            set: { newValue in
-                guard journey.trip.resolvedFlightTripType != newValue else { return }
-                journey.resetAfterTripChange()
-                journey.trip.flightTripType = newValue
-                if newValue == .oneWay, journey.trip.flexibility == .weekend {
-                    journey.trip.flexibility = .exact
-                }
-                IumrahHaptics.selection()
-            }
-        )
-    }
-
-    private var ticketTypeTitle: String {
-        switch settings.language {
-        case .russian: return "Какой авиабилет нужен?"
-        case .english: return "Which ticket do you need?"
-        case .uzbek: return "Qaysi aviachipta kerak?"
-        case .uzbekCyrillic: return "Қайси авиачипта керак?"
-        }
-    }
-
-    private var roundTripTitle: String {
-        switch settings.language {
-        case .russian: return "Туда и обратно"
-        case .english: return "Round trip"
-        case .uzbek: return "Borish-qaytish"
-        case .uzbekCyrillic: return "Бориш-қайтиш"
-        }
-    }
-
-    private var oneWayTitle: String {
-        switch settings.language {
-        case .russian: return "Только туда"
-        case .english: return "One way"
-        case .uzbek: return "Faqat borish"
-        case .uzbekCyrillic: return "Фақат бориш"
-        }
-    }
-
-    private var roundTripHint: String {
-        switch settings.language {
-        case .russian: return "Каждый результат будет одним полным билетом: рейс туда, рейс обратно и общая цена."
-        case .english: return "Each result is one complete ticket with outbound, return and one total fare."
-        case .uzbek: return "Har bir natija borish, qaytish va bitta umumiy narxdan iborat to‘liq chipta bo‘ladi."
-        case .uzbekCyrillic: return "Ҳар бир натижа бориш, қайтиш ва битта умумий нархдан иборат тўлиқ чипта бўлади."
-        }
-    }
-
-    private var oneWayHint: String {
-        switch settings.language {
-        case .russian: return "Ищем только перелёт в Саудовскую Аравию. Вторая дата остаётся датой завершения проживания."
-        case .english: return "Only the flight to Saudi Arabia is searched. The second date remains the end of your stay."
-        case .uzbek: return "Faqat Saudiya Arabistoniga parvoz qidiriladi. Ikkinchi sana yashash tugash sanasi bo‘lib qoladi."
-        case .uzbekCyrillic: return "Фақат Саудия Арабистонига парвоз қидирилади. Иккинчи сана яшаш тугаш санаси бўлиб қолади."
-        }
     }
 
     private var tripEndDateTitle: String {
