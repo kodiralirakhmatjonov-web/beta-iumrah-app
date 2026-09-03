@@ -8,13 +8,27 @@ struct BookingItineraryCalendarView: View {
     let bookingID: String
     let startDate: String
     let endDate: String
+    let booking: RemoteBooking
 
     @State private var selectedDay: String?
     @State private var loading = true
     @State private var errorText: String?
 
-    private var items: [BookingItineraryItem] {
+    private var serverItems: [BookingItineraryItem] {
         bookings.itineraries[bookingID] ?? []
+    }
+
+    /// A legacy operational itinerary can contain every event on a single day.
+    /// When that happens, use the package-aware baseline generated from the exact
+    /// hotel stay dates and arrival city instead of presenting a broken schedule.
+    private var items: [BookingItineraryItem] {
+        let distinctServerDays = Set(serverItems.map(\.dateLocal)).count
+        let tripDayCount = Self.dayRange(from: startDate, through: endDate).count
+        let minimumUsefulDays = min(3, max(2, tripDayCount - 1))
+        if distinctServerDays >= minimumUsefulDays {
+            return serverItems
+        }
+        return BookingItineraryPlanner.make(booking: booking, language: settings.language)
     }
 
     private var days: [String] {

@@ -332,14 +332,16 @@ export async function updatePilgrimCustomization(request: Request, id: string, e
     const includeMadinah = input.includeMadinah === true;
     const ziyaratMakkah = bool(body.ziyaratMakkah, current.ziyaratMakkah !== false);
     const ziyaratMadinah = includeMadinah ? bool(body.ziyaratMadinah, current.ziyaratMadinah !== false) : false;
-    payload.customization = { ...current, ziyaratMakkah, ziyaratMadinah };
+    const esim = bool(body.esim, current.esim !== false);
+    payload.customization = { ...current, ziyaratMakkah, ziyaratMadinah, esim };
 
     const services = Array.isArray(payload.includedServices)
       ? payload.includedServices.filter((item): item is string => typeof item === "string")
       : [];
-    const nextServices = new Set(services.filter((item) => item !== "ziyaratMakkah" && item !== "ziyaratMadinah"));
+    const nextServices = new Set(services.filter((item) => item !== "ziyaratMakkah" && item !== "ziyaratMadinah" && item !== "esim"));
     if (ziyaratMakkah) nextServices.add("ziyaratMakkah");
     if (ziyaratMadinah) nextServices.add("ziyaratMadinah");
+    if (esim) nextServices.add("esim");
     payload.includedServices = Array.from(nextServices);
 
     const now = new Date().toISOString();

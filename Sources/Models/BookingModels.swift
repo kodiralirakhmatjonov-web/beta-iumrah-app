@@ -321,6 +321,7 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var guide: BookingGuideSnapshot? = nil
     var ziyaratMakkahOverride: Bool? = nil
     var ziyaratMadinahOverride: Bool? = nil
+    var esimOverride: Bool? = nil
     var pendingChangeConfirmation: Bool? = nil
     var operationStatus: String? = nil
     var pilgrimID: String? = nil
@@ -413,6 +414,7 @@ struct BookingContactUpdateRequest: Encodable {
 }
 
 struct BookingCustomizationUpdateRequest: Encodable {
-    let ziyaratMakkah: Bool
-    let ziyaratMadinah: Bool
+    let ziyaratMakkah: Bool?
+    let ziyaratMadinah: Bool?
+    let esim: Bool?
 }

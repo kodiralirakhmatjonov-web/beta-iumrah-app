@@ -1,0 +1,10 @@
+iumrah Beta production update 070
+
+- Customer flight cards show package delta only (+$ / -$), never raw supplier fare.
+- Customer UI contains no flight-provider branding.
+- Hotel component prices are hidden from all customer hotel cards/details.
+- Primary Hotel generator cards use separate fixed media/content zones.
+- Booking itinerary falls back to a stay-aware day-by-day Umrah plan when server itinerary is sparse/legacy.
+- High-price booking reassurance uses iumrah Care artwork and an explanatory iOS sheet.
+- iumrah Mobile eSIM is included by default and can be removed through the booking change-confirmation workflow.
+- Existing internal iumrah Business pricing snapshots remain unchanged.

@@ -117,7 +117,7 @@ struct ReturnFlightView: View {
                         isRecommended: recommendedOfferID == offer.id,
                         travelerCount: journey.trip.travelerCount,
                         packagePricePerPerson: packagePrices[offer.id],
-                        referencePackagePricePerPerson: recommendedOffer.flatMap { packagePrices[$0.id] },
+                        referencePackagePricePerPerson: referenceOffer.flatMap { packagePrices[$0.id] },
                         usesProvisionalOppositeLeg: false,
                         isPackagePriceLoading: journey.isSearchingHotelPrices
                     )
@@ -160,6 +160,8 @@ struct ReturnFlightView: View {
     }
 
     private var recommendedOfferID: String? { recommendedOffer?.id }
+
+    private var referenceOffer: FlightOffer? { journey.selectedInbound ?? recommendedOffer }
 
     private var resultCountLabel: some View {
         Label(resultCountText, systemImage: "list.number")

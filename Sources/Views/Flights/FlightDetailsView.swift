@@ -24,11 +24,7 @@ struct FlightDetailsView: View {
                 }
 
 
-                if let paired = offer.pairedLeg {
-                    pairedReturnDetails(paired)
-                }
-
-                fareSection
+                ticketInfoSection
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -53,7 +49,7 @@ struct FlightDetailsView: View {
             .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
-                Label(offer.pairedLeg == nil ? oneWayTicketTitle : roundTripTicketTitle, systemImage: offer.pairedLeg == nil ? "arrow.right" : "arrow.left.arrow.right")
+                Label(flightTypeTitle, systemImage: "airplane")
                 Text("•")
                 Label(durationText(offer.durationMinutes), systemImage: "clock")
                 Text("•")
@@ -65,76 +61,12 @@ struct FlightDetailsView: View {
         }
     }
 
-    private func pairedReturnDetails(_ paired: FlightPairedLeg) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label(returnTitle, systemImage: "airplane.arrival")
-                .font(.title3.weight(.bold))
-
-            ForEach(Array(pairedSegments(paired).enumerated()), id: \.element.id) { index, segment in
-                VStack(alignment: .leading, spacing: 13) {
-                    HStack(spacing: 10) {
-                        AirlineLogoView(airlineCode: segment.airlineCode, size: 38)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(FlightReferenceCatalog.airlineName(code: segment.airlineCode, fallback: segment.airline))
-                                .font(.headline)
-                            Text(FlightReferenceCatalog.normalizedVerifiedFlightNumber(segment.flightNumber) ?? flightNumberPendingTitle)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if pairedSegments(paired).count > 1 {
-                            Text("\(index + 1)/\(pairedSegments(paired).count)")
-                                .font(.caption.monospaced().weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    routeTimeline(segment)
-                }
-                if index < pairedSegments(paired).count - 1 { Divider() }
-            }
-        }
-        .iumrahCard()
-    }
-
-    private func pairedSegments(_ paired: FlightPairedLeg) -> [FlightSegment] {
-        if let segments = paired.segments, !segments.isEmpty { return segments }
-        return [FlightSegment(
-            id: "paired-\(offer.id)",
-            airline: paired.airline,
-            airlineCode: paired.primaryAirlineCode,
-            flightNumber: paired.flightNumber,
-            origin: FlightAirportSnapshot(code: paired.origin),
-            destination: FlightAirportSnapshot(code: paired.destination),
-            departureAt: paired.departureAt,
-            arrivalAt: paired.arrivalAt,
-            durationMinutes: paired.durationMinutes
-        )]
-    }
-
-    private var roundTripTicketTitle: String {
+    private var flightTypeTitle: String {
         switch settings.language {
-        case .russian: return "Билет туда и обратно"
-        case .english: return "Round-trip ticket"
-        case .uzbek: return "Borish-qaytish chiptasi"
-        case .uzbekCyrillic: return "Бориш-қайтиш чиптаси"
-        }
-    }
-
-    private var oneWayTicketTitle: String {
-        switch settings.language {
-        case .russian: return "Билет в одну сторону"
-        case .english: return "One-way ticket"
-        case .uzbek: return "Bir tomonlama chipta"
-        case .uzbekCyrillic: return "Бир томонлама чипта"
-        }
-    }
-
-    private var returnTitle: String {
-        switch settings.language {
-        case .russian: return "Обратный перелёт — часть этого билета"
-        case .english: return "Return flight — included in this ticket"
-        case .uzbek: return "Qaytish reysi — ushbu chipta tarkibida"
-        case .uzbekCyrillic: return "Қайтиш рейси — ушбу чипта таркибида"
+        case .russian: return "Перелёт"
+        case .english: return "Flight"
+        case .uzbek: return "Parvoz"
+        case .uzbekCyrillic: return "Парвоз"
         }
     }
 
@@ -322,26 +254,12 @@ struct FlightDetailsView: View {
         }
     }
 
-    private var fareSection: some View {
+    private var ticketInfoSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(fareTitle)
-                        .font(.headline)
-                    Text(fareSubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 12)
-                PackagePriceView(
-                    amount: offer.totalPackagePrice,
-                    currency: offer.currency,
-                    showsPerPerson: offer.fareScope == .perPassenger
-                )
-            }
+            Text(ticketInfoTitle)
+                .font(.headline)
 
             if offer.baggage != nil || offer.requiresSelfTransfer != nil {
-                Divider()
                 LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 12) {
                     if let carryOn = offer.baggage?.carryOn {
                         detailValue(title: baggageTitle(carryOn: true), value: "×\(carryOn)")
@@ -353,9 +271,31 @@ struct FlightDetailsView: View {
                         detailValue(title: selfTransferTitle, value: selfTransfer ? selfTransferRequired : selfTransferNotRequired)
                     }
                 }
+            } else {
+                Text(ticketInfoBody)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .iumrahCard()
+    }
+
+    private var ticketInfoTitle: String {
+        switch settings.language {
+        case .russian: return "Условия перелёта"
+        case .english: return "Flight conditions"
+        case .uzbek: return "Parvoz shartlari"
+        case .uzbekCyrillic: return "Парвоз шартлари"
+        }
+    }
+
+    private var ticketInfoBody: String {
+        switch settings.language {
+        case .russian: return "Выбранный перелёт уже учтён в общей цене пакета. Здесь показаны только детали маршрута."
+        case .english: return "Your selected flight is already included in the package total. Only itinerary details are shown here."
+        case .uzbek: return "Tanlangan reys paketning umumiy narxiga kiritilgan. Bu yerda faqat yo‘nalish tafsilotlari ko‘rsatiladi."
+        case .uzbekCyrillic: return "Танланган рейс пакетнинг умумий нархига киритилган. Бу ерда фақат йўналиш тафсилотлари кўрсатилади."
+        }
     }
 
     private func detailValue(title: String, value: String) -> some View {
@@ -365,34 +305,6 @@ struct FlightDetailsView: View {
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.subheadline.weight(.semibold))
-        }
-    }
-
-    private var fareTitle: String {
-        let isRoundTrip = offer.pairedLeg != nil
-        switch settings.language {
-        case .russian:
-            return isRoundTrip ? "Тариф Ignav за полный билет туда-обратно" : "Тариф Ignav за билет в одну сторону"
-        case .english:
-            return isRoundTrip ? "Ignav fare for the complete round trip" : "Ignav fare for the one-way ticket"
-        case .uzbek:
-            return isRoundTrip ? "To‘liq borish-qaytish uchun Ignav tarifi" : "Bir tomonlama chipta uchun Ignav tarifi"
-        case .uzbekCyrillic:
-            return isRoundTrip ? "Тўлиқ бориш-қайтиш учун Ignav тарифи" : "Бир томонлама чипта учун Ignav тарифи"
-        }
-    }
-
-    private var fareSubtitle: String {
-        let forParty = offer.fareScope == .totalParty
-        switch settings.language {
-        case .russian:
-            return forParty ? "Проверенная цена провайдера за всех выбранных путешественников. В пакете этот тариф учитывается один раз." : "Проверенная цена провайдера на одного путешественника."
-        case .english:
-            return forParty ? "Verified provider fare for all selected travelers. This fare is charged once in the package." : "Verified provider fare per traveler."
-        case .uzbek:
-            return forParty ? "Barcha tanlangan sayohatchilar uchun tekshirilgan provayder narxi. Paketda bir marta hisoblanadi." : "Bir sayohatchi uchun tekshirilgan provayder narxi."
-        case .uzbekCyrillic:
-            return forParty ? "Барча танланган саёҳатчилар учун текширилган провайдер нархи. Пакетда бир марта ҳисобланади." : "Бир саёҳатчи учун текширилган провайдер нархи."
         }
     }
 

@@ -13,6 +13,7 @@ struct FinalPackageView: View {
     @State private var errorMessage: String?
     @State private var showCreatedBooking = false
     @State private var isCalculatingPrice = false
+    @State private var showCareExplanation = false
 
     private var needsMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canBook: Bool {
@@ -38,7 +39,7 @@ struct FinalPackageView: View {
                         pricingStatusCard
                     }
                     includedServicesCard
-                    reassuranceCard
+                    careReassuranceCard
                     notificationCard
 
                     if let errorMessage {
@@ -79,6 +80,10 @@ struct FinalPackageView: View {
                 Task { await createBooking() }
             }
             .environmentObject(settings)
+        }
+        .sheet(isPresented: $showCareExplanation) {
+            UmrahCarePackageExplanationView()
+                .environmentObject(settings)
         }
         .navigationDestination(isPresented: $showCreatedBooking) {
             if let createdSession {
@@ -150,28 +155,28 @@ struct FinalPackageView: View {
 
     private var calculatingPriceBody: String {
         switch settings.language {
-        case .russian: return journey.trip.isRoundTripFlight ? "Используем выбранные тарифы Ignav и свежие цены отелей из каталога iumrah, обновляемые каждые 48 часов." : "Используем выбранный тариф Ignav и свежие цены отелей из каталога iumrah, обновляемые каждые 48 часов."
-        case .english: return journey.trip.isRoundTripFlight ? "Using your selected Ignav fares and fresh iumrah catalog hotel prices refreshed every 48 hours." : "Using your selected Ignav fare and fresh iumrah catalog hotel prices refreshed every 48 hours."
-        case .uzbek: return "Tanlangan Ignav tariflari va har 48 soatda yangilanadigan iumrah katalogidagi mehmonxona narxlari asosida hisoblanadi."
-        case .uzbekCyrillic: return "Танланган Ignav тарифлари ва ҳар 48 соатда янгиланадиган iumrah каталогидаги меҳмонхона нархлари асосида ҳисобланади."
+        case .russian: return "Собираем выбранные перелёты, отели и услуги в одну итоговую цену поездки."
+        case .english: return "Combining your selected flights, hotels and services into one trip price."
+        case .uzbek: return "Tanlangan reyslar, mehmonxonalar va xizmatlarni safarning yagona narxiga birlashtiramiz."
+        case .uzbekCyrillic: return "Танланган рейслар, меҳмонхоналар ва хизматларни сафарнинг ягона нархига бирлаштирамиз."
         }
     }
 
     private var pricingUnavailableTitle: String {
         switch settings.language {
-        case .russian: return "Не удалось получить цену компонента"
-        case .english: return "A component price is unavailable"
-        case .uzbek: return "Komponent narxini olish imkoni bo‘lmadi"
-        case .uzbekCyrillic: return "Компонент нархини олиш имкони бўлмади"
+        case .russian: return "Не удалось обновить пакет"
+        case .english: return "The package could not be refreshed"
+        case .uzbek: return "Paketni yangilab bo‘lmadi"
+        case .uzbekCyrillic: return "Пакетни янгилаб бўлмади"
         }
     }
 
     private var pricingUnavailableBody: String {
         switch settings.language {
-        case .russian: return "Маршрут сохранён. Повторная проверка читает только свежую цену из каталога iumrah и не запускает поиск авиабилетов заново."
-        case .english: return "Your journey is preserved. Retry only rechecks the fresh iumrah catalog hotel price and does not restart flight search."
-        case .uzbek: return "Yo‘nalish saqlanadi. Qayta tekshirish faqat iumrah katalogidagi yangi mehmonxona narxini o‘qiydi va reys qidiruvini qayta boshlamaydi."
-        case .uzbekCyrillic: return "Йўналиш сақланади. Қайта текшириш фақат iumrah каталогидаги янги меҳмонхона нархини ўқийди ва рейс қидирувини қайта бошламайди."
+        case .russian: return "Ваш выбор сохранён. Повторная проверка обновит доступность выбранных отелей и пересчитает поездку без потери маршрута."
+        case .english: return "Your selections are preserved. Retry will refresh hotel availability and recalculate the trip without losing your route."
+        case .uzbek: return "Tanlovlaringiz saqlanadi. Qayta tekshirish mehmonxona mavjudligini yangilaydi va yo‘nalishni yo‘qotmasdan safarni qayta hisoblaydi."
+        case .uzbekCyrillic: return "Танловларингиз сақланади. Қайта текшириш меҳмонхона мавжудлигини янгилайди ва йўналишни йўқотмасдан сафарни қайта ҳисоблайди."
         }
     }
 
@@ -190,8 +195,8 @@ struct FinalPackageView: View {
 
     private var retryPricingTitle: String {
         switch settings.language {
-        case .russian: return "Повторно проверить цену"
-        case .english: return "Recheck hotel price"
+        case .russian: return "Повторно проверить пакет"
+        case .english: return "Recheck package"
         case .uzbek: return "Narxni qayta olish"
         case .uzbekCyrillic: return "Нархни қайта олиш"
         }
@@ -313,10 +318,10 @@ struct FinalPackageView: View {
             includedRow(.ziyaratMakkah, icon: "mappin.and.ellipse")
             if needsMadinah { includedRow(.ziyaratMadinah, icon: "mappin.and.ellipse") }
             includedRow(.careSupport, icon: "heart.fill")
-            includedRow(.guide, icon: "person.wave.2.fill")
+            includedRow(.guide, icon: "person.2.fill")
             includedRow(.visa, icon: "doc.text.fill")
             includedRow(.meals, icon: "fork.knife")
-            includedRow(.esim, icon: "simcard.fill")
+            esimIncludedRow
         }
         .padding(20)
         .background(Color.iumrahCardBackground)
@@ -352,28 +357,103 @@ struct FinalPackageView: View {
         .padding(.vertical, 9)
     }
 
-    private var reassuranceCard: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "hand.raised.fill")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 44, height: 44)
-                .background(Color.iumrahCareLight.opacity(0.28), in: Circle())
+    private var esimIncludedRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Circle().fill(Color.iumrahCareLight.opacity(0.22))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.iumrahCareDark)
+            }
+            .frame(width: 30, height: 30)
 
-            VStack(alignment: .leading, spacing: 7) {
-                Text(FlowCopy.text(.noPaymentTitle, settings.language))
-                    .font(.headline)
-                Text(FlowCopy.text(.noPaymentBody, settings.language))
-                    .font(.subheadline)
+            Image("UmrahMobileLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 38, height: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("iumrah Mobile eSIM")
+                    .font(.subheadline.weight(.semibold))
+                Text(FlowCopy.text(.included, settings.language))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .padding(20)
-        .background(Color.iumrahCareLight.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(Color.iumrahCareLight.opacity(0.25), lineWidth: 0.7) }
+        .padding(.vertical, 9)
+    }
+
+    private var careReassuranceCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image("CarePriceSupport")
+                .resizable()
+                .scaledToFill()
+                .frame(height: 168)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: 12) {
+                Label("iumrah Care", systemImage: "heart.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.iumrahCareDark)
+
+                Text(careCardTitle)
+                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(careCardBody)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    showCareExplanation = true
+                    IumrahHaptics.soft()
+                } label: {
+                    HStack {
+                        Text(careHowItWorks)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+            }
+            .padding(18)
+        }
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private var careCardTitle: String {
+        switch settings.language {
+        case .russian: return "Мы проверим баланс цены и маршрута"
+        case .english: return "We review the balance between price and itinerary"
+        case .uzbek: return "Narx va yo‘nalish muvozanatini tekshiramiz"
+        case .uzbekCyrillic: return "Нарх ва йўналиш мувозанатини текширамиз"
+        }
+    }
+
+    private var careCardBody: String {
+        switch settings.language {
+        case .russian: return "Если текущая цена выше ожидаемой или даты гибкие, специалисты iumrah Care дополнительно проверят более удобные прямые рейсы, логичное распределение ночей и отели ближе к ключевым местам — без потери качества поездки."
+        case .english: return "If the current price is higher than expected or your dates are flexible, iumrah Care will review more convenient direct flights, sensible night allocation and closer hotels without compromising the journey."
+        case .uzbek: return "Agar joriy narx kutilganidan yuqori bo‘lsa yoki sanalaringiz moslashuvchan bo‘lsa, iumrah Care qulayroq to‘g‘ridan-to‘g‘ri reyslar, tunlarning mantiqiy taqsimoti va yaqinroq mehmonxonalarni qo‘shimcha tekshiradi."
+        case .uzbekCyrillic: return "Агар жорий нарх кутилганидан юқори бўлса ёки саналарингиз мослашувчан бўлса, iumrah Care қулайроқ тўғридан-тўғри рейслар, тунларнинг мантиқий тақсимоти ва яқинроқ меҳмонхоналарни қўшимча текширади."
+        }
+    }
+
+    private var careHowItWorks: String {
+        switch settings.language {
+        case .russian: return "Как это работает"
+        case .english: return "How it works"
+        case .uzbek: return "Qanday ishlaydi"
+        case .uzbekCyrillic: return "Қандай ишлайди"
+        }
     }
 
     private var notificationCard: some View {
@@ -511,10 +591,10 @@ struct FinalPackageView: View {
 
     private var invalidFlightSelectionMessage: String {
         switch settings.language {
-        case .russian: return "Перед созданием заявки выберите актуальный маршрут с ценой от Ignav. Наличие подтвердит менеджер."
-        case .english: return "Select a current Ignav itinerary and fare. Availability will be confirmed by a manager."
-        case .uzbek: return "Ignav joriy yo‘nalishi va narxini tanlang. Mavjudlikni menejer tasdiqlaydi."
-        case .uzbekCyrillic: return "Ignav жорий йўналиши ва нархини танланг. Мавжудликни менежер тасдиқлайди."
+        case .russian: return "Перед созданием заявки выберите актуальный маршрут. Доступность будет подтверждена перед оформлением."
+        case .english: return "Select a current itinerary. Availability will be confirmed before ticketing."
+        case .uzbek: return "Joriy yo‘nalishni tanlang. Rasmiylashtirishdan oldin mavjudlik tasdiqlanadi."
+        case .uzbekCyrillic: return "Жорий йўналишни танланг. Расмийлаштиришдан олдин мавжудлик тасдиқланади."
         }
     }
 

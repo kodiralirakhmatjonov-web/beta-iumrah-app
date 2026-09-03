@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// Consumer flight card inspired by Expedia Packages.
+/// Consumer flight card for the Umrah package flow.
 ///
-/// The customer never sees a raw supplier fare as the dominant number. The primary
-/// value is always the complete iumrah package price per pilgrim for this flight
-/// combination. The card also shows the full package total and the delta versus the
-/// cheapest package option, mirroring the mental model used by package OTAs.
+/// The customer sees only how this flight changes the package price.
+/// Internal pricing/source details are intentionally kept out of the client UI.
 struct FlightCard: View {
     @EnvironmentObject private var settings: AppSettingsStore
 
@@ -19,106 +17,125 @@ struct FlightCard: View {
     var isPackagePriceLoading: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            topRow
-            routeDetails
-            Divider().opacity(0.7)
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            timingRow
+            details
+            Divider().opacity(0.55)
             bottomMeta
         }
         .padding(18)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(isSelected ? Color.primary : Color.primary.opacity(0.10), lineWidth: isSelected ? 1.6 : 1)
+                .strokeBorder(isSelected ? Color.primary : Color.primary.opacity(0.08), lineWidth: isSelected ? 1.7 : 0.8)
         }
         .shadow(color: Color.primary.opacity(0.045), radius: 14, x: 0, y: 6)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
-    private var topRow: some View {
-        HStack(alignment: .top, spacing: 14) {
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
             AirlineLogoView(airlineCode: offer.primaryAirlineCode, size: 38)
-                .padding(.top, 2)
 
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(spacing: 8) {
-                    Text(time(offer.departureAt))
-                    routeLine
-                    Text(time(offer.arrivalAt))
-                    if arrivesNextDay {
-                        Text("+1")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.red)
-                            .baselineOffset(8)
-                    }
-                }
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .monospacedDigit()
-
-                Text("\(airportCity(offer.origin)) (\(offer.origin)) – \(airportCity(offer.destination)) (\(offer.destination))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
+            VStack(alignment: .leading, spacing: 3) {
                 Text(offer.airlinesSummary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.headline.weight(.bold))
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !offer.flightNumbersSummary.isEmpty {
+                    Text(offer.flightNumbersSummary)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
 
-            packagePriceColumn
-        }
-    }
-
-    private var packagePriceColumn: some View {
-        VStack(alignment: .trailing, spacing: 3) {
-            if let price = packagePricePerPerson {
-                Text(deltaDisplay)
-                    .font(.system(size: 25, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
+            VStack(alignment: .trailing, spacing: 4) {
+                if isPackagePriceLoading && packagePricePerPerson == nil {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Text(deltaDisplay)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
                 Text(deltaLabel)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-
-                Text("\(usd(price)) \(perPilgrimPackageLabel)")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(2)
-
-                Text("\(usd(price * Decimal(max(1, travelerCount)))) \(packageTotalLabel)")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(2)
-            } else if isPackagePriceLoading {
-                ProgressView()
-                    .controlSize(.small)
-                Text(calculatingLabel)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
-            } else {
-                Text(priceUnavailableLabel)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+                    .frame(maxWidth: 108, alignment: .trailing)
             }
         }
-        .frame(minWidth: 124, alignment: .trailing)
     }
 
-    private var routeDetails: some View {
+    private var timingRow: some View {
+        HStack(alignment: .center, spacing: 10) {
+            timeBlock(date: offer.departureAt, code: offer.origin, alignment: .leading, isArrival: false)
+                .frame(width: 82, alignment: .leading)
+
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Rectangle().frame(height: 1.5)
+                    Image(systemName: "airplane")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(0))
+                    Rectangle().frame(height: 1.5)
+                }
+                .foregroundStyle(.secondary.opacity(0.72))
+
+                Text(durationText(offer.durationMinutes))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+
+            timeBlock(date: offer.arrivalAt, code: offer.destination, alignment: .trailing, isArrival: true)
+                .frame(width: 82, alignment: .trailing)
+        }
+    }
+
+    private func timeBlock(date: Date, code: String, alignment: HorizontalAlignment, isArrival: Bool) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
+            HStack(spacing: 2) {
+                if isArrival { Spacer(minLength: 0) }
+                Text(time(date))
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                if isArrival && arrivesNextDay {
+                    Text("+1")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.red)
+                        .baselineOffset(7)
+                }
+                if !isArrival { Spacer(minLength: 0) }
+            }
+            Text(code)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.primary)
+            Text(airportCity(code))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+    }
+
+    private var details: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("\(durationText(offer.durationMinutes)) · \(stopLabel)")
+                Text(stopAndRouteLabel)
                     .font(.subheadline.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if isRecommended {
                     Text(recommendedLabel)
@@ -137,63 +154,71 @@ struct FlightCard: View {
             }
 
             if let layover = offer.layovers.first {
-                Text(layoverText(layover))
-                    .font(.subheadline)
+                Label(layoverText(layover), systemImage: "clock.arrow.circlepath")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             } else if let connection = offer.connectionAirports?.first {
-                Text(connectionText(connection))
-                    .font(.subheadline)
+                Label(connectionText(connection), systemImage: "arrow.triangle.branch")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-            }
-
-            if !offer.flightNumbersSummary.isEmpty {
-                Text(offer.flightNumbersSummary)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.tertiary)
             }
         }
     }
 
     private var bottomMeta: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Label(cabinLabel, systemImage: "seatbelt")
-            if let baggage = offer.baggage {
-                if let carry = baggage.carryOn, carry > 0 {
-                    Label("\(carry)", systemImage: "bag")
-                }
-                if let checked = baggage.checked, checked > 0 {
-                    Label("\(checked)", systemImage: "suitcase")
-                }
+            if let carry = offer.baggage?.carryOn, carry > 0 {
+                Label("×\(carry)", systemImage: "bag")
             }
-            Spacer(minLength: 8)
-            Text(offer.sourceLabel)
-                .font(.caption2.monospaced().weight(.semibold))
-                .foregroundStyle(.tertiary)
+            if let checked = offer.baggage?.checked, checked > 0 {
+                Label("×\(checked)", systemImage: "suitcase")
+            }
+            Spacer(minLength: 0)
         }
         .font(.caption.weight(.medium))
-        .foregroundStyle(.secondary)
-    }
-
-    private var routeLine: some View {
-        HStack(spacing: 3) {
-            Rectangle().frame(width: 16, height: 1.5)
-            Circle().frame(width: 6, height: 6)
-            Rectangle().frame(width: 16, height: 1.5)
-        }
         .foregroundStyle(.secondary)
     }
 
     private var packageDelta: Decimal? {
         guard let current = packagePricePerPerson,
               let baseline = referencePackagePricePerPerson else { return nil }
-        return current > baseline ? current - baseline : 0
+        return current - baseline
     }
 
-    private var arrivesNextDay: Bool {
-        let calendar = Calendar(identifier: .gregorian)
-        return !calendar.isDate(offer.departureAt, inSameDayAs: offer.arrivalAt)
+    private var deltaDisplay: String {
+        guard let delta = packageDelta else { return "—" }
+        let rounded = abs(NSDecimalNumber(decimal: delta).doubleValue).rounded()
+        let number = NumberFormatter()
+        number.numberStyle = .decimal
+        number.maximumFractionDigits = 0
+        number.minimumFractionDigits = 0
+        let body = number.string(from: NSNumber(value: rounded)) ?? String(Int(rounded))
+        if delta > 0 { return "+$\(body)" }
+        if delta < 0 { return "−$\(body)" }
+        return "$0"
+    }
+
+    private var deltaLabel: String {
+        switch settings.language {
+        case .russian: return "к пакету / 1 человек"
+        case .english: return "package difference / traveler"
+        case .uzbek: return "paket farqi / 1 kishi"
+        case .uzbekCyrillic: return "пакет фарқи / 1 киши"
+        }
+    }
+
+    private var stopAndRouteLabel: String {
+        switch settings.language {
+        case .russian:
+            return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
+        case .english:
+            return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
+        case .uzbek, .uzbekCyrillic:
+            return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
+        }
     }
 
     private var stopLabel: String {
@@ -218,56 +243,6 @@ struct FlightCard: View {
         }
     }
 
-    private var deltaDisplay: String {
-        guard let delta = packageDelta else { return usd(0) }
-        return "+\(usd(delta))"
-    }
-
-    private var deltaLabel: String {
-        switch settings.language {
-        case .russian: return "к пакету / 1 человек"
-        case .english: return "package difference / traveler"
-        case .uzbek: return "paket farqi / 1 kishi"
-        case .uzbekCyrillic: return "пакет фарқи / 1 киши"
-        }
-    }
-
-    private var perPilgrimPackageLabel: String {
-        switch settings.language {
-        case .russian: return "пакет / 1 человек"
-        case .english: return "package / traveler"
-        case .uzbek: return "paket / 1 kishi"
-        case .uzbekCyrillic: return "пакет / 1 киши"
-        }
-    }
-
-    private var packageTotalLabel: String {
-        switch settings.language {
-        case .russian: return "пакет всего"
-        case .english: return "package total"
-        case .uzbek: return "jami paket"
-        case .uzbekCyrillic: return "жами пакет"
-        }
-    }
-
-    private var calculatingLabel: String {
-        switch settings.language {
-        case .russian: return "считаем пакет"
-        case .english: return "calculating package"
-        case .uzbek: return "paket hisoblanmoqda"
-        case .uzbekCyrillic: return "пакет ҳисобланмоқда"
-        }
-    }
-
-    private var priceUnavailableLabel: String {
-        switch settings.language {
-        case .russian: return "цена пакета пока недоступна"
-        case .english: return "package price unavailable"
-        case .uzbek: return "paket narxi hozircha yo‘q"
-        case .uzbekCyrillic: return "пакет нархи ҳозирча йўқ"
-        }
-    }
-
     private var cabinLabel: String {
         let value = offer.cabinClass?.lowercased() ?? "economy"
         switch (value, settings.language) {
@@ -284,6 +259,11 @@ struct FlightCard: View {
         case ("premium_economy", .uzbek), ("premium_economy", .uzbekCyrillic): return "Premium economy"
         default: return "Economy"
         }
+    }
+
+    private var arrivesNextDay: Bool {
+        let calendar = Calendar(identifier: .gregorian)
+        return !calendar.isDate(offer.departureAt, inSameDayAs: offer.arrivalAt)
     }
 
     private func layoverText(_ layover: FlightLayover) -> String {
@@ -325,16 +305,5 @@ struct FlightCard: View {
         case .uzbek: return rest == 0 ? "\(hours)soat" : "\(hours)soat \(rest)d"
         case .uzbekCyrillic: return rest == 0 ? "\(hours)соат" : "\(hours)соат \(rest)д"
         }
-    }
-
-    private func usd(_ value: Decimal) -> String {
-        let number = NSDecimalNumber(decimal: value)
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.currencySymbol = "US$"
-        formatter.maximumFractionDigits = 0
-        formatter.minimumFractionDigits = 0
-        return formatter.string(from: number) ?? "US$\(number.stringValue)"
     }
 }

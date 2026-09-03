@@ -143,7 +143,16 @@ struct BookingService {
     func updateZiyarat(id: String, headers: [String: String], makkah: Bool, madinah: Bool) async throws -> BookingMutationResponse {
         try await api.patch(
             "/api/package/booking/\(id)/customization",
-            body: BookingCustomizationUpdateRequest(ziyaratMakkah: makkah, ziyaratMadinah: madinah),
+            body: BookingCustomizationUpdateRequest(ziyaratMakkah: makkah, ziyaratMadinah: madinah, esim: nil),
+            headers: headers
+        )
+    }
+
+
+    func updateESIM(id: String, headers: [String: String], enabled: Bool) async throws -> BookingMutationResponse {
+        try await api.patch(
+            "/api/package/booking/\(id)/customization",
+            body: BookingCustomizationUpdateRequest(ziyaratMakkah: nil, ziyaratMadinah: nil, esim: enabled),
             headers: headers
         )
     }

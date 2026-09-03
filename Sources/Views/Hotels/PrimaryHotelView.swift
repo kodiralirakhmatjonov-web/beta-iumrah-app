@@ -118,8 +118,11 @@ struct PrimaryHotelView: View {
     private func stayCard(hotel: HotelSummary, role: HotelSelectionRole, title: String, roomName: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             hotelImage(hotel)
-                .frame(height: 190)
+                .frame(height: 214)
                 .background(Color.iumrahRaisedBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .padding(12)
+                .padding(.bottom, 0)
 
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
@@ -152,20 +155,6 @@ struct PrimaryHotelView: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if let price = hotel.price, price.isFresh, let nightly = price.nightlyUSD {
-                        HStack(spacing: 6) {
-                            Text(String(format: "$%.0f", nightly))
-                                .font(.subheadline.weight(.bold))
-                            Text(nightlyPriceSuffix)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.secondary)
-                            Text("·")
-                                .foregroundStyle(.tertiary)
-                            Text(price.providerDisplayName)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
 
                 HStack(spacing: 8) {
@@ -213,7 +202,9 @@ struct PrimaryHotelView: View {
                     .buttonStyle(SoftHotelActionButtonStyle())
                 }
             }
-            .padding(18)
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+            .padding(.bottom, 18)
         }
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
@@ -222,15 +213,6 @@ struct PrimaryHotelView: View {
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
         }
         .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
-    }
-
-    private var nightlyPriceSuffix: String {
-        switch settings.language {
-        case .russian: return "за номер / ночь"
-        case .english: return "room / night"
-        case .uzbek: return "xona / tun"
-        case .uzbekCyrillic: return "хона / тун"
-        }
     }
 
     private var localizedMakkah: String {

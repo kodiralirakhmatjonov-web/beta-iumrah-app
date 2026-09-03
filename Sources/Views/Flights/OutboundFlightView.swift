@@ -146,7 +146,7 @@ struct OutboundFlightView: View {
                         isRecommended: recommendedOfferID == offer.id,
                         travelerCount: journey.trip.travelerCount,
                         packagePricePerPerson: packagePrices[offer.id],
-                        referencePackagePricePerPerson: recommendedOffer.flatMap { packagePrices[$0.id] },
+                        referencePackagePricePerPerson: referenceOffer.flatMap { packagePrices[$0.id] },
                         usesProvisionalOppositeLeg: false,
                         isPackagePriceLoading: journey.isSearchingHotelPrices
                     )
@@ -193,6 +193,10 @@ struct OutboundFlightView: View {
 
     private var recommendedOfferID: String? { recommendedOffer?.id }
 
+    /// Deltas are relative to the traveler's current selection. Before a selection
+    /// exists, the recommended package is the zero reference. This allows both +$ and −$ changes.
+    private var referenceOffer: FlightOffer? { journey.selectedOutbound ?? recommendedOffer }
+
     private var resultCountLabel: some View {
         Label(resultCountText, systemImage: "list.number")
             .font(.subheadline.weight(.semibold))
@@ -202,14 +206,8 @@ struct OutboundFlightView: View {
 
     private var resultFilters: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 9) {
-                Label(ticketTypeLabel, systemImage: journey.trip.isRoundTripFlight ? "arrow.left.arrow.right" : "arrow.right")
-                    .font(.subheadline.weight(.bold))
-                Spacer(minLength: 8)
-                Text("IGNAV")
-                    .font(.caption2.monospaced().weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
+            Label(ticketTypeLabel, systemImage: "airplane.departure")
+                .font(.subheadline.weight(.bold))
 
             filterSection(title: sortTitle) {
                 ForEach(FlightResultSortMode.allCases) { value in
@@ -338,7 +336,7 @@ struct OutboundFlightView: View {
         journey.errorMessage = nil
         if candidates.isEmpty && offers.isEmpty { isInitialLoading = true }
 
-        // Hotel pricing runs beside Ignav discovery instead of starting only after
+        // Hotel catalog availability is prepared beside flight discovery instead of starting only after
         // the user reaches FinalPackageView. The JourneyStore-owned task survives
         // navigation and is reused by the final quote calculation.
         journey.scheduleHotelPricePrefetch()
@@ -447,15 +445,11 @@ struct OutboundFlightView: View {
     }
 
     private var ticketTypeLabel: String {
-        switch (journey.trip.isRoundTripFlight, settings.language) {
-        case (true, .russian): return "Билет туда и обратно"
-        case (true, .english): return "Round-trip ticket"
-        case (true, .uzbek): return "Borish-qaytish chiptasi"
-        case (true, .uzbekCyrillic): return "Бориш-қайтиш чиптаси"
-        case (false, .russian): return "Билет в одну сторону"
-        case (false, .english): return "One-way ticket"
-        case (false, .uzbek): return "Bir tomonlama chipta"
-        case (false, .uzbekCyrillic): return "Бир томонлама чипта"
+        switch settings.language {
+        case .russian: return journey.trip.isRoundTripFlight ? "Выберите перелёт туда" : "Выберите перелёт"
+        case .english: return journey.trip.isRoundTripFlight ? "Choose your outbound flight" : "Choose your flight"
+        case .uzbek: return journey.trip.isRoundTripFlight ? "Borish reysini tanlang" : "Reysni tanlang"
+        case .uzbekCyrillic: return journey.trip.isRoundTripFlight ? "Бориш рейсини танланг" : "Рейсни танланг"
         }
     }
 
@@ -548,10 +542,10 @@ struct OutboundFlightView: View {
 
     private var noFilteredResultsText: String {
         switch settings.language {
-        case .russian: return "По выбранным фильтрам вариантов нет. Сбросьте фильтр — все ответы Ignav остаются в списке."
-        case .english: return "No matches for these filters. Clear a filter; every Ignav result remains available."
-        case .uzbek: return "Tanlangan filtrlarda variant yo‘q. Filtrni olib tashlang — barcha Ignav natijalari saqlangan."
-        case .uzbekCyrillic: return "Танланган фильтрларда вариант йўқ. Фильтрни олиб ташланг — барча Ignav натижалари сақланган."
+        case .russian: return "По выбранным фильтрам вариантов нет. Сбросьте фильтр — все найденные варианты останутся в списке."
+        case .english: return "No matches for these filters. Clear a filter; every discovered option remains available."
+        case .uzbek: return "Tanlangan filtrlarda variant yo‘q. Filtrni olib tashlang — barcha topilgan variantlar saqlanadi."
+        case .uzbekCyrillic: return "Танланган фильтрларда вариант йўқ. Фильтрни олиб ташланг — барча топилган вариантлар сақланади."
         }
     }
 

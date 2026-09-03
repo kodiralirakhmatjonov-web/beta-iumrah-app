@@ -105,7 +105,8 @@ struct BookingsHomeView: View {
                     BookingItineraryCalendarView(
                         bookingID: session.id,
                         startDate: session.booking.input.startDate,
-                        endDate: session.booking.input.endDate
+                        endDate: session.booking.input.endDate,
+                        booking: session.booking
                     )
                     tripActions(session)
 

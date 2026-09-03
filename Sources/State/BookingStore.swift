@@ -292,6 +292,7 @@ final class BookingStore: ObservableObject {
         if let customization = booking.customization {
             sessions[index].ziyaratMakkahOverride = customization.ziyaratMakkah
             sessions[index].ziyaratMadinahOverride = customization.ziyaratMadinah
+            sessions[index].esimOverride = customization.esim
         }
     }
 
@@ -499,6 +500,18 @@ final class BookingStore: ObservableObject {
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
         sessions[index].ziyaratMakkahOverride = makkah
         sessions[index].ziyaratMadinahOverride = madinah
+        sessions[index].pendingChangeConfirmation = true
+        persist()
+    }
+
+
+    func updateESIM(bookingID: String, enabled: Bool) async throws {
+        guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
+        let headers = clientHeaders(for: session)
+        guard !headers.isEmpty else { throw APIError.missingBookingToken }
+        _ = try await bookingService.updateESIM(id: bookingID, headers: headers, enabled: enabled)
+        guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
+        sessions[index].esimOverride = enabled
         sessions[index].pendingChangeConfirmation = true
         persist()
     }

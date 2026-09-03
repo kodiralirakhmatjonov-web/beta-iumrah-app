@@ -13,6 +13,12 @@ const inbound = fs.readFileSync(new URL('Sources/Views/Flights/ReturnFlightView.
 const flightCard = fs.readFileSync(new URL('Sources/Views/Components/FlightCard.swift', root), 'utf8');
 const bookingService = fs.readFileSync(new URL('Sources/Services/BookingService.swift', root), 'utf8');
 const bookingStore = fs.readFileSync(new URL('Sources/State/BookingStore.swift', root), 'utf8');
+const bookingDraft = fs.readFileSync(new URL('Sources/Core/BookingDraftBuilder.swift', root), 'utf8');
+const bookingControl = fs.readFileSync(new URL('Backend/PackageEngine/src/booking-control.ts', root), 'utf8');
+const itineraryPlanner = fs.readFileSync(new URL('Sources/Core/BookingItineraryPlanner.swift', root), 'utf8');
+const bookingDetail = fs.readFileSync(new URL('Sources/Views/Booking/BookingDetailView.swift', root), 'utf8');
+const finalPackage = fs.readFileSync(new URL('Sources/Views/Package/FinalPackageView.swift', root), 'utf8');
+const primaryHotel = fs.readFileSync(new URL('Sources/Views/Hotels/PrimaryHotelView.swift', root), 'utf8');
 
 // Hotel source of truth is Business' fresh catalog rate, expressed only as USD / room / night.
 assert.match(hotelModels, /let nightlyUSD: Double\?/);
@@ -47,11 +53,13 @@ assert.match(localPricing, /local-expedia-package-v6/);
 assert.match(ignavClient, /price\.status\.caseInsensitiveCompare\("verified"\) == \.orderedSame/);
 assert.match(ignavWorker, /String\(price\.status \|\| ""\)\.toLowerCase\(\) !== "verified"/);
 
-// Expedia-Packages style consumer hierarchy: delta first, package/person and package total underneath.
+// Expedia-Packages style consumer hierarchy: only the package delta belongs on the flight card.
 assert.match(flightCard, /deltaDisplay/);
 assert.match(flightCard, /к пакету \/ 1 человек/);
-assert.match(flightCard, /пакет \/ 1 человек/);
-assert.match(flightCard, /пакет всего/);
+assert.match(flightCard, /return current - baseline/);
+assert.match(flightCard, /if delta < 0/);
+assert.ok(!flightCard.includes('пакет всего'));
+assert.ok(!flightCard.includes('пакет / 1 человек'));
 assert.ok(!flightCard.includes('Тариф Ignav'));
 assert.ok(!flightCard.includes('Цена билета в одну сторону'));
 assert.match(outbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
@@ -72,5 +80,25 @@ assert.match(localPricing, /supplierCostUsd:\s*totalCost/);
 assert.match(bookingService, /func syncGeneratorReport/);
 assert.match(bookingStore, /syncGeneratorReportWithRetry/);
 assert.match(bookingStore, /bookingService\.syncGeneratorReport/);
+
+// Client privacy/UI contract: no raw hotel price or flight-provider branding in customer cards.
+assert.ok(!primaryHotel.includes('nightlyUSD'));
+assert.ok(!primaryHotel.includes('providerDisplayName'));
+assert.ok(!finalPackage.includes('Ignav'));
+assert.ok(!flightCard.includes('sourceLabel'));
+
+// eSIM is included by default and can be removed through the same confirmation workflow.
+assert.match(bookingDraft, /"esim"/);
+assert.match(bookingDraft, /esim: true/);
+assert.match(bookingControl, /const esim = bool\(body\.esim/);
+assert.match(bookingControl, /nextServices\.add\("esim"\)/);
+assert.match(bookingDetail, /UmrahMobileLogo/);
+assert.match(bookingDetail, /updateESIM/);
+
+// Package-aware itinerary planning uses the actual stay split and arrival city.
+assert.match(itineraryPlanner, /madinahFirst/);
+assert.match(itineraryPlanner, /booking\.stay\.makkahCheckIn/);
+assert.match(itineraryPlanner, /madinahZiyarat/);
+assert.match(itineraryPlanner, /airportTransfer/);
 
 console.log('Expedia-style complete-itinerary flights + exact nightly hotel multiplication contract OK');

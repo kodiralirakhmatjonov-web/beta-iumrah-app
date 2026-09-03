@@ -20,9 +20,12 @@ struct BookingDetailView: View {
     @State private var ziyaratMakkah = true
     @State private var ziyaratMadinah = false
     @State private var isSavingZiyarat = false
+    @State private var esimIncluded = true
+    @State private var isSavingESIM = false
     @State private var mutationError: String?
     @State private var isRequestingConfirmation = false
     @State private var confirmationSent = false
+    @State private var showPackageCareExplanation = false
 
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
 
@@ -33,10 +36,14 @@ struct BookingDetailView: View {
                     VStack(spacing: 16) {
                         statusHero(session)
                         bookingMetaCard(session.booking)
+                        if session.booking.perPilgrimUsd >= 1800 {
+                            bookingCareBalanceCard
+                        }
                         BookingItineraryCalendarView(
                             bookingID: session.id,
                             startDate: session.booking.input.startDate,
-                            endDate: session.booking.input.endDate
+                            endDate: session.booking.input.endDate,
+                            booking: session.booking
                         )
 
                         BookingFlightDisclosureCard(
@@ -66,6 +73,7 @@ struct BookingDetailView: View {
                         transferCard(session)
                         guideCard(session)
                         ziyaratCard(session)
+                        esimCard(session)
                         contactCard(session)
 
                         if session.pendingChangeConfirmation == true || confirmationSent {
@@ -85,6 +93,7 @@ struct BookingDetailView: View {
                     await bookings.refreshAll()
                     await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
                     loadZiyaratDraft()
+                    loadESIMDraft()
                 }
                 .sheet(isPresented: $showMakkahHotelChange) {
                     BookingHotelChangeView(bookingID: bookingID, role: .makkah)
@@ -104,6 +113,10 @@ struct BookingDetailView: View {
                     )
                     .environmentObject(settings)
                     .environmentObject(bookings)
+                }
+                .sheet(isPresented: $showPackageCareExplanation) {
+                    UmrahCarePackageExplanationView()
+                        .environmentObject(settings)
                 }
             } else {
                 VStack(spacing: 12) {
@@ -565,6 +578,102 @@ struct BookingDetailView: View {
         .iumrahCard()
     }
 
+    private func esimCard(_ session: StoredBookingSession) -> some View {
+        let saved = currentESIM(session)
+        let hasChanges = esimIncluded != saved
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 14) {
+                Image("UmrahMobileLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 58)
+                    .padding(6)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("iumrah Mobile eSIM")
+                        .font(.headline)
+                    Text(esimBody)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+            }
+
+            Toggle(isOn: $esimIncluded) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(esimToggleTitle)
+                        .font(.subheadline.weight(.semibold))
+                    Text(esimToggleSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .tint(Color.iumrahCareLight)
+
+            if hasChanges {
+                Button {
+                    Task { await saveESIM() }
+                } label: {
+                    HStack {
+                        if isSavingESIM { ProgressView().tint(.primary) }
+                        Text(L10n.text("booking_save_changes", settings.language))
+                        Spacer()
+                        Image(systemName: "checkmark")
+                    }
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+                .disabled(isSavingESIM)
+
+                if !esimIncluded {
+                    Text(esimConfirmationNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .iumrahCard()
+    }
+
+    private var esimBody: String {
+        switch settings.language {
+        case .russian: return "Интернет для поездки в Саудовской Аравии. После подготовки бронирования активация появится прямо в приложении."
+        case .english: return "Connectivity for your trip in Saudi Arabia. Activation appears in the app once the booking is prepared."
+        case .uzbek: return "Saudiya Arabistonidagi safaringiz uchun internet. Bron tayyor bo‘lgach, faollashtirish ilovada paydo bo‘ladi."
+        case .uzbekCyrillic: return "Саудия Арабистонидаги сафарингиз учун интернет. Брон тайёр бўлгач, фаоллаштириш иловада пайдо бўлади."
+        }
+    }
+
+    private var esimToggleTitle: String {
+        switch settings.language {
+        case .russian: return "Включить eSIM в поездку"
+        case .english: return "Include eSIM in this trip"
+        case .uzbek: return "eSIM’ni safarga qo‘shish"
+        case .uzbekCyrillic: return "eSIM’ни сафарга қўшиш"
+        }
+    }
+
+    private var esimToggleSubtitle: String {
+        switch settings.language {
+        case .russian: return esimIncluded ? "Включена в пакет" : "Будет исключена после подтверждения"
+        case .english: return esimIncluded ? "Included in your package" : "Will be removed after confirmation"
+        case .uzbek: return esimIncluded ? "Paketga kiritilgan" : "Tasdiqdan keyin olib tashlanadi"
+        case .uzbekCyrillic: return esimIncluded ? "Пакетга киритилган" : "Тасдиқдан кейин олиб ташланади"
+        }
+    }
+
+    private var esimConfirmationNote: String {
+        switch settings.language {
+        case .russian: return "После сохранения изменения потребуется отправить запрос на подтверждение — так же, как при изменении зияратов."
+        case .english: return "After saving, this change must be submitted for confirmation just like a ziyarat change."
+        case .uzbek: return "Saqlagandan keyin bu o‘zgarish ziyoratdagi kabi tasdiqlash uchun yuboriladi."
+        case .uzbekCyrillic: return "Сақлагандан кейин бу ўзгариш зиёратдаги каби тасдиқлаш учун юборилади."
+        }
+    }
+
     private func contactCard(_ session: StoredBookingSession) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -635,6 +744,71 @@ struct BookingDetailView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.iumrahCareLight.opacity(0.28), lineWidth: 1)
+        }
+    }
+
+    private var bookingCareBalanceCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image("CarePriceSupport")
+                .resizable()
+                .scaledToFill()
+                .frame(height: 132)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(bookingCareBalanceTitle)
+                    .font(.headline)
+                Text(bookingCareBalanceBody)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    showPackageCareExplanation = true
+                    IumrahHaptics.soft()
+                } label: {
+                    HStack {
+                        Text(bookingCareHowItWorks)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+            }
+            .padding(17)
+        }
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private var bookingCareBalanceTitle: String {
+        switch settings.language {
+        case .russian: return "iumrah Care проверит баланс вашей поездки"
+        case .english: return "iumrah Care will review your journey balance"
+        case .uzbek: return "iumrah Care safaringiz muvozanatini tekshiradi"
+        case .uzbekCyrillic: return "iumrah Care сафарингиз мувозанатини текширади"
+        }
+    }
+
+    private var bookingCareBalanceBody: String {
+        switch settings.language {
+        case .russian: return "Цена этой поездки выше обычного ориентира. До окончательного оформления мы дополнительно проверим более удобные рейсы, распределение ночей и сопоставимые отели, чтобы стабилизировать поездку без потери качества."
+        case .english: return "This trip is above our usual reference range. Before final ticketing we will review more convenient flights, night allocation and comparable hotels to stabilize the journey without compromising quality."
+        case .uzbek: return "Bu safar odatiy mo‘ljaldan yuqoriroq. Yakuniy rasmiylashtirishdan oldin qulayroq reyslar, tunlar taqsimoti va mos mehmonxonalar yana tekshiriladi."
+        case .uzbekCyrillic: return "Бу сафар одатий мўлжалдан юқорироқ. Якуний расмийлаштиришдан олдин қулайроқ рейслар, тунлар тақсимоти ва мос меҳмонхоналар яна текширилади."
+        }
+    }
+
+    private var bookingCareHowItWorks: String {
+        switch settings.language {
+        case .russian: return "Как это работает"
+        case .english: return "How it works"
+        case .uzbek: return "Qanday ishlaydi"
+        case .uzbekCyrillic: return "Қандай ишлайди"
         }
     }
 
@@ -789,6 +963,30 @@ struct BookingDetailView: View {
 
     private func currentZiyaratMadinah(_ session: StoredBookingSession) -> Bool {
         session.ziyaratMadinahOverride ?? session.booking.customization?.ziyaratMadinah ?? session.booking.input.includeMadinah
+    }
+
+    private func currentESIM(_ session: StoredBookingSession) -> Bool {
+        session.esimOverride ?? session.booking.customization?.esim ?? true
+    }
+
+    private func loadESIMDraft() {
+        guard let session else { return }
+        esimIncluded = currentESIM(session)
+    }
+
+    @MainActor
+    private func saveESIM() async {
+        guard !isSavingESIM else { return }
+        isSavingESIM = true
+        mutationError = nil
+        defer { isSavingESIM = false }
+        do {
+            try await bookings.updateESIM(bookingID: bookingID, enabled: esimIncluded)
+            IumrahHaptics.success()
+        } catch {
+            mutationError = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
     }
 
     private func loadZiyaratDraft() {

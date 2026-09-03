@@ -56,31 +56,9 @@ struct HotelCard: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
 
-                if let price = hotel.price, price.isFresh, let nightly = price.nightlyUSD {
-                    HStack(spacing: 7) {
-                        Text(String(format: "$%.0f", nightly))
-                            .font(.subheadline.weight(.bold))
-                        Text(priceSuffix)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 6)
-                        Text(price.providerDisplayName)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
         }
         .iumrahCard()
-    }
-
-    private var priceSuffix: String {
-        switch settings.language {
-        case .russian: return "за номер / ночь"
-        case .english: return "room / night"
-        case .uzbek: return "xona / tun"
-        case .uzbekCyrillic: return "хона / тун"
-        }
     }
 
     private var placeholder: some View {
