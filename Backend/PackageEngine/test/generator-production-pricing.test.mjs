@@ -15,10 +15,10 @@ const flightRows = fs.readFileSync(new URL('Sources/Views/Flights/FlightSearchPr
 const flightModels = fs.readFileSync(new URL('Sources/Models/FlightModels.swift', root), 'utf8');
 const outbound = fs.readFileSync(new URL('Sources/Views/Flights/OutboundFlightView.swift', root), 'utf8');
 const inbound = fs.readFileSync(new URL('Sources/Views/Flights/ReturnFlightView.swift', root), 'utf8');
+const flightCard = fs.readFileSync(new URL('Sources/Views/Components/FlightCard.swift', root), 'utf8');
+const primaryHotel = fs.readFileSync(new URL('Sources/Views/Hotels/PrimaryHotelView.swift', root), 'utf8');
 const bookingService = fs.readFileSync(new URL('Sources/Services/BookingService.swift', root), 'utf8');
 const bookingStore = fs.readFileSync(new URL('Sources/State/BookingStore.swift', root), 'utf8');
-const flightCard = fs.readFileSync(new URL('Sources/Views/Components/FlightCard.swift', root), 'utf8');
-const primaryHotelView = fs.readFileSync(new URL('Sources/Views/Hotels/PrimaryHotelView.swift', root), 'utf8');
 
 // Hotel lookup is retryable and never negative-cached.
 assert.match(hotelService, /forceRefresh:\s*Bool\s*=\s*false/);
@@ -30,8 +30,7 @@ assert.match(hotelService, /if let existing = inFlight\[key\]/);
 assert.match(hotelBot, /CGRect\(x: 0, y: 0, width: 390, height: 844\)/);
 assert.match(hotelBot, /sourceIdentity: request\.pricingSource\(for: provider\.id\)/);
 assert.match(hotelBotScripts, /const dateEvidence = hasRequestedDate\(expectedCheckIn\) && hasRequestedDate\(expectedCheckOut\)/);
-assert.match(hotelBot, /card\.dateEvidence \|\| requestedDateEvidence/);
-assert.match(hotelBot, /requestedURLContainsDates/);
+assert.match(hotelBot, /card\.score >= 0\.62, card\.dateEvidence/);
 
 // Room category does not drive provider cost. Booking is primary, Expedia is fallback.
 assert.match(hotelService, /let requestedRooms = max\(1, trip\.rooms\)/);
@@ -55,22 +54,6 @@ assert.match(journey, /func scheduleHotelPricePrefetch\(forceRefresh: Bool = fal
 assert.match(journey, /hotelPricePrefetchTask = Task/);
 assert.match(outbound, /journey\.scheduleHotelPricePrefetch\(\)/);
 assert.ok(outbound.indexOf('journey.scheduleHotelPricePrefetch()') < outbound.indexOf('searchOutboundProgressive('));
-assert.match(journey, /ONE automatic retry/);
-assert.match(journey, /forceRefresh: true/);
-
-// Flight cards have one unambiguous commercial number: complete package per pilgrim.
-assert.match(flightCard, /Пакет на 1 человека/);
-assert.match(flightCard, /packagePricePerPerson/);
-assert.ok(!flightCard.includes('Цена билета в одну сторону'));
-assert.ok(!flightCard.includes('actualFareText'));
-assert.match(outbound, /prefetchReturn/);
-assert.match(outbound, /packagePreviewPricePerPerson/);
-assert.match(inbound, /packagePreviewPricePerPerson/);
-assert.match(coordinator, /cachedReturnSearchComplete/);
-
-// Primary Hotel cards keep text below the image and reserve room above the tab bar.
-assert.match(primaryHotelView, /padding\(\.bottom, 132\)/);
-assert.match(primaryHotelView, /frame\(height: 190\)/);
 
 // Round trip = two independent one-way searches and two independently selected fares.
 assert.match(coordinator, /makeOneWayRequest\(\s*origin: trip\.originCode,\s*destination: trip\.outboundDestinationCode/s);
@@ -94,6 +77,28 @@ assert.match(flightRows, /id: offer\.resultIdentityKey/);
 for (const source of [outbound, inbound]) {
   assert.match(source, /indexByKey\[offer\.resultIdentityKey\]/);
 }
+
+
+// Flight cards expose one unambiguous price hierarchy: package/person first, raw Ignav ticket fare second.
+assert.match(flightCard, /Пакет на 1 человека/);
+assert.match(flightCard, /packagePricePerPerson/);
+assert.match(flightCard, /Авиабилет туда/);
+assert.match(flightCard, /Авиабилет обратно/);
+assert.match(flightCard, /Тариф Ignav · за всех пассажиров/);
+assert.ok(!flightCard.includes('Цена билета в одну сторону'));
+assert.match(outbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
+assert.match(inbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
+
+// Outbound stage warms return inventory and hotel pricing in parallel; final pricing reuses them.
+assert.match(outbound, /prefetchReturnFlightsIfNeeded/);
+assert.match(journey, /func awaitPrefetchedReturnFlights\(\) async/);
+assert.match(inbound, /await journey\.awaitPrefetchedReturnFlights\(\)/);
+assert.match(journey, /if let task = hotelPricePrefetchTask \{ await task\.value \}/);
+assert.match(journey, /if forceHotelRefresh/);
+
+// Primary Hotel cards keep text below the photo and use compact recommendation metadata.
+assert.match(primaryHotel, /hotelImage\(hotel\)\s*\.frame\(height: 190\)/s);
+assert.match(primaryHotel, /Рекомендуем iumrah/);
 
 // Supplier flight cost is exactly outbound + inbound when round-trip.
 assert.match(localPricing, /outboundFareUsd:/);

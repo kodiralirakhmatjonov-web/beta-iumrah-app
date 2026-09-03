@@ -146,13 +146,6 @@ protocol FlightSearchServicing {
     func searchOutbound(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer]
     func searchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?, outbound: FlightOffer) async throws -> [FlightOffer]
 
-    /// Loads the return-leg inventory in the background without selecting or pairing
-    /// it with an outbound ticket. This lets the outbound screen calculate a real
-    /// full-package preview while preserving the product flow: outbound and return
-    /// remain two independent user choices. Implementations should cache the result
-    /// so opening ReturnFlightView does not spend another provider request.
-    func prefetchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer]
-
     func searchOutboundProgressive(
         trip: TripDraft,
         makkahHotel: HotelSummary,
@@ -171,13 +164,6 @@ protocol FlightSearchServicing {
 }
 
 extension FlightSearchServicing {
-
-    func prefetchReturn(trip: TripDraft, makkahHotel: HotelSummary, madinahHotel: HotelSummary?) async throws -> [FlightOffer] {
-        _ = trip
-        _ = makkahHotel
-        _ = madinahHotel
-        return []
-    }
 
     func searchOutboundProgressive(
         trip: TripDraft,

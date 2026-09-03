@@ -22,6 +22,7 @@ final class JourneyStore: ObservableObject {
     @Published private(set) var isSearchingHotelPrices = false
     @Published private(set) var pricingMakkahRoomID: String?
     @Published private(set) var pricingMadinahRoomID: String?
+    @Published private(set) var prefetchedInboundOffers: [FlightOffer] = []
 
     @Published var isLoadingHotels = false
     @Published var isLoadingMadinahHotels = false
@@ -34,6 +35,7 @@ final class JourneyStore: ObservableObject {
     private let packageEngine = RemotePackageEngineClient()
     private var hotelPricePrefetchTask: Task<Void, Never>?
     private var hotelPricePrefetchGeneration = UUID()
+    private var inboundFlightPrefetchTask: Task<Void, Never>?
 
     init() {
         self.hotelService = HotelCatalogService()
@@ -145,6 +147,9 @@ final class JourneyStore: ObservableObject {
 
         selectedOutbound = nil
         selectedInbound = nil
+        prefetchedInboundOffers = []
+        inboundFlightPrefetchTask?.cancel()
+        inboundFlightPrefetchTask = nil
         trip.saudiArrivalDate = nil
         quote = nil
         hotelPriceSnapshot = nil
@@ -159,6 +164,9 @@ final class JourneyStore: ObservableObject {
         trip.flightFilters = filters == .default ? nil : filters
         selectedOutbound = nil
         selectedInbound = nil
+        prefetchedInboundOffers = []
+        inboundFlightPrefetchTask?.cancel()
+        inboundFlightPrefetchTask = nil
         trip.saudiArrivalDate = nil
         quote = nil
         (flightService as? AutomaticFlightSearchService)?.invalidateFlightInventory()
@@ -194,26 +202,27 @@ final class JourneyStore: ObservableObject {
     /// Hotel verification is then repeated against those actual dates before
     /// local package pricing runs.
     func chooseOutboundFlight(_ offer: FlightOffer) {
-        let previousHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
         selectedOutbound = offer
         selectedInbound = nil
         quote = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
 
         let selectedDepartureDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
         let selectedArrivalDay = travelCalendarDay(for: offer.arrivalAt, airportCode: offer.destination)
+        let previousHotelStart = trip.hotelStayStartDate
         let departureChanged = !Calendar.current.isDate(selectedDepartureDay, inSameDayAs: trip.departureDate)
+        let hotelStartChanged = !Calendar.current.isDate(previousHotelStart, inSameDayAs: selectedArrivalDay)
+
         if departureChanged { trip.departureDate = selectedDepartureDay }
         trip.saudiArrivalDate = selectedArrivalDay
 
-        let newHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
-        if newHotelWindows != previousHotelWindows {
-            // Only throw away a successful background hotel lookup when the actual
-            // selected flight truly changes the hotel stay dates. Selecting another
-            // flight on the same stay must not restart Booking/Expedia from zero.
+        // Preserve an already completed background hotel lookup whenever the actual
+        // stay dates did not change. The old flow discarded a valid snapshot on every
+        // flight tap and forced the user to wait for the same Booking lookup again.
+        if departureChanged || hotelStartChanged {
             hotelPriceSnapshot = nil
             cancelHotelPricePrefetch()
-            pricingMakkahRoomID = nil
-            pricingMadinahRoomID = nil
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
             scheduleHotelPricePrefetch()
         } else if hotelPriceSnapshot == nil && !isSearchingHotelPrices {
@@ -222,21 +231,17 @@ final class JourneyStore: ObservableObject {
     }
 
     func chooseInboundFlight(_ offer: FlightOffer) {
-        let previousHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
         selectedInbound = offer
         quote = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
 
         let selectedDay = travelCalendarDay(for: offer.departureAt, airportCode: offer.origin)
-        if selectedDay > trip.departureDate, !Calendar.current.isDate(selectedDay, inSameDayAs: trip.returnDate) {
+        let returnChanged = selectedDay > trip.departureDate && !Calendar.current.isDate(selectedDay, inSameDayAs: trip.returnDate)
+        if returnChanged {
             trip.returnDate = selectedDay
-        }
-
-        let newHotelWindows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
-        if newHotelWindows != previousHotelWindows {
             hotelPriceSnapshot = nil
             cancelHotelPricePrefetch()
-            pricingMakkahRoomID = nil
-            pricingMadinahRoomID = nil
             (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
             scheduleHotelPricePrefetch()
         } else if hotelPriceSnapshot == nil && !isSearchingHotelPrices {
@@ -283,6 +288,8 @@ final class JourneyStore: ObservableObject {
     /// SwiftUI screen, so moving from hotel selection to flights does not cancel the
     /// lookup. HotelLivePriceSearchService coalesces this with the final quote call.
     func scheduleHotelPricePrefetch(forceRefresh: Bool = false) {
+        if !forceRefresh, hotelPricePrefetchTask != nil { return }
+        if !forceRefresh, let snapshot = hotelPriceSnapshot, isCompleteHotelSnapshot(snapshot) { return }
         guard let components = flightService as? GeneratorComponentProviding,
               let makkahHotel = selectedHotel else { return }
         if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return }
@@ -309,7 +316,7 @@ final class JourneyStore: ObservableObject {
                 if self?.hotelPricePrefetchGeneration == generation { self?.isSearchingHotelPrices = false }
                 return
             }
-            var snapshot = await components.ensureHotelPrices(
+            let snapshot = await components.ensureHotelPrices(
                 trip: tripSnapshot,
                 makkahHotel: makkahHotel,
                 madinahHotel: madinahHotel,
@@ -321,29 +328,6 @@ final class JourneyStore: ObservableObject {
                 madinahRoomCapacity: madinahRoomCapacity,
                 forceRefresh: forceRefresh
             )
-
-            // A browser price surface can occasionally finish half-loaded or be
-            // redirected once. Use the time while the pilgrim is selecting flights
-            // to perform ONE automatic retry instead of making FinalPackageView wait.
-            let firstAttemptComplete = !snapshot.makkah.isEmpty &&
-                (tripSnapshot.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
-            if !firstAttemptComplete, !forceRefresh, !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(900))
-                guard !Task.isCancelled else { return }
-                snapshot = await components.ensureHotelPrices(
-                    trip: tripSnapshot,
-                    makkahHotel: makkahHotel,
-                    madinahHotel: madinahHotel,
-                    makkahRoomId: makkahRoomId,
-                    makkahRoomName: makkahRoomName,
-                    makkahRoomCapacity: makkahRoomCapacity,
-                    madinahRoomId: madinahRoomId,
-                    madinahRoomName: madinahRoomName,
-                    madinahRoomCapacity: madinahRoomCapacity,
-                    forceRefresh: true
-                )
-            }
-
             guard let self,
                   !Task.isCancelled,
                   self.hotelPricePrefetchGeneration == generation else { return }
@@ -360,35 +344,60 @@ final class JourneyStore: ObservableObject {
         isSearchingHotelPrices = false
     }
 
-    /// Calculates the public package price for a candidate flight combination using
-    /// the hotel prices already found in the background. This never starts a hotel
-    /// bot and never mutates the booking quote; it exists only for flight-card UI.
-    /// On the outbound screen `inbound` is the cheapest current return fare loaded
-    /// in the background. On the return screen it is the row being displayed.
-    func packagePreviewPricePerPerson(outbound: FlightOffer, inbound: FlightOffer?) async -> Decimal? {
-        guard let hotel = selectedHotel,
-              let snapshot = hotelPriceSnapshot,
-              outbound.isVerifiedForBooking,
-              let outboundFare = outbound.fareAmount,
-              let outboundScope = outbound.fareScope else { return nil }
+    private func isCompleteHotelSnapshot(_ snapshot: HotelPriceSearchSnapshot) -> Bool {
+        !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
+    }
 
-        if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return nil }
-        if trip.isRoundTripFlight {
-            guard let inbound,
-                  inbound.isVerifiedForBooking,
-                  inbound.fareAmount != nil,
-                  inbound.fareScope != nil else { return nil }
+    /// Starts return-ticket discovery while the pilgrim is still choosing the outbound
+    /// flight. Selection remains independent: this only supplies a baseline return fare
+    /// for package previews and warms the same Ignav cache used by ReturnFlightView.
+    func prefetchReturnFlightsIfNeeded(referenceOutbound: FlightOffer) {
+        guard trip.isRoundTripFlight, prefetchedInboundOffers.isEmpty, inboundFlightPrefetchTask == nil,
+              let makkahHotel = selectedHotel else { return }
+        if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return }
+        let tripSnapshot = trip
+        let madinahHotel = selectedMadinahHotel
+        inboundFlightPrefetchTask = Task { @MainActor [weak self] in
+            defer { self?.inboundFlightPrefetchTask = nil }
+            do {
+                let values = try await self?.flightService.searchReturn(
+                    trip: tripSnapshot,
+                    makkahHotel: makkahHotel,
+                    madinahHotel: madinahHotel,
+                    outbound: referenceOutbound
+                ) ?? []
+                guard !Task.isCancelled else { return }
+                self?.prefetchedInboundOffers = values.filter(\.isVerifiedForBooking)
+            } catch {
+                // Prefetch is opportunistic. ReturnFlightView still has its normal
+                // explicit search/retry path and should not show a failure here.
+            }
         }
+    }
+
+    func clearPrefetchedReturnFlights() {
+        inboundFlightPrefetchTask?.cancel()
+        inboundFlightPrefetchTask = nil
+        prefetchedInboundOffers = []
+    }
+
+    func awaitPrefetchedReturnFlights() async -> [FlightOffer] {
+        if let task = inboundFlightPrefetchTask { await task.value }
+        return prefetchedInboundOffers
+    }
+
+    /// Uses exactly the same production pricing engine as FinalPackageView, but without
+    /// mutating the selected quote. This is what flight cards show as "package / person".
+    func packagePricePreviews(
+        offers: [FlightOffer],
+        direction: FlightDirection,
+        oppositeLeg: FlightOffer?
+    ) async -> [String: Decimal] {
+        guard !offers.isEmpty, let hotel = selectedHotel, let snapshot = hotelPriceSnapshot,
+              isCompleteHotelSnapshot(snapshot) else { return [:] }
+        if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return [:] }
 
         do {
-            let outboundFareUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
-            let inboundFareUsd: Decimal?
-            if let inbound, let fare = inbound.fareAmount {
-                inboundFareUsd = try await LocalFXRateService.shared.usd(fare, currency: inbound.currency)
-            } else {
-                inboundFareUsd = nil
-            }
-
             let makkah = try await resolveHotelComponent(
                 hotel: hotel,
                 city: "Makkah",
@@ -397,9 +406,9 @@ final class JourneyStore: ObservableObject {
                 observations: snapshot.makkah
             )
             let madinah: LocalHotelPriceComponent?
-            if trip.scope == .makkahAndMadinah, let hotel = selectedMadinahHotel {
+            if trip.scope == .makkahAndMadinah, let selectedMadinahHotel {
                 madinah = try await resolveHotelComponent(
-                    hotel: hotel,
+                    hotel: selectedMadinahHotel,
                     city: "Madinah",
                     roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
                     roomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
@@ -409,19 +418,38 @@ final class JourneyStore: ObservableObject {
                 madinah = nil
             }
 
-            return try LocalPackagePricingEngine.calculate(
-                trip: trip,
-                outboundFareUsd: outboundFareUsd,
-                outboundScope: outboundScope,
-                outboundOffer: outbound,
-                inboundFareUsd: inboundFareUsd,
-                inboundScope: inbound?.fareScope,
-                inboundOffer: inbound,
-                makkahHotel: makkah,
-                madinahHotel: madinah
-            ).pricePerPerson
+            var output: [String: Decimal] = [:]
+            for offer in offers {
+                let outbound = direction == .outbound ? offer : oppositeLeg
+                let inbound = trip.isRoundTripFlight ? (direction == .inbound ? offer : oppositeLeg) : nil
+                guard let outbound, outbound.isVerifiedForBooking,
+                      let outboundFare = outbound.fareAmount, let outboundScope = outbound.fareScope else { continue }
+                if trip.isRoundTripFlight {
+                    guard let inbound, inbound.isVerifiedForBooking, inbound.fareAmount != nil, inbound.fareScope != nil else { continue }
+                }
+                let outboundUsd = try await LocalFXRateService.shared.usd(outboundFare, currency: outbound.currency)
+                let inboundUsd: Decimal?
+                if let inbound, let fare = inbound.fareAmount {
+                    inboundUsd = try await LocalFXRateService.shared.usd(fare, currency: inbound.currency)
+                } else {
+                    inboundUsd = nil
+                }
+                let preview = try LocalPackagePricingEngine.calculate(
+                    trip: trip,
+                    outboundFareUsd: outboundUsd,
+                    outboundScope: outboundScope,
+                    outboundOffer: outbound,
+                    inboundFareUsd: inboundUsd,
+                    inboundScope: inbound?.fareScope,
+                    inboundOffer: inbound,
+                    makkahHotel: makkah,
+                    madinahHotel: madinah
+                )
+                output[offer.id] = preview.pricePerPerson
+            }
+            return output
         } catch {
-            return nil
+            return [:]
         }
     }
 
@@ -463,7 +491,11 @@ final class JourneyStore: ObservableObject {
         }
 
         do {
-            if let components = flightService as? GeneratorComponentProviding {
+            // FinalPackageView no longer starts the expensive provider lookup from
+            // scratch. Normal generation reuses the search that began beside Ignav.
+            // The explicit retry button may force a fresh Booking/Expedia lookup.
+            if let task = hotelPricePrefetchTask { await task.value }
+            if forceHotelRefresh, let components = flightService as? GeneratorComponentProviding {
                 hotelPriceSnapshot = await components.ensureHotelPrices(
                     trip: trip,
                     makkahHotel: hotel,
@@ -474,7 +506,12 @@ final class JourneyStore: ObservableObject {
                     madinahRoomId: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
                     madinahRoomName: selectedMadinahRoom?.name ?? selectedMadinahRoomCategory?.displayName,
                     madinahRoomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
-                    forceRefresh: forceHotelRefresh
+                    forceRefresh: true
+                )
+            }
+            guard let currentHotelSnapshot = hotelPriceSnapshot, isCompleteHotelSnapshot(currentHotelSnapshot) else {
+                throw LocalPricingError.missingHotelPrice(
+                    hotelPriceSnapshot?.makkah.isEmpty == false ? "Madinah" : "Makkah"
                 )
             }
 
@@ -494,7 +531,7 @@ final class JourneyStore: ObservableObject {
                 city: "Makkah",
                 roomID: selectedRoom?.id ?? selectedRoomCategory?.id,
                 roomCapacity: selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests,
-                observations: hotelPriceSnapshot?.makkah ?? []
+                observations: currentHotelSnapshot.makkah
             )
             let madinah: LocalHotelPriceComponent?
             if trip.scope == .makkahAndMadinah, let hotel = selectedMadinahHotel {
@@ -503,7 +540,7 @@ final class JourneyStore: ObservableObject {
                     city: "Madinah",
                     roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
                     roomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
-                    observations: hotelPriceSnapshot?.madinah ?? []
+                    observations: currentHotelSnapshot.madinah
                 )
             } else {
                 madinah = nil

@@ -87,36 +87,44 @@ final class HotelPriceBotRunner {
                    let data = json.data(using: .utf8),
                    let card = try? JSONDecoder().decode(ExtractedCard.self, from: data) {
                     lastCard = card
-                    if let observation = makeObservation(card: card, sourceURL: webView.url ?? url, requestedURL: url) { return observation }
+                    if let observation = makeObservation(card: card, sourceURL: webView.url ?? url) { return observation }
                 }
             }
             try? await Task.sleep(for: .milliseconds(700))
         }
 
-        if let lastCard, makeObservation(card: lastCard, sourceURL: webView.url ?? url, requestedURL: url) == nil {
+        if let lastCard, makeObservation(card: lastCard, sourceURL: webView.url ?? url) == nil {
             throw BotError.noReliablePrice
         }
         if webView.url != nil { throw BotError.noMatchingHotel }
         throw BotError.timeout
     }
 
-    private func makeObservation(card: ExtractedCard, sourceURL: URL, requestedURL: URL) -> HotelPriceObservation? {
-        // Booking/Expedia often remove check-in/check-out query items after a
-        // client-side redirect. The bot still initiated an exact dated request, so
-        // preserve that evidence instead of rejecting a correct property price just
-        // because the final browser URL was rewritten.
-        let requestedDateEvidence = requestedURLContainsDates(requestedURL)
-        guard card.score >= 0.62, card.dateEvidence || requestedDateEvidence else { return nil }
+    private func makeObservation(card: ExtractedCard, sourceURL: URL) -> HotelPriceObservation? {
+        guard card.score >= 0.62, card.dateEvidence else { return nil }
         // The current provider surface verifies the concrete hotel/stay/occupancy.
         // iumrah room category IDs are internal IDs, not Booking/Expedia inventory
         // identifiers, so missing room-name text on a search result must not turn a
         // valid hotel price into a false negative.
         let combined = "\(card.metaText) \(card.priceText) \(card.body)"
-        guard let parsed = HotelPriceTextParser.parse(
+        let calendar = Calendar(identifier: .gregorian)
+        let nights = max(1, calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: request.checkIn),
+            to: calendar.startOfDay(for: request.checkOut)
+        ).day ?? 1)
+        let parsed = HotelPriceTextParser.parse(
             text: combined,
             priceText: card.priceText,
             metaText: card.metaText
-        ) else { return nil }
+        ) ?? (provider.id == .booking
+            ? HotelPriceTextParser.parseBookingSearchFallback(
+                text: card.body,
+                priceText: card.priceText,
+                requestedNights: nights
+            )
+            : nil)
+        guard let parsed else { return nil }
 
         let resolvedSourceURL = URL(string: card.url).flatMap { candidate -> URL? in
             guard candidate.scheme?.lowercased() == "https", let host = candidate.host?.lowercased(), provider.id.accepts(host: host) else { return nil }
@@ -126,12 +134,6 @@ final class HotelPriceBotRunner {
         // Normalize the provider widget to ONE invariant before it reaches package
         // pricing: total cost for this requested hotel stay and room count. Downstream
         // code therefore never has to guess whether a scraped number was nightly.
-        let calendar = Calendar(identifier: .gregorian)
-        let nights = max(1, calendar.dateComponents(
-            [.day],
-            from: calendar.startOfDay(for: request.checkIn),
-            to: calendar.startOfDay(for: request.checkOut)
-        ).day ?? 1)
         let totalStayAmount: Decimal
         switch parsed.unit {
         case .totalStay:
@@ -160,14 +162,6 @@ final class HotelPriceBotRunner {
             roomId: request.selectedRoomId,
             roomName: request.selectedRoomName
         )
-    }
-
-
-    private func requestedURLContainsDates(_ url: URL) -> Bool {
-        let raw = url.absoluteString.lowercased()
-        let checkIn = Self.dayFormatter.string(from: request.checkIn).lowercased()
-        let checkOut = Self.dayFormatter.string(from: request.checkOut).lowercased()
-        return raw.contains(checkIn) && raw.contains(checkOut)
     }
 
 

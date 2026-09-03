@@ -66,6 +66,24 @@ enum HotelPriceTextParser {
         lower.contains("each night")
     }
 
+    /// Booking occasionally omits its compact `price-for-x-nights` metadata while
+    /// the property card body still states the exact requested stay length. In that
+    /// shape the visible Booking property-card price is the stay total. Keep this
+    /// fallback Booking-only and require explicit night-count evidence so a random
+    /// nightly teaser can never be promoted to a package total.
+    static func parseBookingSearchFallback(text: String, priceText: String, requestedNights: Int) -> ParsedPrice? {
+        let nights = max(1, requestedNights)
+        let lower = text.lowercased()
+        let hasStayEvidence = lower.range(
+            of: "(?:for\\s+)?\(nights)\\s+nights?",
+            options: .regularExpression
+        ) != nil
+        guard hasStayEvidence else { return nil }
+        let values = moneyValues(in: priceText)
+        guard let value = values.min(by: { $0.amount < $1.amount }) else { return nil }
+        return ParsedPrice(amount: value.amount, currency: value.currency, unit: .totalStay)
+    }
+
     static func normalizedDecimal(_ raw: String) -> Decimal? {
         var value = raw
             .replacingOccurrences(of: "\u{00a0}", with: "")

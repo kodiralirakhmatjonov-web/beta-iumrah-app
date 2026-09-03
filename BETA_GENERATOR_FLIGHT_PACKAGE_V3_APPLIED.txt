@@ -1,0 +1,12 @@
+iumrah Beta Generator Flight/Hotel Production Candidate V3
+Date: 2026-09-03
+
+- Independent Ignav outbound and return searches preserved
+- Flight card primary price = full Umrah package per pilgrim
+- Raw Ignav one-way fare shown only as secondary technical fare for all travellers
+- Return fares prefetched while outbound choices are visible
+- Booking hotel price lookup runs in background beside first flight search
+- Existing valid hotel snapshot survives flight selection when stay dates do not change
+- Booking parser fallback requires exact requested-night evidence
+- Primary Hotel cards cleaned and text moved off imagery
+- Existing meals, transfers, visa, guide and other component rates unchanged
