@@ -1,0 +1,9 @@
+iumrah Beta update 073 — Native Launch Experience
+
+- Adds a real adaptive iOS UILaunchScreen with the iumrah wordmark so app launch never begins on a blank/dark frame.
+- The first SwiftUI frame exactly mirrors the system launch screen for a seamless hand-off.
+- Adds a short native wordmark breath + masked sheen + soft halo animation.
+- Adds restrained native haptics during wake and content reveal.
+- RootView is constructed behind the splash and revealed through a blur/fade transition; no advertising-style delay or loading spinner.
+- Supports Light/Dark launch appearance and Reduce Motion.
+- No booking, generator, backend, navigation, pricing, hotel, flight, notification, or product-flow logic changed.

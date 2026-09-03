@@ -6,7 +6,9 @@ struct IumrahBetaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            IumrahLaunchExperience {
+                RootView()
+            }
         }
     }
 }
