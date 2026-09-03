@@ -1,25 +1,61 @@
 import SwiftUI
 
-/// Native, continuously rendered booking identity card inspired by the
-/// iridescent point-dome motion language supplied for iumrah Booking.
+/// Native iumrah Booking identity card.
 ///
-/// The surface is generated in real time with SwiftUI Canvas. There is no
-/// embedded video/GIF and no network dependency.
+/// The front face is rendered continuously with SwiftUI Canvas. The card can
+/// be flipped in-place and is reused by BookingDetailView for the full-screen
+/// pull-down booking pass.
 struct IumrahBookingDomeCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    let bookingNumber: String
+    let travelerName: String
+    let language: AppSettingsStore.Language
+    @Binding var isFlipped: Bool
+
     var body: some View {
+        ZStack {
+            frontFace
+                .opacity(isFlipped ? 0 : 1)
+                .rotation3DEffect(
+                    .degrees(isFlipped ? -180 : 0),
+                    axis: (x: 0, y: 1, z: 0),
+                    perspective: 0.64
+                )
+
+            backFace
+                .opacity(isFlipped ? 1 : 0)
+                .rotation3DEffect(
+                    .degrees(isFlipped ? 0 : 180),
+                    axis: (x: 0, y: 1, z: 0),
+                    perspective: 0.64
+                )
+        }
+        .aspectRatio(1.60, contentMode: .fit)
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.075), lineWidth: 0.8)
+        }
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 13)
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .onTapGesture {
+            IumrahHaptics.soft()
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.16) : .spring(response: 0.62, dampingFraction: 0.86)) {
+                isFlipped.toggle()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isFlipped ? "\(travelerName), \(BookingCardCopy.yourBookingID(language)) \(bookingNumber)" : "iumrah Booking")
+        .accessibilityHint(BookingCardCopy.tapToFlip(language))
+    }
+
+    private var frontFace: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
             GeometryReader { proxy in
                 ZStack(alignment: .topLeading) {
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.075, green: 0.076, blue: 0.082),
-                            Color(red: 0.032, green: 0.033, blue: 0.038)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                    cardBackground
 
                     Canvas(rendersAsynchronously: true) { context, size in
                         renderDome(
@@ -30,26 +66,90 @@ struct IumrahBookingDomeCard: View {
                     }
                     .allowsHitTesting(false)
 
-                    Text("iumrah Booking")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .tracking(-0.25)
-                        .foregroundStyle(.white)
-                        .padding(.leading, 16)
-                        .padding(.top, 14)
+                    HStack(spacing: 7) {
+                        Text("iumrah Booking")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .tracking(-0.25)
+
+                        BookingActivityDots()
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.leading, 16)
+                    .padding(.top, 14)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
         }
-        .aspectRatio(1.60, contentMode: .fit)
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.075), lineWidth: 0.8)
+    }
+
+    private var backFace: some View {
+        GeometryReader { proxy in
+            let titleSize = min(30.0, max(23.0, proxy.size.width * 0.073))
+            let idSize = min(34.0, max(27.0, proxy.size.width * 0.085))
+
+            ZStack {
+                cardBackground
+
+                // Very restrained light falloff keeps the reverse side from
+                // reading as a flat black rectangle while remaining native.
+                RadialGradient(
+                    colors: [Color.white.opacity(0.07), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: proxy.size.width * 0.72
+                )
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("iumrah Booking")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .tracking(-0.25)
+                        .foregroundStyle(.white.opacity(0.96))
+
+                    Spacer(minLength: 16)
+
+                    Text(travelerName)
+                        .font(.system(size: titleSize, weight: .semibold, design: .rounded))
+                        .tracking(-0.55)
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+
+                    Spacer(minLength: 14)
+
+                    Rectangle()
+                        .fill(Color.white.opacity(0.13))
+                        .frame(height: 0.7)
+
+                    HStack(alignment: .lastTextBaseline, spacing: 12) {
+                        Text(BookingCardCopy.yourBookingID(language))
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.52))
+
+                        Spacer(minLength: 8)
+
+                        Text(bookingNumber)
+                            .font(.system(size: idSize, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .tracking(-0.8)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.top, 11)
+                }
+                .padding(16)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 13)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("iumrah Booking")
+    }
+
+    private var cardBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.075, green: 0.076, blue: 0.082),
+                Color(red: 0.032, green: 0.033, blue: 0.038)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     private func renderDome(
@@ -144,7 +244,7 @@ struct IumrahBookingDomeCard: View {
             )
 
             // Dark inset gives every point the characteristic hollow / lens
-            // appearance visible in the supplied Apple Cash reference.
+            // appearance visible in the supplied reference.
             fillCircle(
                 in: &context,
                 center: CGPoint(x: x, y: y),
@@ -228,6 +328,57 @@ struct IumrahBookingDomeCard: View {
 
         return output.sorted { $0.depth < $1.depth }
     }()
+}
+
+private struct BookingActivityDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 18.0, paused: reduceMotion)) { timeline in
+            let time = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
+
+            HStack(spacing: 3.5) {
+                ForEach(0..<3, id: \.self) { index in
+                    let wave = 0.5 + 0.5 * sin((time * 4.6) - (Double(index) * 1.45))
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 4.2, height: 4.2)
+                        .scaleEffect(0.82 + (0.18 * wave))
+                        .opacity(0.24 + (0.76 * wave))
+                }
+            }
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+enum BookingCardCopy {
+    static func yourBookingID(_ language: AppSettingsStore.Language) -> String {
+        switch language {
+        case .russian: return "Ваш Booking ID"
+        case .english: return "Your Booking ID"
+        case .uzbek: return "Sizning Booking ID"
+        case .uzbekCyrillic: return "Сизнинг Booking ID"
+        }
+    }
+
+    static func releaseToFlip(_ language: AppSettingsStore.Language) -> String {
+        switch language {
+        case .russian: return "Отпустите, чтобы перевернуть карточку"
+        case .english: return "Release to flip the card"
+        case .uzbek: return "Kartani aylantirish uchun qo‘yib yuboring"
+        case .uzbekCyrillic: return "Картани айлантириш учун қўйиб юборинг"
+        }
+    }
+
+    static func tapToFlip(_ language: AppSettingsStore.Language) -> String {
+        switch language {
+        case .russian: return "Нажмите, чтобы перевернуть карточку"
+        case .english: return "Tap to flip the card"
+        case .uzbek: return "Kartani aylantirish uchun bosing"
+        case .uzbekCyrillic: return "Картани айлантириш учун босинг"
+        }
+    }
 }
 
 private struct DomePoint {

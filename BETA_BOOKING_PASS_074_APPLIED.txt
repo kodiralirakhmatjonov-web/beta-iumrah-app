@@ -1,0 +1,10 @@
+iumrah Beta update 074 — interactive Booking pass
+
+- Booking dome card now flips natively on tap with a 3D spring transition.
+- Reverse face shows the booked traveler name and localized Booking ID.
+- Front "iumrah Booking" title includes three softly animated activity dots.
+- Pulling down from the top of Booking Detail reveals a localized release-to-flip cue.
+- Crossing the pull threshold gives tactile feedback; release opens a dimmed full-screen booking pass and flips it to the reverse face.
+- Full-screen pass can also be tapped to flip between front and reverse, and includes a localized Booking ID footer.
+- Pull/tap interactions use existing iumrah haptics and respect Reduce Motion.
+- No booking data, pricing, backend, generator, hotel, flight, checkout, or navigation contracts changed.

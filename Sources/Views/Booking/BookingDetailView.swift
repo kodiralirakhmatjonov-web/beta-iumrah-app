@@ -26,6 +26,12 @@ struct BookingDetailView: View {
     @State private var isRequestingConfirmation = false
     @State private var confirmationSent = false
     @State private var showPackageCareExplanation = false
+    @State private var bookingCardFlipped = false
+    @State private var bookingPullDistance: CGFloat = 0
+    @State private var bookingPullArmed = false
+    @State private var bookingPullGestureActive = false
+    @State private var showFullscreenBookingCard = false
+    @State private var fullscreenBookingCardFlipped = false
 
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
 
@@ -33,8 +39,22 @@ struct BookingDetailView: View {
         Group {
             if let session {
                 ScrollView(showsIndicators: false) {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(
+                                key: BookingPullDistancePreferenceKey.self,
+                                value: max(0, proxy.frame(in: .named("booking-detail-scroll")).minY)
+                            )
+                    }
+                    .frame(height: 0)
+
                     VStack(spacing: 16) {
-                        IumrahBookingDomeCard()
+                        IumrahBookingDomeCard(
+                            bookingNumber: session.displayBookingNumber,
+                            travelerName: bookingTravelerName(session),
+                            language: settings.language,
+                            isFlipped: $bookingCardFlipped
+                        )
                         statusHero(session)
                         bookingMetaCard(session.booking)
                         if session.booking.perPilgrimUsd >= 1800 {
@@ -89,7 +109,28 @@ struct BookingDetailView: View {
                     .padding(.top, 12)
                     .padding(.bottom, 56)
                 }
+                .coordinateSpace(name: "booking-detail-scroll")
                 .background(Color.iumrahPageBackground)
+                .onPreferenceChange(BookingPullDistancePreferenceKey.self) { value in
+                    updateBookingPull(distance: value)
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 4)
+                        .onChanged { _ in
+                            bookingPullGestureActive = true
+                        }
+                        .onEnded { value in
+                            finishBookingPull(translation: value.translation.height)
+                        }
+                )
+                .overlay(alignment: .top) {
+                    if bookingPullDistance > 7, !showFullscreenBookingCard {
+                        bookingPullHint
+                            .padding(.top, min(30, 7 + (bookingPullDistance * 0.18)))
+                            .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                            .allowsHitTesting(false)
+                    }
+                }
                 .task {
                     await bookings.refreshAll()
                     await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
@@ -133,6 +174,13 @@ struct BookingDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .overlay {
+            if let session, showFullscreenBookingCard {
+                fullscreenBookingPass(session)
+                    .transition(.opacity)
+                    .zIndex(100)
+            }
+        }
         .confirmationDialog(
             L10n.text("booking_delete_confirm_title", settings.language),
             isPresented: $showDeleteConfirmation,
@@ -145,6 +193,155 @@ struct BookingDetailView: View {
         } message: {
             Text(L10n.text("booking_delete_confirm_body", settings.language))
         }
+    }
+
+    private let bookingPullThreshold: CGFloat = 86
+
+    private func bookingTravelerName(_ session: StoredBookingSession) -> String {
+        let value = session.travelerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? settings.displayName : value
+    }
+
+    private var bookingPullHint: some View {
+        let progress = min(max(bookingPullDistance / bookingPullThreshold, 0), 1)
+
+        return HStack(spacing: 9) {
+            Image(systemName: bookingPullArmed ? "arrow.down.circle.fill" : "arrow.down")
+                .font(.system(size: 14, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+
+            Text(BookingCardCopy.releaseToFlip(settings.language))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+        }
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 38)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay {
+            Capsule()
+                .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.8)
+        }
+        .scaleEffect(0.94 + (0.06 * progress))
+        .opacity(0.22 + (0.78 * progress))
+        .blur(radius: (1 - progress) * 1.8)
+        .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.88), value: bookingPullArmed)
+    }
+
+    private func updateBookingPull(distance: CGFloat) {
+        guard !showFullscreenBookingCard else { return }
+        bookingPullDistance = distance
+
+        if bookingPullGestureActive, distance >= bookingPullThreshold, !bookingPullArmed {
+            bookingPullArmed = true
+            IumrahHaptics.selection()
+        } else if bookingPullGestureActive, distance < bookingPullThreshold * 0.72, bookingPullArmed {
+            // Let the user cancel naturally by moving back above the threshold.
+            bookingPullArmed = false
+        }
+    }
+
+    private func finishBookingPull(translation: CGFloat) {
+        let shouldPresent = bookingPullArmed || (translation >= bookingPullThreshold && bookingPullDistance > 26)
+        bookingPullGestureActive = false
+        bookingPullArmed = false
+
+        guard shouldPresent else { return }
+        presentFullscreenBookingPass()
+    }
+
+    private func presentFullscreenBookingPass() {
+        guard !showFullscreenBookingCard else { return }
+        fullscreenBookingCardFlipped = false
+        IumrahHaptics.soft()
+
+        withAnimation(.easeOut(duration: 0.20)) {
+            showFullscreenBookingCard = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            guard showFullscreenBookingCard else { return }
+            withAnimation(.spring(response: 0.66, dampingFraction: 0.86)) {
+                fullscreenBookingCardFlipped = true
+            }
+            IumrahHaptics.soft()
+        }
+    }
+
+    private func dismissFullscreenBookingPass() {
+        IumrahHaptics.selection()
+        withAnimation(.easeInOut(duration: 0.20)) {
+            showFullscreenBookingCard = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            fullscreenBookingCardFlipped = false
+        }
+    }
+
+    @ViewBuilder
+    private func fullscreenBookingPass(_ session: StoredBookingSession) -> some View {
+        GeometryReader { proxy in
+            ZStack {
+                Color.black.opacity(0.48)
+                    .ignoresSafeArea()
+                    .onTapGesture { dismissFullscreenBookingPass() }
+
+                VStack(spacing: 0) {
+                    HStack {
+                        Spacer()
+                        Button {
+                            dismissFullscreenBookingPass()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(.primary)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, max(8, proxy.safeAreaInsets.top + 4))
+
+                    Spacer(minLength: 22)
+
+                    IumrahBookingDomeCard(
+                        bookingNumber: session.displayBookingNumber,
+                        travelerName: bookingTravelerName(session),
+                        language: settings.language,
+                        isFlipped: $fullscreenBookingCardFlipped
+                    )
+                    .padding(.horizontal, 18)
+                    .scaleEffect(showFullscreenBookingCard ? 1 : 0.965)
+
+                    Spacer(minLength: 22)
+
+                    VStack(spacing: 7) {
+                        Text(BookingCardCopy.yourBookingID(settings.language))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.62))
+
+                        Text(session.displayBookingNumber)
+                            .font(.system(size: 30, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .tracking(-0.75)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 15)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.11), lineWidth: 0.8)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, max(18, proxy.safeAreaInsets.bottom + 8))
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .ignoresSafeArea()
     }
 
     private var topBar: some View {
@@ -1334,5 +1531,14 @@ func statusIcon(_ status: String) -> String {
     case "COMPLETED": return "flag.checkered.circle.fill"
     case "CANCELLED": return "xmark.circle.fill"
     default: return "clock.fill"
+    }
+}
+
+
+private struct BookingPullDistancePreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
