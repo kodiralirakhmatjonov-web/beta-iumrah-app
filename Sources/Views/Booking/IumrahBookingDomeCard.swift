@@ -14,41 +14,50 @@ struct IumrahBookingDomeCard: View {
     @Binding var isFlipped: Bool
 
     var body: some View {
+        // Important: the parent stays completely transparent. Each face owns
+        // its own rounded surface, stroke and shadow. That makes the physical
+        // card itself collapse to a thin edge during the 3D turn instead of
+        // rotating inside a permanently black rectangular container.
         ZStack {
-            frontFace
+            surfaced(frontFace)
                 .opacity(isFlipped ? 0 : 1)
                 .rotation3DEffect(
                     .degrees(isFlipped ? -180 : 0),
                     axis: (x: 0, y: 1, z: 0),
-                    perspective: 0.64
+                    perspective: 0.72
                 )
+                .zIndex(isFlipped ? 0 : 1)
 
-            backFace
+            surfaced(backFace)
                 .opacity(isFlipped ? 1 : 0)
                 .rotation3DEffect(
                     .degrees(isFlipped ? 0 : 180),
                     axis: (x: 0, y: 1, z: 0),
-                    perspective: 0.64
+                    perspective: 0.72
                 )
+                .zIndex(isFlipped ? 1 : 0)
         }
         .aspectRatio(1.60, contentMode: .fit)
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.075), lineWidth: 0.8)
-        }
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 13)
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onTapGesture {
             IumrahHaptics.soft()
-            withAnimation(reduceMotion ? .easeInOut(duration: 0.16) : .spring(response: 0.62, dampingFraction: 0.86)) {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.18) : .spring(response: 0.66, dampingFraction: 0.84)) {
                 isFlipped.toggle()
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isFlipped ? "\(travelerName), \(BookingCardCopy.yourBookingID(language)) \(bookingNumber)" : "iumrah Booking")
         .accessibilityHint(BookingCardCopy.tapToFlip(language))
+    }
+
+    private func surfaced<Content: View>(_ content: Content) -> some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.085), lineWidth: 0.8)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
     }
 
     private var frontFace: some View {

@@ -27,139 +27,154 @@ struct BookingDetailView: View {
     @State private var confirmationSent = false
     @State private var showPackageCareExplanation = false
     @State private var bookingCardFlipped = false
-    @State private var bookingPullDistance: CGFloat = 0
+    @State private var bookingScrollMinY: CGFloat = 0
+    @State private var bookingPullTranslation: CGFloat = 0
     @State private var bookingPullArmed = false
     @State private var bookingPullGestureActive = false
+    @State private var bookingPullGestureDecisionMade = false
+    @State private var bookingPullGestureEligible = false
+    @State private var bookingViewportHeight: CGFloat = 0
     @State private var showFullscreenBookingCard = false
     @State private var fullscreenBookingCardFlipped = false
+    @State private var fullscreenCardLandscape = false
 
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
 
     var body: some View {
         Group {
             if let session {
-                ScrollView(showsIndicators: false) {
-                    GeometryReader { proxy in
-                        Color.clear
-                            .preference(
-                                key: BookingPullDistancePreferenceKey.self,
-                                value: max(0, proxy.frame(in: .named("booking-detail-scroll")).minY)
+                GeometryReader { viewport in
+                    ScrollView(showsIndicators: false) {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .preference(
+                                    key: BookingPullDistancePreferenceKey.self,
+                                    value: proxy.frame(in: .named("booking-detail-scroll")).minY
+                                )
+                        }
+                        .frame(height: 0)
+
+                        VStack(spacing: 16) {
+                            IumrahBookingDomeCard(
+                                bookingNumber: session.displayBookingNumber,
+                                travelerName: bookingTravelerName(session),
+                                language: settings.language,
+                                isFlipped: $bookingCardFlipped
                             )
+                            statusHero(session)
+                            bookingMetaCard(session.booking)
+                            if session.booking.perPilgrimUsd >= 1800 {
+                                bookingCareBalanceCard
+                            }
+                            BookingItineraryCalendarView(
+                                bookingID: session.id,
+                                startDate: session.booking.input.startDate,
+                                endDate: session.booking.input.endDate,
+                                booking: session.booking
+                            )
+
+                            BookingFlightDisclosureCard(
+                                title: L10n.text("booking_outbound_flight", settings.language),
+                                route: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)",
+                                date: session.booking.input.startDate,
+                                fallbackFlight: outboundFallback(session),
+                                offer: session.outboundFlight,
+                                isExpanded: $outboundExpanded
+                            )
+
+                            BookingFlightDisclosureCard(
+                                title: L10n.text("booking_return_flight", settings.language),
+                                route: "\(session.booking.route.returnOrigin) → \(session.booking.route.originCode)",
+                                date: session.booking.input.endDate,
+                                fallbackFlight: inboundFallback(session),
+                                offer: session.inboundFlight,
+                                isExpanded: $inboundExpanded
+                            )
+
+                            hotelCard(session, role: .makkah, isExpanded: $makkahHotelExpanded)
+
+                            if session.booking.input.includeMadinah {
+                                hotelCard(session, role: .madinah, isExpanded: $madinahHotelExpanded)
+                            }
+
+                            transferCard(session)
+                            guideCard(session)
+                            ziyaratCard(session)
+                            esimCard(session)
+                            contactCard(session)
+
+                            if session.pendingChangeConfirmation == true || confirmationSent {
+                                confirmationCard(session)
+                            }
+
+                            careAction
+                            destructiveActions
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, IumrahDesign.pagePadding)
+                        .padding(.top, 12)
+                        .padding(.bottom, 56)
+                        .offset(y: bookingPullVisualOffset)
                     }
-                    .frame(height: 0)
-
-                    VStack(spacing: 16) {
-                        IumrahBookingDomeCard(
-                            bookingNumber: session.displayBookingNumber,
-                            travelerName: bookingTravelerName(session),
-                            language: settings.language,
-                            isFlipped: $bookingCardFlipped
-                        )
-                        statusHero(session)
-                        bookingMetaCard(session.booking)
-                        if session.booking.perPilgrimUsd >= 1800 {
-                            bookingCareBalanceCard
-                        }
-                        BookingItineraryCalendarView(
-                            bookingID: session.id,
-                            startDate: session.booking.input.startDate,
-                            endDate: session.booking.input.endDate,
-                            booking: session.booking
-                        )
-
-                        BookingFlightDisclosureCard(
-                            title: L10n.text("booking_outbound_flight", settings.language),
-                            route: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)",
-                            date: session.booking.input.startDate,
-                            fallbackFlight: outboundFallback(session),
-                            offer: session.outboundFlight,
-                            isExpanded: $outboundExpanded
-                        )
-
-                        BookingFlightDisclosureCard(
-                            title: L10n.text("booking_return_flight", settings.language),
-                            route: "\(session.booking.route.returnOrigin) → \(session.booking.route.originCode)",
-                            date: session.booking.input.endDate,
-                            fallbackFlight: inboundFallback(session),
-                            offer: session.inboundFlight,
-                            isExpanded: $inboundExpanded
-                        )
-
-                        hotelCard(session, role: .makkah, isExpanded: $makkahHotelExpanded)
-
-                        if session.booking.input.includeMadinah {
-                            hotelCard(session, role: .madinah, isExpanded: $madinahHotelExpanded)
-                        }
-
-                        transferCard(session)
-                        guideCard(session)
-                        ziyaratCard(session)
-                        esimCard(session)
-                        contactCard(session)
-
-                        if session.pendingChangeConfirmation == true || confirmationSent {
-                            confirmationCard(session)
-                        }
-
-                        careAction
-                        destructiveActions
+                    .coordinateSpace(name: "booking-detail-scroll")
+                    .background(Color.iumrahPageBackground)
+                    .onAppear {
+                        bookingViewportHeight = viewport.size.height
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, IumrahDesign.pagePadding)
-                    .padding(.top, 12)
-                    .padding(.bottom, 56)
-                }
-                .coordinateSpace(name: "booking-detail-scroll")
-                .background(Color.iumrahPageBackground)
-                .onPreferenceChange(BookingPullDistancePreferenceKey.self) { value in
-                    updateBookingPull(distance: value)
-                }
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 4)
-                        .onChanged { _ in
-                            bookingPullGestureActive = true
-                        }
-                        .onEnded { value in
-                            finishBookingPull(translation: value.translation.height)
-                        }
-                )
-                .overlay(alignment: .top) {
-                    if bookingPullDistance > 7, !showFullscreenBookingCard {
-                        bookingPullHint
-                            .padding(.top, min(30, 7 + (bookingPullDistance * 0.18)))
-                            .transition(.opacity.combined(with: .scale(scale: 0.94)))
-                            .allowsHitTesting(false)
+                    .onChange(of: viewport.size.height) { _, newValue in
+                        bookingViewportHeight = newValue
                     }
-                }
-                .task {
-                    await bookings.refreshAll()
-                    await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
-                    loadZiyaratDraft()
-                    loadESIMDraft()
-                }
-                .sheet(isPresented: $showMakkahHotelChange) {
-                    BookingHotelChangeView(bookingID: bookingID, role: .makkah)
-                        .environmentObject(settings)
-                        .environmentObject(bookings)
-                }
-                .sheet(isPresented: $showMadinahHotelChange) {
-                    BookingHotelChangeView(bookingID: bookingID, role: .madinah)
-                        .environmentObject(settings)
-                        .environmentObject(bookings)
-                }
-                .sheet(isPresented: $showContactEdit) {
-                    BookingContactEditSheet(
-                        bookingID: bookingID,
-                        telegram: session.telegram ?? "",
-                        whatsapp: session.whatsapp ?? ""
+                    .onPreferenceChange(BookingPullDistancePreferenceKey.self) { value in
+                        bookingScrollMinY = value
+                    }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 4, coordinateSpace: .local)
+                            .onChanged { value in
+                                updateBookingPull(translation: value.translation.height)
+                            }
+                            .onEnded { value in
+                                finishBookingPull(translation: value.translation.height)
+                            }
                     )
-                    .environmentObject(settings)
-                    .environmentObject(bookings)
-                }
-                .sheet(isPresented: $showPackageCareExplanation) {
-                    UmrahCarePackageExplanationView()
+                    .overlay(alignment: .top) {
+                        if bookingPullTranslation > 10, !showFullscreenBookingCard {
+                            bookingPullHint
+                                .padding(.top, bookingPullHintOffset)
+                                .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .task {
+                        await bookings.refreshAll()
+                        await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
+                        loadZiyaratDraft()
+                        loadESIMDraft()
+                    }
+                    .sheet(isPresented: $showMakkahHotelChange) {
+                        BookingHotelChangeView(bookingID: bookingID, role: .makkah)
+                            .environmentObject(settings)
+                            .environmentObject(bookings)
+                    }
+                    .sheet(isPresented: $showMadinahHotelChange) {
+                        BookingHotelChangeView(bookingID: bookingID, role: .madinah)
+                            .environmentObject(settings)
+                            .environmentObject(bookings)
+                    }
+                    .sheet(isPresented: $showContactEdit) {
+                        BookingContactEditSheet(
+                            bookingID: bookingID,
+                            telegram: session.telegram ?? "",
+                            whatsapp: session.whatsapp ?? ""
+                        )
                         .environmentObject(settings)
+                        .environmentObject(bookings)
+                    }
+                    .sheet(isPresented: $showPackageCareExplanation) {
+                        UmrahCarePackageExplanationView()
+                            .environmentObject(settings)
+                    }
                 }
+
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
@@ -195,7 +210,22 @@ struct BookingDetailView: View {
         }
     }
 
-    private let bookingPullThreshold: CGFloat = 86
+    private var bookingPullThreshold: CGFloat {
+        // The gesture intentionally requires a long, deliberate pull — about
+        // half of the visible booking interface — so it reads as a physical
+        // pass interaction rather than ordinary ScrollView rubber-banding.
+        let viewport = bookingViewportHeight > 0 ? bookingViewportHeight : 720
+        return min(max(viewport * 0.46, 300), 420)
+    }
+
+    private var bookingPullVisualOffset: CGFloat {
+        min(max(bookingPullTranslation, 0), bookingPullThreshold)
+    }
+
+    private var bookingPullHintOffset: CGFloat {
+        let visual = bookingPullVisualOffset
+        return min(max(18, visual * 0.44), 150)
+    }
 
     private func bookingTravelerName(_ session: StoredBookingSession) -> String {
         let value = session.travelerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -203,66 +233,100 @@ struct BookingDetailView: View {
     }
 
     private var bookingPullHint: some View {
-        let progress = min(max(bookingPullDistance / bookingPullThreshold, 0), 1)
+        let progress = min(max(bookingPullTranslation / bookingPullThreshold, 0), 1)
 
-        return HStack(spacing: 9) {
+        return VStack(spacing: 7) {
             Image(systemName: bookingPullArmed ? "arrow.down.circle.fill" : "arrow.down")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
+                .offset(y: bookingPullArmed ? 2 : 0)
 
             Text(BookingCardCopy.releaseToFlip(settings.language))
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .lineLimit(1)
-                .minimumScaleFactor(0.76)
+                .minimumScaleFactor(0.74)
         }
         .foregroundStyle(.primary)
-        .padding(.horizontal, 14)
-        .frame(minHeight: 38)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 10)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay {
             Capsule()
-                .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.8)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.8)
         }
-        .scaleEffect(0.94 + (0.06 * progress))
-        .opacity(0.22 + (0.78 * progress))
-        .blur(radius: (1 - progress) * 1.8)
+        .scaleEffect(0.92 + (0.08 * progress))
+        .opacity(0.18 + (0.82 * progress))
+        .blur(radius: (1 - progress) * 2.2)
         .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.88), value: bookingPullArmed)
     }
 
-    private func updateBookingPull(distance: CGFloat) {
+    private func updateBookingPull(translation: CGFloat) {
         guard !showFullscreenBookingCard else { return }
-        bookingPullDistance = distance
 
-        if bookingPullGestureActive, distance >= bookingPullThreshold, !bookingPullArmed {
+        if !bookingPullGestureDecisionMade {
+            bookingPullGestureDecisionMade = true
+            bookingPullGestureEligible = translation > 0 && bookingScrollMinY >= -2
+            bookingPullGestureActive = bookingPullGestureEligible
+        }
+
+        // The decision is locked for the life of this drag. A user who began
+        // while scrolled down cannot accidentally trigger the pass when that
+        // same gesture later reaches the top of the ScrollView.
+        guard bookingPullGestureEligible else { return }
+
+        bookingPullTranslation = max(0, translation)
+
+        if bookingPullTranslation >= bookingPullThreshold, !bookingPullArmed {
             bookingPullArmed = true
             IumrahHaptics.selection()
-        } else if bookingPullGestureActive, distance < bookingPullThreshold * 0.72, bookingPullArmed {
-            // Let the user cancel naturally by moving back above the threshold.
+        } else if bookingPullTranslation < bookingPullThreshold * 0.86, bookingPullArmed {
             bookingPullArmed = false
         }
     }
 
     private func finishBookingPull(translation: CGFloat) {
-        let shouldPresent = bookingPullArmed || (translation >= bookingPullThreshold && bookingPullDistance > 26)
+        let eligible = bookingPullGestureEligible
+        let shouldPresent = eligible && (bookingPullArmed || translation >= bookingPullThreshold)
+
         bookingPullGestureActive = false
+        bookingPullGestureDecisionMade = false
+        bookingPullGestureEligible = false
         bookingPullArmed = false
 
-        guard shouldPresent else { return }
-        presentFullscreenBookingPass()
+        guard eligible else { return }
+
+        if shouldPresent {
+            presentFullscreenBookingPass()
+            withAnimation(.easeOut(duration: 0.18)) {
+                bookingPullTranslation = 0
+            }
+        } else {
+            withAnimation(.spring(response: 0.46, dampingFraction: 0.86)) {
+                bookingPullTranslation = 0
+            }
+        }
     }
 
     private func presentFullscreenBookingPass() {
         guard !showFullscreenBookingCard else { return }
         fullscreenBookingCardFlipped = false
+        fullscreenCardLandscape = false
         IumrahHaptics.soft()
 
-        withAnimation(.easeOut(duration: 0.20)) {
+        withAnimation(.easeOut(duration: 0.22)) {
             showFullscreenBookingCard = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             guard showFullscreenBookingCard else { return }
-            withAnimation(.spring(response: 0.66, dampingFraction: 0.86)) {
+            withAnimation(.spring(response: 0.72, dampingFraction: 0.84)) {
+                fullscreenCardLandscape = true
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
+            guard showFullscreenBookingCard else { return }
+            withAnimation(.spring(response: 0.70, dampingFraction: 0.84)) {
                 fullscreenBookingCardFlipped = true
             }
             IumrahHaptics.soft()
@@ -271,10 +335,11 @@ struct BookingDetailView: View {
 
     private func dismissFullscreenBookingPass() {
         IumrahHaptics.selection()
-        withAnimation(.easeInOut(duration: 0.20)) {
+        withAnimation(.easeInOut(duration: 0.22)) {
             showFullscreenBookingCard = false
+            fullscreenCardLandscape = false
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
             fullscreenBookingCardFlipped = false
         }
     }
@@ -282,62 +347,32 @@ struct BookingDetailView: View {
     @ViewBuilder
     private func fullscreenBookingPass(_ session: StoredBookingSession) -> some View {
         GeometryReader { proxy in
+            // Before the 90° rotation this is the card's landscape width.
+            // After rotation the physical pass nearly fills the portrait
+            // screen width while preserving its true 1.60:1 proportions.
+            let landscapeCardWidth = min(
+                proxy.size.height * 0.88,
+                proxy.size.width * 0.94 * 1.60
+            )
+
             ZStack {
-                Color.black.opacity(0.48)
+                Color.black.opacity(0.985)
                     .ignoresSafeArea()
+                    .contentShape(Rectangle())
                     .onTapGesture { dismissFullscreenBookingPass() }
 
-                VStack(spacing: 0) {
-                    HStack {
-                        Spacer()
-                        Button {
-                            dismissFullscreenBookingPass()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 44, height: 44)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.top, max(8, proxy.safeAreaInsets.top + 4))
-
-                    Spacer(minLength: 22)
-
-                    IumrahBookingDomeCard(
-                        bookingNumber: session.displayBookingNumber,
-                        travelerName: bookingTravelerName(session),
-                        language: settings.language,
-                        isFlipped: $fullscreenBookingCardFlipped
-                    )
-                    .padding(.horizontal, 18)
-                    .scaleEffect(showFullscreenBookingCard ? 1 : 0.965)
-
-                    Spacer(minLength: 22)
-
-                    VStack(spacing: 7) {
-                        Text(BookingCardCopy.yourBookingID(settings.language))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.62))
-
-                        Text(session.displayBookingNumber)
-                            .font(.system(size: 30, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .tracking(-0.75)
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 15)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.11), lineWidth: 0.8)
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, max(18, proxy.safeAreaInsets.bottom + 8))
-                }
+                IumrahBookingDomeCard(
+                    bookingNumber: session.displayBookingNumber,
+                    travelerName: bookingTravelerName(session),
+                    language: settings.language,
+                    isFlipped: $fullscreenBookingCardFlipped
+                )
+                .frame(width: landscapeCardWidth)
+                .rotationEffect(.degrees(fullscreenCardLandscape ? 90 : 0))
+                .scaleEffect(fullscreenCardLandscape ? 1.0 : 0.60)
+                .opacity(showFullscreenBookingCard ? 1 : 0)
+                .shadow(color: .black.opacity(0.38), radius: 34, y: 16)
+                .accessibilityAddTraits(.isButton)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }

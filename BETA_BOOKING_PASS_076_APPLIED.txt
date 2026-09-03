@@ -1,0 +1,14 @@
+iumrah Beta update 076 — Real Booking Card / Long Pull Pass
+
+Scope only:
+- Booking card flip now rotates the physical rounded card itself; no permanent black parent container remains behind the 3D turn.
+- Pull-down pass requires a deliberate ~46% viewport drag (clamped for device sizes) and visually follows the finger into the opened space.
+- Pull hint moves with the gesture and arms with selection haptic only near the long-pull threshold.
+- Full-screen pass dims the interface to near-black and presents only the Booking card.
+- Full-screen card rotates 90 degrees into a landscape-pass presentation, then flips to the reverse side with traveler name + Booking ID.
+- The full-screen physical card remains tappable to flip front/back; tap outside the card dismisses it.
+- Existing animated dome, activity dots, booking data, pricing, backend, and all other app flows are unchanged.
+
+QA:
+- 148 Swift source files parsed successfully with swiftc -frontend -parse.
+- Patch contains only the two Booking Swift files above plus this marker.
