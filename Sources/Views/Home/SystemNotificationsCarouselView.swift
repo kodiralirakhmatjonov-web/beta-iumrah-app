@@ -17,27 +17,25 @@ struct SystemNotificationsCarouselView: View {
                             onOpen: { onOpen(notification) },
                             onDismiss: { onDismiss(notification) }
                         )
-                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .frame(width: proxy.size.width)
                         .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
             }
-            .frame(height: 164)
+            .frame(height: 192)
 
             if notifications.count > 1 {
                 HStack(spacing: 7) {
-                    Spacer(minLength: 0)
                     ForEach(Array(notifications.enumerated()), id: \.element.id) { index, _ in
                         Capsule(style: .continuous)
                             .fill(index == selectedIndex ? Color.primary.opacity(0.88) : Color.secondary.opacity(0.22))
                             .frame(width: index == selectedIndex ? 18 : 7, height: 7)
                             .animation(.spring(response: 0.26, dampingFraction: 0.88), value: selectedIndex)
                     }
-                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity)
             }
         }
         .onAppear {
