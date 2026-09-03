@@ -33,9 +33,9 @@ struct HomeDashboardView: View {
                         onDismiss: { dismissSystemNotification($0) }
                     )
                 }
+                HomeEmotionalJourneyPrompt()
                 HomeVideoCarousel()
                 hero
-                UmrahAdvisorHomeCard()
                 confidenceStrip
                 philosophyCard
                 connectedTripCard

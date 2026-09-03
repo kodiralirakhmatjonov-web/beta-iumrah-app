@@ -1,11 +1,31 @@
 {
-  "patch": "iumrah-beta-update-049-ignav-timezone-hotfix",
-  "based_on": "BETA_FLIGHT_PRICING_048_APPLIED",
-  "description": "Deterministic IANA-timezone conversion for Ignav local timestamp fallback on GitHub and Cloudflare runtimes.",
-  "deployment_order": ["apply_patch", "deploy_package_engine"],
+  "patch": "iumrah-beta-update-071-home-emotional-journey",
+  "based_on": "BETA_CLIENT_EXPERIENCE_070_APPLIED",
+  "description": "Home-only emotional Makkah/Madinah full-screen video experience with cinematic captions; removes story 02 and 06 from the Home sequence.",
+  "deployment_order": [
+    "apply_patch",
+    "build_testflight"
+  ],
   "files": [
-    {"path":"BETA_IGNAV_TIMEZONE_049_APPLIED.txt","sha256":"ec158d9bb462a1d6f68635ddddb35e4961cdd3ad2533b25202ad0eb19de96d40","bytes":316},
-    {"path":"Backend/PackageEngine/src/ignav-flights.ts","sha256":"0d2d06df922014584a78dc0f3d5d56ed8577784d39c32eddb91b0109e6145ca4","bytes":21373},
-    {"path":"Backend/PackageEngine/test/runtime-production.runtime.mjs","sha256":"d8122db18f34d603df1fb917e1d6b25d486f6ba9ba452e8ac7c761f2c6be82a7","bytes":15414}
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "58efc5e9b05c9c5a623dff8d334bd465e1566fbb86297a818ff8cadf49de4ad6",
+      "bytes": 28925
+    },
+    {
+      "path": "Sources/Views/Home/HomeVideoCarousel.swift",
+      "sha256": "62a546b6d635793762918df0e9c3d09683aab9b356895ee8cee18c7e4a3be79c",
+      "bytes": 4473
+    },
+    {
+      "path": "Sources/Views/Home/HomeEmotionalJourneyView.swift",
+      "sha256": "c0a0faad7f9bf0f33a5c09a3ce1196e28ab4e89e83b661f2a74a51f5d9ea4e3d",
+      "bytes": 15645
+    },
+    {
+      "path": "BETA_HOME_EMOTIONAL_071_APPLIED.txt",
+      "sha256": "8bcf22460ee70f7b2f3bdc0f261b28b6ce385ba036c3ba852c70cad401acc131",
+      "bytes": 792
+    }
   ]
 }

@@ -4,23 +4,9 @@ import UIKit
 struct HomeVideoCarousel: View {
     @Environment(\.scenePhase) private var scenePhase
 
-    private struct Story: Identifiable {
-        let id: String
-        let resource: String
-    }
+    private let stories = HomeEmotionalStory.all
 
-    private let stories: [Story] = [
-        Story(id: "home-story-01", resource: "home-story-01"),
-        Story(id: "home-story-02", resource: "home-story-02"),
-        Story(id: "home-story-03", resource: "home-story-03"),
-        Story(id: "home-story-04", resource: "home-story-04"),
-        Story(id: "home-story-05", resource: "home-story-05"),
-        Story(id: "home-story-06", resource: "home-story-06"),
-        Story(id: "home-story-07", resource: "home-story-07"),
-        Story(id: "home-story-08", resource: "home-story-08")
-    ]
-
-    @State private var activeStoryID: String? = "home-story-01"
+    @State private var activeStoryID: String? = HomeEmotionalStory.all.first?.id
     @State private var isVisible = false
     @State private var isMuted = true
 
@@ -72,7 +58,7 @@ struct HomeVideoCarousel: View {
         .accessibilityLabel("iumrah video stories")
     }
 
-    private func videoCard(_ story: Story) -> some View {
+    private func videoCard(_ story: HomeEmotionalStory) -> some View {
         LoopingVideoView(
             resource: story.resource,
             isPlaying: isVisible && scenePhase == .active && activeStoryID == story.id,
@@ -123,7 +109,7 @@ struct HomeVideoCarousel: View {
         .accessibilityHidden(true)
     }
 
-    private func storyIndex(_ story: Story) -> Int {
-        stories.firstIndex(where: { $0.id == story.id }) ?? 0
+    private func storyIndex(_ story: HomeEmotionalStory) -> Int {
+        stories.firstIndex(of: story) ?? 0
     }
 }

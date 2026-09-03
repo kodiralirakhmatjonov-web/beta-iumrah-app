@@ -1,0 +1,9 @@
+iumrah Beta home emotional journey update 071
+2026-09-03
+
+- Added the compact “Почувствуйте перед поездкой” entry between the Home header area and promotional video carousel.
+- “Попробовать” opens a native full-screen swipeable Makkah/Madinah video experience.
+- Full-screen stories use a cinematic bottom gradient and a native vapor-style blur/fade/offset text transition.
+- Home story 02 and story 06 are removed from the Home carousel and emotional full-screen sequence; all other Home stories remain in their original order.
+- Full-screen audio starts enabled after the explicit user action and can be muted from the native control.
+- No booking, generator, pricing, backend, account, tab-bar, notification, or other product logic was changed.
