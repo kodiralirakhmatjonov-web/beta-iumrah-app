@@ -12,9 +12,8 @@ function json(value: unknown, status = 200) {
 /**
  * Resolves the recommended Primary Hotel maintained by iumrah Business.
  *
- * This endpoint deliberately does not expose or calculate a package hotel rate.
- * The selected hotel's current stay price is verified separately by the client
- * hotel-price service for the actual dates, guests and room/category.
+ * Generator eligibility is coupled to the hotel catalog's server-maintained
+ * 48-hour price cache. Beta never scrapes Booking/Expedia directly.
  */
 export async function curatedPrimaryHotel(url: URL, env: Env) {
   if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB binding is not configured" }, 503);
@@ -27,17 +26,22 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
   }
 
   try {
+    const now = new Date().toISOString();
     const curated = await env.HOTELS_DB.prepare(
       `SELECT p.position, h.id AS hotel_id, h.stars, h.city
        FROM primary_hotels p
        INNER JOIN hotels h ON h.id = p.hotel_id
+       INNER JOIN hotel_price_cache hp ON hp.hotel_id = h.id
        WHERE LOWER(p.city) = LOWER(?1)
          AND p.star_category = ?2
          AND h.status = 'published'
          AND h.stars = ?2
+         AND hp.status = 'fresh'
+         AND hp.nightly_price_usd IS NOT NULL
+         AND hp.expires_at > ?3
        ORDER BY p.position ASC
        LIMIT 1`,
-    ).bind(city, stars).first<{ position: number; hotel_id: string; stars: number | null; city: string }>();
+    ).bind(city, stars, now).first<{ position: number; hotel_id: string; stars: number | null; city: string }>();
 
     if (curated) {
       return json({
@@ -51,7 +55,7 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
         requestedStars: stars,
         matchType: "curatedPrimary",
         isFallback: false,
-        pricingMode: "liveVerificationRequired",
+        pricingMode: "catalog48h",
         position: Number(curated.position),
       });
     }
@@ -59,14 +63,18 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
     // Keep generation usable when Business has not curated a slot yet, but this
     // is still only hotel selection. It never fabricates a price.
     const catalog = await env.HOTELS_DB.prepare(
-      `SELECT id, stars, city
-       FROM hotels
-       WHERE status = 'published'
-         AND LOWER(city) = LOWER(?1)
-         AND stars = ?2
-       ORDER BY rating DESC, review_count DESC, updated_at DESC
+      `SELECT h.id, h.stars, h.city
+       FROM hotels h
+       INNER JOIN hotel_price_cache hp ON hp.hotel_id = h.id
+       WHERE h.status = 'published'
+         AND LOWER(h.city) = LOWER(?1)
+         AND h.stars = ?2
+         AND hp.status = 'fresh'
+         AND hp.nightly_price_usd IS NOT NULL
+         AND hp.expires_at > ?3
+       ORDER BY h.rating DESC, h.review_count DESC, h.updated_at DESC
        LIMIT 1`,
-    ).bind(city, stars).first<{ id: string; stars: number | null; city: string }>();
+    ).bind(city, stars, now).first<{ id: string; stars: number | null; city: string }>();
 
     if (!catalog) return json({ ok: false, error: `No published ${stars}-star hotel is available for ${city}` }, 404);
     return json({
@@ -80,7 +88,7 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
       requestedStars: stars,
       matchType: "catalogFallback",
       isFallback: true,
-      pricingMode: "liveVerificationRequired",
+      pricingMode: "catalog48h",
       position: null,
     });
   } catch (error) {

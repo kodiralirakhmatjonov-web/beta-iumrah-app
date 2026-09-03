@@ -41,9 +41,13 @@ async function publicHealth(env: Env) {
       `SELECT LOWER(p.city) AS city, COUNT(*) AS count
        FROM primary_hotels p
        INNER JOIN hotels h ON h.id = p.hotel_id
+       INNER JOIN hotel_price_cache hp ON hp.hotel_id = h.id
        WHERE h.status = 'published'
+         AND hp.status = 'fresh'
+         AND hp.nightly_price_usd IS NOT NULL
+         AND hp.expires_at > ?1
        GROUP BY LOWER(p.city)`,
-    ).all<{ city: string; count: number | string }>();
+    ).bind(new Date().toISOString()).all<{ city: string; count: number | string }>();
 
     const rows = result.results ?? [];
     const makkahCount = Number(rows.find((row) => row.city === "makkah")?.count ?? 0);

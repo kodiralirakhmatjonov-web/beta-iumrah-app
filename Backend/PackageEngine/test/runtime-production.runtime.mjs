@@ -17,7 +17,7 @@ function hotelDb({ curated = null, fallback = null, publishedHotel = null, sourc
   return {
     prepare(sql) {
       if (sql.includes('FROM primary_hotels p')) return statementFor(async () => curated);
-      if (sql.includes('FROM hotels') && sql.includes('ORDER BY rating DESC')) return statementFor(async () => fallback);
+      if (sql.includes('FROM hotels h') && sql.includes('ORDER BY h.rating DESC')) return statementFor(async () => fallback);
       if (sql.includes("SELECT id FROM hotels WHERE id = ?")) return statementFor(async (_kind, values) => values[0] === publishedHotel?.id ? publishedHotel : null);
       if (sql.includes('FROM hotel_sources')) return statementFor(async () => ({ results: sources }));
       throw new Error(`Unexpected SQL in runtime test: ${sql}`);
@@ -25,26 +25,26 @@ function hotelDb({ curated = null, fallback = null, publishedHotel = null, sourc
   };
 }
 
-test('curated Primary Hotel resolves from primary_hotels without a price', async () => {
+test('curated Primary Hotel resolves only from fresh-priced catalog inventory', async () => {
   const env = { HOTELS_DB: hotelDb({ curated: { position: 1, hotel_id: 'makkah-5', stars: 5, city: 'Makkah' } }) };
   const response = await curatedPrimaryHotel(new URL('https://iumrah.app/api/package/primary-hotel?stars=5&city=Makkah&tier=comfort'), env);
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.hotelId, 'makkah-5');
   assert.equal(body.matchType, 'curatedPrimary');
-  assert.equal(body.pricingMode, 'liveVerificationRequired');
+  assert.equal(body.pricingMode, 'catalog48h');
   assert.equal('amount' in body, false);
   assert.equal('basePriceUsd' in body, false);
 });
 
-test('catalog fallback can select a hotel but still cannot fabricate a price', async () => {
+test('catalog fallback can select a fresh-priced hotel without returning supplier price data', async () => {
   const env = { HOTELS_DB: hotelDb({ fallback: { id: 'catalog-3', stars: 3, city: 'Makkah' } }) };
   const response = await curatedPrimaryHotel(new URL('https://iumrah.app/api/package/primary-hotel?stars=3&city=Makkah&tier=standard'), env);
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.hotelId, 'catalog-3');
   assert.equal(body.isFallback, true);
-  assert.equal(body.pricingMode, 'liveVerificationRequired');
+  assert.equal(body.pricingMode, 'catalog48h');
   assert.equal('amount' in body, false);
 });
 

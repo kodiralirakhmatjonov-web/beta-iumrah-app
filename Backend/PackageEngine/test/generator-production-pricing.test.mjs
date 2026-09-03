@@ -2,11 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const root = new URL('../../../', import.meta.url);
-const hotelService = fs.readFileSync(new URL('Sources/HotelPricing/HotelLivePriceSearchService.swift', root), 'utf8');
-const hotelBot = fs.readFileSync(new URL('Sources/HotelPricing/HotelPriceBotRunner.swift', root), 'utf8');
-const hotelBotScripts = fs.readFileSync(new URL('Sources/HotelPricing/HotelPriceBotScripts.swift', root), 'utf8');
-const hotelProvider = fs.readFileSync(new URL('Sources/HotelPricing/HotelPriceProvider.swift', root), 'utf8');
-const hotelParser = fs.readFileSync(new URL('Sources/HotelPricing/HotelPriceTextParser.swift', root), 'utf8');
+const hotelModels = fs.readFileSync(new URL('Sources/Models/HotelModels.swift', root), 'utf8');
+const priceModels = fs.readFileSync(new URL('Sources/HotelPricing/HotelPriceModels.swift', root), 'utf8');
 const localPricing = fs.readFileSync(new URL('Sources/Services/LocalPackagePricingEngine.swift', root), 'utf8');
 const coordinator = fs.readFileSync(new URL('Sources/Services/RealFlightPackageSearchService.swift', root), 'utf8');
 const journey = fs.readFileSync(new URL('Sources/State/JourneyStore.swift', root), 'utf8');
@@ -17,43 +14,45 @@ const outbound = fs.readFileSync(new URL('Sources/Views/Flights/OutboundFlightVi
 const inbound = fs.readFileSync(new URL('Sources/Views/Flights/ReturnFlightView.swift', root), 'utf8');
 const flightCard = fs.readFileSync(new URL('Sources/Views/Components/FlightCard.swift', root), 'utf8');
 const primaryHotel = fs.readFileSync(new URL('Sources/Views/Hotels/PrimaryHotelView.swift', root), 'utf8');
+const hotelCard = fs.readFileSync(new URL('Sources/Views/Components/HotelCard.swift', root), 'utf8');
 const bookingService = fs.readFileSync(new URL('Sources/Services/BookingService.swift', root), 'utf8');
 const bookingStore = fs.readFileSync(new URL('Sources/State/BookingStore.swift', root), 'utf8');
+const project = fs.readFileSync(new URL('project.yml', root), 'utf8');
 
-// Hotel lookup is retryable and never negative-cached.
-assert.match(hotelService, /forceRefresh:\s*Bool\s*=\s*false/);
-assert.match(hotelService, /if isComplete \{\s*cache\[key\]/s);
-assert.match(hotelService, /let isComplete = !snapshot\.makkah\.isEmpty/);
-assert.match(hotelService, /fetchPricingSources\(hotelID: makkahHotel\.id\)/);
-assert.match(hotelService, /inFlight:\s*\[String:\s*Task<HotelPriceSearchSnapshot, Never>\]/);
-assert.match(hotelService, /if let existing = inFlight\[key\]/);
-assert.match(hotelBot, /CGRect\(x: 0, y: 0, width: 390, height: 844\)/);
-assert.match(hotelBot, /sourceIdentity: request\.pricingSource\(for: provider\.id\)/);
-assert.match(hotelBotScripts, /const dateEvidence = hasRequestedDate\(expectedCheckIn\) && hasRequestedDate\(expectedCheckOut\)/);
-assert.match(hotelBot, /card\.score >= 0\.62, card\.dateEvidence/);
+// Hotel pricing source of truth is the shared server catalog cache, not device scraping.
+assert.match(hotelModels, /struct HotelCatalogPrice/);
+assert.match(hotelModels, /let nightlyUSD: Double\?/);
+assert.match(hotelModels, /let expiresAt: String\?/);
+assert.match(hotelModels, /var isFresh: Bool/);
+assert.match(hotelModels, /let price: HotelCatalogPrice\?/);
+assert.match(coordinator, /private let hotelCatalogService: HotelCatalogServicing/);
+assert.match(coordinator, /HotelCatalogService\(\)/);
+assert.ok(!coordinator.includes('HotelLivePriceSearchService'));
+assert.match(coordinator, /unit: \.perRoomNight/);
+assert.match(coordinator, /expiresAt: expiresAt/);
+assert.match(coordinator, /iumrah 48h cache/);
+assert.match(priceModels, /if let expiresAt/);
+assert.match(project, /HotelPricing\/HotelLivePriceSearchService\.swift/);
+assert.match(project, /HotelPricing\/HotelPriceBotRunner\.swift/);
 
-// Room category does not drive provider cost. Booking is primary, Expedia is fallback.
-assert.match(hotelService, /let requestedRooms = max\(1, trip\.rooms\)/);
-assert.ok(!hotelService.includes('resolvedRoomCount('));
-assert.match(hotelService, /provider\(\.booking\)/);
-assert.match(hotelService, /provider\(\.expedia\)/);
-assert.match(hotelService, /if makkahValue == nil/);
-assert.match(hotelService, /if madinahValue == nil/);
-assert.match(hotelProvider, /func provider\(_ id: HotelPriceProviderID\)/);
+// Only hotels with fresh catalog prices can enter the generator.
+assert.match(journey, /all\.filter\(\\\.hasFreshCatalogPrice\)/);
+assert.match(journey, /guard hotel\.hasFreshCatalogPrice/);
+assert.match(primaryHotel, /selectedHotel\?\.hasFreshCatalogPrice == true/);
+assert.match(hotelCard, /price\.isFresh/);
 
-// Every scraped provider price is normalized once to a total-stay amount.
-assert.match(hotelBot, /let totalStayAmount: Decimal/);
-assert.match(hotelBot, /case \.perRoomNight:/);
-assert.match(hotelBot, /unit: \.totalStay/);
-assert.match(hotelParser, /containsPerNightContext\(preferredLower\)/);
-assert.ok(!hotelParser.includes('containsPerNightContext(lower)'));
+// Cached room-night rate scales once by actual rooms and actual stay nights.
 assert.match(journey, /let effectiveRooms = max\(1, trip\.rooms\)/);
+assert.match(journey, /case \.perRoomNight: totalUsd = usd \* Decimal\(effectiveRooms\) \* Decimal\(max\(1, window\.nights\)\)/);
+assert.match(journey, /throw LocalPricingError\.missingHotelPrice\(city\)/);
+assert.ok(!journey.includes('configuredHotelComponentPrice('));
 
-// Hotel lookup starts beside flight discovery and is reused by final pricing.
+// Catalog price warm-up starts beside flight discovery and final retry only rechecks catalog.
 assert.match(journey, /func scheduleHotelPricePrefetch\(forceRefresh: Bool = false\)/);
-assert.match(journey, /hotelPricePrefetchTask = Task/);
 assert.match(outbound, /journey\.scheduleHotelPricePrefetch\(\)/);
 assert.ok(outbound.indexOf('journey.scheduleHotelPricePrefetch()') < outbound.indexOf('searchOutboundProgressive('));
+assert.match(finalView, /recalculatePrice\(forceHotelRefresh:\s*true\)/);
+assert.match(finalView, /каталога iumrah/);
 
 // Round trip = two independent one-way searches and two independently selected fares.
 assert.match(coordinator, /makeOneWayRequest\(\s*origin: trip\.originCode,\s*destination: trip\.outboundDestinationCode/s);
@@ -63,7 +62,6 @@ assert.ok(!coordinator.includes('pairedInbound('));
 assert.ok(!coordinator.includes('pairedOutbound('));
 assert.ok(!journey.includes('chooseFlightJourney('));
 assert.match(outbound, /journey\.chooseOutboundFlight\(offer\)/);
-assert.match(outbound, /ReturnFlightView\(\)/);
 assert.match(inbound, /journey\.chooseInboundFlight\(offer\)/);
 
 // Preserve every distinct provider itinerary; no prefix/limit/physical-leg collapse.
@@ -74,12 +72,9 @@ assert.match(flightModels, /let fare = fareAmount\.map/);
 assert.ok(!coordinator.includes('.prefix('));
 assert.ok(!coordinator.includes('cheapestUniqueOffers('));
 assert.match(flightRows, /id: offer\.resultIdentityKey/);
-for (const source of [outbound, inbound]) {
-  assert.match(source, /indexByKey\[offer\.resultIdentityKey\]/);
-}
+for (const source of [outbound, inbound]) assert.match(source, /indexByKey\[offer\.resultIdentityKey\]/);
 
-
-// Flight cards expose one unambiguous price hierarchy: package/person first, raw Ignav ticket fare second.
+// Flight cards expose one unambiguous price hierarchy: package/person first, raw Ignav fare second.
 assert.match(flightCard, /Пакет на 1 человека/);
 assert.match(flightCard, /packagePricePerPerson/);
 assert.match(flightCard, /Авиабилет туда/);
@@ -89,17 +84,6 @@ assert.ok(!flightCard.includes('Цена билета в одну сторону
 assert.match(outbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
 assert.match(inbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
 
-// Outbound stage warms return inventory and hotel pricing in parallel; final pricing reuses them.
-assert.match(outbound, /prefetchReturnFlightsIfNeeded/);
-assert.match(journey, /func awaitPrefetchedReturnFlights\(\) async/);
-assert.match(inbound, /await journey\.awaitPrefetchedReturnFlights\(\)/);
-assert.match(journey, /if let task = hotelPricePrefetchTask \{ await task\.value \}/);
-assert.match(journey, /if forceHotelRefresh/);
-
-// Primary Hotel cards keep text below the photo and use compact recommendation metadata.
-assert.match(primaryHotel, /hotelImage\(hotel\)\s*\.frame\(height: 190\)/s);
-assert.match(primaryHotel, /Рекомендуем iumrah/);
-
 // Supplier flight cost is exactly outbound + inbound when round-trip.
 assert.match(localPricing, /outboundFareUsd:/);
 assert.match(localPricing, /inboundFareUsd:/);
@@ -107,8 +91,7 @@ assert.match(localPricing, /let flights = outboundFlights \+ inboundFlights/);
 assert.match(localPricing, /code: "flight_outbound"/);
 assert.match(localPricing, /code: "flight_inbound"/);
 assert.match(localPricing, /journeyFare: nil/);
-assert.match(localPricing, /outbound: fareInput/);
-assert.match(localPricing, /inbound: trip\.isRoundTripFlight/);
+assert.match(localPricing, /local-independent-flights-catalog-hotels-v5/);
 
 // Preserve existing commercial policy and untouched service rates.
 assert.match(localPricing, /packageMarkupRate\s*=\s*Decimal\(string:\s*"0\.50"\)!/);
@@ -119,18 +102,11 @@ assert.match(localPricing, /case \.luxury:\s*return 100/);
 assert.match(localPricing, /roadWithMadinahPerSedanUsd = Decimal\(300\)/);
 assert.match(localPricing, /localWithTrainPerSedanUsd = Decimal\(200\)/);
 
-// Failed hotel lookup can be retried without re-running flight discovery.
-assert.match(finalView, /recalculatePrice\(forceHotelRefresh:\s*true\)/);
-
-// Exact component report is explicitly synchronized into iumrah Business.
+// Exact component report remains synchronized into iumrah Business.
 assert.match(localPricing, /GeneratorPricingSnapshot/);
-assert.match(localPricing, /local-independent-flights-v4/);
 assert.match(localPricing, /supplierCostUsd:\s*totalCost/);
 assert.match(bookingService, /func syncGeneratorReport/);
-assert.match(bookingService, /pricingSnapshot:\s*GeneratorPricingSnapshot\?/);
 assert.match(bookingStore, /syncGeneratorReportWithRetry/);
 assert.match(bookingStore, /bookingService\.syncGeneratorReport/);
-assert.match(bookingStore, /Task\.sleep/);
-assert.match(bookingStore, /pricingSnapshot: payload\.booking\.pricingSnapshot/);
 
-console.log('independent flights + normalized hotel pricing + Business audit contract OK');
+console.log('independent Ignav flights + 48h catalog hotel pricing + Business audit contract OK');

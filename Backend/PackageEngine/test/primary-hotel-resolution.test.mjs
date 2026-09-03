@@ -5,7 +5,11 @@ const source = fs.readFileSync(new URL('../src/generator-components.ts', import.
 assert.match(source, /FROM primary_hotels p/);
 assert.match(source, /p\.star_category = \?2/);
 assert.match(source, /ORDER BY p\.position ASC/);
-assert.match(source, /pricingMode: "liveVerificationRequired"/);
+assert.match(source, /INNER JOIN hotel_price_cache hp ON hp\.hotel_id = h\.id/);
+assert.match(source, /hp\.status = 'fresh'/);
+assert.match(source, /hp\.nightly_price_usd IS NOT NULL/);
+assert.match(source, /hp\.expires_at > \?3/);
+assert.match(source, /pricingMode: "catalog48h"/);
 assert.ok(!source.includes('package_primary_hotels'), 'Primary Hotel resolver must not depend on package_primary_hotels');
 assert.ok(!source.includes('base_price_usd'), 'Primary Hotel selection must not return a synthetic/configured price');
-console.log('primary_hotels recommendation contract OK');
+console.log('fresh-priced primary_hotels recommendation contract OK');

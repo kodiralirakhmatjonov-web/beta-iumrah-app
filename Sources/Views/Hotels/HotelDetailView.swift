@@ -183,6 +183,21 @@ struct HotelDetailView: View {
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
 
+            if let price = detail?.price ?? hotel.price, price.isFresh, let nightly = price.nightlyUSD {
+                HStack(spacing: 7) {
+                    Text(String(format: "$%.0f", nightly))
+                        .font(.headline)
+                    Text(hotelPriceSuffix)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text(price.providerDisplayName)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if let address = detail?.address.trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty {
                 Text(address)
                     .font(.subheadline)
@@ -191,6 +206,15 @@ struct HotelDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var hotelPriceSuffix: String {
+        switch settings.language {
+        case .russian: return "за номер / ночь"
+        case .english: return "room / night"
+        case .uzbek: return "xona / tun"
+        case .uzbekCyrillic: return "хона / тун"
+        }
     }
 
     // MARK: - Hotel facts

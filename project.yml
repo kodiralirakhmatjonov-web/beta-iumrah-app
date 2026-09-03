@@ -18,6 +18,15 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+        excludes:
+          # Legacy on-device Booking/Expedia hotel scrapers are intentionally
+          # outside the production target. Hotel pricing comes from the 48h
+          # server catalog cache maintained by iumrah Business.
+          - HotelPricing/HotelLivePriceSearchService.swift
+          - HotelPricing/HotelPriceBotRunner.swift
+          - HotelPricing/HotelPriceBotScripts.swift
+          - HotelPricing/HotelPriceProvider.swift
+          - HotelPricing/HotelPriceTextParser.swift
       - path: Resources/Assets.xcassets
         buildPhase: resources
       - path: Resources/Animations

@@ -36,6 +36,7 @@ struct HotelPriceObservation: Identifiable, Codable, Hashable {
     let providerId: HotelPriceProviderID
     let providerName: String
     let observedAt: String
+    let expiresAt: String?
     let checkInDate: String
     let checkOutDate: String
     let sourceURL: String
@@ -58,7 +59,13 @@ struct HotelPriceObservation: Identifiable, Codable, Hashable {
               checkOutDate == Self.dayFormatter.string(from: window.checkOut) else { return false }
         guard let observed = Self.parseObservedAt(observedAt) else { return false }
         let age = now.timeIntervalSince(observed)
-        guard age >= -5 * 60, age <= 20 * 60 else { return false }
+        if let expiresAt {
+            guard let expiry = Self.parseObservedAt(expiresAt), expiry > now, age >= -5 * 60, age <= 49 * 60 * 60 else { return false }
+        } else {
+            // Legacy device observations remain short-lived. Production generator
+            // hotel pricing now comes from the server-maintained 48-hour catalog cache.
+            guard age >= -5 * 60, age <= 20 * 60 else { return false }
+        }
         guard let url = URL(string: sourceURL), url.scheme?.lowercased() == "https",
               let host = url.host?.lowercased(), providerId.accepts(host: host) else { return false }
         // selectedRoomId is an internal iumrah selection key. Booking/Expedia

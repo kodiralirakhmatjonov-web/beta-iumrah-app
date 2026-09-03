@@ -60,9 +60,10 @@ final class JourneyStore: ObservableObject {
 
         do {
             let all = try await hotelService.listHotels(city: "Makkah")
-            hotels = all
+            let available = all.filter(\.hasFreshCatalogPrice)
+            hotels = available
             if selectedHotel == nil {
-                selectedHotel = await resolvedPrimaryHotel(from: all, city: "Makkah") ?? primaryHotelCandidate(from: all)
+                selectedHotel = await resolvedPrimaryHotel(from: available, city: "Makkah") ?? primaryHotelCandidate(from: available)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -86,11 +87,12 @@ final class JourneyStore: ObservableObject {
         for city in ["Madinah", "Medina", "Al Madinah"] {
             do {
                 let all = try await hotelService.listHotels(city: city)
-                if !all.isEmpty {
-                    madinahHotels = all
+                let available = all.filter(\.hasFreshCatalogPrice)
+                if !available.isEmpty {
+                    madinahHotels = available
                     if selectedMadinahHotel == nil {
                         let aliases = ["Madinah", city, "Medina", "Al Madinah"]
-                        selectedMadinahHotel = await resolvedPrimaryHotel(from: all, cityAliases: aliases) ?? primaryHotelCandidate(from: all)
+                        selectedMadinahHotel = await resolvedPrimaryHotel(from: available, cityAliases: aliases) ?? primaryHotelCandidate(from: available)
                     }
                     return
                 }
@@ -173,6 +175,10 @@ final class JourneyStore: ObservableObject {
     }
 
     func chooseHotel(_ hotel: HotelSummary) {
+        guard hotel.hasFreshCatalogPrice else {
+            errorMessage = LocalPricingError.missingHotelPrice("Makkah").localizedDescription
+            return
+        }
         if selectedHotel?.id != hotel.id {
             selectedRoom = nil
             selectedRoomCategory = nil
@@ -219,7 +225,7 @@ final class JourneyStore: ObservableObject {
 
         // Preserve an already completed background hotel lookup whenever the actual
         // stay dates did not change. The old flow discarded a valid snapshot on every
-        // flight tap and forced the user to wait for the same Booking lookup again.
+        // flight tap and forced the user to wait for the same catalog price lookup again.
         if departureChanged || hotelStartChanged {
             hotelPriceSnapshot = nil
             cancelHotelPricePrefetch()
@@ -250,6 +256,10 @@ final class JourneyStore: ObservableObject {
     }
 
     func chooseMadinahHotel(_ hotel: HotelSummary) {
+        guard hotel.hasFreshCatalogPrice else {
+            errorMessage = LocalPricingError.missingHotelPrice("Madinah").localizedDescription
+            return
+        }
         if selectedMadinahHotel?.id != hotel.id {
             selectedMadinahRoom = nil
             selectedMadinahRoomCategory = nil
@@ -283,10 +293,9 @@ final class JourneyStore: ObservableObject {
         (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
     }
 
-    /// Starts current-price discovery as soon as the selected hotel/room and travel
-    /// dates are known. The task is intentionally independent from a particular
-    /// SwiftUI screen, so moving from hotel selection to flights does not cancel the
-    /// lookup. HotelLivePriceSearchService coalesces this with the final quote call.
+    /// Warms the server-maintained hotel catalog price as soon as the selected
+    /// hotel/room and travel dates are known. This is a cheap D1-backed cache lookup;
+    /// Beta never opens Booking/Expedia or runs hotel price bots on the pilgrim device.
     func scheduleHotelPricePrefetch(forceRefresh: Bool = false) {
         if !forceRefresh, hotelPricePrefetchTask != nil { return }
         if !forceRefresh, let snapshot = hotelPriceSnapshot, isCompleteHotelSnapshot(snapshot) { return }
@@ -309,8 +318,8 @@ final class JourneyStore: ObservableObject {
         let madinahRoomCapacity = selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests
 
         hotelPricePrefetchTask = Task { @MainActor [weak self] in
-            // Coalesce the hotel + room callbacks emitted by HotelDetailView before
-            // opening provider pages. A forced retry bypasses this tiny debounce.
+            // Coalesce hotel + room callbacks before reading the same catalog cache.
+            // A forced retry bypasses this tiny debounce and rechecks the public hotel detail.
             if !forceRefresh { try? await Task.sleep(for: .milliseconds(180)) }
             guard !Task.isCancelled else {
                 if self?.hotelPricePrefetchGeneration == generation { self?.isSearchingHotelPrices = false }
@@ -491,9 +500,9 @@ final class JourneyStore: ObservableObject {
         }
 
         do {
-            // FinalPackageView no longer starts the expensive provider lookup from
-            // scratch. Normal generation reuses the search that began beside Ignav.
-            // The explicit retry button may force a fresh Booking/Expedia lookup.
+            // FinalPackageView reuses the catalog cache warmed beside Ignav. The
+            // explicit retry only rechecks the current iumrah catalog record; Beta
+            // never refreshes Booking/Expedia directly.
             if let task = hotelPricePrefetchTask { await task.value }
             if forceHotelRefresh, let components = flightService as? GeneratorComponentProviding {
                 hotelPriceSnapshot = await components.ensureHotelPrices(
@@ -583,8 +592,9 @@ final class JourneyStore: ObservableObject {
             throw LocalPricingError.missingHotelPrice(city)
         }
 
-        // Hotel bots price the requested hotel stay. Internal Double/Triple/Quadruple
-        // categories do not change provider pricing; only the trip room count does.
+        // iumrah Business stores one normalized USD room-night benchmark for the
+        // hotel. Double/Triple/Quadruple are UX selections and do not alter that
+        // catalog benchmark; only actual room count and stay nights scale the cost.
         _ = roomCapacity
         let effectiveRooms = max(1, trip.rooms)
         var verified: [(component: LocalHotelPriceComponent, totalUsd: Decimal)] = []
@@ -627,16 +637,13 @@ final class JourneyStore: ObservableObject {
         }
 
         guard !verified.isEmpty else {
-            // Never substitute package_primary_hotels or an estimated room rate for
-            // a failed current-price check. Final package pricing is allowed only
-            // after a current provider surface confirms this exact hotel/stay.
+            // Never fabricate a rate. Public catalog hotels are generator-eligible
+            // only while iumrah Business has a fresh, non-expired 48-hour price.
             throw LocalPricingError.missingHotelPrice(city)
         }
 
-        // This is an indicative launch price followed by manual availability
-        // confirmation. After parser-corruption guards have removed impossible
-        // room-night values, use the lowest current provider rate instead of
-        // automatically switching to the most expensive provider on disagreement.
+        // The active catalog architecture emits one authoritative normalized rate
+        // per hotel. `min` is retained only for backward-compatible snapshot decoding.
         return verified.min(by: { $0.totalUsd < $1.totalUsd })!.component
     }
 

@@ -6,7 +6,8 @@ struct PrimaryHotelView: View {
 
     private var requiresMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canContinue: Bool {
-        journey.selectedHotel != nil && (!requiresMadinah || journey.selectedMadinahHotel != nil)
+        journey.selectedHotel?.hasFreshCatalogPrice == true &&
+        (!requiresMadinah || journey.selectedMadinahHotel?.hasFreshCatalogPrice == true)
     }
 
     var body: some View {
@@ -150,6 +151,21 @@ struct PrimaryHotelView: View {
                         .tracking(-0.4)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    if let price = hotel.price, price.isFresh, let nightly = price.nightlyUSD {
+                        HStack(spacing: 6) {
+                            Text(String(format: "$%.0f", nightly))
+                                .font(.subheadline.weight(.bold))
+                            Text(nightlyPriceSuffix)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            Text("·")
+                                .foregroundStyle(.tertiary)
+                            Text(price.providerDisplayName)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 HStack(spacing: 8) {
@@ -206,6 +222,15 @@ struct PrimaryHotelView: View {
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
         }
         .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+    }
+
+    private var nightlyPriceSuffix: String {
+        switch settings.language {
+        case .russian: return "за номер / ночь"
+        case .english: return "room / night"
+        case .uzbek: return "xona / tun"
+        case .uzbekCyrillic: return "хона / тун"
+        }
     }
 
     private var localizedMakkah: String {

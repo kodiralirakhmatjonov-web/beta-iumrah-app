@@ -1,0 +1,8 @@
+iumrah Beta hotel catalog pricing production update 050
+
+- Hotel prices come only from the shared iumrah Hotels catalog 48-hour cache.
+- Beta does not scrape Booking/Expedia on-device.
+- Only hotels with a fresh, non-expired cached price are generator-eligible.
+- Package hotel cost = cached USD room/night x trip rooms x actual stay nights.
+- Final retry rechecks the catalog record without restarting Ignav flight search.
+- Independent one-way Ignav flight architecture and existing commercial pricing remain unchanged.

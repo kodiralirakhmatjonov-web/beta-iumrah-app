@@ -4,6 +4,52 @@ struct HotelsResponse: Decodable {
     let hotels: [HotelSummary]
 }
 
+struct HotelCatalogPrice: Codable, Hashable {
+    let provider: String?
+    let nightlyUSD: Double?
+    let status: String
+    let fetchedAt: String?
+    let expiresAt: String?
+    let checkIn: String?
+    let checkOut: String?
+    let nights: Int?
+    let adults: Int?
+    let rooms: Int?
+
+    var isFresh: Bool {
+        guard status.caseInsensitiveCompare("fresh") == .orderedSame,
+              let nightlyUSD, nightlyUSD.isFinite, nightlyUSD > 0,
+              let expiresAt, let expiry = Self.parseISO8601(expiresAt) else { return false }
+        return expiry > Date()
+    }
+
+    var providerDisplayName: String {
+        switch provider?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "booking", "booking.com": return "Booking.com"
+        case "expedia", "expedia.com": return "Expedia"
+        case let value? where !value.isEmpty: return value.capitalized
+        default: return "iumrah Hotels"
+        }
+    }
+
+    var identityKey: String {
+        [provider ?? "-", nightlyUSD.map { String($0) } ?? "-", fetchedAt ?? "-", expiresAt ?? "-", status].joined(separator: "|")
+    }
+
+    private static func parseISO8601(_ value: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) { return date }
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        return standard.date(from: value)
+    }
+}
+
+extension HotelSummary {
+    var hasFreshCatalogPrice: Bool { price?.isFresh == true }
+}
+
 struct HotelSummary: Codable, Identifiable, Hashable {
     let id: String
     let name: String
@@ -15,6 +61,7 @@ struct HotelSummary: Codable, Identifiable, Hashable {
     let coverImageURL: String?
     let imageCount: Int
     let roomCount: Int
+    let price: HotelCatalogPrice?
     let updatedAt: String
 }
 
@@ -44,6 +91,7 @@ struct HotelDetail: Codable, Identifiable, Hashable {
     let amenities: [String]
     let rooms: [HotelRoom]
     let images: [HotelImage]
+    let price: HotelCatalogPrice?
 }
 
 struct HotelRoom: Codable, Identifiable, Hashable {

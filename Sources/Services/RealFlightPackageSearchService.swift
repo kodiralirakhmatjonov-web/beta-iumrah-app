@@ -25,7 +25,7 @@ enum FlightEngineAvailabilityError: LocalizedError, Equatable {
 @MainActor
 final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComponentProviding {
     private let flightProvider: FlightInventoryProviding
-    private let hotelPriceService: HotelLivePriceSearchService
+    private let hotelCatalogService: HotelCatalogServicing
 
     private var activeSignature: String?
     private var cachedOutboundJourneys: [LiveFlightJourneyCandidate] = []
@@ -34,17 +34,17 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 
     init() {
         self.flightProvider = IgnavFlightInventoryProvider()
-        self.hotelPriceService = HotelLivePriceSearchService()
+        self.hotelCatalogService = HotelCatalogService()
     }
 
-    init(flightProvider: FlightInventoryProviding, hotelPriceService: HotelLivePriceSearchService) {
+    init(flightProvider: FlightInventoryProviding, hotelCatalogService: HotelCatalogServicing) {
         self.flightProvider = flightProvider
-        self.hotelPriceService = hotelPriceService
+        self.hotelCatalogService = hotelCatalogService
     }
 
     init(flightProvider: FlightInventoryProviding) {
         self.flightProvider = flightProvider
-        self.hotelPriceService = HotelLivePriceSearchService()
+        self.hotelCatalogService = HotelCatalogService()
     }
 
     var currentHotelPriceSnapshot: HotelPriceSearchSnapshot? { cachedHotels }
@@ -176,6 +176,9 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         }
     }
 
+    /// Converts the server-maintained 48-hour hotel catalog cache into the same
+    /// normalized pricing snapshot consumed by the local package engine. Beta never
+    /// opens Booking/Expedia and never scrapes hotel prices on-device.
     func ensureHotelPrices(
         trip: TripDraft,
         makkahHotel: HotelSummary,
@@ -188,25 +191,119 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         madinahRoomCapacity: Int?,
         forceRefresh: Bool
     ) async -> HotelPriceSearchSnapshot {
+        _ = makkahRoomCapacity
+        _ = madinahRoomCapacity
         if !forceRefresh, let cachedHotels, isCompleteHotelSnapshot(cachedHotels, trip: trip) {
             return cachedHotels
         }
         if forceRefresh { cachedHotels = nil }
-        let snapshot = await hotelPriceService.search(
-            trip: trip,
-            makkahHotel: makkahHotel,
-            madinahHotel: madinahHotel,
-            makkahRoomId: makkahRoomId,
-            makkahRoomName: makkahRoomName,
-            makkahRoomCapacity: makkahRoomCapacity,
-            madinahRoomId: madinahRoomId,
-            madinahRoomName: madinahRoomName,
-            madinahRoomCapacity: madinahRoomCapacity,
+
+        let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
+        let makkahPrice = await catalogPrice(for: makkahHotel, forceRefresh: forceRefresh)
+        let madinahPrice = await catalogPrice(
+            for: trip.scope == .makkahAndMadinah ? madinahHotel : nil,
             forceRefresh: forceRefresh
+        )
+
+        let makkahObservation = makeCatalogObservation(
+            hotel: makkahHotel,
+            city: "Makkah",
+            window: windows.makkah,
+            roomID: makkahRoomId,
+            roomName: makkahRoomName,
+            price: makkahPrice
+        )
+
+        let madinahObservation: HotelPriceObservation?
+        if trip.scope == .makkahAndMadinah, let madinahHotel, let window = windows.madinah {
+            madinahObservation = makeCatalogObservation(
+                hotel: madinahHotel,
+                city: "Madinah",
+                window: window,
+                roomID: madinahRoomId,
+                roomName: madinahRoomName,
+                price: madinahPrice
+            )
+        } else {
+            madinahObservation = nil
+        }
+
+        let snapshot = HotelPriceSearchSnapshot(
+            makkah: makkahObservation.map { [$0] } ?? [],
+            madinah: madinahObservation.map { [$0] } ?? []
         )
         if isCompleteHotelSnapshot(snapshot, trip: trip) { cachedHotels = snapshot }
         return snapshot
     }
+
+    private func catalogPrice(for hotel: HotelSummary?, forceRefresh: Bool) async -> HotelCatalogPrice? {
+        guard let hotel else { return nil }
+        return await catalogPrice(for: hotel, forceRefresh: forceRefresh)
+    }
+
+    private func catalogPrice(for hotel: HotelSummary, forceRefresh: Bool) async -> HotelCatalogPrice? {
+        if !forceRefresh, let price = hotel.price, price.isFresh { return price }
+        do {
+            let detail = try await hotelCatalogService.hotelDetail(id: hotel.id)
+            guard let price = detail.price, price.isFresh else { return nil }
+            return price
+        } catch {
+            return nil
+        }
+    }
+
+    private func makeCatalogObservation(
+        hotel: HotelSummary,
+        city: String,
+        window: TripStayWindow,
+        roomID: String?,
+        roomName: String?,
+        price: HotelCatalogPrice?
+    ) -> HotelPriceObservation? {
+        guard let price, price.isFresh,
+              let amount = price.nightlyUSD, amount.isFinite, amount > 0,
+              let fetchedAt = price.fetchedAt, let expiresAt = price.expiresAt else { return nil }
+
+        let provider: HotelPriceProviderID
+        let sourceURL: String
+        switch price.provider?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "booking", "booking.com":
+            provider = .booking
+            sourceURL = "https://www.booking.com"
+        case "expedia", "expedia.com":
+            provider = .expedia
+            sourceURL = "https://www.expedia.com"
+        default:
+            return nil
+        }
+
+        return HotelPriceObservation(
+            id: "catalog-\(hotel.id)-\(fetchedAt)",
+            hotelId: hotel.id,
+            hotelName: hotel.name,
+            city: city,
+            amount: Decimal(amount),
+            currency: "USD",
+            unit: .perRoomNight,
+            providerId: provider,
+            providerName: "\(price.providerDisplayName) · iumrah 48h cache",
+            observedAt: fetchedAt,
+            expiresAt: expiresAt,
+            checkInDate: Self.catalogDay.string(from: window.checkIn),
+            checkOutDate: Self.catalogDay.string(from: window.checkOut),
+            sourceURL: sourceURL,
+            roomId: roomID,
+            roomName: roomName
+        )
+    }
+
+    private static let catalogDay: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 
     private func isCompleteHotelSnapshot(_ snapshot: HotelPriceSearchSnapshot, trip: TripDraft) -> Bool {
         !snapshot.makkah.isEmpty && (trip.scope != .makkahAndMadinah || !snapshot.madinah.isEmpty)
@@ -214,7 +311,6 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
 
     func invalidateHotelPrices() {
         cachedHotels = nil
-        hotelPriceService.invalidateAll()
     }
 
     func invalidateFlightInventory() {
@@ -228,7 +324,6 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         cachedOutboundJourneys = []
         cachedReturnJourneys = []
         cachedHotels = nil
-        hotelPriceService.invalidateAll()
     }
 
     private func prepareForOutbound(_ trip: TripDraft) {

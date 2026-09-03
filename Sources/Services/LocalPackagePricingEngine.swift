@@ -122,7 +122,7 @@ enum LocalPackagePricingEngine {
 
         let pricingSnapshot = GeneratorPricingSnapshot(
             quoteId: quoteId,
-            pricingVersion: "local-independent-flights-v4",
+            pricingVersion: "local-independent-flights-catalog-hotels-v5",
             currency: "USD",
             context: .init(
                 tier: trip.packageTier.rawValue,
@@ -261,7 +261,7 @@ enum LocalPricingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidFlightFare: return "Не удалось получить текущую стоимость выбранного перелёта."
-        case .missingHotelPrice(let city): return "Не удалось получить текущую цену Primary Hotel в городе \(city). Повторите поиск или выберите другой отель."
+        case .missingHotelPrice(let city): return "Цена Primary Hotel в городе \(city) сейчас недоступна или устарела. Выберите другой доступный отель или повторите позже."
         case .invalidComponents: return "Компоненты пакета неполные. Повторите расчёт."
         }
     }

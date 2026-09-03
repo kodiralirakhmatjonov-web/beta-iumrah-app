@@ -150,10 +150,10 @@ struct FinalPackageView: View {
 
     private var calculatingPriceBody: String {
         switch settings.language {
-        case .russian: return journey.trip.isRoundTripFlight ? "Используем актуальную стоимость билета туда и обратно и текущие цены выбранных Primary Hotels." : "Используем актуальную стоимость билета в одну сторону и текущие цены выбранных Primary Hotels."
-        case .english: return journey.trip.isRoundTripFlight ? "Using the current round-trip fare and current Primary Hotel prices." : "Using the current one-way fare and current Primary Hotel prices."
-        case .uzbek: return journey.trip.isRoundTripFlight ? "Borish-qaytish chiptasi va Primary Hotel joriy narxlari asosida paket hisoblanadi." : "Bir tomonlama chipta va Primary Hotel joriy narxlari asosida paket hisoblanadi."
-        case .uzbekCyrillic: return journey.trip.isRoundTripFlight ? "Бориш-қайтиш чиптаси ва Primary Hotel жорий нархлари асосида пакет ҳисобланади." : "Бир томонлама чипта ва Primary Hotel жорий нархлари асосида пакет ҳисобланади."
+        case .russian: return journey.trip.isRoundTripFlight ? "Используем выбранные тарифы Ignav и свежие цены отелей из каталога iumrah, обновляемые каждые 48 часов." : "Используем выбранный тариф Ignav и свежие цены отелей из каталога iumrah, обновляемые каждые 48 часов."
+        case .english: return journey.trip.isRoundTripFlight ? "Using your selected Ignav fares and fresh iumrah catalog hotel prices refreshed every 48 hours." : "Using your selected Ignav fare and fresh iumrah catalog hotel prices refreshed every 48 hours."
+        case .uzbek: return "Tanlangan Ignav tariflari va har 48 soatda yangilanadigan iumrah katalogidagi mehmonxona narxlari asosida hisoblanadi."
+        case .uzbekCyrillic: return "Танланган Ignav тарифлари ва ҳар 48 соатда янгиланадиган iumrah каталогидаги меҳмонхона нархлари асосида ҳисобланади."
         }
     }
 
@@ -168,10 +168,10 @@ struct FinalPackageView: View {
 
     private var pricingUnavailableBody: String {
         switch settings.language {
-        case .russian: return "Найденный маршрут сохранён. Повторите получение цены отеля — поиск авиабилетов заново не запускается."
-        case .english: return "Your selected journey is preserved. Retry the hotel price lookup; flight search will not restart."
-        case .uzbek: return "Tanlangan yo‘nalish saqlanadi. Mehmonxona narxini qayta oling — reys qidiruvi qayta boshlanmaydi."
-        case .uzbekCyrillic: return "Танланган йўналиш сақланади. Меҳмонхона нархини қайта олинг — рейс қидируви қайта бошланмайди."
+        case .russian: return "Маршрут сохранён. Повторная проверка читает только свежую цену из каталога iumrah и не запускает поиск авиабилетов заново."
+        case .english: return "Your journey is preserved. Retry only rechecks the fresh iumrah catalog hotel price and does not restart flight search."
+        case .uzbek: return "Yo‘nalish saqlanadi. Qayta tekshirish faqat iumrah katalogidagi yangi mehmonxona narxini o‘qiydi va reys qidiruvini qayta boshlamaydi."
+        case .uzbekCyrillic: return "Йўналиш сақланади. Қайта текшириш фақат iumrah каталогидаги янги меҳмонхона нархини ўқийди ва рейс қидирувини қайта бошламайди."
         }
     }
 
@@ -190,8 +190,8 @@ struct FinalPackageView: View {
 
     private var retryPricingTitle: String {
         switch settings.language {
-        case .russian: return "Повторить получение цены"
-        case .english: return "Retry price lookup"
+        case .russian: return "Повторно проверить цену"
+        case .english: return "Recheck hotel price"
         case .uzbek: return "Narxni qayta olish"
         case .uzbekCyrillic: return "Нархни қайта олиш"
         }

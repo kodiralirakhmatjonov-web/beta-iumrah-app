@@ -23,7 +23,7 @@ struct HotelSelectionView: View {
     }
 
     private var filteredHotels: [HotelSummary] {
-        sourceHotels.sorted { lhs, rhs in
+        sourceHotels.filter(\.hasFreshCatalogPrice).sorted { lhs, rhs in
             let lhsExact = lhs.stars == journey.trip.hotelStars
             let rhsExact = rhs.stars == journey.trip.hotelStars
             if lhsExact != rhsExact { return lhsExact && !rhsExact }
