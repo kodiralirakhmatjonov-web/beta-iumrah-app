@@ -1,0 +1,5 @@
+BETA UPDATE 078 APPLIED
+- Home order: emotional video -> iumrah Package System -> Create Umrah -> iumrah Advisor.
+- User-facing Backend System naming changed to iumrah Package System.
+- Added reusable native IumrahSystemGlow component for Siri-style system presence.
+- Umrah Advisor Home card now uses IumrahSystemGlow instead of the orange waveform.

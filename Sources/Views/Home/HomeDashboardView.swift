@@ -35,7 +35,9 @@ struct HomeDashboardView: View {
                 }
                 HomeEmotionalJourneyPrompt()
                 HomeVideoCarousel()
+                IumrahBackendSystemHomeCard()
                 hero
+                UmrahAdvisorHomeCard()
                 confidenceStrip
                 philosophyCard
                 connectedTripCard
