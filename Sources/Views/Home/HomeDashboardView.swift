@@ -35,6 +35,7 @@ struct HomeDashboardView: View {
                 }
                 HomeVideoCarousel()
                 hero
+                UmrahAdvisorHomeCard()
                 confidenceStrip
                 philosophyCard
                 connectedTripCard

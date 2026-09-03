@@ -1,0 +1,76 @@
+import SwiftUI
+
+struct SunnahDuaSheet: View {
+    @ObservedObject var store: UmrahFlowStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 26) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Sunnah Dua")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                        Text("Tawaf")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.primary)
+                            .frame(width: 38, height: 38)
+                            .background(Color.iumrahRaisedBackground, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(store.text("tawaf_common_text3", fallback: "Between the Yemeni Corner and the Black Stone"))
+                    .font(.caption.weight(.bold))
+                    .tracking(0.35)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+                Text("رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً، وَفِي الآخِرَةِ حَسَنَةً، وَقِنَا عَذَابَ النَّارِ")
+                    .font(.system(size: 29, weight: .regular, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .environment(\.layoutDirection, .rightToLeft)
+                    .lineSpacing(12)
+
+                Text("Rabbana atina fid-dunya hasanatan, wa fil-akhirati hasanatan, wa qina adhaban-nar")
+                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(6)
+
+                Text(store.text("tawaf_common_text2", fallback: "You may also make any permissible dua."))
+                    .font(.caption.weight(.bold))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.iumrahCareLight.opacity(0.20), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+                Text(store.text("tawaf_common_text4", fallback: "Ask Allah in your own words."))
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Text(store.text("tawaf_common_text1", fallback: "Keep your heart present and continue Tawaf calmly."))
+                    .font(.system(size: 25, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+            }
+            .padding(22)
+            .padding(.bottom, 24)
+        }
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+}

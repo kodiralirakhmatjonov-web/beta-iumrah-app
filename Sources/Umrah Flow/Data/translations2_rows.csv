@@ -1,0 +1,910 @@
+key,lang,value
+complete_btn,ar,تم
+complete_btn,en,DONE
+complete_btn,fr,TERMINÉ
+complete_btn,id,SELESAI
+complete_btn,kk,ДАЙЫН
+complete_btn,ms,SELESAI
+complete_btn,ru,ГОТОВО
+complete_btn,tr,TAMAM
+complete_btn,uz,TAYYOR
+continue_btn,ar,متابعة
+continue_btn,en,CONTINUE
+continue_btn,fr,CONTINUER
+continue_btn,id,LANJUTKAN
+continue_btn,kk,ЖАЛҒАСТЫРУ
+continue_btn,ms,TERUSKAN
+continue_btn,ru,ПРОДОЛЖИТЬ
+continue_btn,tr,DEVAM ET
+continue_btn,uz,DAVOM ETISH
+end_text,ar,العمرة مقبولة إن شاء الله. الخطوة الأخيرة — التحلل (الختام)
+end_text,en,"Umrah is accepted, inshaAllah. Final step — tahallul (completion)"
+end_text,fr,"Omra acceptée, inshaAllah. Dernière étape — tahallul (achèvement)"
+end_text,id,"Umrah diterima, insyaAllah. Langkah terakhir — tahallul (penyelesaian)"
+end_text,kk,"Умра қабыл болды, иншаАлла. Соңғы қадам — тахаллул (аяқтау)"
+end_text,ms,"Umrah diterima, insyaAllah. Langkah terakhir — tahallul (penyempurnaan)"
+end_text,ru,"Умра принята, иншаАллах. Последний шаг — тахаллул (завершение)"
+end_text,tr,"Umre kabul oldu, inşallah. Son adım — tahallul (tamamlanma)"
+end_text,uz,"Umra qabul bo‘ldi, inshaAlloh. So‘nggi qadam — tahallul (yakunlash)"
+end_text1,ar,على الرجال حلق الرأس كاملًا أو تقصير الشعر
+end_text1,en,Men should shave their head completely or trim their hair short
+end_text1,fr,Les hommes doivent se raser complètement la tête ou raccourcir les cheveux
+end_text1,id,Pria mencukur habis kepala atau memendekkan rambut
+end_text1,kk,Ерлер басын толық қырып немесе шашын қысқартуы керек
+end_text1,ms,Lelaki hendaklah mencukur kepala sepenuhnya atau memendekkan rambut
+end_text1,ru,Мужчинам побрить голову полностью или подстричь волосы коротко
+end_text1,tr,Erkekler başlarını tamamen tıraş etmeli veya saçlarını kısaltmalıdır
+end_text1,uz,Erkaklar boshni to‘liq qirib tashlashi yoki sochni qisqartirishi kerak
+end_text3,ar,بعد ذلك تكتمل العمرة تمامًا وتُطهَّرون من الذنوب كالمولود الجديد
+end_text3,en,"After this, Umrah is fully complete and you are cleansed of sins like a newborn"
+end_text3,fr,"Après cela, la Omra est totalement achevée et vous êtes purifié des péchés comme un nouveau-né"
+end_text3,id,"Setelah itu umrah sepenuhnya selesai, Anda bersih dari dosa seperti bayi yang baru lahir"
+end_text3,kk,"Осыдан кейін умра толық аяқталады, сіз жаңа туғандай күнәлардан тазарасыз"
+end_text3,ms,"Selepas itu umrah selesai sepenuhnya, anda dibersihkan daripada dosa seperti bayi yang baru lahir"
+end_text3,ru,"После этого умра полностью завершена, вы очищены от грехов как новорожденный"
+end_text3,tr,"Bu aşamadan sonra umre tamamen tamamlanır, yeni doğmuş gibi günahlardan arınırsınız"
+end_text3,uz,"Shundan so‘ng umra to‘liq yakunlanadi, siz yangi tug‘ilgandek gunohlardan pok bo‘lasiz"
+home_3_btn,ar,الحياة بعد العمرة
+home_3_btn,en,Life After Umrah
+home_3_btn,fr,Vie après la Omra
+home_3_btn,id,Kehidupan Setelah Umrah
+home_3_btn,kk,Умрадан кейінгі өмір
+home_3_btn,ms,Kehidupan Selepas Umrah
+home_3_btn,ru,Жизнь После Умры
+home_3_btn,tr,Umre Sonrası Hayat
+home_3_btn,uz,Umradan keyingi hayot
+home_3_btn_sub,ar,برنامج مبني على دراسات العمرة
+home_3_btn_sub,en,Program based on Umrah research
+home_3_btn_sub,fr,Programme basé sur des recherches sur la Omra
+home_3_btn_sub,id,Program berbasis riset umrah
+home_3_btn_sub,kk,Умра зерттеулеріне негізделген бағдарлама
+home_3_btn_sub,ms,Program berasaskan kajian umrah
+home_3_btn_sub,ru,Программа на основе исследований умры
+home_3_btn_sub,tr,Umre araştırmalarına dayalı program
+home_3_btn_sub,uz,Umra tadqiqotlari asosida tuzilgan dastur
+home_3_btn2,ar,شهادة العمرة
+home_3_btn2,en,Umrah Certificate
+home_3_btn2,fr,Certificat de Omra
+home_3_btn2,id,Sertifikat Umrah
+home_3_btn2,kk,Умра сертификаты
+home_3_btn2,ms,Sijil Umrah
+home_3_btn2,ru,Сертификат Умры
+home_3_btn2,tr,Umre Sertifikası
+home_3_btn2,uz,Umra sertifikati
+home_3_btn2_sub,ar,لقد أديتم العمرة
+home_3_btn2_sub,en,You have completed the minor pilgrimage
+home_3_btn2_sub,fr,Vous avez accompli le petit pèlerinage (Omra)
+home_3_btn2_sub,id,Anda telah menunaikan umrah
+home_3_btn2_sub,kk,Сіз кіші қажылықты орындадыңыз
+home_3_btn2_sub,ms,Anda telah menunaikan umrah
+home_3_btn2_sub,ru,Вы совершили малое паломничество
+home_3_btn2_sub,tr,Umreyi tamamladınız
+home_3_btn2_sub,uz,Siz kichik hajni ado qildingiz
+home_3_btn3,ar,العمرة القادمة
+home_3_btn3,en,Next Umrah
+home_3_btn3,fr,Prochaine Omra
+home_3_btn3,id,Umrah berikutnya
+home_3_btn3,kk,Келесі умра
+home_3_btn3,ms,Umrah seterusnya
+home_3_btn3,ru,Следующая умра
+home_3_btn3,tr,Bir sonraki umre
+home_3_btn3,uz,Keyingi umra
+home_3_btn3_sub,ar,متى ترغبون في أداء العمرة مرة أخرى؟
+home_3_btn3_sub,en,When would you like to perform Umrah again?
+home_3_btn3_sub,fr,Quand souhaitez-vous accomplir la Omra à nouveau ?
+home_3_btn3_sub,id,Kapan Anda ingin menunaikan umrah lagi?
+home_3_btn3_sub,kk,Қашан тағы да умра жасағыңыз келеді?
+home_3_btn3_sub,ms,Bilakah anda ingin menunaikan umrah lagi?
+home_3_btn3_sub,ru,Когда вы еще хотите совершить умру?
+home_3_btn3_sub,tr,Bir sonraki umreyi ne zaman yapmak istersiniz?
+home_3_btn3_sub,uz,Qachon yana umra qilishni xohlaysiz?
+home_btn2_sub,ar,الدليل الصوتي الروحاني للعمرة
+home_btn2_sub,en,Spiritual voice guide for Umrah
+home_btn2_sub,fr,Guide vocal spirituel pour la Omra
+home_btn2_sub,id,Panduan suara spiritual untuk Umrah
+home_btn2_sub,kk,Умраға арналған рухани дыбыстық жетекші
+home_btn2_sub,ms,Panduan suara rohani untuk Umrah
+home_btn2_sub,ru,Голосовой гид для умры
+home_btn2_sub,tr,Umre için manevi sesli rehber
+home_btn2_sub,uz,O‘mra uchun ovozli ruhiy yo‘lko‘rsatgich
+home_btn3,ar,أدعـيتي
+home_btn3,en,My Duas
+home_btn3,fr,Mes invocations
+home_btn3,id,Doa-doa saya
+home_btn3,kk,Менің дұғаларым
+home_btn3,ms,Doa-doa saya
+home_btn3,ru,Мои Дуа
+home_btn3,tr,Benim dualarım
+home_btn3,uz,Mening duolarim
+home_btn5,ar,الخروج من وضع العمرة
+home_btn5,en,Exit Umrah mode
+home_btn5,fr,Quitter le mode Omra
+home_btn5,id,Keluar dari mode Umrah
+home_btn5,kk,Умра режимінен шығу
+home_btn5,ms,Keluar dari mod Umrah
+home_btn5,ru,Выйти из режима умры
+home_btn5,tr,Umre modundan çık
+home_btn5,uz,O‘mra rejimidan chiqish
+home_btn5_sub,ar,إنهاء جلسة العمرة
+home_btn5_sub,en,End Umrah session
+home_btn5_sub,fr,Terminer la session de la Omra
+home_btn5_sub,id,Akhiri sesi Umrah
+home_btn5_sub,kk,Умра сеансын аяқтау
+home_btn5_sub,ms,Tamatkan sesi Umrah
+home_btn5_sub,ru,Завершить сеанс умры
+home_btn5_sub,tr,Umre oturumunu sonlandır
+home_btn5_sub,uz,O‘mra seansini yakunlash
+home_btnp,ar,Premium Umrah
+home_btnp,en,Premium Umrah
+home_btnp,fr,Premium Umrah
+home_btnp,id,Premium Umrah
+home_btnp,kk,Premium Umrah
+home_btnp,ms,Premium Umrah
+home_btnp,ru,Premium Umrah
+home_btnp,tr,Premium Umrah
+home_btnp,uz,Premium Umrah
+home1_btn,ar,ابدأوا العمرة
+home1_btn,en,Start Umrah
+home1_btn,fr,Commencer la Omra
+home1_btn,id,Memulai umrah
+home1_btn,kk,Умраны бастау
+home1_btn,ms,Memulakan umrah
+home1_btn,ru,Начать умру
+home1_btn,tr,Umreye başlamak
+home1_btn,uz,Umrani boshlash
+home1_btn2,ar,مستوى الازدحام في الحرم
+home1_btn2,en,Al-Haram crowd level
+home1_btn2,fr,Affluence d’Al-Haram
+home1_btn2,id,Kepadatan Al-Haram
+home1_btn2,kk,Әл-Харам жүктемесі
+home1_btn2,ms,Kesesakan Al-Haram
+home1_btn2,ru,Загруженность Аль-Харама
+home1_btn2,tr,El-Harem yoğunluğu
+home1_btn2,uz,Al-Haram gavjumligi
+home1_btn3,ar,محظورات الإحرام
+home1_btn3,en,Ihram restrictions
+home1_btn3,fr,Interdictions de l’ihram
+home1_btn3,id,Larangan ihram
+home1_btn3,kk,Ихрам тыйымдары
+home1_btn3,ms,Larangan ihram
+home1_btn3,ru,Запреты ихрама
+home1_btn3,tr,İhram yasakları
+home1_btn3,uz,Ihram taqiqlari
+home1_btn3_sub,ar,تُفرض غرامة عند مخالفة المحظورات
+home1_btn3_sub,en,A penalty is applied if the restrictions are violated
+home1_btn3_sub,fr,Une pénalité est appliquée en cas de non-respect des interdictions
+home1_btn3_sub,id,"Jika larangan dilanggar, akan dikenakan denda"
+home1_btn3_sub,kk,Тыйымдарды бұзған жағдайда айыппұл қарастырылған
+home1_btn3_sub,ms,"Jika larangan dilanggar, denda akan dikenakan"
+home1_btn3_sub,ru,При не соблюдении запретов предназначен штраф
+home1_btn3_sub,tr,Yasaklara uyulmazsa ceza uygulanır
+home1_btn3_sub,uz,"Agar taqiqlar buzilsa, jarima belgilanadi"
+home1_btn6_sub,ar,قص الشعر وحلقه
+home1_btn6_sub,en,Hair cutting and shaving
+home1_btn6_sub,fr,Coupe et rasage des cheveux
+home1_btn6_sub,id,Memotong dan mencukur rambut
+home1_btn6_sub,kk,Шашты қысқарту және қыру
+home1_btn6_sub,ms,Rambut dipotong dan dicukur
+home1_btn6_sub,ru,Стрижка и бритье волос
+home1_btn6_sub,tr,Saç kesimi ve tıraş
+home1_btn6_sub,uz,Sochni qisqartirish va qirish
+home1_sub,ar,بهدوء. بوعي. دون استعجال.
+home1_sub,en,Calmly. Mindfully. Without haste.
+home1_sub,fr,Calmement. En pleine conscience. Sans précipitation.
+home1_sub,id,Tenang. Penuh kesadaran. Tanpa tergesa-gesa.
+home1_sub,kk,Сабырмен. Саналы түрде. Асықпай.
+home1_sub,ms,Tenang. Sedar sepenuhnya. Tanpa tergesa-gesa.
+home1_sub,ru,Спокойно. Осознанно. Без спешки.
+home1_sub,tr,Sakin. Bilinçli. Acele etmeden.
+home1_sub,uz,Tinch. Ongli ravishda. Shoshilmasdan.
+home1_title,ar,أنتم في مكة. أدّوا العمرة.
+home1_title,en,You are in Makkah. Perform Umrah.
+home1_title,fr,Vous êtes à La Mecque. Accomplissez la Omra.
+home1_title,id,Anda berada di Makkah. Tunaikan umrah.
+home1_title,kk,Сіз Меккедесіз. Умраны орындаңыз.
+home1_title,ms,Anda berada di Makkah. Tunaikan umrah.
+home1_title,ru,Вы в Мекке. Совершите Умру.
+home1_title,tr,Mekke’dəsiniz. Umreyi eda edin.
+home1_title,uz,Siz Makkadasiz. Umrani ado eting.
+home1_title2,ar,أدّوا العمرة مع المرشد الصوتي
+home1_title2,en,Perform Umrah with your Voice Guide
+home1_title2,fr,Accomplissez la Omra avec votre guide vocal
+home1_title2,id,Tunaikan umrah bersama pemandu suara
+home1_title2,kk,Умраны дауыс жетекшісімен орындаңыз
+home1_title2,ms,Tunaikan umrah bersama pemandu suara
+home1_title2,ru,Совершите умру с голосовым гидом
+home1_title2,tr,Sesli rehber eşliğinde umreyi eda edin
+home1_title2,uz,Umrani ovozli yo‘l ko‘rsatuvchi bilan ado eting
+home1_title2_sub,ar,بشكل صحيح وبدون أخطاء
+home1_title2_sub,en,Correctly and without mistakes
+home1_title2_sub,fr,Correctement et sans erreurs
+home1_title2_sub,id,Dengan benar dan tanpa kesalahan
+home1_title2_sub,kk,Дұрыс және қателіксіз
+home1_title2_sub,ms,Dengan betul dan tanpa kesilapan
+home1_title2_sub,ru,Правильно и без ошибок
+home1_title2_sub,tr,Doğru ve hatasız
+home1_title2_sub,uz,To‘g‘ri va xatosiz
+home1_title3,ar,هل اكتملت عمرتكم؟ واصلوا العبادة.
+home1_title3,en,Is your Umrah complete? Continue your worship.
+home1_title3,fr,Votre Omra est-elle terminée ? Poursuivez votre adoration.
+home1_title3,id,Umrah sudah selesai? Lanjutkan ibadah Anda.
+home1_title3,kk,Умра аяқталды ма? Ғибадатты жалғастырыңыз.
+home1_title3,ms,Umrah sudah selesai? Teruskan ibadah.
+home1_title3,ru,Умра завершена? Продолжите поклонение.
+home1_title3,tr,Umre tamamlandı mı? İbadete devam edin.
+home1_title3,uz,Umra yakunlandimi? Ibodatni davom ettiring.
+home1_title3_sub,ar,ابدؤوا طواف النافلة.
+home1_title3_sub,en,Begin the voluntary (nafl) tawaf.
+home1_title3_sub,fr,Commencez le tawaf surérogatoire (nafl).
+home1_title3_sub,id,Mulailah tawaf sunnah (nafl).
+home1_title3_sub,kk,Нәпіл тауапты бастаңыз.
+home1_title3_sub,ms,Mulakan tawaf sunat (nafl).
+home1_title3_sub,ru,Начните нафль таваф.
+home1_title3_sub,tr,Naﬁl tavafa başlayın.
+home1_title3_sub,uz,Nafl tavofni boshlang.
+home2_3_subtitle,ar,الطريق يستمر في داخلكم
+home2_3_subtitle,en,The journey continues within you
+home2_3_subtitle,fr,Le chemin continue en vous
+home2_3_subtitle,id,Perjalanan berlanjut di dalam diri Anda
+home2_3_subtitle,kk,Жол ішіңізде жалғасады
+home2_3_subtitle,ms,Perjalanan diteruskan dalam diri anda
+home2_3_subtitle,ru,Путь продолжается внутри
+home2_3_subtitle,tr,Yolculuk içinizde devam ediyor
+home2_3_subtitle,uz,Yo‘l ichingizda davom etadi
+home2_3title,ar,مرحبًا بكم في حياتكم الجديدة بعد العمرة
+home2_3title,en,Welcome to your new life after Umrah
+home2_3title,fr,Bienvenue dans votre nouvelle vie après la Omra
+home2_3title,id,Selamat datang di kehidupan baru setelah umrah
+home2_3title,kk,Умрадан кейінгі жаңа өмірге қош келдіңіз
+home2_3title,ms,Selamat datang ke kehidupan baharu selepas umrah
+home2_3title,ru,Добро пожаловать в новую жизнь после умры
+home2_3title,tr,Umreden sonraki yeni hayata hoş geldiniz
+home2_3title,uz,Umradan keyingi yangi hayotga xush kelibsiz
+home2_title2,ar,يسرّنا أن نكون قد ساعدناكم على أداء العمرة!
+home2_title2,en,We are honored to have helped you perform Umrah!
+home2_title2,fr,Nous sommes honorés d’avoir pu vous aider à accomplir la Omra !
+home2_title2,id,Kami bersyukur dapat membantu Anda menunaikan umrah!
+home2_title2,kk,Сізге умраны орындауға көмектескенімізге қуаныштымыз!
+home2_title2,ms,Kami gembira dapat membantu anda menunaikan umrah!
+home2_title2,ru,Мы рады что помогли вам совершить умру!
+home2_title2,tr,Umreyi yapmanıza yardımcı olabildiysek ne mutlu bize!
+home2_title2,uz,Sizga umrani ado etishda yordam berganimizdan xursandmiz!
+home2_title2_sub,ar,خدمة ضيوف الله هي رسالتنا
+home2_title2_sub,en,Serving the guests of Allah is our mission
+home2_title2_sub,fr,Servir les invités d’Allah est notre mission
+home2_title2_sub,id,Melayani tamu-tamu Allah adalah tugas kami
+home2_title2_sub,kk,Алланың қонақтарына қызмет ету — біздің міндетіміз
+home2_title2_sub,ms,Tugas kami adalah berkhidmat kepada tetamu Allah
+home2_title2_sub,ru,Служить гостям Аллаха — наша работа
+home2_title2_sub,tr,Allah’ın misafirlerine hizmet etmek bizim görevimizdir
+home2_title2_sub,uz,Alloh mehmonlariga xizmat qilish — bizning vazifamiz
+home2_title3,ar,حافظوا على نور العمرة في حياتكم اليومية
+home2_title3,en,Preserve the light of Umrah in your daily life
+home2_title3,fr,Préservez la lumière de la Omra dans votre vie quotidienne
+home2_title3,id,Pertahankan cahaya umrah dalam kehidupan sehari-hari
+home2_title3,kk,Умраның нұрын күнделікті өміріңізде сақтаңыз
+home2_title3,ms,Kekalkan cahaya umrah dalam kehidupan seharian anda
+home2_title3,ru,Сохраните свет умры в повседневной жизни
+home2_title3,tr,Umrenin nurunu günlük hayatınızda koruyun
+home2_title3,uz,Umraning nurini kundalik hayotingizda saqlang
+home2_title3_sub,ar,مع برنامج الحياة بعد العمرة
+home2_title3_sub,en,With the Life After Umrah program
+home2_title3_sub,fr,Avec le programme Vie après la Omra
+home2_title3_sub,id,Dengan program Kehidupan Setelah Umrah
+home2_title3_sub,kk,Умрадан кейінгі өмір бағдарламасымен
+home2_title3_sub,ms,Dengan program Kehidupan Selepas Umrah
+home2_title3_sub,ru,С программой жизнь после умры
+home2_title3_sub,tr,Umre Sonrası Hayat programı ile
+home2_title3_sub,uz,Umradan keyingi hayot dasturi bilan
+safa1_sarab1,ar,اللهم اغفر لي ذنوبي وارحمني واهدني إلى الصراط المستقيم
+safa1_sarab1,en,"O Allah, forgive my sins, have mercy on me, and guide me to the straight path."
+safa1_sarab1,fr,"Ô Allah, pardonne mes péchés, fais-moi miséricorde et guide-moi vers le droit chemin."
+safa1_sarab1,id,"Ya Allah, ampunilah dosa-dosaku, rahmatilah aku, dan tunjukilah aku ke jalan yang lurus."
+safa1_sarab1,kk,"Уа, Алла, менің күнәларымды кешір, маған рақым ет және мені тура жолға сал."
+safa1_sarab1,ms,"Ya Allah, ampunilah dosaku, rahmatilah aku dan tunjukilah aku ke jalan yang lurus."
+safa1_sarab1,ru,"О Аллах, прости мои грехи, помилуй меня и направь меня на прямой путь."
+safa1_sarab1,tr,"Ey Allah’ım, günahlarımı bağışla, bana merhamet et ve beni doğru yola ilet."
+safa1_sarab1,uz,"Ey Alloh, mening gunohlarimni mag‘firat qil, menga rahm qil va meni to‘g‘ri yo‘lga hidoyat qil."
+safa1_text1,ar,ابدؤوا السير بشكر ونية صادقة. ذكر: الله أكبر، لا إله إلا الله.
+safa1_text1,en,"Begin the movement with gratitude and sincere intention. Dhikr: Allahu Akbar, la ilaha illallah."
+safa1_text1,fr,"Commencez le mouvement avec gratitude et une intention sincère. Dhikr: Allahu Akbar, la ilaha illallah."
+safa1_text1,id,"Mulailah pergerakan dengan rasa syukur dan niat yang tulus. Zikir: Allahu Akbar, la ilaha illallah."
+safa1_text1,kk,"Қозғалысты ризашылық пен шынайы ниетпен бастаңыз. Зикр: Allahu Akbar, la ilaha illallah."
+safa1_text1,ms,"Mulakan pergerakan dengan rasa syukur dan niat yang ikhlas. Zikir: Allahu Akbar, la ilaha illallah."
+safa1_text1,ru,"Начните движение с благодарностью и искренним намерением. Зикр: Аллаху Акбар, ля иляха иллаллах."
+safa1_text1,tr,"Harekete şükür ve samimi niyetle başlayın. Zikir: Allahu Akbar, la ilaha illallah."
+safa1_text1,uz,"Harakatni shukronalik va samimiy niyat bilan boshlang. Zikr: Allahu Akbar, la ilaha illallah."
+safa1_text2,ar,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,en,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,fr,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,id,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,kk,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,ms,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,ru,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,tr,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_text2,uz,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي، وَارْحَمْنِي بِرَحْمَتِكَ، وَاهْدِنِي إِلَى الصِّرَاطِ الْمُسْتَقِيمِ
+safa1_title1,ar,الشوط الأول
+safa1_title1,en,1st passage
+safa1_title1,fr,1er passage
+safa1_title1,id,Putaran pertama
+safa1_title1,kk,1-ші өту
+safa1_title1,ms,Lintasan pertama
+safa1_title1,ru,1-й проход
+safa1_title1,tr,1. geçiş
+safa1_title1,uz,1-bosqich yurish
+safa2_sarab1,ar,اللهم إني أسألك رضاك والجنة وأعوذ بك من سخطك والنار
+safa2_sarab1,en,"O Allah, I ask for Your pleasure and Paradise, and I seek refuge from Your anger and the Fire."
+safa2_sarab1,fr,"Ô Allah, je Te demande Ton agrément et le Paradis, et je cherche refuge contre Ta colère et le Feu."
+safa2_sarab1,id,"Ya Allah, aku memohon keridaan-Mu dan Surga, serta berlindung kepada-Mu dari murka-Mu dan Api Neraka."
+safa2_sarab1,kk,"Уа, Алла, Сенің разылығыңды және Жәннатты сұраймын, әрі Сенің қаһарыңнан және Тозақтан пана тілеймін."
+safa2_sarab1,ms,"Ya Allah, aku memohon keredaan-Mu dan Syurga-Mu, dan aku berlindung kepada-Mu daripada kemurkaan-Mu dan Api Neraka."
+safa2_sarab1,ru,"О Аллах, я прошу Твоего довольства и Рая и ищу защиты от Твоего гнева и Огня."
+safa2_sarab1,tr,"Ey Allah’ım, Senden rızanı ve Cennetini istiyorum ve gazabından ve ateşten Sana sığınıyorum."
+safa2_sarab1,uz,"Ey Alloh, Sendan O‘zingning roziligingni va Jannatni so‘rayman va Sening g‘azabingdan hamda Do‘zaxdan panoh so‘rayman."
+safa2_text1,ar,امشوا كهاجر بإيمان وثقة بالله. ذكر: حسبي الله ونعم الوكيل.
+safa2_text1,en,"Walk like Hajar with faith, trusting in Allah. Dhikr: Hasbiyallahu wa ni mal wakil."
+safa2_text1,fr,"Marchez comme Hajar avec foi, en plaçant votre confiance en Allah. Dhikr: Hasbiyallahu wa ni mal wakil."
+safa2_text1,id,Berjalanlah seperti Hajar dengan iman dan bertawakal kepada Allah. Zikir: Hasbiyallahu wa ni mal wakil.
+safa2_text1,kk,"Хаджар сияқты иманмен, Аллаға тәуекел етіп жүріңіз. Зикр: Hasbiyallahu wa ni mal wakil."
+safa2_text1,ms,Berjalanlah seperti Hajar dengan iman dan bertawakal kepada Allah. Zikir: Hasbiyallahu wa ni mal wakil.
+safa2_text1,ru,"Идите как Хаджар с верой, доверяя Аллаху. Зикр: Хасби Аллаху ва ни мал вакиль. Аллах мне достаточен, и Он лучший покровитель."
+safa2_text1,tr,Hacer gibi imanla yürüyün ve Allah’a tevekkül edin. Zikir: Hasbiyallahu wa ni mal wakil.
+safa2_text1,uz,"Hajar kabi imon bilan, Allohga tavakkal qilib yuring. Zikr: Hasbiyallahu wa ni mal wakil."
+safa2_text2,ar,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,en,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,fr,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,id,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,kk,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,ms,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,ru,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,tr,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_text2,uz,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+safa2_title1,ar,الشوط الثاني
+safa2_title1,en,2nd passage
+safa2_title1,fr,2e passage
+safa2_title1,id,Putaran kedua
+safa2_title1,kk,2-ші өту
+safa2_title1,ms,Lintasan kedua
+safa2_title1,ru,2-й проход
+safa2_title1,tr,2. geçiş
+safa2_title1,uz,2-bosqich yurish
+safa3_sarab1,ar,اللهم أصلح لي ديني ودنياي وبارك لي في حياتي ورزقي
+safa3_sarab1,en,"O Allah, make my religion and worldly life right, and bless my life and provision."
+safa3_sarab1,fr,"Ô Allah, améliore ma religion et ma vie d’ici-bas et bénis ma vie et ma subsistance."
+safa3_sarab1,id,"Ya Allah, perbaikilah agamaku dan kehidupanku di dunia, serta berkahilah hidupku dan rezekiku."
+safa3_sarab1,kk,"Уа, Алла, менің дінімді және дүниелік өмірімді түзетіп, өмірім мен ризық-несібеме береке бере гөр."
+safa3_sarab1,ms,"Ya Allah, perbaikilah agamaku dan kehidupanku di dunia serta berkatilah hidupku dan rezekiku."
+safa3_sarab1,ru,"О Аллах, исправь мою религию и мою мирскую жизнь и благослови мою жизнь и мой удел."
+safa3_sarab1,tr,"Ey Allah’ım, dinimi ve dünya hayatımı düzelt ve hayatıma ve rızkıma bereket ver."
+safa3_sarab1,uz,"Ey Alloh, mening dinimni va dunyoviy hayotimni to‘g‘ri qil hamda hayotim va rizqimga baraka ber."
+safa3_text1,ar,اطلبوا المغفرة والرحمة لأنفسكم ولأحبابكم. دعاء: أستغفر الله وأتوب إليه.
+safa3_text1,en,Ask for forgiveness and mercy for yourself and your loved ones. Dua: Astagfirullah wa atubu ilayh.
+safa3_text1,fr,Demandez le pardon et la miséricorde pour vous-même et vos proches. Dua: Astagfirullah wa atubu ilayh.
+safa3_text1,id,Mohon ampunan dan rahmat untuk diri sendiri dan orang terdekat. Doa: Astagfirullah wa atubu ilayh.
+safa3_text1,kk,Өзіңіз және жақындарыңыз үшін кешірім мен мейірім тілеңіз. Дуа: Astagfirullah wa atubu ilayh.
+safa3_text1,ms,Mohon keampunan dan rahmat untuk diri sendiri dan orang terdekat. Doa: Astagfirullah wa atubu ilayh.
+safa3_text1,ru,Просите прощения и милости для себя и близких. Дуа: Астагфируллах ва атубу илайх.
+safa3_text1,tr,Kendiniz ve yakınlarınız için af ve merhamet isteyin. Dua: Astagfirullah wa atubu ilayh.
+safa3_text1,uz,O‘zingiz va yaqinlaringiz uchun kechirim va rahmat so‘rang. Dua: Astagfirullah wa atubu ilayh.
+safa3_text2,ar,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,en,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,fr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,id,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,kk,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,ms,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,ru,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,tr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_text2,uz,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ، وَبَارِكْ لِي فِي عُمُرِي وَرِزْقِي
+safa3_title1,ar,الشوط الثالث
+safa3_title1,en,3rd passage
+safa3_title1,fr,3e passage
+safa3_title1,id,Putaran ketiga
+safa3_title1,kk,3-ші өту
+safa3_title1,ms,Lintasan ketiga
+safa3_title1,ru,3-й проход
+safa3_title1,tr,3. geçiş
+safa3_title1,uz,3-bosqich yurish
+safa4_sarab1,ar,اللهم طهر قلبي من الذنوب واجعلني من التائبين
+safa4_sarab1,en,"O Allah, purify my heart from sins and make me among those who repent."
+safa4_sarab1,fr,"Ô Allah, purifie mon cœur des péchés et fais-moi parmi ceux qui se repentent."
+safa4_sarab1,id,"Ya Allah, sucikanlah hatiku dari dosa dan jadikan aku termasuk orang-orang yang bertaubat."
+safa4_sarab1,kk,"Уа, Алла, жүрегімді күнәлардан тазарт және мені тәубе етушілердің қатарына қоса гөр."
+safa4_sarab1,ms,"Ya Allah, sucikanlah hatiku daripada dosa dan jadikan aku dalam kalangan orang yang bertaubat."
+safa4_sarab1,ru,"О Аллах, очисти моё сердце от грехов и сделай меня среди кающихся."
+safa4_sarab1,tr,"Ey Allah’ım, kalbimi günahlardan arındır ve beni tövbe edenlerden eyle."
+safa4_sarab1,uz,"Ey Alloh, qalbimni gunohlardan pokla va meni tavba qiluvchilar qatoriga qo‘sh."
+safa4_text1,ar,كل خطوة عبادة. ليكن القلب ذاكرًا لله. ذكر: سبحان الله، والحمد لله، والله أكبر.
+safa4_text1,en,"Every step is an act of worship. Let the heart remember Allah. Dhikr: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text1,fr,"Chaque pas est un acte d’adoration. Que le cœur se souvienne d’Allah. Dhikr: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text1,id,"Setiap langkah adalah ibadah. Biarkan hati mengingat Allah. Zikir: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text1,kk,"Әрбір қадам ғибадат. Жүрек Алланы еске алсын. Зикр: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text1,ms,"Setiap langkah adalah ibadah. Biarkan hati mengingati Allah. Zikir: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text1,ru,"Каждый шаг является поклонением. Пусть сердце поминает Аллаха. Зикр: Субханаллах, вальхамдулиллях, ва Аллаху Акбар."
+safa4_text1,tr,"Her adım bir ibadettir. Kalp Allah’ı ansın. Zikir: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text1,uz,"Har bir qadam ibodatdir. Qalb Allohni zikr qilsin. Zikr: Subhanallah, walhamdulillah, wa Allahu Akbar."
+safa4_text2,ar,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,en,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,fr,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,id,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,kk,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,ms,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,ru,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,tr,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_text2,uz,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الذُّنُوبِ، وَاجْعَلْنِي مِنَ التَّوَّابِينَ
+safa4_title1,ar,الشوط الرابع
+safa4_title1,en,4th passage
+safa4_title1,fr,4e passage
+safa4_title1,id,Putaran keempat
+safa4_title1,kk,4-ші өту
+safa4_title1,ms,Lintasan keempat
+safa4_title1,ru,4-й проход
+safa4_title1,tr,4. geçiş
+safa4_title1,uz,4-bosqich yurish
+safa5_text1,ar,اسألوا الله تيسير أموركم والهداية إلى الصراط المستقيم. دعاء: رب اشرح لي صدري ويسر لي أمري.
+safa5_text1,en,"Ask for ease in your affairs and guidance to the right path. Dua: Rabbishrah li sadri, wa yassir li amri."
+safa5_text1,fr,"Demandez la facilité dans vos affaires et la guidance vers le bon chemin. Dua: Rabbishrah li sadri, wa yassir li amri."
+safa5_text1,id,"Mohon kemudahan dalam urusan dan petunjuk ke jalan yang benar. Doa: Rabbishrah li sadri, wa yassir li amri."
+safa5_text1,kk,"Істеріңіздің жеңілдеуін және дұрыс жолды тілеңіз. Дуа: Rabbishrah li sadri, wa yassir li amri."
+safa5_text1,ms,"Mohon kemudahan dalam urusan dan petunjuk ke jalan yang benar. Doa: Rabbishrah li sadri, wa yassir li amri."
+safa5_text1,ru,"Просите об облегчении дел и о правильном пути. Дуа: Раббишрах ли садри, ва яссир ли амри."
+safa5_text1,tr,"İşlerinizin kolaylaşmasını ve doğru yolu isteyin. Dua: Rabbishrah li sadri, wa yassir li amri."
+safa5_text1,uz,"Ishlaringizni yengillashtirishni va to‘g‘ri yo‘lni so‘rang. Dua: Rabbishrah li sadri, wa yassir li amri."
+safa5_text2,ar,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,en,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,fr,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,id,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,kk,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,ms,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,ru,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,tr,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_text2,uz,اللَّهُمَّ ارْزُقْنِي قَلْبًا خَاشِعًا، وَعِلْمًا نَافِعًا، وَعَمَلًا مُتَقَبَّلًا
+safa5_title1,ar,الشوط الخامس
+safa5_title1,en,5th passage
+safa5_title1,fr,5e passage
+safa5_title1,id,Putaran kelima
+safa5_title1,kk,5-ші өту
+safa5_title1,ms,Lintasan kelima
+safa5_title1,ru,5-й проход
+safa5_title1,tr,5. geçiş
+safa5_title1,uz,5-bosqich yurish
+safa6_sarab1,ar,اللهم افتح لي أبواب رحمتك واغفر لي ذنوبي ما تقدم منها وما تأخر
+safa6_sarab1,en,"O Allah, open for me the doors of Your mercy and forgive my past and future sins."
+safa6_sarab1,fr,"Ô Allah, ouvre-moi les portes de Ta miséricorde et pardonne mes péchés passés et futurs."
+safa6_sarab1,id,"Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu dan ampunilah dosa-dosaku yang lalu dan yang akan datang."
+safa6_sarab1,kk,"Уа, Алла, маған Өзіңнің рақымыңның есіктерін аш және өткен әрі болашақ күнәларымды кешіре гөр."
+safa6_sarab1,ms,"Ya Allah, bukakan untukku pintu-pintu rahmat-Mu dan ampunilah dosaku yang lalu dan yang akan datang."
+safa6_sarab1,ru,"О Аллах, открой для меня двери Твоей милости и прости мои прошлые и будущие грехи."
+safa6_sarab1,tr,"Ey Allah’ım, bana rahmetinin kapılarını aç ve geçmiş ve gelecek günahlarımı bağışla."
+safa6_sarab1,uz,"Ey Alloh, menga O‘zingning rahmating eshiklarini och va mening o‘tgan hamda kelajakdagi gunohlarimni mag‘firat qil."
+safa6_text1,ar,السعي مظهر من مظاهر الإيمان. امشوا بصبر وذكر لله. ذكر: لا حول ولا قوة إلا بالله.
+safa6_text1,en,Sa'i is the path of faith. Walk with patience and remembrance of Allah. Dhikr: La hawla wa la quwwata illa billah.
+safa6_text1,fr,Le sa'i est le chemin de la foi. Marchez avec patience et dans le rappel d’Allah. Dhikr: La hawla wa la quwwata illa billah.
+safa6_text1,id,Sa'i adalah jalan iman. Berjalanlah dengan kesabaran dan mengingat Allah. Zikir: La hawla wa la quwwata illa billah.
+safa6_text1,kk,Сағи иман жолы. Сабырмен және Алланы еске алып жүріңіз. Зикр: La hawla wa la quwwata illa billah.
+safa6_text1,ms,Sa'i adalah jalan iman. Berjalanlah dengan kesabaran dan mengingati Allah. Zikir: La hawla wa la quwwata illa billah.
+safa6_text1,ru,Саи - проявление веры. Идите с терпением и поминанием Аллаха. Зикр: Ля хаула ва ля куввата илла биллях.
+safa6_text1,tr,Sa'y iman yoludur. Sabırla ve Allah’ı anarak yürüyün. Zikir: La hawla wa la quwwata illa billah.
+safa6_text1,uz,Sa'i imon yo‘lidir. Sabr va Allohni zikr etib yuring. Zikr: La hawla wa la quwwata illa billah.
+safa6_text2,ar,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,en,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,fr,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,id,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,kk,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,ms,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,ru,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,tr,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_text2,uz,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ، وَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ
+safa6_title1,ar,الشوط السادس
+safa6_title1,en,6th passage
+safa6_title1,fr,6e passage
+safa6_title1,id,Putaran keenam
+safa6_title1,kk,6-шы өту
+safa6_title1,ms,Lintasan keenam
+safa6_title1,ru,6-й проход
+safa6_title1,tr,6. geçiş
+safa6_title1,uz,6-bosqich yurish
+safa7_sarab1,ar,اللهم تقبل سعيي واغفر لي ذنوبي واجعل هذه العمرة مقبولة
+safa7_sarab1,en,"O Allah, accept my Sa’i, forgive my sins, and make this Umrah accepted."
+safa7_sarab1,fr,"Ô Allah, accepte mon Sa’i, pardonne mes péchés et fais que cette Omra soit acceptée."
+safa7_sarab1,id,"Ya Allah, terimalah sa’i-ku, ampunilah dosa-dosaku dan jadikan Umrah ini diterima."
+safa7_sarab1,kk,"Уа, Алла, менің сағиімді қабыл ет, күнәларымды кешір және бұл умраны қабыл болған ет."
+safa7_sarab1,ms,"Ya Allah, terimalah sa’i-ku, ampunilah dosaku dan jadikan Umrah ini diterima."
+safa7_sarab1,ru,"О Аллах, прими мой са‘й, прости мои грехи и сделай эту умру принятой."
+safa7_sarab1,tr,"Ey Allah’ım, sa‘yimi kabul et, günahlarımı bağışla ve bu Umreyi kabul edilenlerden eyle."
+safa7_sarab1,uz,"Ey Alloh, mening sa‘yimni qabul qil, gunohlarimni mag‘firat qil va bu umramni maqbul qil."
+safa7_text1,ar,اختموا بالشكر والطمأنينة. لقد فعلتم ذلك ابتغاء وجه الله. دعاء: اللهم تقبل منا.
+safa7_text1,en,Finish with gratitude and peace. You did this for Allah. Dua: Allahumma taqabbal minna.
+safa7_text1,fr,Terminez avec gratitude et sérénité. Vous l’avez fait pour Allah. Dua: Allahumma taqabbal minna.
+safa7_text1,id,Akhiri dengan rasa syukur dan ketenangan. Kamu melakukannya demi Allah. Doa: Allahumma taqabbal minna.
+safa7_text1,kk,Ризашылық пен тыныштықпен аяқтаңыз. Сіз мұны Алла разылығы үшін жасадыңыз. Дуа: Allahumma taqabbal minna.
+safa7_text1,ms,Akhiri dengan rasa syukur dan ketenangan. Anda melakukannya demi Allah. Doa: Allahumma taqabbal minna.
+safa7_text1,ru,Завершите с благодарностью и покоем. Вы сделали это ради Аллаха. Дуа: Аллахумма такаббал минна.
+safa7_text1,tr,Şükür ve huzurla tamamlayın. Bunu Allah rızası için yaptınız. Dua: Allahumma taqabbal minna.
+safa7_text1,uz,Shukronalik va xotirjamlik bilan yakunlang. Siz buni Alloh yo‘lida qildingiz. Dua: Allahumma taqabbal minna.
+safa7_text2,ar,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,en,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,fr,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,id,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,kk,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,ms,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,ru,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,tr,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_text2,uz,اللَّهُمَّ تَقَبَّلْ مِنِّي سَعْيِي، وَاغْفِرْ لِي ذُنُوبِي، وَاجْعَلْ هَذِهِ الْعُمْرَةَ مَقْبُولَةً
+safa7_title1,ar,الشوط السابع
+safa7_title1,en,7th passage
+safa7_title1,fr,7e passage
+safa7_title1,id,Putaran ketujuh
+safa7_title1,kk,7-ші өту
+safa7_title1,ms,Lintasan ketujuh
+safa7_title1,ru,7-й проход
+safa7_title1,tr,7. geçiş
+safa7_title1,uz,7-bosqich yurish
+safadua_title,ar,انظروا نحو الكعبة واقرؤوا الدعاء
+safadua_title,en,Look toward the Kaaba and recite the dua
+safadua_title,fr,Regardez vers la Kaaba et récitez la dua
+safadua_title,id,Lihatlah ke arah Ka'bah dan bacalah doa
+safadua_title,kk,"Қағбаға қарап, дұға оқыңыз"
+safadua_title,ms,Pandang ke arah Kaabah dan bacalah doa
+safadua_title,ru,Посмотрите в сторону Каабы и читайте дуа
+safadua_title,tr,Kâbe'ye bakın ve dua okuyun
+safadua_title,uz,Ka'baga qarang va duoni o‘qing
+safago_text,ar,البداية: قفوا عند أسفل جبل الصفا وتوجهوا نحو الكعبة. النية: انووا في قلوبكم السعي لله تعالى. الحركة: اسعوا من الصفا إلى المروة ثم عودوا سبع مرات. الشوط الأول من الصفا إلى المروة، والثاني من المروة إلى الصفا، حتى تكتمل سبعة أشواط (البداية من الصفا والنهاية عند المروة). يجوز للرجال الإسراع قليلًا في موضعين محددين دون ركض.
+safago_text,en,"Start: stand at the base of Safa hill and face the Kaaba. Intention: make the intention in your heart to perform Sa'i for the sake of Allah. Movement: walk from Safa to Marwa and back 7 times. Round 1 — Safa → Marwa. Round 2 — Marwa → Safa. In total 7 rounds (start at Safa, finish at Marwa). Men may slightly increase their pace in two short sections (a light quick walk, not running)."
+safago_text,fr,"Début : tenez-vous au pied de la colline de Safa et tournez-vous vers la Kaaba. Intention : faites l’intention dans votre cœur d’accomplir le Sa'i pour Allah. Déplacement : marchez entre Safa et Marwa 7 fois. 1er trajet — Safa → Marwa. 2e trajet — Marwa → Safa. Au total 7 trajets (début à Safa, fin à Marwa). Les hommes peuvent accélérer légèrement le pas sur deux petites sections (marche rapide légère, sans courir)."
+safago_text,id,"Awal: berdirilah di kaki Bukit Safa dan hadapkan diri ke Ka'bah. Niat: niatkan dalam hati untuk melakukan sa'i karena Allah. Gerakan: berjalan dari Safa ke Marwah dan kembali sebanyak 7 kali. Putaran 1 — Safa → Marwah. Putaran 2 — Marwah → Safa. Total 7 putaran (mulai di Safa, selesai di Marwah). Laki-laki boleh mempercepat langkah di dua bagian kecil (langkah cepat ringan, bukan berlari)."
+safago_text,kk,"Бастау: Сафа төбесінің етегінде тұрып, Қағбаға қараңыз. Ниет: жүрегіңізде Алла разылығы үшін сағи жасауға ниет етіңіз. Қозғалыс: Сафа мен Маруа арасында 7 рет жүріңіз. 1-ші айналым — Сафа → Маруа. 2-ші айналым — Маруа → Сафа. Барлығы 7 айналым (бастау — Сафа, аяқтау — Маруа). Ер адамдар екі қысқа аралықта жүрісін сәл жылдамдата алады (жеңіл тез жүріс, жүгірмей)."
+safago_text,ms,"Permulaan: berdirilah di kaki Bukit Safa dan hadapkan diri kepada Kaabah. Niat: niatkan dalam hati untuk melakukan sa'i kerana Allah. Pergerakan: berjalan dari Safa ke Marwah dan kembali sebanyak 7 kali. Pusingan 1 — Safa → Marwah. Pusingan 2 — Marwah → Safa. Jumlah 7 pusingan (mula di Safa, tamat di Marwah). Lelaki boleh mempercepat langkah di dua bahagian tertentu (langkah cepat ringan, bukan berlari)."
+safago_text,ru,"Начало: встаньте у подножия холма Сафа и направьтесь к Каабе. Намерение (нийя): произнесите в сердце намерение совершить саи ради Аллаха. Движение: идите от Сафа к Марва и обратно 7 раз. 1 круг — путь от Сафа к Марва. 2 круг — путь от Марва к Сафа. Так всего 7 кругов (начало у Сафа, завершение на Марве). Мужчины могут ускорить шаг на двух небольших участках (лёгкий быстрый шаг, без бега)."
+safago_text,tr,"Başlangıç: Safa tepesinin eteklerinde durun ve Kâbe'ye yönelin. Niyet: kalbinizde Allah rızası için sa'y yapmaya niyet edin. Hareket: Safa'dan Merve'ye ve Merve'den Safa'ya toplam 7 kez gidip gelin. 1. tur — Safa → Merve. 2. tur — Merve → Safa. Toplam 7 tur (başlangıç Safa, bitiş Merve). Erkekler iki kısa bölgede adımlarını biraz hızlandırabilir (hafif hızlı yürüyüş, koşmadan)."
+safago_text,uz,"Maqom: Safa tepaligi etagida turing va Ka'baga yuzlaning. Niyat: qalbingizda Alloh rizoligi uchun sa'i qilishga niyat qiling. Harakat: Safadan Marvaga va Marvadan Safaga jami 7 marta yuring. 1-bosqich — Safa → Marva. 2-bosqich — Marva → Safa. Jami 7 marta (boshlanish Safa, yakun Marva). Erkaklar ikki kichik masofada qadamini tezlatishi mumkin (yengil tez yurish, yugurmasdan)."
+safago_title,ar,ماذا تفعلون أثناء السعي؟
+safago_title,en,What to do during Sa’i?
+safago_title,fr,Que faire pendant le Sa’i ?
+safago_title,id,Apa yang harus dilakukan saat sa’i?
+safago_title,kk,Сағи кезінде не істеу керек?
+safago_title,ms,Apa yang perlu dilakukan ketika sa’i?
+safago_title,ru,Что делать во время саи?
+safago_title,tr,Sa’y sırasında ne yapılır?
+safago_title,uz,Sa’y vaqtida nima qilish kerak?
+safago_title1,ar,اتجهوا إلى جبل الصفا
+safago_title1,en,GO TO SAFA HILL
+safago_title1,fr,RENDEZ-VOUS À LA COLLINE DE SAFA
+safago_title1,id,PERGI KE BUKIT SAFA
+safago_title1,kk,САФА ТӨБЕСІНЕ БАРЫҢЫЗ
+safago_title1,ms,PERGI KE BUKIT SAFA
+safago_title1,ru,ИДИТЕ К ХОЛМУ САФА
+safago_title1,tr,SAFA TEPESİNE GİDİN
+safago_title1,uz,SAFA TEPALIGIGA BORING
+start_text,ar,أنتم تدخلون المسجد الحرام. لأداء العمرة (للرجال) اكشفوا الكتف الأيمن واقرؤوا الدعاء: ربنا افتح لي أبواب رحمتك
+start_text,en,"You are entering Al-Haram Mosque. For Umrah (men), uncover your right shoulder and recite: Rabbana iftah li abwaba rahmatik"
+start_text,fr,"Vous entrez dans la Mosquée Al-Haram. Pour la Omra (hommes), découvrez votre épaule droite et récitez : Rabbana iftah li abwaba rahmatik"
+start_text,id,"Anda memasuki Masjid al-Haram. Untuk umrah (pria), buka bahu kanan Anda dan baca doa: Rabbana iftah li abwaba rahmatik"
+start_text,kk,"Сіз Әл-Харам мешітіне кіріп жатырсыз. Умра үшін (ерлер) оң иығыңызды ашып, дұғаны оқыңыз: Rabbana iftah li abwaba rahmatik"
+start_text,ms,"Anda memasuki Masjid al-Haram. Untuk umrah (lelaki), buka bahu kanan dan baca doa: Rabbana iftah li abwaba rahmatik"
+start_text,ru,"Вы входите в мечеть аль Харам. Для совершения умры откройте свое правое плечо (мужчины), и читайте дуа: Rabbana iftah li abwaba rahmatik"
+start_text,tr,Mescid-i Haram’a giriyorsunuz. Umre için (erkekler) sağ omzunuzu açın ve şu duayı okuyun: Rabbana iftah li abwaba rahmatik
+start_text,uz,Siz Masjid al-Haramga kiryapsiz. Umra uchun (erkaklar) o‘ng yelkangizni oching va duoni o‘qing: Rabbana iftah li abwaba rahmatik
+start_text1,ar,استعدوا لرؤية بيت الله وهيئوا جميع دعواتكم — أنتم الآن أقرب من أي وقت مضى
+start_text1,en,Prepare to behold the House of Allah and ready all your supplications — you are closer now than ever before
+start_text1,fr,Préparez-vous à contempler la Maison d’Allah et préparez toutes vos invocations — vous êtes plus proche que jamais
+start_text1,id,Bersiaplah melihat Rumah Allah dan siapkan semua doa Anda — saat ini Anda lebih dekat dari sebelumnya
+start_text1,kk,Алланың Үйін көруге дайындалыңыз және барлық тілектеріңізді Жаратушыға арнаңыз — сіз қазір бұрынғыдан да жақынсыз
+start_text1,ms,Bersedialah untuk melihat Rumah Allah dan siapkan semua doa anda — kini anda lebih dekat daripada sebelumnya
+start_text1,ru,Подготовьтесь увидеть Дом Аллаха и подготовьте все свои просьбы у Всевышнего — вы сейчас ближе как никогда
+start_text1,tr,Allah’ın Evi’ni görmeye hazırlanın ve tüm dualarınızı O’na yöneltin — şu an her zamankinden daha yakınsınız
+start_text1,uz,Allohning Uyini ko‘rishga tayyorlaning va barcha duolaringizni hozirlang — siz hozir har qachongidan ham yaqinroqsiz
+start_text2,ar,هل اقتربتم من الكعبة؟ ادعوا الله وركزوا
+start_text2,en,Have you approached the Kaaba? Make dua and focus
+start_text2,fr,Avez-vous atteint la Kaaba ? Faites des invocations et concentrez-vous
+start_text2,id,Apakah Anda sudah mendekati Ka'bah? Berdoalah dan fokuslah
+start_text2,kk,"Қағбаға жақындадыңыз ба? Дұға жасап, назар аударыңыз"
+start_text2,ms,Adakah anda telah menghampiri Kaabah? Berdoalah dan fokus
+start_text2,ru,"Вы подошли к Каабе? Делайте дуа, сфокусируйтесь"
+start_text2,tr,Ka'be'ye yaklaştınız mı? Dua edin ve odaklanın
+start_text2,uz,Ka’baga yaqinlashdingizmi? Duo qiling va diqqatni jamlang
+start_text3,ar,ركزوا وادعوا الله
+start_text3,en,Focus and make dua
+start_text3,fr,Concentrez-vous et faites des invocations
+start_text3,id,Fokuslah dan berdoalah
+start_text3,kk,"Назар аударып, дұға жасаңыз"
+start_text3,ms,Fokus dan berdoalah
+start_text3,ru,Сфокусируйтесь и делайте дуа
+start_text3,tr,Odaklanın ve dua edin
+start_text3,uz,Diqqatni jamlang va duo qiling
+sunna_dua_btn,ar,أدعية السنة
+sunna_dua_btn,en,Sunnah Duas
+sunna_dua_btn,fr,Invocations de la Sunna
+sunna_dua_btn,id,Doa Sunnah
+sunna_dua_btn,kk,Сүннет дұғалары
+sunna_dua_btn,ms,Doa Sunnah
+sunna_dua_btn,ru,Дуа Сунна
+sunna_dua_btn,tr,Sünnet duaları
+sunna_dua_btn,uz,Sunnat duolari
+tap_btn,ar,تم
+tap_btn,en,Done
+tap_btn,fr,Terminé
+tap_btn,id,Selesai
+tap_btn,kk,Tayyor
+tap_btn,ms,Selesai
+tap_btn,ru,Готово
+tap_btn,tr,Tamam
+tap_btn,uz,Tayyor
+tawaf_common_text1,ar,قُلْ: بِسْمِ اللّٰهِ اللّٰهُ أَكْبَرُ
+tawaf_common_text1,en,SAY BISMILLAHI ALLAHU AKBAR
+tawaf_common_text1,fr,DITES BISMILLAHI ALLAHU AKBAR
+tawaf_common_text1,id,Ucapkan BISMILLAHI ALLAHU AKBAR
+tawaf_common_text1,kk,АЙТЫҢЫЗ BISMILLAHI ALLAHU AKBAR
+tawaf_common_text1,ms,UCAPKAN BISMILLAHI ALLAHU AKBAR
+tawaf_common_text1,ru,СКАЖИТЕ BISMILLAHI ALLAHU AKBAR
+tawaf_common_text1,tr,SÖYLEYİN BISMILLAHI ALLAHU EKBER
+tawaf_common_text1,uz,AYTING BISMILLAHI ALLAHU AKBAR
+tawaf_common_text2,ar,المصابيح الخضراء / الحجر الأسود
+tawaf_common_text2,en,GREEN LIGHTS / BLACK STONE
+tawaf_common_text2,fr,LUMIÈRES VERTES / PIERRE NOIRE
+tawaf_common_text2,id,LAMPU HIJAU / HAJAR ASWAD
+tawaf_common_text2,kk,ЖАСЫЛ ШАМДАР / ҚАРА ТАС
+tawaf_common_text2,ms,LAMPU HIJAU / HAJAR ASWAD
+tawaf_common_text2,ru,ЗЕЛЁНЫЕ ЛАМПЫ / ЧЁРНЫЙ КАМЕНЬ
+tawaf_common_text2,tr,YEŞİL IŞIKLAR / HACERÜL ESVED
+tawaf_common_text2,uz,YASHIL CHIROQLAR / QORA TOSH
+tawaf_common_text3,ar,كَرِّرِ الدُّعَاءَ حَتّى الحَجَرِ الأَسوَدِ
+tawaf_common_text3,en,REPEAT THE DUA UNTIL THE BLACK STONE
+tawaf_common_text3,fr,RÉPÉTEZ LA DOUA JUSQU'À LA PIERRE NOIRE
+tawaf_common_text3,id,ULANGI DOA HINGGA HAJAR ASWAD
+tawaf_common_text3,kk,ДҰҒАНЫ ҚАРА ТАСҚА ДЕЙІН ҚАЙТАЛАҢЫЗ
+tawaf_common_text3,ms,ULANGI DOA SEHINGGA HAJAR ASWAD
+tawaf_common_text3,ru,ПОВТОРЯЙТЕ ДУА ДО ЧЁРНОГО КАМНЯ
+tawaf_common_text3,tr,DUAYI HACERÜL ESVED’E KADAR TEKRAR EDİN
+tawaf_common_text3,uz,DUONI QORA TOSHGACHA TAKRORLANG
+tawaf_common_text4,ar,ارفع يدك اليمنى و
+tawaf_common_text4,en,Raise your right hand and
+tawaf_common_text4,fr,Levez la main droite et
+tawaf_common_text4,id,Angkat tangan kanan Anda dan
+tawaf_common_text4,kk,Оң қолыңызды көтеріңіз және
+tawaf_common_text4,ms,Angkat tangan kanan anda dan
+tawaf_common_text4,ru,Поднимите правую руку и
+tawaf_common_text4,tr,Sağ elinizi kaldırın ve
+tawaf_common_text4,uz,O‘ng qo‘lingizni ko‘taring va
+tawaf_title,ar,الطواف
+tawaf_title,en,Tawaf
+tawaf_title,fr,Tawaf
+tawaf_title,id,Tawaf
+tawaf_title,kk,Тауап
+tawaf_title,ms,Tawaf
+tawaf_title,ru,Таваф
+tawaf_title,tr,Tavaf
+tawaf_title,uz,Tavaf
+tawaf1_tarab1,ar,اللهم إني أسألك رضاك والجنة وأعوذ بك من سخطك والنار
+tawaf1_tarab1,en,"O Allah, I ask You for Your pleasure and Paradise, and I seek refuge in You from Your anger and the Fire."
+tawaf1_tarab1,fr,"Ô Allah, je Te demande Ton agrément et le Paradis, et je cherche refuge auprès de Toi contre Ta colère et le Feu."
+tawaf1_tarab1,id,"Ya Allah, aku memohon keridaan-Mu dan Surga, serta berlindung kepada-Mu dari murka-Mu dan Api Neraka."
+tawaf1_tarab1,kk,"Уа, Алла, Сенің разылығыңды және Жәннатты сұраймын, әрі Сенің қаһарыңнан және Тозақтан Саған сыйынамын."
+tawaf1_tarab1,ms,"Ya Allah, aku memohon keredaan-Mu dan Syurga-Mu, dan aku berlindung kepada-Mu daripada kemurkaan-Mu dan Api Neraka."
+tawaf1_tarab1,ru,"О Аллах, я прошу Твоего довольства и Рая и ищу у Тебя защиты от Твоего гнева и Огня."
+tawaf1_tarab1,tr,"Ey Allah’ım, Senden rızanı ve Cennetini istiyorum ve gazabından ve ateşten Sana sığınıyorum."
+tawaf1_tarab1,uz,"Ey Alloh, Sendan O‘zingning roziligingni va Jannatni so‘rayman va Sening g‘azabingdan hamda Do‘zaxdan Senga panoh tilayman."
+tawaf1_text1,ar,ابدؤوا بنية خالصة لله، وانظروا إلى الكعبة بمحبة لله. ذكر: بسم الله، الله أكبر. ومع كل خطوة فليحيا القلب.
+tawaf1_text1,en,"Begin with a pure intention for Allah and look at the Kaaba with love for Allah. Dhikr: Bismillah, Allahu Akbar. Let your heart awaken with every step."
+tawaf1_text1,fr,"Commence avec une intention pure pour Allah et regarde la Kaaba avec amour pour Allah. Dhikr: Bismillah, Allahu Akbar. Que ton cœur s'éveille à chaque pas."
+tawaf1_text1,id,"Mulailah dengan niat yang murni kerana Allah dan pandanglah Kaabah dengan cinta kepada Allah. Zikir: Bismillah, Allahu Akbar. Biarkan hatimu hidup di setiap langkah."
+tawaf1_text1,kk,"Алла разылығы үшін таза ниетпен бастаңыз және Қағбаға Аллаға деген сүйіспеншілікпен қараңыз. Зикр: Бисмиллях, Аллаху Акбар. Әр қадам сайын жүрек оянсын."
+tawaf1_text1,ms,"Mulakan dengan niat yang ikhlas kerana Allah dan pandanglah Kaabah dengan kasih kepada Allah. Zikir: Bismillah, Allahu Akbar. Biarkan hati hidup pada setiap langkah."
+tawaf1_text1,ru,"Начните с чистого намерения ради Аллаха и смотрите на Каабу с любовью к Аллаху. Зикр: Бисмиллях, Аллаху Акбар. С каждым шагом пусть сердце оживает."
+tawaf1_text1,tr,"Allah rızası için temiz bir niyetle başlayın ve Kabe'ye Allah sevgisiyle bakın. Zikir: Bismillah, Allahu Akbar. Her adımda kalbiniz canlansın."
+tawaf1_text1,uz,"Alloh yo'lida pok niyat bilan boshlang va Ka'baga Allohga bo'lgan muhabbat bilan qarang. Zikr: Bismillah, Allohu Akbar. Har bir qadamda qalbingiz uyg'onsin."
+tawaf1_text2,ar,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,en,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,fr,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,id,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,kk,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,ms,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,ru,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,tr,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_text2,uz,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf2_tarab1,ar,اللهم اغفر لي جميع ذنوبي، صغيرها وكبيرها
+tawaf2_tarab1,en,"O Allah, forgive all my sins, the small and the great."
+tawaf2_tarab1,fr,"Ô Allah, pardonne tous mes péchés, les petits comme les grands."
+tawaf2_tarab1,id,"Ya Allah, ampunilah semua dosaku, yang kecil maupun yang besar."
+tawaf2_tarab1,kk,"Уа, Алла, менің барлық күнәларымды — кішісін де, үлкенін де — кешіре гөр."
+tawaf2_tarab1,ms,"Ya Allah, ampunilah semua dosaku, yang kecil dan yang besar."
+tawaf2_tarab1,ru,"О Аллах, прости все мои грехи — малые и большие."
+tawaf2_tarab1,tr,"Ey Allah’ım, tüm günahlarımı bağışla; küçüğünü de büyüğünü de."
+tawaf2_tarab1,uz,"Ey Alloh, mening barcha gunohlarimni — kichigini ham, kattasini ham — mag‘firat qil."
+tawaf2_text1,ar,اطلبوا المغفرة وطهارة النفس. ذكر: أستغفر الله، أستغفر الله. لتُمحَ ذنوبكم وخطاياكم.
+tawaf2_text1,en,"Ask for forgiveness and purification of the soul. Dhikr: Astagfirullah, Astagfirullah. May your mistakes and sins be erased."
+tawaf2_text1,fr,"Demandez le pardon et la purification de l’âme. Dhikr: Astagfirullah, Astagfirullah. Que vos fautes et vos péchés soient effacés."
+tawaf2_text1,id,"Mohon keampunan dan penyucian jiwa. Zikir: Astagfirullah, Astagfirullah. Semoga dosa dan kesalahanmu dihapuskan."
+tawaf2_text1,kk,"Кешірім мен жанның тазалануын тілеңіз. Зикр: Астагфируллах, Астагфируллах. Қателіктеріңіз бен күнәларыңыз кешірілсін."
+tawaf2_text1,ms,"Mohon keampunan dan penyucian jiwa. Zikir: Astagfirullah, Astagfirullah. Semoga dosa dan kesalahan dihapuskan."
+tawaf2_text1,ru,"Просите прощения и очищения души. Зикр: Астагфируллах, Астагфируллах. Пусть стираются ваши ошибки и грехи."
+tawaf2_text1,tr,"Af ve ruhun arınmasını isteyin. Zikir: Astagfirullah, Astagfirullah. Hatalarınız ve günahlarınız silinsin."
+tawaf2_text1,uz,"Kechirim va qalb poklanishini so‘rang. Zikr: Astagfirullah, Astagfirullah. Gunohlaringiz va xatolaringiz o‘chsin."
+tawaf2_text2,ar,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,en,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,fr,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,id,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,kk,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,ms,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,ru,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,tr,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_text2,uz,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf3_tarab1,ar,اللهم إنك عفو تحب العفو فاعف عني
+tawaf3_tarab1,en,"O Allah, You are Most Forgiving and love forgiveness, so forgive me."
+tawaf3_tarab1,fr,"Ô Allah, Tu es Pardonneur et Tu aimes le pardon, alors pardonne-moi."
+tawaf3_tarab1,id,"Ya Allah, Engkau Maha Pengampun dan menyukai ampunan, maka ampunilah aku."
+tawaf3_tarab1,kk,"Уа, Алла, Сен аса Кешірімдісің және кешіруді жақсы көресің, сондықтан мені кешіре гөр."
+tawaf3_tarab1,ms,"Ya Allah, Engkau Maha Pengampun dan menyukai keampunan, maka ampunilah aku."
+tawaf3_tarab1,ru,"О Аллах, Ты Прощающий и любишь прощение, так прости меня."
+tawaf3_tarab1,tr,"Ey Allah’ım, Sen çok bağışlayansın ve bağışlamayı seversin, beni bağışla."
+tawaf3_tarab1,uz,"Ey Alloh, Sen Mag‘firat qiluvchisan va mag‘firatni sevasan, bas meni mag‘firat qil."
+tawaf3_text1,ar,ادعوا لأحبابكم ولمن تحبون. دعاء: ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار.
+tawaf3_text1,en,"Pray for your loved ones and those close to your heart. Dua: Rabbana atina fid-dunya hasanah, wa fil-akhirati hasanah, wa qina azaban-nar."
+tawaf3_text1,fr,"Priez pour vos proches et ceux que vous aimez. Dua: Rabbana atina fid-dunya hasanah, wa fil-akhirati hasanah, wa qina azaban-nar."
+tawaf3_text1,id,"Berdoalah untuk orang-orang terdekat dan yang kamu cintai. Doa: Rabbana atina fid-dunya hasanah, wa fil-akhirati hasanah, wa qina azaban-nar."
+tawaf3_text1,kk,"Жақындарыңыз бен жақсы көретін жандар үшін дұға етіңіз. Дуа: Раббана атина фид-дуния хасана, ва фил-ахирати хасана, ва кина азабаннар."
+tawaf3_text1,ms,"Berdoalah untuk orang tersayang dan yang kamu cintai. Doa: Rabbana atina fid-dunya hasanah, wa fil-akhirati hasanah, wa qina azaban-nar."
+tawaf3_text1,ru,"Молитесь о своих близких и тех, кого любите. Дуа: Раббана атина фид-дуния хасана, ва фил-ахирати хасана, ва кина азабаннар."
+tawaf3_text1,tr,"Sevdikleriniz ve yakınlarınız için dua edin. Dua: Rabbana atina fid-dunya hasanah, wa fil-akhirati hasanah, wa qina azaban-nar."
+tawaf3_text1,uz,"Yaqinlaringiz va sevganlaringiz uchun duo qiling. Dua: Rabbana atina fid-dunya hasanah, wa fil-akhirati hasanah, wa qina azaban-nar."
+tawaf3_text2,ar,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,en,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,fr,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,id,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,kk,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,ms,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,ru,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,tr,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_text2,uz,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf4_tarab1,ar,اللهم أصلح لي ديني ودنياي وآخرتي
+tawaf4_tarab1,en,"O Allah, set right for me my religion, my worldly life, and my hereafter."
+tawaf4_tarab1,fr,"Ô Allah, améliore pour moi ma religion, ma vie d’ici-bas et mon au-delà."
+tawaf4_tarab1,id,"Ya Allah, perbaikilah agamaku, kehidupanku di dunia, dan kehidupanku di akhirat."
+tawaf4_tarab1,kk,"Уа, Алла, менің дінімді, дүниелік өмірімді және ақыретімді дұрыс қыла гөр."
+tawaf4_tarab1,ms,"Ya Allah, perbaikilah agamaku, kehidupanku di dunia dan kehidupanku di akhirat."
+tawaf4_tarab1,ru,"О Аллах, приведи в порядок мою религию, мою мирскую жизнь и мою будущую жизнь."
+tawaf4_tarab1,tr,"Ey Allah’ım, dinimi, dünya hayatımı ve ahiretimi benim için düzelt."
+tawaf4_tarab1,uz,"Ey Alloh, mening dinimni, dunyoviy hayotimni va oxiratimni to‘g‘ri qil."
+tawaf4_text1,ar,اشكروا الله على فضله وعلى أنكم هنا. ذكر: الحمد لله. قولوا ذلك بقلب ممتن.
+tawaf4_text1,en,Be grateful to Allah for His generosity and for being here. Dhikr: Alhamdulillah. Say it with a feeling of gratitude.
+tawaf4_text1,fr,Remerciez Allah pour Sa générosité et pour le fait d’être ici. Dhikr: Alhamdulillah. Prononcez-le avec un sentiment de gratitude.
+tawaf4_text1,id,Bersyukurlah kepada Allah atas kemurahan-Nya dan kerana kamu berada di sini. Zikir: Alhamdulillah. Ucapkan dengan rasa syukur.
+tawaf4_text1,kk,Алланың кеңшілігі үшін және осы жерде болғаныңыз үшін шүкір етіңіз. Зикр: Альхамдулиллях. Оны ризашылықпен айтыңыз.
+tawaf4_text1,ms,Bersyukurlah kepada Allah atas kemurahan-Nya dan kerana anda berada di sini. Zikir: Alhamdulillah. Sebutkan dengan penuh rasa syukur.
+tawaf4_text1,ru,"Благодарите Аллаха за Его щедрость и за то, что вы здесь. Зикр: Альхамдулиллях. Произносите с чувством благодарности."
+tawaf4_text1,tr,Allah'ın cömertliği ve burada olmanız için şükredin. Zikir: Alhamdulillah. Şükür duygusuyla söyleyin.
+tawaf4_text1,uz,Allohning saxovatiga va bu yerda ekaningiz uchun shukr qiling. Zikr: Alhamdulillah. Uni minnatdorchilik bilan ayting.
+tawaf4_text2,ar,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,en,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,fr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,id,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,kk,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,ms,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,ru,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,tr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_text2,uz,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_tarab1,ar,اللهم اهدني وثبت قلبي على دينك
+tawaf5_tarab1,en,"O Allah, guide me and keep my heart firm upon Your religion."
+tawaf5_tarab1,fr,"Ô Allah, guide-moi et affermis mon cœur sur Ta religion."
+tawaf5_tarab1,id,"Ya Allah, bimbinglah aku dan teguhkan hatiku di atas agama-Mu."
+tawaf5_tarab1,kk,"Уа, Алла, мені тура жолға сал және жүрегімді Сенің дініңде берік қыл."
+tawaf5_tarab1,ms,"Ya Allah, berilah aku petunjuk dan tetapkan hatiku di atas agama-Mu."
+tawaf5_tarab1,ru,"О Аллах, наставь меня и укрепи моё сердце на Твоей религии."
+tawaf5_tarab1,tr,"Ey Allah’ım, bana hidayet ver ve kalbimi Senin dinin üzerinde sabit kıl."
+tawaf5_tarab1,uz,"Ey Alloh, meni hidoyat qil va qalbimni Sening diningda sobit qil."
+tawaf5_text1,ar,اسألوا الله أن يثبت إيمانكم ويهديكم إلى الصراط المستقيم. دعاء: يا مقلب القلوب ثبت قلبي على دينك.
+tawaf5_text1,en,"Ask Allah to strengthen your faith and guide you to the straight path. Dua: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text1,fr,"Demandez à Allah de renforcer votre foi et de vous guider sur le droit chemin. Dua: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text1,id,"Mohon kepada Allah agar imanmu dikuatkan dan diberi petunjuk ke jalan yang benar. Doa: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text1,kk,"Qұдайдан иманыңды нығайтып, тура жолға салуын сұра. Дуа: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text1,ms,"Mohon kepada Allah agar imanmu dikuatkan dan ditunjukkan ke jalan yang benar. Doa: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text1,ru,"Просите Аллаха укрепить ваш иман и направить на верный путь. Дуа: Я Мукаллиб аль-кулуб, саббит кальби аля диник. О Тот, Кто меняет сердца, укрепи моё сердце на Твоей религии."
+tawaf5_text1,tr,"Allah’tan imanınızı güçlendirmesini ve sizi doğru yola yönlendirmesini isteyin. Dua: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text1,uz,"Allohdan imoningizni mustahkamlashini va to‘g‘ri yo‘lga hidoyat qilishini so‘rang. Dua: Ya Muqallibal qulub, sabbit qalbi ala dinik."
+tawaf5_text2,ar,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,en,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,fr,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,id,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,kk,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,ms,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,ru,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,tr,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_text2,uz,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf6_tarab1,ar,اللهم بارك لي في رزقي وافتح لي أبواب رحمتك
+tawaf6_tarab1,en,"O Allah, bless my provision and open for me the doors of Your mercy."
+tawaf6_tarab1,fr,"Ô Allah, bénis ma subsistance et ouvre-moi les portes de Ta miséricorde."
+tawaf6_tarab1,id,"Ya Allah, berkahilah rezekiku dan bukakan untukku pintu-pintu rahmat-Mu."
+tawaf6_tarab1,kk,"Уа, Алла, ризық-несібеме береке бер және маған Өзіңнің рақымыңның есіктерін аш."
+tawaf6_tarab1,ms,"Ya Allah, berkatilah rezekiku dan bukakan untukku pintu-pintu rahmat-Mu."
+tawaf6_tarab1,ru,"О Аллах, благослови мой удел и открой для меня двери Твоей милости."
+tawaf6_tarab1,tr,"Ey Allah’ım, rızkime bereket ver ve bana rahmetinin kapılarını aç."
+tawaf6_tarab1,uz,"Ey Alloh, rizqimni barakali qil va menga O‘zingning rahmating eshiklarini och."
+tawaf6_text1,ar,ليكن لسانكم رطبًا بذكر الله، وليكن القلب خاشعًا. ذكر: سبحان الله، والحمد لله، ولا إله إلا الله، والله أكبر.
+tawaf6_text1,en,"Let your tongue remember Allah and let your heart be gentle. Dhikr: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text1,fr,"Que votre langue se souvienne d’Allah et que votre cœur soit doux. Dhikr: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text1,id,"Biarkan lidahmu mengingat Allah dan hatimu menjadi lembut. Zikir: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text1,kk,"Тіліңіз Алланы еске алсын, ал жүрегіңіз жұмсақ болсын. Зикр: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text1,ms,"Biarkan lidah mengingati Allah dan hati menjadi lembut. Zikir: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text1,ru,"Пусть ваш язык поминает Аллаха, а сердце будет мягким. Зикр: Субханаллах, вальхамдулиллях, ва ля иляха иллаллах, ва Аллаху Акбар."
+tawaf6_text1,tr,"Diliniz Allah’ı ansın, kalbiniz ise yumuşak olsun. Zikir: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text1,uz,"Tilingiz Allohni zikr qilsin, qalbingiz esa yumshoq bo‘lsin. Zikr: Subhanallah, walhamdulillah, wa la ilaha illallah, wa Allahu Akbar."
+tawaf6_text2,ar,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,en,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,fr,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,id,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,kk,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,ms,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,ru,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,tr,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_text2,uz,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf7_tarab1,ar,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_tarab1,en,"Our Lord, give us good in this world and good in the Hereafter and protect us from the punishment of the Fire."
+tawaf7_tarab1,fr,"Ô notre Seigneur, accorde-nous le bien ici-bas et le bien dans l’au-delà et protège-nous du châtiment du Feu."
+tawaf7_tarab1,id,"Wahai Tuhan kami, berilah kami kebaikan di dunia dan kebaikan di akhirat serta lindungilah kami dari azab api Neraka."
+tawaf7_tarab1,kk,"Раббымыз, бізге бұл дүниеде жақсылық бер, ақыретте де жақсылық бер және бізді От азабынан қорға."
+tawaf7_tarab1,ms,"Wahai Tuhan kami, berilah kami kebaikan di dunia dan kebaikan di akhirat serta lindungilah kami daripada azab api Neraka."
+tawaf7_tarab1,ru,"Господь наш, даруй нам благо в этом мире и благо в Последней жизни и защити нас от наказания Огня."
+tawaf7_tarab1,tr,"Ey Rabbimiz, bize dünyada da iyilik ver, ahirette de iyilik ver ve bizi ateş azabından koru."
+tawaf7_tarab1,uz,"Ey Rabbimiz, bizga bu dunyoda ham yaxshilik ber, oxiratda ham yaxshilik ber va bizni Do‘zax azobidan asra."
+tawaf7_text1,ar,اختموا الطواف بالدعاء والشكر. دعاء: اللهم تقبل منا.
+tawaf7_text1,en,Complete the circuit with supplication and gratitude. Dua: Allahumma taqabbal minna.
+tawaf7_text1,fr,Terminez le circuit avec invocation et gratitude. Dua: Allahumma taqabbal minna.
+tawaf7_text1,id,Akhiri putaran dengan doa dan rasa syukur. Doa: Allahumma taqabbal minna.
+tawaf7_text1,kk,Айналуды дұға мен ризашылықпен аяқтаңыз. Дуа: Allahumma taqabbal minna.
+tawaf7_text1,ms,Akhiri pusingan dengan doa dan rasa syukur. Doa: Allahumma taqabbal minna.
+tawaf7_text1,ru,"Завершите обход с мольбой и благодарностью. Дуа: Аллахумма такаббал минна. О Аллах, прими от нас."
+tawaf7_text1,tr,Tavafı dua ve şükürle tamamlayın. Dua: Allahumma taqabbal minna.
+tawaf7_text1,uz,Aylanishni duo va shukronalik bilan yakunlang. Dua: Allahumma taqabbal minna.
+tawaf7_text2,ar,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,en,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,fr,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,id,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,kk,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,ms,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,ru,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,tr,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_text2,uz,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawafpray_text1,ar,يُستحب أداء ركعتين بعد الطواف عند مقام إبراهيم (إن تيسر) أو في أي مكان مناسب.
+tawafpray_text1,en,"It is recommended to perform 2 rak'ahs near Maqam Ibrahim (if accessible), or in any convenient place after the tawaf."
+tawafpray_text1,fr,"Il est recommandé d’accomplir 2 rakaats près de Maqam Ibrahim (si possible), ou dans tout endroit approprié après le tawaf."
+tawafpray_text1,id,Dianjurkan shalat 2 rakaat di dekat Maqam Ibrahim (jika memungkinkan) atau di tempat mana pun setelah tawaf.
+tawafpray_text1,kk,"Егер мүмкіндік болса, Ибрахим мақамының жанында 2 ракағат намаз оқу ұсынылады, болмаса – тауаптан кейін кез келген қолайлы жерде."
+tawafpray_text1,ms,"Jika boleh, solatlah 2 rakaat berhampiran Maqam Ibrahim, atau di mana-mana tempat yang sesuai selepas tawaf."
+tawafpray_text1,ru,Рекомендуется совершить 2 ракаата возле Макама Ибрахима (если есть доступ) или в любом удобном месте после тавафа.
+tawafpray_text1,tr,Mümkünse Makam-ı İbrahim’in yanında 2 rekât namaz kılmanız tavsiye edilir; değilse tavaftan sonra uygun bir yerde kılabilirsiniz.
+tawafpray_text1,uz,Makom Ibrohim yonida (imkon bo‘lsa) 2 rakat namoz o‘qish tavsiya etiladi yoki tawofdan keyin qulay joyda o‘qing.
+tawafpray_title1,ar,الصلاة بعد الطواف
+tawafpray_title1,en,PRAYER AFTER TAWAF
+tawafpray_title1,fr,PRIÈRE APRÈS LE TAWAF
+tawafpray_title1,id,SHALAT SETELAH TAWAF
+tawafpray_title1,kk,ТАУАФТАН КЕЙІНГІ НАМАЗ
+tawafpray_title1,ms,SOLAT SELEPAS TAWAF
+tawafpray_title1,ru,МОЛИТВА ПОСЛЕ ТАВАФА
+tawafpray_title1,tr,TAVAF SONRASI NAMAZ
+tawafpray_title1,uz,TAWOFdAN KEYINGI NAMOZ
+zamzam_text,ar,المعنى: يُعد ماء زمزم ماءً مباركًا ومقدسًا، وشربه بعد الطواف يرمز إلى شكر الله ونيل رحمته.
+zamzam_text,en,Meaning: Zamzam water is considered sacred and blessed. Drinking it after tawaf symbolizes gratitude to Allah and seeking His mercy.
+zamzam_text,fr,Sens : L’eau de Zamzam est considérée comme sacrée et bénie. La boire après le tawaf symbolise la gratitude envers Allah et la demande de Sa miséricorde.
+zamzam_text,id,Makna: Air Zamzam dianggap suci dan penuh berkah. Meminumnya setelah tawaf melambangkan rasa syukur kepada Allah dan memohon rahmat-Nya.
+zamzam_text,kk,Мағынасы: Зам-Зам суы қасиетті және берекелі саналады. Тауаптан кейін оны ішу — Аллаға шүкіршілік пен Оның мейірімін сұрауды білдіреді.
+zamzam_text,ms,Maksud: Air Zam-Zam dianggap suci dan penuh keberkatan. Meminumnya selepas tawaf melambangkan kesyukuran kepada Allah dan memohon rahmat-Nya.
+zamzam_text,ru,Смысл: вода Зам-Зам считается святой и благословенной. Пить её после тавафа символизирует благодарность Аллаху и получение Его милости.
+zamzam_text,tr,"Anlam: Zemzem suyu kutsal ve bereketlidir. Tavaftan sonra içmek, Allah’a şükretmeyi ve O’nun rahmetini dilemeyi simgeler."
+zamzam_text,uz,Ma’no: Zam-Zam suvi muqaddas va barokatli sanaladi. Uni tawofdan keyin ichish Allohga shukronalik va Uning rahmatini tilashni anglatadi.
+zamzam_title,ar,اشربوا من ماء زمزم
+zamzam_title,en,DRINK THE WATER
+zamzam_title,fr,BUVEZ L’EAU
+zamzam_title,id,MINUMLAH AIR ZAM-ZAM
+zamzam_title,kk,СУ ІШІҢІЗ
+zamzam_title,ms,MINUMLAH AIR
+zamzam_title,ru,ПЕЙТЕ ВОДУ
+zamzam_title,tr,SU İÇİN
+zamzam_title,uz,SUV ICHING
+zamzam_title1,ar,انظروا إلى الكعبة
+zamzam_title1,en,LOOK AT THE KAABA
+zamzam_title1,fr,REGARDEZ LA KAABA
+zamzam_title1,id,LIHATLAH KA’BAH
+zamzam_title1,kk,ҚАБАҒА ҚАРАҢЫЗ
+zamzam_title1,ms,LIHAT KAABAH
+zamzam_title1,ru,ПОСМОТРИТЕ НА КААБУ
+zamzam_title1,tr,KÂBE’YE BAKIN
+zamzam_title1,uz,KAABAGA QARANG

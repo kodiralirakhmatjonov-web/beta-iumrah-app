@@ -1,0 +1,9 @@
+BETA_UMRAH_FLOW_061_APPLIED
+
+- Added isolated native SwiftUI `Sources/Umrah Flow/` module.
+- Migrated the core legacy Umrah sequence: Start -> Tawaf (7 rounds) -> post-Tawaf -> Safa & Marwa (7 rounds) -> completion -> After Umrah.
+- Added native animated Advisor voice waveform and AVPlayer playback from Supabase audio URLs.
+- Added Supabase translation/audio loader with offline cache and `translations2` -> `translations` fallback.
+- Added native Liquid Glass / iOS 17+ compatible controls and Sunnah Dua sheet.
+- Added Home card: Start Umrah with iumrah Advisor / Voice Guide.
+- Included Umrah-only translation and audio export snapshots under `Sources/Umrah Flow/Data/`.
