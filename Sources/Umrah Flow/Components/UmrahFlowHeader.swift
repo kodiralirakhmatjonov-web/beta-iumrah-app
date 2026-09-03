@@ -3,59 +3,70 @@ import SwiftUI
 struct UmrahFlowHeader: View {
     let title: String
     let progress: Double
-    let onClose: () -> Void
+    let showsModeToggle: Bool
+    let isModeBarVisible: Bool
+    let onToggleModeBar: () -> Void
+    let onOpenNavigator: () -> Void
 
     var body: some View {
-        VStack(spacing: 13) {
+        VStack(spacing: 14) {
             HStack(spacing: 12) {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 38, height: 38)
-                        .background(Color.white.opacity(0.08), in: Circle())
-                        .overlay { Circle().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7) }
-                }
-                .buttonStyle(.plain)
-
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("iumrah")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .tracking(1.4)
-                        .foregroundStyle(.white.opacity(0.46))
-                    Text(title)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .tracking(-0.6)
                         .foregroundStyle(.white)
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.46))
                 }
 
-                Spacer()
+                Spacer(minLength: 8)
 
-                Text("\(Int((max(0, min(progress, 1)) * 100).rounded()))%")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
+                if showsModeToggle {
+                    UmrahGlassIconButton(
+                        systemName: isModeBarVisible ? "line.3.horizontal.decrease" : "line.3.horizontal",
+                        foreground: .white,
+                        accent: Color(red: 0.96, green: 0.38, blue: 0.04),
+                        accessibilityLabel: isModeBarVisible ? "Hide mode bar" : "Show mode bar",
+                        action: onToggleModeBar
+                    )
+                    .transition(.scale.combined(with: .opacity))
+                }
+
+                UmrahGlassIconButton(
+                    systemName: "chevron.backward",
+                    foreground: .white,
+                    accessibilityLabel: "Umrah navigation",
+                    action: onOpenNavigator
+                )
             }
 
             GeometryReader { proxy in
-                let width = max(0, min(proxy.size.width, proxy.size.width * CGFloat(progress)))
+                let normalized = max(0, min(progress, 1))
+                let width = proxy.size.width * CGFloat(normalized)
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.10))
+                    Capsule().fill(Color.white.opacity(0.055))
                     Capsule()
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 1.00, green: 0.66, blue: 0.24),
-                                    Color(red: 0.96, green: 0.37, blue: 0.04)
+                                    Color(red: 1.00, green: 0.66, blue: 0.22),
+                                    Color(red: 0.96, green: 0.38, blue: 0.04)
                                 ],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
-                        .frame(width: width)
+                        .frame(width: max(normalized > 0 ? 22 : 0, width))
+                        .animation(.spring(response: 0.42, dampingFraction: 0.88), value: normalized)
                 }
+                .iumrahGlass(in: Capsule())
             }
-            .frame(height: 6)
+            .frame(height: 14)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 6)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
 }

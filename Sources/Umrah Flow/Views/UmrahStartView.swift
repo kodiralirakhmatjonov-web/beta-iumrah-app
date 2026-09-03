@@ -14,7 +14,8 @@ struct UmrahStartView: View {
                     store: store,
                     audio: audio,
                     audioKey: "tawaf_start",
-                    subtitle: "Umrah Voice Guide"
+                    subtitle: "Umrah Voice Guide",
+                    progress: flow.topProgress
                 )
 
                 VStack(alignment: .leading, spacing: 16) {
@@ -29,28 +30,25 @@ struct UmrahStartView: View {
                             .foregroundStyle(.white.opacity(0.40))
                     }
 
-                    Text(store.text(phaseKeys[flow.startPhase], fallback: fallbackText))
-                        .font(.system(size: instructionFontSize, weight: .bold, design: .rounded))
-                        .tracking(-0.7)
-                        .foregroundStyle(.white)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .contentTransition(.numericText())
-                        .animation(.easeInOut(duration: 0.24), value: flow.startPhase)
+                    UmrahAnimatedText(
+                        text: store.text(phaseKeys[flow.startPhase], fallback: fallbackText),
+                        font: .system(size: instructionFontSize, weight: .bold, design: .rounded),
+                        foreground: .white,
+                        alignment: .leading,
+                        lineSpacing: 5
+                    )
                 }
                 .frame(maxWidth: .infinity, minHeight: 245, alignment: .bottomLeading)
                 .padding(22)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.7)
-                }
+                .background(Color.white.opacity(0.022), in: RoundedRectangle(cornerRadius: 42, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 42, style: .continuous))
 
                 HStack(spacing: 12) {
                     if flow.startPhase > 0 {
                         UmrahFlowSecondaryButton(title: backLabel) {
                             audio.stop()
                             IumrahHaptics.selection()
-                            withAnimation(.easeInOut(duration: 0.25)) { flow.startPhase -= 1 }
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) { flow.startPhase -= 1 }
                         }
                     }
 
@@ -58,15 +56,15 @@ struct UmrahStartView: View {
                         audio.stop()
                         IumrahHaptics.selection()
                         if flow.startPhase < phaseKeys.count - 1 {
-                            withAnimation(.easeInOut(duration: 0.25)) { flow.startPhase += 1 }
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) { flow.startPhase += 1 }
                         } else {
-                            withAnimation(.easeInOut(duration: 0.28)) { flow.stage = .tawaf }
+                            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.stage = .tawaf }
                         }
                     }
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
         }
     }
 

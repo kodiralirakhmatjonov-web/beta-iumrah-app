@@ -8,12 +8,18 @@ struct InUmrahView: View {
         ScrollView {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 9) {
-                    Text(store.text("home1_title", fallback: "Your Umrah"))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text(store.text("home1_sub", fallback: "A step-by-step Umrah with iumrah Advisor."))
-                        .font(.title3.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.58))
+                    UmrahAnimatedText(
+                        text: store.text("home1_title", fallback: "Your Umrah"),
+                        font: .system(size: 36, weight: .bold, design: .rounded),
+                        foreground: .white,
+                        alignment: .leading
+                    )
+                    UmrahAnimatedText(
+                        text: store.text("home1_sub", fallback: "A step-by-step Umrah with iumrah Advisor."),
+                        font: .title3.weight(.medium),
+                        foreground: .white.opacity(0.58),
+                        alignment: .leading
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -31,14 +37,15 @@ struct InUmrahView: View {
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .background(Color.white.opacity(0.022), in: RoundedRectangle(cornerRadius: 42, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 42, style: .continuous))
 
                 UmrahFlowPrimaryButton(
                     title: store.text("home1_btn", fallback: "Start Umrah"),
                     systemImage: "play.fill"
                 ) {
                     IumrahHaptics.success()
-                    withAnimation(.easeInOut(duration: 0.28)) { flow.stage = .start }
+                    withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.stage = .start }
                 }
             }
             .padding(.horizontal, 20)

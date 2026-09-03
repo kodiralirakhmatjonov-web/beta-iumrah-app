@@ -1,0 +1,14 @@
+{
+  "update": "BETA_UMRAH_FLOW_062",
+  "target": "iumrah Beta / com.iumrah.beta",
+  "scope": "cumulative Umrah Flow v2 patch",
+  "requirements": [
+    "free Umrah Flow; no StoreKit, subscription, premium or paywall gating",
+    "Tawaf and Safa & Marwa switch between Listening and Reading",
+    "Tawaf Reading uses isolated Supabase translation keys",
+    "native SwiftUI sheets for language info and Umrah stage/exit navigation",
+    "iOS 26 native glassEffect via iumrahGlass with iOS 17+ Material fallback",
+    "Advisor wave/card and rounded ritual UI",
+    "prayer step uses prayer-hands icon instead of meditation/relax icon"
+  ]
+}

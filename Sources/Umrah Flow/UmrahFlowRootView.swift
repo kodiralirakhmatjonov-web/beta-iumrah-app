@@ -8,6 +8,8 @@ struct UmrahFlowRootView: View {
     @StateObject private var flow: UmrahFlowState
     @StateObject private var store = UmrahFlowStore()
     @StateObject private var audio = UmrahFlowAudioService()
+    @State private var showsNavigator = false
+    @State private var showsRitualModeBar = true
 
     init(initialStage: UmrahFlowState.Stage = .start) {
         _flow = StateObject(wrappedValue: UmrahFlowState(initialStage: initialStage))
@@ -19,12 +21,12 @@ struct UmrahFlowRootView: View {
 
             RadialGradient(
                 colors: [
-                    Color(red: 0.94, green: 0.32, blue: 0.03).opacity(0.24),
+                    Color(red: 0.94, green: 0.32, blue: 0.03).opacity(0.23),
                     Color.black.opacity(0)
                 ],
                 center: .bottom,
                 startRadius: 20,
-                endRadius: 430
+                endRadius: 470
             )
             .ignoresSafeArea()
 
@@ -32,7 +34,17 @@ struct UmrahFlowRootView: View {
                 UmrahFlowHeader(
                     title: stageTitle,
                     progress: flow.topProgress,
-                    onClose: close
+                    showsModeToggle: supportsRitualModeBar,
+                    isModeBarVisible: showsRitualModeBar,
+                    onToggleModeBar: {
+                        withAnimation(.spring(response: 0.38, dampingFraction: 0.90)) {
+                            showsRitualModeBar.toggle()
+                        }
+                    },
+                    onOpenNavigator: {
+                        audio.stop()
+                        showsNavigator = true
+                    }
                 )
 
                 Group {
@@ -42,18 +54,20 @@ struct UmrahFlowRootView: View {
                     case .start:
                         UmrahStartView(flow: flow, store: store, audio: audio)
                     case .tawaf:
-                        TawafView(flow: flow, store: store, audio: audio)
+                        TawafView(flow: flow, store: store, audio: audio, showsModeBar: showsRitualModeBar)
                     case .postTawaf:
                         UmrahView(flow: flow, store: store, audio: audio)
                     case .safa:
-                        SafaView(flow: flow, store: store, audio: audio)
+                        SafaView(flow: flow, store: store, audio: audio, showsModeBar: showsRitualModeBar)
                     case .end:
                         UmrahEndView(flow: flow, store: store, audio: audio)
                     case .afterUmrah:
                         AfterUmrahView(flow: flow, store: store, onFinish: close)
                     }
                 }
+                .id(flow.stage)
                 .transition(.opacity.combined(with: .move(edge: .trailing)))
+                .animation(.spring(response: 0.48, dampingFraction: 0.90), value: flow.stage)
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -62,10 +76,17 @@ struct UmrahFlowRootView: View {
         .task(id: settings.language.rawValue) {
             await store.load(language: settings.language)
         }
+        .onChange(of: flow.stage) { _, _ in
+            audio.stop()
+            showsRitualModeBar = true
+        }
         .onAppear { chrome.setImmersive(true) }
         .onDisappear {
             audio.stop()
             chrome.setImmersive(false)
+        }
+        .sheet(isPresented: $showsNavigator) {
+            UmrahFlowNavigatorSheet(flow: flow, store: store, onExit: close)
         }
     }
 
@@ -73,6 +94,10 @@ struct UmrahFlowRootView: View {
         audio.stop()
         IumrahHaptics.selection()
         dismiss()
+    }
+
+    private var supportsRitualModeBar: Bool {
+        flow.stage == .tawaf || flow.stage == .safa
     }
 
     private var stageTitle: String {

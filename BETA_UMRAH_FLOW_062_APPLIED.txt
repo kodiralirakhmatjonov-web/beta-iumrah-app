@@ -1,0 +1,3 @@
+BETA_UMRAH_FLOW_062_APPLIED
+
+Native SwiftUI Umrah Flow v2: Tawaf/Safa Listening + Reading modes, vertical reading swipe pages, free Advisor voice guide, iOS 26 Liquid Glass controls with iOS 17+ material fallback, native stage/exit sheet, animated text transitions, rounded Advisor block, 10+ languages info sheet, and prayer icon correction.

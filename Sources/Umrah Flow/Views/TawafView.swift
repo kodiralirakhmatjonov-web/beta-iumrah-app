@@ -4,16 +4,45 @@ struct TawafView: View {
     @ObservedObject var flow: UmrahFlowState
     @ObservedObject var store: UmrahFlowStore
     @ObservedObject var audio: UmrahFlowAudioService
+    let showsModeBar: Bool
+
     @State private var showsSunnahDua = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            if showsModeBar {
+                UmrahRitualModeBar(mode: $flow.tawafMode) {
+                    audio.stop()
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            Group {
+                switch flow.tawafMode {
+                case .listening:
+                    listeningView
+                case .reading:
+                    TawafReadingPage(flow: flow, store: store)
+                }
+            }
+            .id(flow.tawafMode)
+            .transition(.opacity.combined(with: .scale(scale: 0.992)))
+            .animation(.spring(response: 0.42, dampingFraction: 0.90), value: flow.tawafMode)
+        }
+        .sheet(isPresented: $showsSunnahDua) {
+            SunnahDuaSheet(store: store)
+        }
+    }
+
+    private var listeningView: some View {
         ScrollView {
             VStack(spacing: 20) {
                 UmrahAdvisorCard(
                     store: store,
                     audio: audio,
                     audioKey: "tawaf_\(flow.tawafRound)",
-                    subtitle: "Tawaf · Round \(flow.tawafRound)"
+                    subtitle: "Tawaf · Round \(flow.tawafRound)",
+                    progress: flow.topProgress
                 )
 
                 VStack(spacing: 16) {
@@ -46,18 +75,19 @@ struct TawafView: View {
 
                     Button {
                         IumrahHaptics.selection()
-                        withAnimation(.easeInOut(duration: 0.22)) {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) {
                             flow.tawafTextMode = (flow.tawafTextMode + 1) % 3
                         }
                     } label: {
                         VStack(alignment: .leading, spacing: 14) {
-                            Text(activeText)
-                                .font(.system(size: activeFontSize, weight: flow.tawafTextMode == 2 ? .medium : .semibold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .multilineTextAlignment(flow.tawafTextMode == 2 ? .center : .leading)
-                                .frame(maxWidth: .infinity, alignment: flow.tawafTextMode == 2 ? .center : .leading)
-                                .environment(\.layoutDirection, flow.tawafTextMode == 2 ? .rightToLeft : .leftToRight)
-                                .fixedSize(horizontal: false, vertical: true)
+                            UmrahAnimatedText(
+                                text: activeText,
+                                font: .system(size: activeFontSize, weight: flow.tawafTextMode == 2 ? .medium : .semibold, design: .rounded),
+                                foreground: .white,
+                                alignment: flow.tawafTextMode == 2 ? .center : .leading,
+                                lineSpacing: 5,
+                                isArabic: flow.tawafTextMode == 2
+                            )
 
                             HStack {
                                 HStack(spacing: 7) {
@@ -73,13 +103,10 @@ struct TawafView: View {
                                     .foregroundStyle(.white.opacity(0.34))
                             }
                         }
-                        .padding(20)
-                        .frame(maxWidth: .infinity, minHeight: 230, alignment: .topLeading)
-                        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.7)
-                        }
+                        .padding(22)
+                        .frame(maxWidth: .infinity, minHeight: 238, alignment: .topLeading)
+                        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 38, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 38, style: .continuous))
                     }
                     .buttonStyle(.plain)
 
@@ -93,13 +120,13 @@ struct TawafView: View {
                             Spacer()
                             Image(systemName: "chevron.up")
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(.secondary)
                         }
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 18)
-                        .frame(height: 54)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .frame(height: 56)
+                        .background(Color.white.opacity(0.025), in: Capsule())
+                        .iumrahGlass(in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -114,10 +141,7 @@ struct TawafView: View {
                 .id("tawaf-\(flow.tawafRound)")
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-        }
-        .sheet(isPresented: $showsSunnahDua) {
-            SunnahDuaSheet(store: store)
+            .padding(.vertical, 14)
         }
     }
 
@@ -143,10 +167,11 @@ struct TawafView: View {
     private func completeRound() {
         audio.stop()
         flow.tawafTextMode = 0
+        flow.resetTawafReading()
         if flow.tawafRound < 7 {
-            withAnimation(.easeInOut(duration: 0.28)) { flow.tawafRound += 1 }
+            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.tawafRound += 1 }
         } else {
-            withAnimation(.easeInOut(duration: 0.28)) { flow.stage = .postTawaf }
+            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.stage = .postTawaf }
         }
     }
 }

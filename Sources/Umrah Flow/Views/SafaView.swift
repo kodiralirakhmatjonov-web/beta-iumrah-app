@@ -4,15 +4,40 @@ struct SafaView: View {
     @ObservedObject var flow: UmrahFlowState
     @ObservedObject var store: UmrahFlowStore
     @ObservedObject var audio: UmrahFlowAudioService
+    let showsModeBar: Bool
 
     var body: some View {
+        VStack(spacing: 0) {
+            if showsModeBar {
+                UmrahRitualModeBar(mode: $flow.safaMode) {
+                    audio.stop()
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            Group {
+                switch flow.safaMode {
+                case .listening:
+                    listeningView
+                case .reading:
+                    SafaReadingPage(flow: flow, store: store)
+                }
+            }
+            .id(flow.safaMode)
+            .transition(.opacity.combined(with: .scale(scale: 0.992)))
+            .animation(.spring(response: 0.42, dampingFraction: 0.90), value: flow.safaMode)
+        }
+    }
+
+    private var listeningView: some View {
         ScrollView {
             VStack(spacing: 20) {
                 UmrahAdvisorCard(
                     store: store,
                     audio: audio,
                     audioKey: "safa_\(flow.safaRound)",
-                    subtitle: "Safa & Marwa · Round \(flow.safaRound)"
+                    subtitle: "Safa & Marwa · Round \(flow.safaRound)",
+                    progress: flow.topProgress
                 )
 
                 VStack(spacing: 16) {
@@ -86,7 +111,7 @@ struct SafaView: View {
                 .id("safa-\(flow.safaRound)")
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
         }
     }
 
@@ -98,38 +123,41 @@ struct SafaView: View {
                     .tracking(1.2)
                     .foregroundStyle(.white.opacity(0.34))
 
-                Text(text)
-                    .font(.system(size: text.count > 220 ? 20 : 23, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
+                UmrahAnimatedText(
+                    text: text,
+                    font: .system(size: text.count > 220 ? 20 : 23, weight: .semibold, design: .rounded),
+                    foreground: .white,
+                    alignment: .leading,
+                    lineSpacing: 5
+                )
 
                 if let arabic, !arabic.isEmpty {
                     Divider().overlay(Color.white.opacity(0.10))
-                    Text(arabic)
-                        .font(.system(size: 24, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.78))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .environment(\.layoutDirection, .rightToLeft)
+                    UmrahAnimatedText(
+                        text: arabic,
+                        font: .system(size: 24, weight: .medium, design: .rounded),
+                        foreground: .white.opacity(0.78),
+                        alignment: .center,
+                        lineSpacing: 8,
+                        isArabic: true
+                    )
                 }
             }
-            .padding(20)
+            .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.7)
-        }
+        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 38, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 38, style: .continuous))
     }
 
     private func completeRound() {
         audio.stop()
         flow.safaTextMode = 0
+        flow.resetSafaReading()
         if flow.safaRound < 7 {
-            withAnimation(.easeInOut(duration: 0.28)) { flow.safaRound += 1 }
+            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.safaRound += 1 }
         } else {
-            withAnimation(.easeInOut(duration: 0.28)) { flow.stage = .end }
+            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.stage = .end }
         }
     }
 }

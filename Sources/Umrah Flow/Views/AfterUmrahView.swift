@@ -13,15 +13,19 @@ struct AfterUmrahView: View {
                         .font(.system(size: 52, weight: .semibold))
                         .foregroundStyle(Color.iumrahCareLight)
 
-                    Text(store.text("home2_3title", fallback: "Umrah completed"))
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
+                    UmrahAnimatedText(
+                        text: store.text("home2_3title", fallback: "Umrah completed"),
+                        font: .system(size: 34, weight: .bold, design: .rounded),
+                        foreground: .white,
+                        alignment: .center
+                    )
 
-                    Text(store.text("home2_3_subtitle", fallback: "May Allah accept your Umrah and your duas."))
-                        .font(.title3.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.62))
-                        .multilineTextAlignment(.center)
+                    UmrahAnimatedText(
+                        text: store.text("home2_3_subtitle", fallback: "May Allah accept your Umrah and your duas."),
+                        font: .title3.weight(.medium),
+                        foreground: .white.opacity(0.62),
+                        alignment: .center
+                    )
                 }
                 .padding(.vertical, 18)
 
@@ -43,12 +47,15 @@ struct AfterUmrahView: View {
 
                 Button {
                     IumrahHaptics.selection()
-                    withAnimation(.easeInOut(duration: 0.28)) { flow.reset() }
+                    withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.reset() }
                 } label: {
                     Text(store.text("home_3_btn3", fallback: "Start another Umrah"))
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.56))
-                        .padding(.vertical, 10)
+                        .foregroundStyle(.white.opacity(0.66))
+                        .padding(.horizontal, 18)
+                        .frame(height: 48)
+                        .background(Color.white.opacity(0.025), in: Capsule())
+                        .iumrahGlass(in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -63,7 +70,8 @@ struct AfterUmrahView: View {
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 52, height: 52)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -78,10 +86,7 @@ struct AfterUmrahView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.7)
-        }
+        .background(Color.white.opacity(0.022), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 }

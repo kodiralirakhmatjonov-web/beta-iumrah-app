@@ -16,25 +16,21 @@ struct SunnahDuaSheet: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 38, height: 38)
-                            .background(Color.iumrahRaisedBackground, in: Circle())
+                    UmrahGlassIconButton(systemName: "xmark", foreground: .primary, accessibilityLabel: "Close") {
+                        dismiss()
                     }
-                    .buttonStyle(.plain)
                 }
 
                 Text(store.text("tawaf_common_text3", fallback: "Between the Yemeni Corner and the Black Stone"))
                     .font(.caption.weight(.bold))
                     .tracking(0.35)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
-                    .background(Color.black, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .background(Color.primary.opacity(0.03), in: Capsule())
+                    .iumrahGlass(in: Capsule())
 
                 Text("رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً، وَفِي الآخِرَةِ حَسَنَةً، وَقِنَا عَذَابَ النَّارِ")
                     .font(.system(size: 29, weight: .regular, design: .rounded))
@@ -54,7 +50,8 @@ struct SunnahDuaSheet: View {
                     .padding(.horizontal, 18)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
-                    .background(Color.iumrahCareLight.opacity(0.20), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
                 Text(store.text("tawaf_common_text4", fallback: "Ask Allah in your own words."))
                     .font(.title3.weight(.medium))
@@ -69,8 +66,9 @@ struct SunnahDuaSheet: View {
             .padding(22)
             .padding(.bottom, 24)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .presentationCornerRadius(40)
+        .presentationBackground(.thinMaterial)
     }
 }

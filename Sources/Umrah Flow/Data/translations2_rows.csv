@@ -1,4 +1,22 @@
 key,lang,value
+cancel_omra,ar,الخروج من العمرة
+cancel_omra,en,Exit Umrah
+cancel_omra,fr,Quitter la Omra
+cancel_omra,id,Keluar dari Umrah
+cancel_omra,kk,Умрадан шығу
+cancel_omra,ms,Keluar dari Umrah
+cancel_omra,ru,Выйти из умры
+cancel_omra,tr,Umreden çık
+cancel_omra,uz,O‘mrani tark etish
+close_button,ar,إغلاق
+close_button,en,Close
+close_button,fr,Fermer
+close_button,id,Tutup
+close_button,kk,Жабу
+close_button,ms,Tutup
+close_button,ru,Закрыть
+close_button,tr,Kapat
+close_button,uz,Yopish
 complete_btn,ar,تم
 complete_btn,en,DONE
 complete_btn,fr,TERMINÉ
@@ -89,60 +107,6 @@ home_3_btn3,ms,Umrah seterusnya
 home_3_btn3,ru,Следующая умра
 home_3_btn3,tr,Bir sonraki umre
 home_3_btn3,uz,Keyingi umra
-home_3_btn3_sub,ar,متى ترغبون في أداء العمرة مرة أخرى؟
-home_3_btn3_sub,en,When would you like to perform Umrah again?
-home_3_btn3_sub,fr,Quand souhaitez-vous accomplir la Omra à nouveau ?
-home_3_btn3_sub,id,Kapan Anda ingin menunaikan umrah lagi?
-home_3_btn3_sub,kk,Қашан тағы да умра жасағыңыз келеді?
-home_3_btn3_sub,ms,Bilakah anda ingin menunaikan umrah lagi?
-home_3_btn3_sub,ru,Когда вы еще хотите совершить умру?
-home_3_btn3_sub,tr,Bir sonraki umreyi ne zaman yapmak istersiniz?
-home_3_btn3_sub,uz,Qachon yana umra qilishni xohlaysiz?
-home_btn2_sub,ar,الدليل الصوتي الروحاني للعمرة
-home_btn2_sub,en,Spiritual voice guide for Umrah
-home_btn2_sub,fr,Guide vocal spirituel pour la Omra
-home_btn2_sub,id,Panduan suara spiritual untuk Umrah
-home_btn2_sub,kk,Умраға арналған рухани дыбыстық жетекші
-home_btn2_sub,ms,Panduan suara rohani untuk Umrah
-home_btn2_sub,ru,Голосовой гид для умры
-home_btn2_sub,tr,Umre için manevi sesli rehber
-home_btn2_sub,uz,O‘mra uchun ovozli ruhiy yo‘lko‘rsatgich
-home_btn3,ar,أدعـيتي
-home_btn3,en,My Duas
-home_btn3,fr,Mes invocations
-home_btn3,id,Doa-doa saya
-home_btn3,kk,Менің дұғаларым
-home_btn3,ms,Doa-doa saya
-home_btn3,ru,Мои Дуа
-home_btn3,tr,Benim dualarım
-home_btn3,uz,Mening duolarim
-home_btn5,ar,الخروج من وضع العمرة
-home_btn5,en,Exit Umrah mode
-home_btn5,fr,Quitter le mode Omra
-home_btn5,id,Keluar dari mode Umrah
-home_btn5,kk,Умра режимінен шығу
-home_btn5,ms,Keluar dari mod Umrah
-home_btn5,ru,Выйти из режима умры
-home_btn5,tr,Umre modundan çık
-home_btn5,uz,O‘mra rejimidan chiqish
-home_btn5_sub,ar,إنهاء جلسة العمرة
-home_btn5_sub,en,End Umrah session
-home_btn5_sub,fr,Terminer la session de la Omra
-home_btn5_sub,id,Akhiri sesi Umrah
-home_btn5_sub,kk,Умра сеансын аяқтау
-home_btn5_sub,ms,Tamatkan sesi Umrah
-home_btn5_sub,ru,Завершить сеанс умры
-home_btn5_sub,tr,Umre oturumunu sonlandır
-home_btn5_sub,uz,O‘mra seansini yakunlash
-home_btnp,ar,Premium Umrah
-home_btnp,en,Premium Umrah
-home_btnp,fr,Premium Umrah
-home_btnp,id,Premium Umrah
-home_btnp,kk,Premium Umrah
-home_btnp,ms,Premium Umrah
-home_btnp,ru,Premium Umrah
-home_btnp,tr,Premium Umrah
-home_btnp,uz,Premium Umrah
 home1_btn,ar,ابدأوا العمرة
 home1_btn,en,Start Umrah
 home1_btn,fr,Commencer la Omra
@@ -152,24 +116,6 @@ home1_btn,ms,Memulakan umrah
 home1_btn,ru,Начать умру
 home1_btn,tr,Umreye başlamak
 home1_btn,uz,Umrani boshlash
-home1_btn2,ar,مستوى الازدحام في الحرم
-home1_btn2,en,Al-Haram crowd level
-home1_btn2,fr,Affluence d’Al-Haram
-home1_btn2,id,Kepadatan Al-Haram
-home1_btn2,kk,Әл-Харам жүктемесі
-home1_btn2,ms,Kesesakan Al-Haram
-home1_btn2,ru,Загруженность Аль-Харама
-home1_btn2,tr,El-Harem yoğunluğu
-home1_btn2,uz,Al-Haram gavjumligi
-home1_btn3,ar,محظورات الإحرام
-home1_btn3,en,Ihram restrictions
-home1_btn3,fr,Interdictions de l’ihram
-home1_btn3,id,Larangan ihram
-home1_btn3,kk,Ихрам тыйымдары
-home1_btn3,ms,Larangan ihram
-home1_btn3,ru,Запреты ихрама
-home1_btn3,tr,İhram yasakları
-home1_btn3,uz,Ihram taqiqlari
 home1_btn3_sub,ar,تُفرض غرامة عند مخالفة المحظورات
 home1_btn3_sub,en,A penalty is applied if the restrictions are violated
 home1_btn3_sub,fr,Une pénalité est appliquée en cas de non-respect des interdictions
@@ -179,15 +125,6 @@ home1_btn3_sub,ms,"Jika larangan dilanggar, denda akan dikenakan"
 home1_btn3_sub,ru,При не соблюдении запретов предназначен штраф
 home1_btn3_sub,tr,Yasaklara uyulmazsa ceza uygulanır
 home1_btn3_sub,uz,"Agar taqiqlar buzilsa, jarima belgilanadi"
-home1_btn6_sub,ar,قص الشعر وحلقه
-home1_btn6_sub,en,Hair cutting and shaving
-home1_btn6_sub,fr,Coupe et rasage des cheveux
-home1_btn6_sub,id,Memotong dan mencukur rambut
-home1_btn6_sub,kk,Шашты қысқарту және қыру
-home1_btn6_sub,ms,Rambut dipotong dan dicukur
-home1_btn6_sub,ru,Стрижка и бритье волос
-home1_btn6_sub,tr,Saç kesimi ve tıraş
-home1_btn6_sub,uz,Sochni qisqartirish va qirish
 home1_sub,ar,بهدوء. بوعي. دون استعجال.
 home1_sub,en,Calmly. Mindfully. Without haste.
 home1_sub,fr,Calmement. En pleine conscience. Sans précipitation.
@@ -206,42 +143,6 @@ home1_title,ms,Anda berada di Makkah. Tunaikan umrah.
 home1_title,ru,Вы в Мекке. Совершите Умру.
 home1_title,tr,Mekke’dəsiniz. Umreyi eda edin.
 home1_title,uz,Siz Makkadasiz. Umrani ado eting.
-home1_title2,ar,أدّوا العمرة مع المرشد الصوتي
-home1_title2,en,Perform Umrah with your Voice Guide
-home1_title2,fr,Accomplissez la Omra avec votre guide vocal
-home1_title2,id,Tunaikan umrah bersama pemandu suara
-home1_title2,kk,Умраны дауыс жетекшісімен орындаңыз
-home1_title2,ms,Tunaikan umrah bersama pemandu suara
-home1_title2,ru,Совершите умру с голосовым гидом
-home1_title2,tr,Sesli rehber eşliğinde umreyi eda edin
-home1_title2,uz,Umrani ovozli yo‘l ko‘rsatuvchi bilan ado eting
-home1_title2_sub,ar,بشكل صحيح وبدون أخطاء
-home1_title2_sub,en,Correctly and without mistakes
-home1_title2_sub,fr,Correctement et sans erreurs
-home1_title2_sub,id,Dengan benar dan tanpa kesalahan
-home1_title2_sub,kk,Дұрыс және қателіксіз
-home1_title2_sub,ms,Dengan betul dan tanpa kesilapan
-home1_title2_sub,ru,Правильно и без ошибок
-home1_title2_sub,tr,Doğru ve hatasız
-home1_title2_sub,uz,To‘g‘ri va xatosiz
-home1_title3,ar,هل اكتملت عمرتكم؟ واصلوا العبادة.
-home1_title3,en,Is your Umrah complete? Continue your worship.
-home1_title3,fr,Votre Omra est-elle terminée ? Poursuivez votre adoration.
-home1_title3,id,Umrah sudah selesai? Lanjutkan ibadah Anda.
-home1_title3,kk,Умра аяқталды ма? Ғибадатты жалғастырыңыз.
-home1_title3,ms,Umrah sudah selesai? Teruskan ibadah.
-home1_title3,ru,Умра завершена? Продолжите поклонение.
-home1_title3,tr,Umre tamamlandı mı? İbadete devam edin.
-home1_title3,uz,Umra yakunlandimi? Ibodatni davom ettiring.
-home1_title3_sub,ar,ابدؤوا طواف النافلة.
-home1_title3_sub,en,Begin the voluntary (nafl) tawaf.
-home1_title3_sub,fr,Commencez le tawaf surérogatoire (nafl).
-home1_title3_sub,id,Mulailah tawaf sunnah (nafl).
-home1_title3_sub,kk,Нәпіл тауапты бастаңыз.
-home1_title3_sub,ms,Mulakan tawaf sunat (nafl).
-home1_title3_sub,ru,Начните нафль таваф.
-home1_title3_sub,tr,Naﬁl tavafa başlayın.
-home1_title3_sub,uz,Nafl tavofni boshlang.
 home2_3_subtitle,ar,الطريق يستمر في داخلكم
 home2_3_subtitle,en,The journey continues within you
 home2_3_subtitle,fr,Le chemin continue en vous
@@ -260,42 +161,33 @@ home2_3title,ms,Selamat datang ke kehidupan baharu selepas umrah
 home2_3title,ru,Добро пожаловать в новую жизнь после умры
 home2_3title,tr,Umreden sonraki yeni hayata hoş geldiniz
 home2_3title,uz,Umradan keyingi yangi hayotga xush kelibsiz
-home2_title2,ar,يسرّنا أن نكون قد ساعدناكم على أداء العمرة!
-home2_title2,en,We are honored to have helped you perform Umrah!
-home2_title2,fr,Nous sommes honorés d’avoir pu vous aider à accomplir la Omra !
-home2_title2,id,Kami bersyukur dapat membantu Anda menunaikan umrah!
-home2_title2,kk,Сізге умраны орындауға көмектескенімізге қуаныштымыз!
-home2_title2,ms,Kami gembira dapat membantu anda menunaikan umrah!
-home2_title2,ru,Мы рады что помогли вам совершить умру!
-home2_title2,tr,Umreyi yapmanıza yardımcı olabildiysek ne mutlu bize!
-home2_title2,uz,Sizga umrani ado etishda yordam berganimizdan xursandmiz!
-home2_title2_sub,ar,خدمة ضيوف الله هي رسالتنا
-home2_title2_sub,en,Serving the guests of Allah is our mission
-home2_title2_sub,fr,Servir les invités d’Allah est notre mission
-home2_title2_sub,id,Melayani tamu-tamu Allah adalah tugas kami
-home2_title2_sub,kk,Алланың қонақтарына қызмет ету — біздің міндетіміз
-home2_title2_sub,ms,Tugas kami adalah berkhidmat kepada tetamu Allah
-home2_title2_sub,ru,Служить гостям Аллаха — наша работа
-home2_title2_sub,tr,Allah’ın misafirlerine hizmet etmek bizim görevimizdir
-home2_title2_sub,uz,Alloh mehmonlariga xizmat qilish — bizning vazifamiz
-home2_title3,ar,حافظوا على نور العمرة في حياتكم اليومية
-home2_title3,en,Preserve the light of Umrah in your daily life
-home2_title3,fr,Préservez la lumière de la Omra dans votre vie quotidienne
-home2_title3,id,Pertahankan cahaya umrah dalam kehidupan sehari-hari
-home2_title3,kk,Умраның нұрын күнделікті өміріңізде сақтаңыз
-home2_title3,ms,Kekalkan cahaya umrah dalam kehidupan seharian anda
-home2_title3,ru,Сохраните свет умры в повседневной жизни
-home2_title3,tr,Umrenin nurunu günlük hayatınızda koruyun
-home2_title3,uz,Umraning nurini kundalik hayotingizda saqlang
-home2_title3_sub,ar,مع برنامج الحياة بعد العمرة
-home2_title3_sub,en,With the Life After Umrah program
-home2_title3_sub,fr,Avec le programme Vie après la Omra
-home2_title3_sub,id,Dengan program Kehidupan Setelah Umrah
-home2_title3_sub,kk,Умрадан кейінгі өмір бағдарламасымен
-home2_title3_sub,ms,Dengan program Kehidupan Selepas Umrah
-home2_title3_sub,ru,С программой жизнь после умры
-home2_title3_sub,tr,Umre Sonrası Hayat programı ile
-home2_title3_sub,uz,Umradan keyingi hayot dasturi bilan
+navigate_button,ar,انتقال
+navigate_button,en,Go
+navigate_button,fr,Aller
+navigate_button,id,Pergi
+navigate_button,kk,Өту
+navigate_button,ms,Teruskan
+navigate_button,ru,Перейти
+navigate_button,tr,Geç
+navigate_button,uz,O‘tish
+overlay_safa_text1,ar,(ثم يمكن الدعاء بالأدعية الشخصية ثلاث مرات — وهذه من سنة النبي ﷺ)
+overlay_safa_text1,en,(and then you may make personal duas three times — this is the Sunnah of the Prophet.)
+overlay_safa_text1,fr,(et ensuite vous pouvez faire des invocations personnelles trois fois — c’est une sunna du Prophète.)
+overlay_safa_text1,id,(dan kemudian Anda dapat memohon doa pribadi sebanyak tiga kali — ini adalah sunnah Nabi.)
+overlay_safa_text1,kk,(содан кейін жеке дұғаларды үш рет сұрауға болады — бұл Пайғамбар сүннеті.)
+overlay_safa_text1,ms,(dan kemudian anda boleh memohon doa peribadi sebanyak tiga kali — ini adalah sunnah Nabi.)
+overlay_safa_text1,ru,(и затем можно просить личные дуа трижды — это сунна пророка.)
+overlay_safa_text1,tr,(ve ardından kişisel dualar üç kez istenebilir — bu Peygamber sünnetidir.)
+overlay_safa_text1,uz,(so‘ng shaxsiy duolarni uch marta so‘rash mumkin — bu Payg‘ambar sunnati.)
+overlay_safa_title,ar,وكذلك من سنة النبي ﷺ عند الصعود على جبل الصفا (وكذلك على المروة) قراءة هذه الآية، ثم الدعاء مستقبلًا القبلة رافعًا يديه قائلاً:
+overlay_safa_title,en,"It is also from the Sunnah of the Prophet (PBUH) when ascending the hill of Safa (and also at Marwah) to recite this verse, then make dua facing the Qibla, raising the hands and saying:"
+overlay_safa_title,fr,"Il est également de la Sunna du Prophète (SAW), lors de la montée sur la colline de Safa (et aussi à Marwa), de réciter ce verset, ثم d’invoquer en se tournant vers la Qibla, en levant les mains et en disant :"
+overlay_safa_title,id,"Juga merupakan sunnah Nabi (SAW), ketika naik ke bukit Safa (dan juga Marwah) membaca ayat ini, kemudian berdoa menghadap Kiblat, mengangkat tangan dan mengucapkan:"
+overlay_safa_title,kk,"Сондай-ақ, Пайғамбарымыздың (с.а.у.) сүннеті бойынша Сафа төбесіне (сондай-ақ Марвада) көтерілгенде осы аятты оқып, кейін Қыблаға қарап, қол көтеріп, дұға айту:"
+overlay_safa_title,ms,"Juga merupakan sunnah Nabi (SAW), ketika naik ke bukit Safa (dan juga Marwah) membaca ayat ini, kemudian berdoa menghadap Kiblat dengan mengangkat tangan dan mengucapkan:"
+overlay_safa_title,ru,"Также сунна пророка С.А.В. при подъёме на холм Сафа (и также на Марве) читать этот аят и затем говорить дуа, обращаясь к Кибле, вознося руки, произнося:"
+overlay_safa_title,tr,"Ayrıca Peygamber Efendimizin (s.a.v.) sünnetine göre Safa tepesine (ve Merve’de) çıkarken bu ayeti okumak, ardından Kıbleye yönelip elleri kaldırarak dua etmek:"
+overlay_safa_title,uz,"Shuningdek, Payg‘ambarimiz (s.a.v.) sunnatlariga ko‘ra Safa tepaligiga (hamda Marvada) chiqishda ushbu oyatni o‘qib, so‘ng Qiblaga yuzlanib, qo‘llarni ko‘tarib duo qilish:"
 safa1_sarab1,ar,اللهم اغفر لي ذنوبي وارحمني واهدني إلى الصراط المستقيم
 safa1_sarab1,en,"O Allah, forgive my sins, have mercy on me, and guide me to the straight path."
 safa1_sarab1,fr,"Ô Allah, pardonne mes péchés, fais-moi miséricorde et guide-moi vers le droit chemin."
@@ -575,6 +467,15 @@ safago_title1,ms,PERGI KE BUKIT SAFA
 safago_title1,ru,ИДИТЕ К ХОЛМУ САФА
 safago_title1,tr,SAFA TEPESİNE GİDİN
 safago_title1,uz,SAFA TEPALIGIGA BORING
+sai_title,ar,السعي بين الصفا والمروة
+sai_title,en,Sa’i between Safa and Marwah
+sai_title,fr,Sa’i entre Safa et Marwa
+sai_title,id,Sa’i Safa dan Marwah
+sai_title,kk,Сағи Сафа мен Марва
+sai_title,ms,Sa’i Safa dan Marwah
+sai_title,ru,Саи сафа и марва
+sai_title,tr,Safa ve Merve arasında Sa’y
+sai_title,uz,Sa’i Safa va Marva
 start_text,ar,أنتم تدخلون المسجد الحرام. لأداء العمرة (للرجال) اكشفوا الكتف الأيمن واقرؤوا الدعاء: ربنا افتح لي أبواب رحمتك
 start_text,en,"You are entering Al-Haram Mosque. For Umrah (men), uncover your right shoulder and recite: Rabbana iftah li abwaba rahmatik"
 start_text,fr,"Vous entrez dans la Mosquée Al-Haram. Pour la Omra (hommes), découvrez votre épaule droite et récitez : Rabbana iftah li abwaba rahmatik"
@@ -620,6 +521,15 @@ sunna_dua_btn,ms,Doa Sunnah
 sunna_dua_btn,ru,Дуа Сунна
 sunna_dua_btn,tr,Sünnet duaları
 sunna_dua_btn,uz,Sunnat duolari
+tahallul_title,ar,إتمام العمرة
+tahallul_title,en,Completion of Umrah
+tahallul_title,fr,Fin de la Omra
+tahallul_title,id,Penyelesaian Umrah
+tahallul_title,kk,Умраны аяқтау
+tahallul_title,ms,Penyelesaian Umrah
+tahallul_title,ru,Завершение умры
+tahallul_title,tr,Umrenin tamamlanması
+tahallul_title,uz,O‘mrani yakunlash
 tap_btn,ar,تم
 tap_btn,en,Done
 tap_btn,fr,Terminé
@@ -629,6 +539,15 @@ tap_btn,ms,Selesai
 tap_btn,ru,Готово
 tap_btn,tr,Tamam
 tap_btn,uz,Tayyor
+tawaf_break_title,ar,الخطوات الوسيطة
+tawaf_break_title,en,Intermediate steps
+tawaf_break_title,fr,Étapes intermédiaires
+tawaf_break_title,id,Langkah pertengahan
+tawaf_break_title,kk,Аралық әрекеттер
+tawaf_break_title,ms,Langkah pertengahan
+tawaf_break_title,ru,Промежуточные действия
+tawaf_break_title,tr,Ara işlemler
+tawaf_break_title,uz,Oraliq amallar
 tawaf_common_text1,ar,قُلْ: بِسْمِ اللّٰهِ اللّٰهُ أَكْبَرُ
 tawaf_common_text1,en,SAY BISMILLAHI ALLAHU AKBAR
 tawaf_common_text1,fr,DITES BISMILLAHI ALLAHU AKBAR
@@ -674,6 +593,87 @@ tawaf_title,ms,Tawaf
 tawaf_title,ru,Таваф
 tawaf_title,tr,Tavaf
 tawaf_title,uz,Tavaf
+tawaf1_reading_arab1,ar,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,en,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,fr,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,id,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,kk,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,ms,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,ru,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,tr,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab1,uz,اللَّهُمَّ تَقَبَّلْ عُمْرَتِي وَيَسِّرْ أَمْرِي وَاهْدِ قَلْبِي
+tawaf1_reading_arab2,ar,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,en,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,fr,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,id,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,kk,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,ms,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,ru,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,tr,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab2,uz,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_arab3,ar,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,en,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,fr,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,id,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,kk,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,ms,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,ru,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,tr,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_arab3,uz,اللَّهُمَّ زِدْنِي إِيمَانًا وَيَقِينًا وَإِخْلَاصًا
+tawaf1_reading_text1,ar,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,en,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,fr,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,id,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,kk,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,ms,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,ru,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,tr,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text1,uz,Allahumma taqabbal 'umrati wa yassir amri wahdi qalbi.
+tawaf1_reading_text2,ar,اللهم تقبل عمرتي ويسر أمري واهد قلبي
+tawaf1_reading_text2,en,"O Allah, accept my Umrah, ease my affairs, and guide my heart."
+tawaf1_reading_text2,fr,"Ô Allah, accepte ma Omra, facilite mes affaires et guide mon cœur."
+tawaf1_reading_text2,id,"Ya Allah, terimalah Umrahku, mudahkan urusanku, dan tuntun hatiku."
+tawaf1_reading_text2,kk,"Уа, Алла, умрамды қабыл ет, ісімді жеңілдет және жүрегімді тура жолға сал."
+tawaf1_reading_text2,ms,"Ya Allah, terimalah Umrahku, permudahkan urusanku dan berilah petunjuk kepada hatiku."
+tawaf1_reading_text2,ru,"О Аллах, прими мою умру, облегчи мое дело и направь мое сердце."
+tawaf1_reading_text2,tr,"Ey Allah’ım, Umremi kabul et, işlerimi kolaylaştır ve kalbime hidayet ver."
+tawaf1_reading_text2,uz,"Ey Alloh, o‘mramni qabul qil, ishimni yengil qil va qalbimni hidoyat qil."
+tawaf1_reading_text3,ar,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,en,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,fr,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,id,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,kk,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,ms,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,ru,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,tr,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text3,uz,Rabbana taqabbal minna innaka anta as-Sami'ul-'Alim.
+tawaf1_reading_text4,ar,رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ
+tawaf1_reading_text4,en,"Our Lord, accept from us, indeed You are the All-Hearing, the All-Knowing."
+tawaf1_reading_text4,fr,"Ô notre Seigneur, accepte de notre part, car Tu es Celui qui entend tout et sait tout."
+tawaf1_reading_text4,id,"Wahai Tuhan kami, terimalah dari kami, sesungguhnya Engkaulah Yang Maha Mendengar lagi Maha Mengetahui."
+tawaf1_reading_text4,kk,"Раббымыз, бізден қабыл ет, расында Сен — Естуші, Білушісің."
+tawaf1_reading_text4,ms,"Wahai Tuhan kami, terimalah daripada kami, sesungguhnya Engkaulah Yang Maha Mendengar lagi Maha Mengetahui."
+tawaf1_reading_text4,ru,"Господь наш, прими от нас, ведь Ты — Слышащий, Знающий."
+tawaf1_reading_text4,tr,"Ey Rabbimiz, bizden kabul buyur. Şüphesiz Sen her şeyi işiten ve bilensin."
+tawaf1_reading_text4,uz,"Ey Rabbimiz, bizdan qabul qilgin, albatta Sen Eshituvchi va Biluvchisan."
+tawaf1_reading_text5,ar,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,en,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,fr,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,id,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,kk,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,ms,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,ru,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,tr,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text5,uz,Allahumma zidni imanan wa yaqinan wa ikhlasan.
+tawaf1_reading_text6,ar,اللهم زدني إيمانًا ويقينًا وإخلاصًا
+tawaf1_reading_text6,en,"O Allah, increase within me faith, certainty, and sincerity."
+tawaf1_reading_text6,fr,"Ô Allah, augmente en moi la foi, la certitude et la sincérité."
+tawaf1_reading_text6,id,"Ya Allah, tambahkan dalam diriku iman, keyakinan, dan keikhlasan."
+tawaf1_reading_text6,kk,"Уа, Алла, мендегі иманды, сенімді және ықыласты арттыра гөр."
+tawaf1_reading_text6,ms,"Ya Allah, tambahkan dalam diriku iman, keyakinan dan keikhlasan."
+tawaf1_reading_text6,ru,"О Аллах, увеличь во мне веру, убежденность и искренность."
+tawaf1_reading_text6,tr,"Ey Allah’ım, içimdeki imanı, yakinliği ve ihlası artır."
+tawaf1_reading_text6,uz,"Ey Alloh, ichimdagi iymonimni, ishonchimni va ixlosimni ziyoda qil."
 tawaf1_tarab1,ar,اللهم إني أسألك رضاك والجنة وأعوذ بك من سخطك والنار
 tawaf1_tarab1,en,"O Allah, I ask You for Your pleasure and Paradise, and I seek refuge in You from Your anger and the Fire."
 tawaf1_tarab1,fr,"Ô Allah, je Te demande Ton agrément et le Paradis, et je cherche refuge auprès de Toi contre Ta colère et le Feu."
@@ -701,6 +701,105 @@ tawaf1_text2,ms,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَ�
 tawaf1_text2,ru,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
 tawaf1_text2,tr,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
 tawaf1_text2,uz,اللَّهُمَّ إِنِّي أَسْأَلُكَ رِضَاكَ وَالْجَنَّةَ، وَأَعُوذُ بِكَ مِنْ سَخَطِكَ وَالنَّارِ
+tawaf1_zikr_repeat,ar,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,en,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,fr,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,id,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,kk,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,ms,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,ru,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,tr,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_repeat,uz,اللَّهُمَّ افْتَحْ لِي أَبْوَابَ فَضْلِكَ وَارْزُقْنِي مُسْتَقْبَلًا مُبَارَكًا
+tawaf1_zikr_text,ar,اسألوا الله أن يفتح أمامكم مستقبلًا صالحًا وطرقًا طيبة وحياةً مليئةً بالبركة والنفع.
+tawaf1_zikr_text,en,"Ask Allah to open before you a righteous future, pure paths, and a life filled with barakah and benefit."
+tawaf1_zikr_text,fr,"Demandez à Allah d’ouvrir devant vous un avenir благословенный, des chemins purs et une vie remplie de bénédiction et d’utilité."
+tawaf1_zikr_text,id,"Mohonlah kepada Allah agar membuka masa depan yang baik, jalan-jalan yang bersih, dan kehidupan yang penuh berkah serta manfaat."
+tawaf1_zikr_text,kk,"Алладан алдарыңызда игі болашақты, таза жолдарды және берекелі әрі пайдалы өмірді ашуын сұраңыз."
+tawaf1_zikr_text,ms,"Mohonlah kepada Allah agar membuka masa depan yang baik, jalan yang bersih dan kehidupan yang penuh berkat serta manfaat."
+tawaf1_zikr_text,ru,"Просите Аллаха открыть перед вами благое будущее, чистые пути и жизнь, в которой будет баракат и польза."
+tawaf1_zikr_text,tr,"Allah’tan önünüzde hayırlı bir gelecek, temiz yollar ve bereketli, faydalı bir hayat açmasını isteyin."
+tawaf1_zikr_text,uz,"Allohdan oldingizda yaxshi kelajakni, pok yo‘llarni va baraka hamda foyda bilan to‘la hayotni ochib berishini so‘rang."
+tawaf2_reading_arab1,ar,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,en,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,fr,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,id,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,kk,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,ms,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,ru,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,tr,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab1,uz,اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ دِقَّهُ وَجِلَّهُ أَوَّلَهُ وَآخِرَهُ
+tawaf2_reading_arab2,ar,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,en,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,fr,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,id,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,kk,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,ms,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,ru,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,tr,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab2,uz,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_arab3,ar,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,en,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,fr,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,id,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,kk,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,ms,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,ru,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,tr,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_arab3,uz,اللَّهُمَّ طَهِّرْ قَلْبِي مِنَ الرِّيَاءِ وَالنِّفَاقِ وَالْغِلِّ
+tawaf2_reading_text1,ar,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,en,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,fr,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,id,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,kk,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,ms,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,ru,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,tr,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text1,uz,Allahumma-ghfir li dhanbi kullahu diqqahu wa jillahu awwalahu wa akhirahu.
+tawaf2_reading_text2,ar,اللهم اغفر لي جميع ذنوبي صغيرها وكبيرها وأولها وآخرها
+tawaf2_reading_text2,en,"O Allah, forgive all my sins: the small and the great, the first and the last."
+tawaf2_reading_text2,fr,"Ô Allah, pardonne tous mes péchés : les petits et les grands, les premiers et les derniers."
+tawaf2_reading_text2,id,"Ya Allah, ampunilah semua dosaku: yang kecil dan besar, yang terdahulu dan yang terakhir."
+tawaf2_reading_text2,kk,"Уа, Алла, барлық күнәларымды кешір: кішісін де, үлкенін де, бұрынғысын да, кейінгісін де."
+tawaf2_reading_text2,ms,"Ya Allah, ampunilah semua dosaku: yang kecil dan besar, yang terdahulu dan yang terakhir."
+tawaf2_reading_text2,ru,"О Аллах, прости мне все мои грехи: малые и большие, первые и последние."
+tawaf2_reading_text2,tr,"Ey Allah’ım, tüm günahlarımı bağışla: küçüğünü de büyüğünü de, öncekini de sonrakini de."
+tawaf2_reading_text2,uz,"Ey Alloh, mening barcha gunohlarimni: kichigini ham, kattasini ham, avvalgisini ham, keyingisini ham mag‘firat qil."
+tawaf2_reading_text3,ar,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,en,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,fr,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,id,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,kk,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,ms,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,ru,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,tr,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text3,uz,Rabbi-ghfir warham wa anta khayru-r-rahimin.
+tawaf2_reading_text4,ar,رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ
+tawaf2_reading_text4,en,"My Lord, forgive and have mercy, for You are the Best of the merciful."
+tawaf2_reading_text4,fr,"Ô mon Seigneur, pardonne et fais miséricorde, car Tu es le Meilleur des miséricordieux."
+tawaf2_reading_text4,id,"Wahai Tuhanku, ampunilah dan rahmatilah, karena Engkau adalah sebaik-baik Yang Maha Penyayang."
+tawaf2_reading_text4,kk,"Раббым, кешір және рақым ет, өйткені Сен — рақым етушілердің Ең Жақсысысың."
+tawaf2_reading_text4,ms,"Wahai Tuhanku, ampunilah dan rahmatilah, sesungguhnya Engkaulah sebaik-baik Yang Maha Penyayang."
+tawaf2_reading_text4,ru,"Господь мой, прости и помилуй, ведь Ты — Лучший из милующих."
+tawaf2_reading_text4,tr,"Ey Rabbim, bağışla ve merhamet et. Şüphesiz Sen merhametlilerin en hayırlısısın."
+tawaf2_reading_text4,uz,"Ey Rabbim, mag‘firat qil va rahm et, albatta Sen rahm qiluvchilarning eng yaxshisisan."
+tawaf2_reading_text5,ar,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,en,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,fr,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,id,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,kk,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,ms,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,ru,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,tr,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text5,uz,Allahumma tahhir qalbi mina-r-riya'i wa-n-nifaqi wa-l-ghill.
+tawaf2_reading_text6,ar,اللهم طهر قلبي من الرياء والنفاق والحقد
+tawaf2_reading_text6,en,"O Allah, purify my heart from showing off, hypocrisy, and hatred."
+tawaf2_reading_text6,fr,"Ô Allah, purifie mon cœur de l’ostentation, de l’hypocrisie et de la haine."
+tawaf2_reading_text6,id,"Ya Allah, sucikan hatiku dari riya, kemunafikan, dan kebencian."
+tawaf2_reading_text6,kk,"Уа, Алла, жүрегімді риядан, екіжүзділіктен және жамандықтан тазарт."
+tawaf2_reading_text6,ms,"Ya Allah, sucikan hatiku daripada riya, kemunafikan dan kebencian."
+tawaf2_reading_text6,ru,"О Аллах, очисти мое сердце от показухи, лицемерия и злобы."
+tawaf2_reading_text6,tr,"Ey Allah’ım, kalbimi gösterişten, ikiyüzlülükten ve kinden arındır."
+tawaf2_reading_text6,uz,"Ey Alloh, qalbimni riyodan, munofiqlikdan va yomonlikdan pokla."
 tawaf2_tarab1,ar,اللهم اغفر لي جميع ذنوبي، صغيرها وكبيرها
 tawaf2_tarab1,en,"O Allah, forgive all my sins, the small and the great."
 tawaf2_tarab1,fr,"Ô Allah, pardonne tous mes péchés, les petits comme les grands."
@@ -728,6 +827,105 @@ tawaf2_text2,ms,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُ
 tawaf2_text2,ru,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
 tawaf2_text2,tr,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
 tawaf2_text2,uz,اللَّهُمَّ اغْفِرْ لِي ذُنُوبِي كُلَّهَا دِقَّهَا وَجِلَّهَا
+tawaf2_zikr_repeat,ar,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,en,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,fr,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,id,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,kk,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,ms,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,ru,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,tr,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_repeat,uz,أَسْتَغْفِرُ اللّٰهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ
+tawaf2_zikr_text,ar,اشعروا بالندم على الذنوب الماضية واطلبوا المغفرة الكاملة والتطهير الداخلي.
+tawaf2_zikr_text,en,"Feel remorse for past sins, ask for complete forgiveness and inner purification."
+tawaf2_zikr_text,fr,"Ressentez du regret pour vos péchés passés, demandez un pardon complet et une purification intérieure."
+tawaf2_zikr_text,id,"Rasakan penyesalan atas dosa-dosa masa lalu, mohon ampunan yang sempurna dan penyucian batin."
+tawaf2_zikr_text,kk,"Өткен күнәларыңызға өкініш сезініңіз, толық кешірім мен ішкі тазалық сұраңыз."
+tawaf2_zikr_text,ms,"Rasakan penyesalan atas dosa-dosa lalu, mohon keampunan penuh dan penyucian dalaman."
+tawaf2_zikr_text,ru,"Чувствуйте сожаление о прошлых грехах, просите полное прощение и внутреннее очищение."
+tawaf2_zikr_text,tr,"Geçmiş günahlarınız için pişmanlık hissedin, tam bağışlanma ve içsel arınma isteyin."
+tawaf2_zikr_text,uz,"O‘tgan gunohlaringiz uchun nadomat his qiling, to‘liq mag‘firat va ichki poklik so‘rang."
+tawaf3_reading_arab1,ar,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,en,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,fr,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,id,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,kk,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,ms,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,ru,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,tr,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab1,uz,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_arab2,ar,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,en,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,fr,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,id,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,kk,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,ms,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,ru,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,tr,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab2,uz,اللَّهُمَّ ارْزُقْنِي عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا
+tawaf3_reading_arab3,ar,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,en,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,fr,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,id,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,kk,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,ms,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,ru,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,tr,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_arab3,uz,اللَّهُمَّ يَسِّرْ لِي طَاعَتَكَ وَجَنِّبْنِي مَعْصِيَتَكَ
+tawaf3_reading_text1,ar,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,en,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,fr,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,id,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,kk,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,ms,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,ru,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,tr,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text1,uz,Rabbana atina fi-d-dunya hasanatan wa fi-l-akhirati hasanatan wa qina 'adhaba-n-nar.
+tawaf3_reading_text2,ar,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf3_reading_text2,en,"Our Lord, grant us good in this world, good in the everlasting life, and protect us from the punishment of the Fire."
+tawaf3_reading_text2,fr,"Ô notre Seigneur, accorde-nous le bien dans ce monde, le bien dans la vie éternelle et protège-nous du châtiment du Feu."
+tawaf3_reading_text2,id,"Wahai Tuhan kami, berilah kami kebaikan di dunia, kebaikan di akhirat dan lindungilah kami dari azab api Neraka."
+tawaf3_reading_text2,kk,"Раббымыз, бізге бұл дүниеде жақсылық бер, ақыретте де жақсылық бер және бізді От азабынан қорға."
+tawaf3_reading_text2,ms,"Wahai Tuhan kami, berilah kami kebaikan di dunia, kebaikan di akhirat dan lindungilah kami daripada azab api Neraka."
+tawaf3_reading_text2,ru,"Господь наш, даруй нам благо в этом мире, благо в вечной жизни и защити нас от мучений Огня."
+tawaf3_reading_text2,tr,"Ey Rabbimiz, bize dünyada iyilik ver, ahirette de iyilik ver ve bizi ateş azabından koru."
+tawaf3_reading_text2,uz,"Ey Rabbimiz, bizga bu dunyoda yaxshilik ber, oxiratda ham yaxshilik ber va bizni Do‘zax azobidan asra."
+tawaf3_reading_text3,ar,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,en,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,fr,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,id,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,kk,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,ms,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,ru,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,tr,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text3,uz,Allahumma-rzuqni 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan.
+tawaf3_reading_text4,ar,اللهم ارزقني علمًا نافعًا ورزقًا طيبًا وعملاً متقبلاً
+tawaf3_reading_text4,en,"O Allah, grant me beneficial knowledge, good provision, and accepted deeds."
+tawaf3_reading_text4,fr,"Ô Allah, accorde-moi un savoir bénéfique, une bonne subsistance et des œuvres acceptées."
+tawaf3_reading_text4,id,"Ya Allah, anugerahkan kepadaku ilmu yang bermanfaat, rezeki yang baik, dan amal yang diterima."
+tawaf3_reading_text4,kk,"Уа, Алла, маған пайдалы білім, игі ризық және қабыл болған амалдар нәсіп ет."
+tawaf3_reading_text4,ms,"Ya Allah, kurniakan kepadaku ilmu yang bermanfaat, rezeki yang baik dan amalan yang diterima."
+tawaf3_reading_text4,ru,"О Аллах, даруй мне полезное знание, благой удел и принятые дела."
+tawaf3_reading_text4,tr,"Ey Allah’ım, bana faydalı ilim, hayırlı rızık ve kabul edilmiş ameller nasip et."
+tawaf3_reading_text4,uz,"Ey Alloh, menga foydali ilm, halol rizq va qabul qilingan amallarni nasib et."
+tawaf3_reading_text5,ar,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,en,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,fr,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,id,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,kk,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,ms,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,ru,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,tr,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text5,uz,Allahumma yassir li ta'atak wa jannibni ma'siyatak.
+tawaf3_reading_text6,ar,اللهم يسر لي طاعتك وأبعدني عن معصيتك
+tawaf3_reading_text6,en,"O Allah, make obedience to You easy for me and keep me away from disobedience to You."
+tawaf3_reading_text6,fr,"Ô Allah, facilite-moi l’obéissance envers Toi et éloigne-moi de la désobéissance envers Toi."
+tawaf3_reading_text6,id,"Ya Allah, mudahkanlah aku untuk taat kepada-Mu dan jauhkan aku dari kemaksiatan kepada-Mu."
+tawaf3_reading_text6,kk,"Уа, Алла, Саған бойсұнуды маған жеңілдет және мені Саған қарсы келуден алыстат."
+tawaf3_reading_text6,ms,"Ya Allah, permudahkan aku untuk taat kepada-Mu dan jauhkan aku daripada maksiat kepada-Mu."
+tawaf3_reading_text6,ru,"О Аллах, облегчи мне повиновение Тебе и отдали меня от ослушания Тебе."
+tawaf3_reading_text6,tr,"Ey Allah’ım, Sana itaati bana kolaylaştır ve beni Sana isyandan uzak tut."
+tawaf3_reading_text6,uz,"Ey Alloh, Senga itoat qilishni menga yengil qil va meni Senga osiy bo‘lishdan uzoqlashtir."
 tawaf3_tarab1,ar,اللهم إنك عفو تحب العفو فاعف عني
 tawaf3_tarab1,en,"O Allah, You are Most Forgiving and love forgiveness, so forgive me."
 tawaf3_tarab1,fr,"Ô Allah, Tu es Pardonneur et Tu aimes le pardon, alors pardonne-moi."
@@ -755,6 +953,105 @@ tawaf3_text2,ms,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبّ�
 tawaf3_text2,ru,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
 tawaf3_text2,tr,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
 tawaf3_text2,uz,اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي
+tawaf3_zikr_repeat,ar,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,en,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,fr,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,id,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,kk,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,ms,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,ru,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,tr,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_repeat,uz,يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ أَصْلِحْ لِي شَأْنِي كُلَّهُ
+tawaf3_zikr_text,ar,اسألوا الله إصلاح حياتكم كلها وأعمالكم وقراراتكم وحال قلوبكم.
+tawaf3_zikr_text,en,"Ask Allah to rectify your entire life, your affairs, your decisions, and the condition of your heart."
+tawaf3_zikr_text,fr,"Demandez à Allah de corriger toute votre vie, vos affaires, vos décisions et l’état de votre cœur."
+tawaf3_zikr_text,id,"Mohonlah kepada Allah agar memperbaiki seluruh hidup Anda, urusan Anda, keputusan Anda, dan keadaan hati Anda."
+tawaf3_zikr_text,kk,"Алладан бүкіл өміріңізді, істеріңізді, шешімдеріңізді және жүрегіңіздің жағдайын түзетуді сұраңыз."
+tawaf3_zikr_text,ms,"Mohonlah kepada Allah agar memperbaiki seluruh hidup anda, urusan anda, keputusan anda dan keadaan hati anda."
+tawaf3_zikr_text,ru,"Спросите Аллаха об исправлении всей вашей жизни, ваших дел, решений и состояния сердца."
+tawaf3_zikr_text,tr,"Allah’tan tüm hayatınızı, işlerinizi, kararlarınızı ve kalbinizin durumunu düzeltmesini isteyin."
+tawaf3_zikr_text,uz,"Allohdan butun hayotingizni, ishlaringizni, qarorlaringizni va qalbingiz holatini to‘g‘rilashni so‘rang."
+tawaf4_reading_arab1,ar,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,en,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,fr,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,id,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,kk,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,ms,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,ru,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,tr,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab1,uz,اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ وَعَافِنِي فِيمَنْ عَافَيْتَ
+tawaf4_reading_arab2,ar,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,en,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,fr,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,id,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,kk,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,ms,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,ru,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,tr,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab2,uz,يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf4_reading_arab3,ar,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,en,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,fr,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,id,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,kk,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,ms,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,ru,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,tr,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_arab3,uz,اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ
+tawaf4_reading_text1,ar,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,en,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,fr,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,id,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,kk,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,ms,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,ru,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,tr,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text1,uz,Allahumma-hdini fiman hadayt wa 'afini fiman 'afayt.
+tawaf4_reading_text2,ar,اللهم اهدني فيمن هديت وعافني فيمن عافيت
+tawaf4_reading_text2,en,"O Allah, guide me among those whom You have guided, and grant me well-being among those whom You have granted well-being."
+tawaf4_reading_text2,fr,"Ô Allah, guide-moi parmi ceux que Tu as guidés et accorde-moi le bien-être parmi ceux à qui Tu l’as accordé."
+tawaf4_reading_text2,id,"Ya Allah, tunjukilah aku bersama orang-orang yang Engkau beri petunjuk, dan berilah aku kesejahteraan bersama orang-orang yang Engkau beri kesejahteraan."
+tawaf4_reading_text2,kk,"Уа, Алла, мені тура жолға салған құлдарыңның қатарына қоса гөр және игілік берген құлдарыңның қатарында маған да амандық бере гөр."
+tawaf4_reading_text2,ms,"Ya Allah, berilah aku petunjuk bersama mereka yang Engkau beri petunjuk dan kurniakan kesejahteraan kepadaku bersama mereka yang Engkau beri kesejahteraan."
+tawaf4_reading_text2,ru,"О Аллах, веди меня среди тех, кого Ты повел прямым путем, и даруй мне благополучие среди тех, кому Ты даровал его."
+tawaf4_reading_text2,tr,"Ey Allah’ım, beni hidayet verdiklerinin arasında hidayete erdir ve afiyet verdiklerinin arasında bana da afiyet ver."
+tawaf4_reading_text2,uz,"Ey Alloh, meni hidoyat bergan bandalaring qatorida hidoyat qil va salomatlik bergan bandalaring qatorida menga ham salomatlik ato et."
+tawaf4_reading_text3,ar,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,en,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,fr,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,id,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,kk,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,ms,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,ru,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,tr,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text3,uz,"Ya Muqalliba-l-qulub, thabbit qalbi 'ala dinik."
+tawaf4_reading_text4,ar,يا مقلب القلوب ثبت قلبي على دينك
+tawaf4_reading_text4,en,"O Turner of hearts, keep my heart firm upon Your religion."
+tawaf4_reading_text4,fr,"Ô Toi qui fais basculer les cœurs, affermis mon cœur sur Ta religion."
+tawaf4_reading_text4,id,"Wahai Dzat Yang Membolak-balikkan hati, teguhkan hatiku di atas agama-Mu."
+tawaf4_reading_text4,kk,"Уа, жүректерді Өзгертуші, жүрегімді Өз дініңде берік қыл."
+tawaf4_reading_text4,ms,"Wahai Yang Membolak-balikkan hati, tetapkan hatiku di atas agama-Mu."
+tawaf4_reading_text4,ru,"О Переворачивающий сердца, утверди мое сердце на Твоей религии."
+tawaf4_reading_text4,tr,"Ey kalpleri çeviren Allah’ım, kalbimi Senin dinin üzere sabit kıl."
+tawaf4_reading_text4,uz,"Ey qalblarni o‘zgartiruvchi Zot, qalbimni diningda sobit qil."
+tawaf4_reading_text5,ar,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,en,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,fr,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,id,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,kk,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,ms,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,ru,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,tr,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text5,uz,Allahumma-j'alni mina-t-tawwabina wa-j'alni mina-l-mutatahhirin.
+tawaf4_reading_text6,ar,اللهم اجعلني من التوابين واجعلني من المتطهرين
+tawaf4_reading_text6,en,"O Allah, make me among those who repent and those who purify themselves."
+tawaf4_reading_text6,fr,"Ô Allah, fais de moi parmi ceux qui se repentent et ceux qui se purifient."
+tawaf4_reading_text6,id,"Ya Allah, jadikan aku termasuk orang-orang yang bertaubat dan orang-orang yang mensucikan diri."
+tawaf4_reading_text6,kk,"Уа, Алла, мені тәубе етушілердің және тазаланушылардың қатарына қоса гөр."
+tawaf4_reading_text6,ms,"Ya Allah, jadikan aku dalam kalangan orang yang bertaubat dan orang yang menyucikan diri."
+tawaf4_reading_text6,ru,"О Аллах, сделай меня из числа кающихся и из числа очищающихся."
+tawaf4_reading_text6,tr,"Ey Allah’ım, beni tövbe edenlerden ve temizlenenlerden eyle."
+tawaf4_reading_text6,uz,"Ey Alloh, meni tavba qiluvchilardan va poklanuvchilardan qil."
 tawaf4_tarab1,ar,اللهم أصلح لي ديني ودنياي وآخرتي
 tawaf4_tarab1,en,"O Allah, set right for me my religion, my worldly life, and my hereafter."
 tawaf4_tarab1,fr,"Ô Allah, améliore pour moi ma religion, ma vie d’ici-bas et mon au-delà."
@@ -782,6 +1079,105 @@ tawaf4_text2,ms,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَد
 tawaf4_text2,ru,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
 tawaf4_text2,tr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
 tawaf4_text2,uz,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf4_zikr_repeat,ar,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,en,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,fr,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,id,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,kk,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,ms,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,ru,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,tr,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_repeat,uz,حَسْبِيَ اللّٰهُ وَنِعْمَ الْوَكِيلُ
+tawaf4_zikr_text,ar,عززوا توكلكم على الله واشعروا أن الله وحده القادر على تدبير أقداركم بأفضل صورة.
+tawaf4_zikr_text,en,Strengthen your trust in Allah and feel that only He is capable of arranging your destiny in the best way.
+tawaf4_zikr_text,fr,Renforcez votre confiance en Allah et ressentez que Lui seul peut organiser votre destinée de la meilleure manière.
+tawaf4_zikr_text,id,Perkuat tawakal kepada Allah dan rasakan bahwa hanya Dia yang mampu menata takdir Anda dengan cara terbaik.
+tawaf4_zikr_text,kk,Аллаға тәуекелдеріңізді нығайтыңыз және тек Оның ғана тағдырыңызды ең жақсы түрде реттей алатынын сезініңіз.
+tawaf4_zikr_text,ms,Kukuhkan tawakal kepada Allah dan rasakan bahawa hanya Dia yang mampu mengatur takdir anda dengan sebaik-baiknya.
+tawaf4_zikr_text,ru,"Укрепляйте упование на Аллаха и почувствуйте, что только Он способен устроить вашу судьбу наилучшим образом."
+tawaf4_zikr_text,tr,Allah’a tevekkülünüzü güçlendirin ve yalnızca O’nun kaderinizi en güzel şekilde düzenleyebileceğini hissedin.
+tawaf4_zikr_text,uz,Allohga tavakkulingizni mustahkamlang va faqat U sizning taqdiringizni eng yaxshi tarzda tartibga sola olishini his qiling.
+tawaf5_reading_arab1,ar,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,en,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,fr,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,id,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,kk,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,ms,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,ru,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,tr,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab1,uz,اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ
+tawaf5_reading_arab2,ar,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,en,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,fr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,id,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,kk,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,ms,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,ru,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,tr,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab2,uz,اللَّهُمَّ أَصْلِحْ لِي دِينِي وَدُنْيَايَ وَآخِرَتِي
+tawaf5_reading_arab3,ar,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,en,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,fr,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,id,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,kk,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,ms,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,ru,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,tr,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_arab3,uz,اللَّهُمَّ احْفَظْنِي مِنْ شَرِّ نَفْسِي وَمِنْ فِتَنِ الدُّنْيَا
+tawaf5_reading_text1,ar,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,en,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,fr,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,id,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,kk,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,ms,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,ru,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,tr,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text1,uz,Allahumma-kfini bihalalika 'an haramika wa aghnini bifadlika 'amman siwak.
+tawaf5_reading_text2,ar,اللهم اكفني بحلالك عن حرامك وأغنني بفضلك عمن سواك
+tawaf5_reading_text2,en,"O Allah, make what is lawful sufficient for me instead of what is forbidden, and enrich me by Your grace so that I need no one else."
+tawaf5_reading_text2,fr,"Ô Allah, rends le licite suffisant pour moi à la place de l’illicite et enrichis-moi par Ta grâce afin que je n’aie besoin de personne d’autre."
+tawaf5_reading_text2,id,"Ya Allah, cukupkanlah aku dengan yang halal daripada yang haram, dan kayakanlah aku dengan karunia-Mu sehingga aku tidak membutuhkan orang lain."
+tawaf5_reading_text2,kk,"Уа, Алла, халалыңмен мені харамнан жеткілікті ет және Өз мейіріміңмен мені өзгелерге мұқтаж етпе."
+tawaf5_reading_text2,ms,"Ya Allah, cukupkan aku dengan yang halal daripada yang haram dan kayakan aku dengan rahmat-Mu sehingga aku tidak memerlukan orang lain."
+tawaf5_reading_text2,ru,"О Аллах, сделай дозволенное достаточным для меня вместо запретного и обогати меня Своей милостью, избавив от нужды в других."
+tawaf5_reading_text2,tr,"Ey Allah’ım, helalinle beni haramdan uzak ve yeterli kıl, lütfunla beni başkalarına muhtaç etme."
+tawaf5_reading_text2,uz,"Ey Alloh, haloling bilan meni haromingdan behojat qil va O‘zingning fazling bilan meni boshqalarga muhtoj qilma."
+tawaf5_reading_text3,ar,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,en,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,fr,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,id,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,kk,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,ms,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,ru,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,tr,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text3,uz,Allahumma aslih li dini wa dunyaya wa akhirati.
+tawaf5_reading_text4,ar,اللهم أصلح لي ديني ودنياي وآخرتي
+tawaf5_reading_text4,en,"O Allah, set right for me my religion, my worldly life, and my eternal life."
+tawaf5_reading_text4,fr,"Ô Allah, améliore pour moi ma religion, ma vie d’ici-bas et ma vie éternelle."
+tawaf5_reading_text4,id,"Ya Allah, perbaikilah agamaku, kehidupanku di dunia, dan kehidupanku di akhirat."
+tawaf5_reading_text4,kk,"Уа, Алла, менің дінімді, дүниелік өмірімді және ақыретімді дұрыс қыла гөр."
+tawaf5_reading_text4,ms,"Ya Allah, perbaikilah agamaku, kehidupanku di dunia dan kehidupanku di akhirat."
+tawaf5_reading_text4,ru,"О Аллах, исправь для меня мою религию, мою мирскую жизнь и мою вечную жизнь."
+tawaf5_reading_text4,tr,"Ey Allah’ım, dinimi, dünya hayatımı ve ahiretimi benim için düzelt."
+tawaf5_reading_text4,uz,"Ey Alloh, mening dinimni, dunyoviy hayotimni va oxiratimni to‘g‘ri qil."
+tawaf5_reading_text5,ar,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,en,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,fr,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,id,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,kk,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,ms,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,ru,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,tr,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text5,uz,Allahumma-hfazni min sharri nafsi wa min fitani-d-dunya.
+tawaf5_reading_text6,ar,اللهم احفظني من شر نفسي ومن فتن الدنيا
+tawaf5_reading_text6,en,"O Allah, protect me from the evil of my soul and from the trials of this world."
+tawaf5_reading_text6,fr,"Ô Allah, protège-moi du mal de mon âme et des épreuves de ce monde."
+tawaf5_reading_text6,id,"Ya Allah, lindungilah aku dari keburukan diriku dan dari fitnah dunia ini."
+tawaf5_reading_text6,kk,"Уа, Алла, мені нәпсімнің жамандығынан және бұл дүниенің бүліктерінен қорға."
+tawaf5_reading_text6,ms,"Ya Allah, lindungilah aku daripada kejahatan diriku dan fitnah dunia ini."
+tawaf5_reading_text6,ru,"О Аллах, защити меня от зла моей души и от смут этого мира."
+tawaf5_reading_text6,tr,"Ey Allah’ım, beni nefsimin kötülüğünden ve bu dünyanın fitnelerinden koru."
+tawaf5_reading_text6,uz,"Ey Alloh, meni nafsimning yomonligidan va bu dunyo fitnalaridan asra."
 tawaf5_tarab1,ar,اللهم اهدني وثبت قلبي على دينك
 tawaf5_tarab1,en,"O Allah, guide me and keep my heart firm upon Your religion."
 tawaf5_tarab1,fr,"Ô Allah, guide-moi et affermis mon cœur sur Ta religion."
@@ -809,6 +1205,105 @@ tawaf5_text2,ms,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَل�
 tawaf5_text2,ru,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
 tawaf5_text2,tr,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
 tawaf5_text2,uz,اللَّهُمَّ اهْدِنِي وَثَبِّتْ قَلْبِي عَلَى دِينِكَ
+tawaf5_zikr_repeat,ar,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,en,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,fr,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,id,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,kk,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,ms,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,ru,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,tr,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_repeat,uz,اللَّهُمَّ ارْزُقْنِي الْجَنَّةَ وَقَرِّبْنِي إِلَيْهَا بِقَوْلٍ وَعَمَلٍ
+tawaf5_zikr_text,ar,اسألوا الله أن يقربكم من الجنة ويبعدكم عن النار ويجعل أعمالكم سببًا للنجاة في الآخرة.
+tawaf5_zikr_text,en,"Ask Allah to bring you closer to Paradise, keep you away from the Fire, and make your deeds a cause of salvation in the Hereafter."
+tawaf5_zikr_text,fr,"Demandez à Allah de vous rapprocher du Paradis, de vous éloigner du Feu et de faire de vos œuvres une cause de salut dans l’Au-delà."
+tawaf5_zikr_text,id,"Mohonlah kepada Allah agar mendekatkan Anda kepada Surga, menjauhkan Anda dari Neraka, dan menjadikan amal Anda sebab keselamatan di Akhirat."
+tawaf5_zikr_text,kk,"Алладан сізді Жәннатқа жақындатуын, Оттан алыстатуын және амалдарыңызды Ақыреттегі құтылу себебі етуін сұраңыз."
+tawaf5_zikr_text,ms,"Mohonlah kepada Allah agar mendekatkan anda kepada Syurga, menjauhkan anda dari Neraka dan menjadikan amalan anda sebab keselamatan di Akhirat."
+tawaf5_zikr_text,ru,"Просите Аллаха приблизить вас к Раю, отдалить от Огня и сделать ваши дела причиной спасения в Ахира."
+tawaf5_zikr_text,tr,"Allah’tan sizi Cennete yaklaştırmasını, ateşten uzaklaştırmasını ve amellerinizi Ahirette kurtuluş sebebi kılmasını isteyin."
+tawaf5_zikr_text,uz,"Allohdan sizni Jannatga yaqinlashtirishini, Do‘zaxdan uzoqlashtirishini va amallaringizni Oxiratdagi najot sababiga aylantirishini so‘rang."
+tawaf6_reading_arab1,ar,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,en,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,fr,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,id,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,kk,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,ms,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,ru,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,tr,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab1,uz,اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ
+tawaf6_reading_arab2,ar,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,en,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,fr,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,id,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,kk,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,ms,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,ru,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,tr,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab2,uz,اللَّهُمَّ اجْعَلْ خَيْرَ عُمُرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِيمَهُ
+tawaf6_reading_arab3,ar,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,en,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,fr,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,id,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,kk,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,ms,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,ru,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,tr,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_arab3,uz,اللَّهُمَّ ارْزُقْنِي صِدْقَ التَّوَكُّلِ عَلَيْكَ وَحُسْنَ الظَّنِّ بِكَ
+tawaf6_reading_text1,ar,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,en,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,fr,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,id,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,kk,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,ms,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,ru,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,tr,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text1,uz,Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatik.
+tawaf6_reading_text2,ar,اللهم أعني على ذكرك وشكرك وحسن عبادتك
+tawaf6_reading_text2,en,"O Allah, help me remember You, thank You, and worship You in the best manner."
+tawaf6_reading_text2,fr,"Ô Allah, aide-moi à me souvenir de Toi, à Te remercier et à T’adorer de la meilleure manière."
+tawaf6_reading_text2,id,"Ya Allah, bantulah aku untuk mengingat-Mu, bersyukur kepada-Mu, dan beribadah kepada-Mu dengan sebaik-baiknya."
+tawaf6_reading_text2,kk,"Уа, Алла, Сені еске алуға, Саған шүкір етуге және Саған ең көркем түрде құлшылық етуге маған жәрдем бере гөр."
+tawaf6_reading_text2,ms,"Ya Allah, bantulah aku untuk mengingati-Mu, bersyukur kepada-Mu dan beribadah kepada-Mu dengan sebaik-baiknya."
+tawaf6_reading_text2,ru,"О Аллах, помоги мне поминать Тебя, благодарить Тебя и поклоняться Тебе наилучшим образом."
+tawaf6_reading_text2,tr,"Ey Allah’ım, Seni zikretmem, Sana şükretmem ve Sana en güzel şekilde ibadet etmem için bana yardım et."
+tawaf6_reading_text2,uz,"Ey Alloh, Seni zikr qilishimga, Senga shukr qilishimga va Senga eng yaxshi tarzda ibodat qilishimga yordam ber."
+tawaf6_reading_text3,ar,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,en,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,fr,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,id,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,kk,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,ms,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,ru,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,tr,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text3,uz,Allahumma-j'al khayra 'umri akhirahu wa khayra 'amali khawatimahu.
+tawaf6_reading_text4,ar,اللهم اجعل خير عمري آخره وخير عملي خواتمه
+tawaf6_reading_text4,en,"O Allah, make the best part of my life its ending, and the best of my deeds their completion."
+tawaf6_reading_text4,fr,"Ô Allah, fais de la meilleure partie de ma vie sa fin, et des meilleures de mes œuvres leur achèvement."
+tawaf6_reading_text4,id,"Ya Allah, jadikan bagian terbaik dari hidupku adalah akhirnya, dan jadikan amal terbaikku adalah penutupnya."
+tawaf6_reading_text4,kk,"Уа, Алла, өмірімнің ең жақсы бөлігін оның соңы ет және амалдарымның ең жақсысын олардың аяқталуы ет."
+tawaf6_reading_text4,ms,"Ya Allah, jadikan bahagian terbaik hidupku adalah penghujungnya dan jadikan amalan terbaikku adalah penutupnya."
+tawaf6_reading_text4,ru,"О Аллах, сделай лучшей частью моей жизни ее конец, а лучшими из моих дел — их завершения."
+tawaf6_reading_text4,tr,"Ey Allah’ım, hayatımın en hayırlı kısmını sonu kıl ve amellerimin en hayırlısını onların sonu kıl."
+tawaf6_reading_text4,uz,"Ey Alloh, hayotimning eng yaxshi qismini uning oxiri qil va amallarimning eng yaxshisini ularning yakuni qil."
+tawaf6_reading_text5,ar,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,en,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,fr,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,id,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,kk,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,ms,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,ru,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,tr,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text5,uz,Allahumma-rzuqni sidqa-t-tawakkuli 'alayk wa husna-z-zanni bik.
+tawaf6_reading_text6,ar,اللهم ارزقني التوكل الصادق عليك وحسن الظن بك
+tawaf6_reading_text6,en,"O Allah, grant me sincere trust in You and good hope in You."
+tawaf6_reading_text6,fr,"Ô Allah, accorde-moi une confiance sincère en Toi et une bonne espérance en Toi."
+tawaf6_reading_text6,id,"Ya Allah, anugerahkan kepadaku tawakal yang tulus kepada-Mu dan harapan yang baik kepada-Mu."
+tawaf6_reading_text6,kk,"Уа, Алла, маған Саған деген шынайы тәуекел мен жақсы үміт нәсіп ет."
+tawaf6_reading_text6,ms,"Ya Allah, kurniakan kepadaku tawakal yang ikhlas kepada-Mu dan harapan yang baik kepada-Mu."
+tawaf6_reading_text6,ru,"О Аллах, даруй мне искреннее упование на Тебя и добрую надежду на Тебя."
+tawaf6_reading_text6,tr,"Ey Allah’ım, bana Sana içten tevekkül etmeyi ve Sana karşı güzel umut beslemeyi nasip et."
+tawaf6_reading_text6,uz,"Ey Alloh, menga Senga bo‘lgan chin tavakkulni va Senga bo‘lgan yaxshi umidni nasib et."
 tawaf6_tarab1,ar,اللهم بارك لي في رزقي وافتح لي أبواب رحمتك
 tawaf6_tarab1,en,"O Allah, bless my provision and open for me the doors of Your mercy."
 tawaf6_tarab1,fr,"Ô Allah, bénis ma subsistance et ouvre-moi les portes de Ta miséricorde."
@@ -836,6 +1331,105 @@ tawaf6_text2,ms,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي
 tawaf6_text2,ru,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
 tawaf6_text2,tr,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
 tawaf6_text2,uz,اللَّهُمَّ بَارِكْ لِي فِي رِزْقِي وَافْتَحْ لِي أَبْوَابَ رَحْمَتِكَ
+tawaf6_zikr_repeat,ar,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,en,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,fr,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,id,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,kk,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,ms,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,ru,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,tr,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_repeat,uz,اللَّهُمَّ بَارِكْ لِي فِيمَا أَعْطَيْتَنِي وَاجْعَلْنِي مِنَ الشَّاكِرِينَ
+tawaf6_zikr_text,ar,اشكروا الله على كل ما أعطاكم إياه واسألوه أن يجعل ما أُعطيتموه مباركًا ونافعًا.
+tawaf6_zikr_text,en,"Thank Allah for everything He has already given you, and ask that what has been given becomes blessed and beneficial."
+tawaf6_zikr_text,fr,Remerciez Allah pour tout ce qu’Il vous a déjà donné et demandez que ce qui vous a été accordé devienne béni et bénéfique.
+tawaf6_zikr_text,id,"Bersyukurlah kepada Allah atas semua yang telah Dia berikan kepada Anda, dan mohon agar apa yang diberikan menjadi penuh berkah dan manfaat."
+tawaf6_zikr_text,kk,Аллаға сізге берген барлық нығметтері үшін шүкір етіңіз және берілгеннің берекелі әрі пайдалы болуын сұраңыз.
+tawaf6_zikr_text,ms,Bersyukurlah kepada Allah atas segala yang telah Dia kurniakan kepada anda dan mohon agar apa yang diberikan menjadi berkat dan bermanfaat.
+tawaf6_zikr_text,ru,"Благодарите Аллаха за все, что Он уже дал вам, и просите, чтобы данное стало благословенным и полезным."
+tawaf6_zikr_text,tr,Allah’ın size verdiği her şey için şükredin ve verilenlerin bereketli ve faydalı olmasını isteyin.
+tawaf6_zikr_text,uz,Allohga sizga bergan barcha ne’matlari uchun shukr qiling va berilgan narsalarni barakali hamda foydali qilishini so‘rang.
+tawaf7_reading_arab1,ar,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,en,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,fr,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,id,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,kk,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,ms,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,ru,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,tr,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab1,uz,اللَّهُمَّ اخْتِمْ لِي بِالْقَبُولِ وَالْمَغْفِرَةِ وَالرِّضْوَانِ
+tawaf7_reading_arab2,ar,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,en,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,fr,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,id,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,kk,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,ms,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,ru,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,tr,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab2,uz,اللَّهُمَّ أَعِذْنِي مِنَ النَّارِ وَأَدْخِلْنِي الْجَنَّةَ بِرَحْمَتِكَ
+tawaf7_reading_arab3,ar,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,en,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,fr,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,id,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,kk,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,ms,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,ru,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,tr,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_arab3,uz,اللَّهُمَّ لَا تَجْعَلْ هٰذَا آخِرَ الْعَهْدِ بِبَيْتِكَ الْحَرَامِ وَارْزُقْنِي الْعَوْدَةَ
+tawaf7_reading_text1,ar,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,en,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,fr,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,id,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,kk,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,ms,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,ru,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,tr,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text1,uz,Allahumma-khtim li bil-qabuli wa-l-maghfirati wa-r-ridwan.
+tawaf7_reading_text2,ar,اللهم اختم لي هذه العمرة بالقبول والمغفرة والرضا
+tawaf7_reading_text2,en,"O Allah, complete this Umrah for me with acceptance, forgiveness, and Your pleasure."
+tawaf7_reading_text2,fr,"Ô Allah, achève pour moi cette Omra avec acceptation, pardon et agrément."
+tawaf7_reading_text2,id,"Ya Allah, sempurnakan Umrah ini bagiku dengan penerimaan, ampunan, dan keridaan-Mu."
+tawaf7_reading_text2,kk,"Уа, Алла, бұл умрамды қабыл етумен, кешіріммен және разылықпен аяқтай гөр."
+tawaf7_reading_text2,ms,"Ya Allah, sempurnakan Umrah ini bagiku dengan penerimaan, keampunan dan keredaan-Mu."
+tawaf7_reading_text2,ru,"О Аллах, заверши для меня эту умру принятием, прощением и довольством."
+tawaf7_reading_text2,tr,"Ey Allah’ım, bu Umreyi benim için kabul, bağışlanma ve rızanla tamamla."
+tawaf7_reading_text2,uz,"Ey Alloh, bu o‘mramni men uchun qabul, mag‘firat va rozilik bilan yakunla."
+tawaf7_reading_text3,ar,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,en,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,fr,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,id,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,kk,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,ms,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,ru,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,tr,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text3,uz,Allahumma a'idhni mina-n-nar wa adkhilni-l-jannata birahmatik.
+tawaf7_reading_text4,ar,اللهم أجرني من النار وأدخلني الجنة برحمتك
+tawaf7_reading_text4,en,"O Allah, protect me from the Fire and admit me into Paradise by Your mercy."
+tawaf7_reading_text4,fr,"Ô Allah, protège-moi du Feu et fais-moi entrer au Paradis par Ta miséricorde."
+tawaf7_reading_text4,id,"Ya Allah, lindungilah aku dari Api Neraka dan masukkan aku ke Surga dengan rahmat-Mu."
+tawaf7_reading_text4,kk,"Уа, Алла, мені Оттан қорға және Өз рақымыңмен Жәннатқа кіргізе гөр."
+tawaf7_reading_text4,ms,"Ya Allah, lindungilah aku daripada Api Neraka dan masukkan aku ke dalam Syurga dengan rahmat-Mu."
+tawaf7_reading_text4,ru,"О Аллах, защити меня от Огня и введи меня в Рай по Своей милости."
+tawaf7_reading_text4,tr,"Ey Allah’ım, beni ateşten koru ve rahmetinle beni Cennete koy."
+tawaf7_reading_text4,uz,"Ey Alloh, meni Do‘zaxdan asra va O‘zingning rahmating bilan Jannatga kirgiz."
+tawaf7_reading_text5,ar,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,en,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,fr,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,id,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,kk,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,ms,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,ru,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,tr,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text5,uz,Allahumma la taj'al hadha akhira-l-'ahdi bibaytika-l-haram wa-rzuqni-l-'awdah.
+tawaf7_reading_text6,ar,اللهم لا تجعل هذا آخر عهدي ببيتك الحرام وارزقني العودة إليه
+tawaf7_reading_text6,en,"O Allah, do not make this my last visit to Your Sacred House and grant me the chance to return."
+tawaf7_reading_text6,fr,"Ô Allah, ne fais pas de cette visite ma dernière à Ta Maison sacrée et accorde-moi d’y revenir."
+tawaf7_reading_text6,id,"Ya Allah, jangan jadikan ini kunjunganku yang terakhir ke Rumah Suci-Mu dan anugerahkanlah aku kesempatan untuk kembali."
+tawaf7_reading_text6,kk,"Уа, Алла, бұл келуімді Сенің Қасиетті Үйіңе соңғы келуім етпе және маған қайта оралуды нәсіп ет."
+tawaf7_reading_text6,ms,"Ya Allah, jangan jadikan ini kunjunganku yang terakhir ke Rumah Suci-Mu dan kurniakan aku peluang untuk kembali."
+tawaf7_reading_text6,ru,"О Аллах, не делай это моим последним посещением Твоего Запретного Дома и даруй мне возвращение."
+tawaf7_reading_text6,tr,"Ey Allah’ım, bunu Senin Beytine son ziyaretim yapma ve bana tekrar dönmeyi nasip et."
+tawaf7_reading_text6,uz,"Ey Alloh, bu tashrifimni Baytul-Haromingga oxirgi tashrif qilma va menga qaytishni nasib et."
 tawaf7_tarab1,ar,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
 tawaf7_tarab1,en,"Our Lord, give us good in this world and good in the Hereafter and protect us from the punishment of the Fire."
 tawaf7_tarab1,fr,"Ô notre Seigneur, accorde-nous le bien ici-bas et le bien dans l’au-delà et protège-nous du châtiment du Feu."
@@ -863,6 +1457,24 @@ tawaf7_text2,ms,رَبَّنَا آتِنَا فِي الدُّنْيَا حَس
 tawaf7_text2,ru,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
 tawaf7_text2,tr,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
 tawaf7_text2,uz,رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ
+tawaf7_zikr_repeat,ar,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,en,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,fr,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,id,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,kk,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,ms,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,ru,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,tr,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_repeat,uz,اللَّهُمَّ تَقَبَّلْ مِنِّي وَاخْتِمْ لِي بِخَيْرٍ وَارْزُقْنِي الْعَوْدَةَ إِلَى بَيْتِكَ
+tawaf7_zikr_text,ar,اسألوا الله أن يتقبل عمرتكم وأن يختم طريقكم بخير وأن يعيدكم إلى بيته مرة أخرى.
+tawaf7_zikr_text,en,"Ask Allah to accept your Umrah, beautifully complete your journey, and bring you back again to His House."
+tawaf7_zikr_text,fr,"Demandez à Allah d’accepter votre Omra, de parfaire votre parcours avec beauté et de vous ramener de nouveau vers Sa Maison."
+tawaf7_zikr_text,id,"Mohonlah kepada Allah agar menerima Umrah Anda, menyempurnakan perjalanan Anda dengan indah, dan membawa Anda kembali ke Rumah-Nya."
+tawaf7_zikr_text,kk,"Алладан умраңызды қабыл етуін, жолыңызды көркем аяқтауын және сізді қайтадан Өз Үйіне алып келуін сұраңыз."
+tawaf7_zikr_text,ms,"Mohonlah kepada Allah agar menerima Umrah anda, menyempurnakan perjalanan anda dengan indah dan membawa anda kembali ke Rumah-Nya."
+tawaf7_zikr_text,ru,"Просите Аллаха принять вашу умру, красиво завершить ваш путь и снова привести вас к Своему Дому."
+tawaf7_zikr_text,tr,"Allah’tan Umrenizi kabul etmesini, yolculuğunuzu güzelce tamamlamasını ve sizi yeniden Kendi Evine getirmesini isteyin."
+tawaf7_zikr_text,uz,"Allohdan o‘mrangizni qabul qilishini, yo‘lingizni chiroyli yakunlashini va sizni yana O‘z Uyiga olib kelishini so‘rang."
 tawafpray_text1,ar,يُستحب أداء ركعتين بعد الطواف عند مقام إبراهيم (إن تيسر) أو في أي مكان مناسب.
 tawafpray_text1,en,"It is recommended to perform 2 rak'ahs near Maqam Ibrahim (if accessible), or in any convenient place after the tawaf."
 tawafpray_text1,fr,"Il est recommandé d’accomplir 2 rakaats près de Maqam Ibrahim (si possible), ou dans tout endroit approprié après le tawaf."
@@ -881,6 +1493,15 @@ tawafpray_title1,ms,SOLAT SELEPAS TAWAF
 tawafpray_title1,ru,МОЛИТВА ПОСЛЕ ТАВАФА
 tawafpray_title1,tr,TAVAF SONRASI NAMAZ
 tawafpray_title1,uz,TAWOFdAN KEYINGI NAMOZ
+umrah_start_title,ar,الدخول إلى المسجد الحرام
+umrah_start_title,en,Entering Al-Haram Mosque
+umrah_start_title,fr,Entrée dans la mosquée Al-Haram
+umrah_start_title,id,Masuk ke Masjid Al-Haram
+umrah_start_title,kk,Әл-Харам мешітіне кіру
+umrah_start_title,ms,Masuk ke Masjid Al-Haram
+umrah_start_title,ru,Вход в мечеть аль харам
+umrah_start_title,tr,Mescid-i Haram’a giriş
+umrah_start_title,uz,Al-Haram masjidiga kirish
 zamzam_text,ar,المعنى: يُعد ماء زمزم ماءً مباركًا ومقدسًا، وشربه بعد الطواف يرمز إلى شكر الله ونيل رحمته.
 zamzam_text,en,Meaning: Zamzam water is considered sacred and blessed. Drinking it after tawaf symbolizes gratitude to Allah and seeking His mercy.
 zamzam_text,fr,Sens : L’eau de Zamzam est considérée comme sacrée et bénie. La boire après le tawaf symbolise la gratitude envers Allah et la demande de Sa miséricorde.

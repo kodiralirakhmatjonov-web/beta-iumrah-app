@@ -14,64 +14,70 @@ struct UmrahView: View {
                     store: store,
                     audio: audio,
                     audioKey: audioKeys[flow.postTawafStep],
-                    subtitle: "Voice Guide · \(flow.postTawafStep + 1) / 4"
+                    subtitle: "Voice Guide · \(flow.postTawafStep + 1) / 4",
+                    progress: flow.topProgress
                 )
 
                 VStack(spacing: 18) {
                     Image(systemName: content.icon)
                         .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.96, green: 0.38, blue: 0.04))
-                        .frame(width: 64, height: 64)
-                        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .foregroundStyle(Color(red: 1.00, green: 0.56, blue: 0.12))
+                        .frame(width: 66, height: 66)
+                        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
 
-                    Text(content.title)
-                        .font(.system(size: 29, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
+                    UmrahAnimatedText(
+                        text: content.title,
+                        font: .system(size: 29, weight: .bold, design: .rounded),
+                        foreground: .white,
+                        alignment: .center,
+                        lineSpacing: 4
+                    )
 
                     if let secondary = content.secondary, !secondary.isEmpty {
-                        Text(secondary)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.68))
-                            .multilineTextAlignment(.center)
+                        UmrahAnimatedText(
+                            text: secondary,
+                            font: .title3.weight(.semibold),
+                            foreground: .white.opacity(0.68),
+                            alignment: .center,
+                            lineSpacing: 4
+                        )
                     }
 
-                    Text(content.body)
-                        .font(.system(size: 20, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.72))
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(5)
-                        .fixedSize(horizontal: false, vertical: true)
+                    UmrahAnimatedText(
+                        text: content.body,
+                        font: .system(size: 20, weight: .medium, design: .rounded),
+                        foreground: .white.opacity(0.72),
+                        alignment: .center,
+                        lineSpacing: 6
+                    )
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity, minHeight: 310)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.7)
-                }
+                .background(Color.white.opacity(0.022), in: RoundedRectangle(cornerRadius: 42, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 42, style: .continuous))
 
                 HStack(spacing: 12) {
                     if flow.postTawafStep > 0 {
                         UmrahFlowSecondaryButton(title: "Back") {
                             audio.stop()
                             IumrahHaptics.selection()
-                            withAnimation(.easeInOut(duration: 0.24)) { flow.postTawafStep -= 1 }
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) { flow.postTawafStep -= 1 }
                         }
                     }
                     UmrahFlowPrimaryButton(title: continueLabel) {
                         audio.stop()
                         IumrahHaptics.selection()
                         if flow.postTawafStep < 3 {
-                            withAnimation(.easeInOut(duration: 0.24)) { flow.postTawafStep += 1 }
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) { flow.postTawafStep += 1 }
                         } else {
-                            withAnimation(.easeInOut(duration: 0.28)) { flow.stage = .safa }
+                            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.stage = .safa }
                         }
                     }
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
         }
     }
 
@@ -83,7 +89,7 @@ struct UmrahView: View {
         switch flow.postTawafStep {
         case 0:
             return (
-                "figure.mind.and.body",
+                "hands.sparkles.fill",
                 store.text("tawafpray_title1", fallback: "Prayer after Tawaf"),
                 nil,
                 store.text("tawafpray_text1", fallback: "Pray two rak'ahs when it is appropriate and safe to do so.")
