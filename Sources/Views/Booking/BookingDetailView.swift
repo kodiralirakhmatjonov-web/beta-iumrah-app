@@ -34,6 +34,7 @@ struct BookingDetailView: View {
             if let session {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 16) {
+                        IumrahBookingDomeCard()
                         statusHero(session)
                         bookingMetaCard(session.booking)
                         if session.booking.perPilgrimUsd >= 1800 {
@@ -751,9 +752,10 @@ struct BookingDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Image("CarePriceSupport")
                 .resizable()
-                .scaledToFit()
+                .scaledToFill()
+                .frame(height: 132)
                 .frame(maxWidth: .infinity)
-                .background(Color.black)
+                .clipped()
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(bookingCareBalanceTitle)

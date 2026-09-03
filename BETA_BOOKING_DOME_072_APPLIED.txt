@@ -1,0 +1,9 @@
+iumrah Beta update 072 — native iumrah Booking animated dome
+
+Scope:
+- Booking detail screen only.
+- Adds a native SwiftUI Canvas / TimelineView iridescent point-dome card between the booking header and booking content.
+- Replaces the reference Apple Cash identity with “iumrah Booking”.
+- Uses a seamless 4.6-second full-spectrum color/intensity cycle, hollow lens-like points, front-surface depth sizing, and reduced-motion support.
+- No video/GIF/network asset is used for the animation.
+- No booking logic, pricing, generator, backend, checkout, hotels, flights, navigation contracts, or existing cards were changed.
