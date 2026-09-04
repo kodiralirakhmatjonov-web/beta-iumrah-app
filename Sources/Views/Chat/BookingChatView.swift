@@ -4,6 +4,7 @@ import UIKit
 
 struct BookingChatView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var chrome: AppChromeStore
@@ -239,7 +240,7 @@ struct BookingChatView: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(minWidth: 20, minHeight: 20)
-                                .background(Color.iumrahCareDark, in: Capsule())
+                                .background(outgoingAccentColor, in: Capsule())
                                 .offset(x: 7, y: -6)
                         }
                     }
@@ -362,7 +363,7 @@ struct BookingChatView: View {
                     .padding(.vertical, 9)
                     .background {
                         CareMessageBubbleShape(isMine: true, groupStart: true, groupEnd: true)
-                            .fill(Color.iumrahCareDark.opacity(0.96))
+                            .fill(outgoingAccentColor.opacity(0.98))
                     }
 
                 HStack(spacing: 5) {
@@ -479,7 +480,7 @@ struct BookingChatView: View {
                         .textFieldStyle(.plain)
                         .lineLimit(1...5)
                         .submitLabel(.send)
-                        .tint(appearance.wallpaper.isVisual ? .white : Color.iumrahCareDark)
+                        .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
                         .onSubmit {
                             guard canSend else { return }
                             Task { await send(proxy: proxy) }
@@ -503,7 +504,7 @@ struct BookingChatView: View {
                             }
                             .foregroundStyle(.white)
                             .frame(width: 30, height: 30)
-                            .background(Color.iumrahCareDark, in: Circle())
+                            .background(outgoingAccentColor, in: Circle())
                             .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -546,7 +547,7 @@ struct BookingChatView: View {
                     .padding(.vertical, 9)
                     .background {
                         CareMessageBubbleShape(isMine: true, groupStart: true, groupEnd: true)
-                            .fill(Color.iumrahCareDark.opacity(0.98))
+                            .fill(outgoingAccentColor)
                     }
                     .matchedGeometryEffect(id: "care-send-\(launchingOutgoing.id)", in: sendNamespace, isSource: true)
                     .padding(.trailing, 14)
@@ -559,11 +560,26 @@ struct BookingChatView: View {
 
     private var composerGlassTint: Color? {
         if appearance.wallpaper.isVisual {
-            return Color.white.opacity(composerFocused ? 0.085 : 0.035)
+            return Color.white.opacity(composerFocused ? 0.10 : 0.045)
+        }
+        if colorScheme == .dark {
+            return composerFocused
+                ? outgoingAccentColor.opacity(0.16)
+                : Color.white.opacity(0.045)
         }
         return composerFocused
-            ? Color.iumrahCareLight.opacity(0.060)
-            : Color.primary.opacity(0.018)
+            ? Color.iumrahCareLight.opacity(0.070)
+            : Color.primary.opacity(0.020)
+    }
+
+    /// A brighter iumrah accent is used only inside the chat in Dark Mode.
+    /// The previous deep brand green merged into the system background and made
+    /// outgoing bubbles / the send affordance look disabled.
+    private var outgoingAccentColor: Color {
+        if colorScheme == .dark {
+            return Color(red: 0.10, green: 0.62, blue: 0.47)
+        }
+        return Color.iumrahCareDark
     }
 
     private var canSend: Bool {

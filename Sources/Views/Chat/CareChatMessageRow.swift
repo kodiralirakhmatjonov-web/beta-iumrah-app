@@ -93,7 +93,7 @@ struct CareChatMessageRow: View {
             .padding(.vertical, verticalPadding)
             .background {
                 if isMine {
-                    shape.fill(Color.iumrahCareDark.opacity(wallpaperActive ? 0.94 : 1))
+                    shape.fill(outgoingBubbleColor.opacity(wallpaperActive ? 0.96 : 1))
                 } else if wallpaperActive {
                     shape
                         .fill(.ultraThinMaterial)
@@ -150,6 +150,14 @@ struct CareChatMessageRow: View {
 
     private var verticalPadding: CGFloat {
         message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 3 : 9
+    }
+
+
+    private var outgoingBubbleColor: Color {
+        if colorScheme == .dark {
+            return Color(red: 0.10, green: 0.62, blue: 0.47)
+        }
+        return Color.iumrahCareDark
     }
 
     private var incomingStrokeColor: Color {
