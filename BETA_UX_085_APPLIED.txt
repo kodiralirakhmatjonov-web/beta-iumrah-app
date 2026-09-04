@@ -1,0 +1,23 @@
+iumrah Beta update 085 — Booking top-only pull + native travel launch burst
+
+Source of truth:
+- Built against user-provided `beta-iumrah-app-main 6(3).zip` from 2026-09-04.
+
+Booking pull gesture:
+- Restores the existing physical iumrah Booking card/pass integration represented by BETA_BOOKING_PASS_076 in the source of truth.
+- Fixes the pull-zone bug at its cause: the previous PreferenceKey used default 0 + max(), so negative scroll offsets collapsed back to 0 and made the pass gesture appear eligible while scrolled anywhere on the booking page.
+- The top marker is now optional/unmeasured until SwiftUI reports a real position, and the gesture is eligible only if the drag STARTS while that marker is at the true top (>= -1.5 pt).
+- Gesture eligibility remains locked for the lifetime of the drag, so a swipe that begins on itinerary/flights/hotels/Care cannot become a card pull after reaching the top.
+- Existing long ~46% viewport pull threshold, release hint, haptics, dark fullscreen landscape pass and physical card flip are preserved.
+- Preserves the newer source-of-truth CarePriceSupport scaledToFit layout.
+
+Native launch experience:
+- Keeps the real static UILaunchScreen handoff (LaunchBackground + LaunchWordmark), so there is still no intentional blank/dark waiting frame before SwiftUI.
+- Adds one native travel firework on the first live splash frame: 34 tiny SF Symbol airplane particles originate from the bottom-center and spread upward on individual ballistic paths.
+- Airplanes use electric blue, violet, cyan, orange and magenta; small stagger, scale, rotation and sway keep the burst organic without GIF/Lottie/video assets.
+- The particle effect runs once, fades together with the splash, and has no background runtime cost after launch.
+- Existing wordmark sheen, soft haptic, reveal transition and Reduce Motion behavior are preserved.
+
+QA:
+- 159 Swift files parsed successfully with `swiftc -frontend -parse`.
+- ZIP contains only the two changed Swift files plus this marker.
