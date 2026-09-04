@@ -53,16 +53,7 @@ struct BookingChatView: View {
                     motionEnabled: !showCareProfile
                 )
 
-                VStack(spacing: 0) {
-                    conversation(proxy: proxy)
-
-                    if let errorMessage {
-                        errorBar(errorMessage, proxy: proxy)
-                    }
-
-                    composer(proxy: proxy)
-                }
-                .safeAreaInset(edge: .top, spacing: 0) { chatNavigationHeader }
+                conversation(proxy: proxy)
 
                 if showCareProfile {
                     CareContactInfoView(
@@ -73,6 +64,9 @@ struct BookingChatView: View {
                         onCall: openPhone,
                         onTelegram: openTelegram,
                         onWhatsApp: openWhatsApp,
+                        onRequestFounder: {
+                            await requestFounderReview(proxy: proxy)
+                        },
                         transitionNamespace: profileNamespace,
                         onClose: {
                             withAnimation(.spring(response: 0.42, dampingFraction: 0.92)) {
@@ -82,6 +76,21 @@ struct BookingChatView: View {
                     )
                     .zIndex(20)
                     .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .top)))
+                }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !showCareProfile {
+                    chatNavigationHeader
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !showCareProfile {
+                    VStack(spacing: 0) {
+                        if let errorMessage {
+                            errorBar(errorMessage, proxy: proxy)
+                        }
+                        composer(proxy: proxy)
+                    }
                 }
             }
             .task {
@@ -112,6 +121,7 @@ struct BookingChatView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .onAppear {
             CareChatFeedback.shared.prepare()
             guard !registeredImmersive else { return }
@@ -225,7 +235,7 @@ struct BookingChatView: View {
                     }
                     .foregroundStyle(conversationPrimary)
                 }
-                .buttonStyle(CareGlassPressStyle(shape: Circle()))
+                .careNativeGlassButton()
                 .padding(.trailing, 16)
                 .padding(.bottom, 14)
                 .transition(.scale(scale: 0.86).combined(with: .opacity))
@@ -362,33 +372,39 @@ struct BookingChatView: View {
 
     private var chatNavigationHeader: some View {
         ZStack {
-            HStack {
-                Button {
-                    if appearance.hapticsEnabled { IumrahHaptics.soft() }
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 21, weight: .semibold))
-                        .frame(width: 48, height: 48)
-                        .contentShape(Circle())
-                        .foregroundStyle(headerPrimary)
-                }
-                .buttonStyle(CareGlassPressStyle(shape: Circle()))
-                .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
+            CareNativeGlassContainer(spacing: 12) {
+                HStack(spacing: 12) {
+                    Button {
+                        if appearance.hapticsEnabled { IumrahHaptics.soft() }
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 21, weight: .semibold))
+                            .frame(width: 46, height: 46)
+                            .contentShape(Circle())
+                    }
+                    .foregroundStyle(headerPrimary)
+                    .careNativeGlassButton()
+                    .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
 
-                Spacer()
+                    Spacer(minLength: 96)
 
-                NavigationLink {
-                    BookingDetailView(bookingID: bookingID)
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 22, weight: .medium))
-                        .frame(width: 48, height: 48)
-                        .contentShape(Circle())
-                        .foregroundStyle(headerPrimary)
+                    Button {
+                        if appearance.hapticsEnabled { IumrahHaptics.selection() }
+                        composerFocused = false
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.92)) {
+                            showCareProfile = true
+                        }
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 22, weight: .medium))
+                            .frame(width: 46, height: 46)
+                            .contentShape(Circle())
+                    }
+                    .foregroundStyle(headerPrimary)
+                    .careNativeGlassButton()
+                    .accessibilityLabel(tr("Care information", "Информация iumrah Care", "iumrah Care ma’lumoti", "iumrah Care маълумоти"))
                 }
-                .buttonStyle(CareGlassPressStyle(shape: Circle()))
-                .accessibilityLabel(tr("Booking information", "Информация о бронировании", "Bron ma’lumoti", "Брон маълумоти"))
             }
 
             Button {
@@ -398,23 +414,23 @@ struct BookingChatView: View {
                     showCareProfile = true
                 }
             } label: {
-                VStack(spacing: 4) {
-                    CareProfileAvatar(profile: careProfile, size: 54)
+                VStack(spacing: 3) {
+                    CareProfileAvatar(profile: nil, size: 52)
                         .matchedGeometryEffect(id: "care-profile-avatar", in: profileNamespace, isSource: !showCareProfile)
-                        .shadow(color: .black.opacity(0.10), radius: 7, y: 3)
+                        .shadow(color: .black.opacity(appearance.wallpaper.isVisual ? 0.20 : 0.08), radius: 7, y: 3)
 
                     HStack(spacing: 3) {
-                        Text(displayName)
+                        Text("iumrah Care")
                             .matchedGeometryEffect(id: "care-profile-name", in: profileNamespace, isSource: !showCareProfile)
                             .font(.system(size: 14.5, weight: .semibold))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.75)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8.5, weight: .bold))
                     }
                     .foregroundStyle(headerPrimary)
                 }
-                .frame(maxWidth: 210)
+                .frame(maxWidth: 176)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .opacity(showCareProfile ? 0 : 1)
@@ -423,96 +439,105 @@ struct BookingChatView: View {
         .padding(.top, 5)
         .padding(.bottom, 8)
         .background {
-            if appearance.wallpaper.isVisual {
-                LinearGradient(
-                    colors: [Color.black.opacity(0.24), Color.black.opacity(0.08), Color.clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            headerBackdrop
                 .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
-            } else {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.92)
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.045))
-                            .frame(height: 0.5)
-                    }
-                    .ignoresSafeArea(edges: .top)
-            }
+        }
+    }
+
+    @ViewBuilder
+    private var headerBackdrop: some View {
+        if appearance.wallpaper.isVisual {
+            LinearGradient(
+                colors: [Color.black.opacity(0.24), Color.black.opacity(0.07), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+        } else {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.86)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.035))
+                        .frame(height: 0.5)
+                }
         }
     }
 
     // MARK: - Composer
 
     private func composer(proxy: ScrollViewProxy) -> some View {
-        HStack(alignment: .bottom, spacing: 9) {
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                Group {
-                    if isSendingPhoto {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "plus")
-                            .font(.system(size: 21, weight: .medium))
-                    }
-                }
-                .foregroundStyle(composerControlColor)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-            }
-            .buttonStyle(CareGlassPressStyle(shape: Circle()))
-            .disabled(isSending || isSendingPhoto)
-            .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
-
-            HStack(alignment: .bottom, spacing: 8) {
-                TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
-                    .focused($composerFocused)
-                    .font(.system(size: 17))
-                    .lineLimit(1...5)
-                    .submitLabel(.send)
-                    .onSubmit {
-                        guard canSend else { return }
-                        Task { await send(proxy: proxy) }
-                    }
-                    .padding(.leading, 14)
-                    .padding(.vertical, 10)
-
-                if canSend || isSending {
-                    Button {
-                        Task { await send(proxy: proxy) }
-                    } label: {
-                        Group {
-                            if isSending {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "arrow.up")
-                                    .font(.system(size: 16, weight: .bold))
-                            }
+        CareNativeGlassContainer(spacing: 10) {
+            HStack(alignment: .bottom, spacing: 9) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                    Group {
+                        if isSendingPhoto {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "plus")
+                                .font(.system(size: 22, weight: .regular))
                         }
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Color.iumrahCareDark.opacity(canSend ? 0.96 : 0.62), in: Circle())
-                        .contentShape(Circle())
                     }
-                    .buttonStyle(CareGlassPressStyle(shape: Circle()))
-                    .disabled(!canSend)
-                    .padding(.trailing, 5)
-                    .padding(.bottom, 5)
-                    .transition(.scale(scale: 0.72).combined(with: .opacity))
+                    .foregroundStyle(composerControlColor)
+                    .frame(width: 46, height: 46)
+                    .contentShape(Circle())
                 }
+                .careNativeGlassButton()
+                .disabled(isSending || isSendingPhoto)
+                .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
+
+                HStack(alignment: .bottom, spacing: 7) {
+                    TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
+                        .focused($composerFocused)
+                        .font(.system(size: 17))
+                        .lineLimit(1...5)
+                        .submitLabel(.send)
+                        .onSubmit {
+                            guard canSend else { return }
+                            Task { await send(proxy: proxy) }
+                        }
+                        .padding(.leading, 15)
+                        .padding(.vertical, 11)
+
+                    if canSend || isSending {
+                        Button {
+                            Task { await send(proxy: proxy) }
+                        } label: {
+                            Group {
+                                if isSending {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 15.5, weight: .bold))
+                                }
+                            }
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .contentShape(Circle())
+                        }
+                        .tint(Color.iumrahCareDark)
+                        .careNativeGlassButton(prominent: true)
+                        .disabled(!canSend)
+                        .padding(.trailing, 5)
+                        .padding(.bottom, 5)
+                        .transition(.scale(scale: 0.72).combined(with: .opacity))
+                    }
+                }
+                .frame(minHeight: 46)
+                .careNativeGlassSurface(
+                    in: RoundedRectangle(cornerRadius: 24, style: .continuous),
+                    interactive: true
+                )
+                .animation(.spring(response: 0.28, dampingFraction: 0.84), value: canSend)
             }
-            .frame(minHeight: 44)
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 23, style: .continuous))
-            .animation(.spring(response: 0.28, dampingFraction: 0.84), value: canSend)
         }
         .padding(.horizontal, 14)
-        .padding(.top, 9)
-        .padding(.bottom, 10)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
         .overlay(alignment: .bottomTrailing) {
             if let launchingOutgoing {
                 Text(launchingOutgoing.body)
@@ -527,31 +552,35 @@ struct BookingChatView: View {
                     }
                     .matchedGeometryEffect(id: "care-send-\(launchingOutgoing.id)", in: sendNamespace, isSource: true)
                     .padding(.trailing, 16)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 10)
                     .allowsHitTesting(false)
                     .zIndex(5)
             }
         }
         .background {
-            if appearance.wallpaper.isVisual {
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.08), Color.black.opacity(0.20)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            composerBackdrop
                 .ignoresSafeArea(edges: .bottom)
-                .allowsHitTesting(false)
-            } else {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.96)
-                    .overlay(alignment: .top) {
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.045))
-                            .frame(height: 0.5)
-                    }
-                    .ignoresSafeArea(edges: .bottom)
-            }
+        }
+    }
+
+    @ViewBuilder
+    private var composerBackdrop: some View {
+        if appearance.wallpaper.isVisual {
+            LinearGradient(
+                colors: [Color.clear, Color.black.opacity(0.055), Color.black.opacity(0.15)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+        } else {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.84)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.035))
+                        .frame(height: 0.5)
+                }
         }
     }
 
@@ -859,17 +888,66 @@ struct BookingChatView: View {
         }
     }
 
+    @MainActor
+    private func requestFounderReview(proxy: ScrollViewProxy) async -> Bool {
+        guard !isSending && !isSendingPhoto else { return false }
+
+        let message = tr(
+            "Please connect Abdulaziz to this chat. I’d like the founder to review my trip once more.",
+            "Подключите к чату Абдулазиза. Хочу, чтобы основатель ещё раз проверил мою поездку.",
+            "Abdulazizni ushbu chatga ulang. Asoschi safarimni yana bir bor tekshirib chiqishini xohlayman.",
+            "Абдулазизни ушбу чатга уланг. Асосчи сафаримни яна бир бор текшириб чиқишини хоҳлайман."
+        )
+
+        isSending = true
+        errorMessage = nil
+        failedDraft = nil
+
+        let pending = PendingOutgoingMessage(id: UUID().uuidString, body: message)
+        launchingOutgoing = pending
+        await Task.yield()
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.84)) {
+            pendingOutgoing = pending
+            launchingOutgoing = nil
+        }
+
+        if appearance.soundsEnabled { CareChatFeedback.shared.play(.send) }
+        if appearance.hapticsEnabled { IumrahHaptics.selection() }
+        await Task.yield()
+        scrollToLatest(proxy)
+
+        do {
+            _ = try await bookings.send(message: message, for: bookingID)
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                messages = (bookings.chats[bookingID] ?? messages).sorted(by: { $0.createdAt < $1.createdAt })
+                pendingOutgoing = nil
+                launchingOutgoing = nil
+            }
+            isSending = false
+            scrollToLatest(proxy)
+            return true
+        } catch {
+            withAnimation(.easeOut(duration: 0.16)) {
+                pendingOutgoing = nil
+                launchingOutgoing = nil
+            }
+            failedDraft = message
+            errorMessage = L10n.format("chat_send_failed", settings.language, L10n.error(error, settings.language))
+            if appearance.soundsEnabled { CareChatFeedback.shared.play(.error) }
+            if appearance.hapticsEnabled { IumrahHaptics.error() }
+            isSending = false
+            return false
+        }
+    }
+
     // MARK: - Care Profile Actions
 
     @MainActor
     private func loadCareProfile() async {
         guard careProfile == nil else { return }
         careProfile = try? await ChatService().loadCareProfile()
-    }
-
-    private var displayName: String {
-        let value = careProfile?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return value.isEmpty ? "iumrah Care" : value
     }
 
     private var preferredPhone: String {

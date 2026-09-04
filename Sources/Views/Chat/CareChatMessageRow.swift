@@ -39,13 +39,12 @@ struct CareChatMessageRow: View {
 
                 if !isMine {
                     if groupEnd {
-                        Image("CareMark")
+                        Image("CareChatAvatar")
                             .resizable()
-                            .scaledToFit()
-                            .padding(3)
+                            .scaledToFill()
                             .frame(width: 28, height: 28)
-                            .background(Color.white, in: Circle())
-                            .overlay { Circle().stroke(Color.black.opacity(0.06), lineWidth: 0.6) }
+                            .clipShape(Circle())
+                            .overlay { Circle().stroke(Color.white.opacity(0.58), lineWidth: 0.6) }
                             .transition(.scale(scale: 0.82).combined(with: .opacity))
                     } else {
                         Color.clear.frame(width: 28, height: 1)
@@ -367,10 +366,9 @@ private struct CareChatImageViewer: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay { Circle().stroke(Color.white.opacity(0.24), lineWidth: 0.7) }
+                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            .careNativeGlassButton()
             .padding(.top, 12)
             .padding(.trailing, 16)
         }

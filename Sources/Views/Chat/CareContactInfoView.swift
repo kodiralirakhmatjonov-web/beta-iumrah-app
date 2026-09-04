@@ -15,13 +15,14 @@ struct CareContactInfoView: View {
     let onCall: () -> Void
     let onTelegram: () -> Void
     let onWhatsApp: () -> Void
+    let onRequestFounder: () async -> Bool
     let transitionNamespace: Namespace.ID
     let onClose: () -> Void
 
     @State private var section: Section = .info
     @State private var selectedPhoto: PhotosPickerItem?
     @GestureState private var dismissDragX: CGFloat = 0
-    @Namespace private var segmentNamespace
+    @State private var isRequestingFounder = false
 
     var body: some View {
         ZStack {
@@ -87,6 +88,7 @@ struct CareContactInfoView: View {
                 }
         )
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .top, spacing: 0) { floatingTopBar }
         .onChange(of: selectedPhoto) { _, item in
             guard let item else { return }
@@ -104,33 +106,35 @@ struct CareContactInfoView: View {
     }
 
     private var floatingTopBar: some View {
-        HStack {
-            Button {
-                if appearance.hapticsEnabled { IumrahHaptics.soft() }
-                onClose()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 21, weight: .semibold))
-                    .frame(width: 48, height: 48)
-                    .contentShape(Circle())
-            }
-            .foregroundStyle(primaryText)
-            .buttonStyle(CareGlassPressStyle(shape: Circle()))
-            .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
+        CareNativeGlassContainer(spacing: 14) {
+            HStack {
+                Button {
+                    if appearance.hapticsEnabled { IumrahHaptics.soft() }
+                    onClose()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 21, weight: .semibold))
+                        .frame(width: 48, height: 48)
+                        .contentShape(Circle())
+                }
+                .foregroundStyle(primaryText)
+                .careNativeGlassButton()
+                .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
 
-            Spacer()
+                Spacer()
 
-            Button {
-                if appearance.hapticsEnabled { IumrahHaptics.selection() }
-                onClose()
-            } label: {
-                Text(tr("Done", "Готово", "Tayyor", "Тайёр"))
-                    .font(.system(size: 17, weight: .semibold))
-                    .padding(.horizontal, 17)
-                    .frame(height: 48)
+                Button {
+                    if appearance.hapticsEnabled { IumrahHaptics.selection() }
+                    onClose()
+                } label: {
+                    Text(tr("Done", "Готово", "Tayyor", "Тайёр"))
+                        .font(.system(size: 17, weight: .semibold))
+                        .padding(.horizontal, 17)
+                        .frame(height: 48)
+                }
+                .foregroundStyle(primaryText)
+                .careNativeGlassButton()
             }
-            .foregroundStyle(primaryText)
-            .buttonStyle(CareGlassPressStyle(shape: Capsule()))
         }
         .padding(.horizontal, 20)
         .padding(.top, 4)
@@ -139,18 +143,18 @@ struct CareContactInfoView: View {
 
     private var profileHero: some View {
         VStack(spacing: 12) {
-            CareProfileAvatar(profile: profile, size: 112)
+            CareProfileAvatar(profile: nil, size: 112)
                 .matchedGeometryEffect(id: "care-profile-avatar", in: transitionNamespace, isSource: true)
                 .shadow(color: .black.opacity(appearance.wallpaper.isVisual ? 0.20 : 0.12), radius: 20, y: 9)
 
-            Text(displayName)
+            Text("iumrah Care")
                 .matchedGeometryEffect(id: "care-profile-name", in: transitionNamespace, isSource: true)
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .tracking(-0.75)
                 .foregroundStyle(primaryText)
                 .multilineTextAlignment(.center)
 
-            Text(roleTitle)
+            Text(tr("Support for every stage of your journey", "Поддержка на всех этапах вашей поездки", "Safaringizning barcha bosqichlarida yordam", "Сафарингизнинг барча босқичларида ёрдам"))
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(secondaryText)
                 .multilineTextAlignment(.center)
@@ -196,7 +200,7 @@ struct CareContactInfoView: View {
                     .font(.system(size: 22, weight: .semibold))
                     .frame(width: 58, height: 58)
                     .contentShape(Circle())
-                    .iumrahGlass(in: Circle())
+                    .careNativeGlassSurface(in: Circle(), interactive: true)
 
                 Text(title)
                     .font(.system(size: 12.5, weight: .medium))
@@ -210,43 +214,23 @@ struct CareContactInfoView: View {
     }
 
     private var segmentControl: some View {
-        HStack(spacing: 12) {
-            segmentButton(.info, title: tr("Info", "Сведения", "Ma’lumot", "Маълумот"))
-            segmentButton(.background, title: tr("Background", "Фон", "Fon", "Фон"))
+        Picker("", selection: $section) {
+            Text(tr("Info", "Сведения", "Ma’lumot", "Маълумот"))
+                .tag(Section.info)
+            Text(tr("Background", "Фон", "Fon", "Фон"))
+                .tag(Section.background)
         }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func segmentButton(_ value: Section, title: String) -> some View {
-        Button {
-            guard section != value else { return }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 286)
+        .onChange(of: section) { _, _ in
             if appearance.hapticsEnabled { IumrahHaptics.selection() }
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.90)) {
-                section = value
-            }
-        } label: {
-            Text(title)
-                .font(.system(size: 16.5, weight: section == value ? .semibold : .medium))
-                .foregroundStyle(primaryText.opacity(section == value ? 1 : 0.62))
-                .padding(.horizontal, 18)
-                .frame(height: 44)
-                .background {
-                    if section == value {
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                            .matchedGeometryEffect(id: "care-profile-segment", in: segmentNamespace)
-                            .overlay {
-                                Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.7)
-                            }
-                    }
-                }
-                .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
     }
 
     private var informationSection: some View {
         VStack(spacing: 14) {
+            founderConnectCard
+
             if let bio = profile?.bio.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
                 glassCard {
                     Text(bio)
@@ -306,7 +290,7 @@ struct CareContactInfoView: View {
                         Image(systemName: "suitcase.fill")
                             .font(.system(size: 16, weight: .semibold))
                             .frame(width: 38, height: 38)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tr("Booking", "Бронирование", "Bron", "Брон"))
@@ -322,6 +306,75 @@ struct CareContactInfoView: View {
                 }
             }
         }
+    }
+
+    private var founderConnectCard: some View {
+        Button {
+            guard !isRequestingFounder else { return }
+            Task { @MainActor in
+                isRequestingFounder = true
+                let success = await onRequestFounder()
+                isRequestingFounder = false
+                if success {
+                    onClose()
+                }
+            }
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    if isRequestingFounder {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .font(.system(size: 21, weight: .semibold))
+                    }
+                }
+                .frame(width: 48, height: 48)
+                .careNativeGlassSurface(in: Circle(), interactive: true)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tr(
+                        "Connect Abdulaziz to this chat",
+                        "Подключить к чату Абдулазиза",
+                        "Abdulazizni chatga ulash",
+                        "Абдулазизни чатга улаш"
+                    ))
+                    .font(.system(size: 16.5, weight: .semibold))
+                    .foregroundStyle(primaryText)
+
+                    Text(tr(
+                        "The founder will personally review your trip once more.",
+                        "Основатель сам ещё раз проверит вашу поездку.",
+                        "Asoschi safaringizni yana bir bor shaxsan tekshiradi.",
+                        "Асосчи сафарингизни яна бир бор шахсан текширади."
+                    ))
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(secondaryText)
+            }
+            .padding(16)
+            .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .careNativeGlassSurface(
+                in: RoundedRectangle(cornerRadius: 28, style: .continuous),
+                interactive: true
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isRequestingFounder)
+        .accessibilityHint(tr(
+            "Sends a request to bring the founder into this conversation",
+            "Отправляет запрос на подключение основателя к этому чату",
+            "Asoschini ushbu suhbatga qo‘shish so‘rovini yuboradi",
+            "Асосчини ушбу суҳбатга қўшиш сўровини юборади"
+        ))
     }
 
     private var backgroundSection: some View {
@@ -490,11 +543,10 @@ struct CareContactInfoView: View {
     @ViewBuilder
     private func glassCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 29, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 29, style: .continuous)
-                    .stroke(Color.white.opacity(appearance.wallpaper.isVisual ? 0.16 : 0.22), lineWidth: 0.65)
-            }
+            .careNativeGlassSurface(
+                in: RoundedRectangle(cornerRadius: 29, style: .continuous),
+                interactive: false
+            )
     }
 
     private func infoRow(label: String, value: String, icon: String) -> some View {
@@ -502,7 +554,7 @@ struct CareContactInfoView: View {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 38, height: 38)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
@@ -523,7 +575,7 @@ struct CareContactInfoView: View {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 38, height: 38)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
 
             Text(title)
                 .font(.system(size: 16, weight: .medium))
@@ -536,17 +588,6 @@ struct CareContactInfoView: View {
                 .tint(.green)
         }
         .padding(.vertical, 10)
-    }
-
-    private var displayName: String {
-        let value = profile?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return value.isEmpty ? "iumrah Care" : value
-    }
-
-    private var roleTitle: String {
-        let value = profile?.roleTitle.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !value.isEmpty { return value }
-        return tr("iumrah support", "Поддержка iumrah", "iumrah yordami", "iumrah ёрдами")
     }
 
     private var preferredPhone: String {
@@ -586,44 +627,16 @@ struct CareProfileAvatar: View {
     let size: CGFloat
 
     var body: some View {
-        Group {
-            if let path = profile?.photoURL, let url = AppConfig.absoluteURL(path) {
-                AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        fallback
-                    }
-                }
-            } else {
-                fallback
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay { Circle().stroke(Color.white.opacity(0.48), lineWidth: 1) }
-        .contentShape(Circle())
-    }
-
-    private var fallback: some View {
-        Image("CareMark")
+        Image("CareChatAvatar")
             .resizable()
-            .scaledToFit()
-            .padding(size * 0.12)
-            .background(Color.white)
-    }
-}
-
-struct CareGlassPressStyle<S: Shape>: ButtonStyle {
-    let shape: S
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .iumrahGlass(in: shape)
-            .scaleEffect(configuration.isPressed ? 0.92 : 1)
-            .opacity(configuration.isPressed ? 0.80 : 1)
-            .animation(.spring(response: 0.22, dampingFraction: 0.77), value: configuration.isPressed)
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(Color.white.opacity(0.62), lineWidth: 0.8)
+            }
+            .contentShape(Circle())
+            .accessibilityLabel("iumrah Care")
     }
 }
