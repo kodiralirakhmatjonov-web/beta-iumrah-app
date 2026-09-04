@@ -147,3 +147,84 @@ CREATE TABLE IF NOT EXISTS iumrah_client_security_audit (
 );
 CREATE INDEX IF NOT EXISTS idx_iumrah_client_security_audit_account
 ON iumrah_client_security_audit(pilgrim_id, created_at DESC);
+
+-- iumrah Security Confirmation. Only masked passport metadata is retained here;
+-- the full passport number is never stored by PackageEngine. The deterministic
+-- identity fingerprint is used to detect repeated identity use across bookings.
+CREATE TABLE IF NOT EXISTS iumrah_identity_confirmations (
+  id TEXT PRIMARY KEY,
+  booking_id TEXT NOT NULL UNIQUE,
+  identity_fingerprint TEXT NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  passport_last4 TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'submitted'
+    CHECK (status IN ('submitted','manual_review','confirmed','rejected')),
+  verification_method TEXT NOT NULL DEFAULT 'passport_self_confirmation',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_iumrah_identity_fingerprint
+ON iumrah_identity_confirmations(identity_fingerprint, updated_at DESC);
+
+-- iumrah Friends: every canonical iumrah account receives three $100 gifts.
+-- Gift redemptions are bound to the booking holder's Security Confirmation
+-- fingerprint so one identity cannot repeatedly claim first-booking benefits.
+CREATE TABLE IF NOT EXISTS iumrah_friends_gifts (
+  id TEXT PRIMARY KEY,
+  gift_token TEXT NOT NULL UNIQUE,
+  referrer_pilgrim_id INTEGER NOT NULL,
+  position INTEGER NOT NULL CHECK (position BETWEEN 1 AND 3),
+  status TEXT NOT NULL DEFAULT 'available'
+    CHECK (status IN ('available','redeemed')),
+  redeemed_booking_id TEXT,
+  created_at TEXT NOT NULL,
+  redeemed_at TEXT,
+  UNIQUE (referrer_pilgrim_id, position),
+  FOREIGN KEY (referrer_pilgrim_id) REFERENCES pilgrims(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_iumrah_friends_gifts_owner
+ON iumrah_friends_gifts(referrer_pilgrim_id, position);
+
+CREATE TABLE IF NOT EXISTS iumrah_friends_redemptions (
+  id TEXT PRIMARY KEY,
+  gift_id TEXT NOT NULL UNIQUE,
+  gift_token TEXT NOT NULL,
+  referrer_pilgrim_id INTEGER NOT NULL,
+  redeemer_pilgrim_id INTEGER NOT NULL,
+  booking_id TEXT NOT NULL,
+  identity_fingerprint TEXT NOT NULL,
+  discount_usd REAL NOT NULL DEFAULT 100,
+  reward_usd REAL NOT NULL DEFAULT 100,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','earned','cancelled')),
+  reward_status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (reward_status IN ('pending','earned','cancelled')),
+  created_at TEXT NOT NULL,
+  settled_at TEXT,
+  FOREIGN KEY (gift_id) REFERENCES iumrah_friends_gifts(id) ON DELETE CASCADE,
+  FOREIGN KEY (referrer_pilgrim_id) REFERENCES pilgrims(id) ON DELETE CASCADE,
+  FOREIGN KEY (redeemer_pilgrim_id) REFERENCES pilgrims(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_iumrah_friends_redemption_referrer
+ON iumrah_friends_redemptions(referrer_pilgrim_id, reward_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_iumrah_friends_redemption_booking
+ON iumrah_friends_redemptions(booking_id, status);
+CREATE INDEX IF NOT EXISTS idx_iumrah_friends_redemption_identity
+ON iumrah_friends_redemptions(identity_fingerprint, status);
+
+-- Positive rows are earned iumrah Credit; negative rows are credit used on a
+-- future booking. The ledger is append-only so referral value remains auditable.
+CREATE TABLE IF NOT EXISTS iumrah_friends_credit_ledger (
+  id TEXT PRIMARY KEY,
+  pilgrim_id INTEGER NOT NULL,
+  amount_usd REAL NOT NULL,
+  source_type TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  booking_id TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE (source_type, source_id),
+  FOREIGN KEY (pilgrim_id) REFERENCES pilgrims(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_iumrah_friends_credit_owner
+ON iumrah_friends_credit_ledger(pilgrim_id, created_at DESC);

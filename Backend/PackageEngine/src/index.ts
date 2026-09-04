@@ -1,5 +1,5 @@
 import { requirePackageAdmin } from "./admin-auth";
-import { deleteAdminBooking, deletePilgrimBooking, updatePilgrimContact, updatePilgrimCustomization, updatePilgrimHotel } from "./booking-control";
+import { applyPilgrimFriendCredit, deleteAdminBooking, deletePilgrimBooking, getPilgrimFriendsSummary, getPilgrimIdentityConfirmation, redeemPilgrimFriendGift, submitPilgrimIdentityConfirmation, updatePilgrimContact, updatePilgrimCustomization, updatePilgrimHotel } from "./booking-control";
 import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRoomCategories, listHotelRoomCategories } from "./room-categories";
 import type { Env } from "./env";
 import { curatedPrimaryHotel } from "./generator-components";
@@ -103,6 +103,31 @@ export default {
         return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
       }
       return json({ ok: false, error: "NOT_FOUND" }, 404);
+    }
+
+    const bookingFriendsRedeemMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/friends\/redeem$/);
+    if (bookingFriendsRedeemMatch) {
+      if (request.method === "POST") return redeemPilgrimFriendGift(request, bookingFriendsRedeemMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    const bookingFriendsCreditMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/friends\/credit$/);
+    if (bookingFriendsCreditMatch) {
+      if (request.method === "POST") return applyPilgrimFriendCredit(request, bookingFriendsCreditMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    const bookingFriendsMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/friends$/);
+    if (bookingFriendsMatch) {
+      if (request.method === "GET") return getPilgrimFriendsSummary(request, bookingFriendsMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    const bookingIdentityMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/identity-confirmation$/);
+    if (bookingIdentityMatch) {
+      if (request.method === "GET") return getPilgrimIdentityConfirmation(request, bookingIdentityMatch[1], env);
+      if (request.method === "PUT") return submitPilgrimIdentityConfirmation(request, bookingIdentityMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
     }
 
     const bookingContactMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/contact$/);

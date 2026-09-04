@@ -99,6 +99,12 @@ final class IumrahAccountStore: ObservableObject {
         return try await service.securityOverview(token: token)
     }
 
+    func friendsDashboard() async throws -> IumrahFriendsDashboard {
+        guard let token else { throw APIError.status(401) }
+        _ = try? await service.registerCurrentSession(token: token, locale: Locale.current.identifier)
+        return try await service.friendsDashboard(token: token)
+    }
+
     func claimPrimaryDevice(password: String) async throws -> IumrahSecurityOverview {
         guard let token else { throw APIError.status(401) }
         return try await service.claimPrimaryDevice(password: password, token: token)

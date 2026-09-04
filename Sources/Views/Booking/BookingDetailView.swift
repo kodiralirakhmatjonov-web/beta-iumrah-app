@@ -37,7 +37,9 @@ struct BookingDetailView: View {
     @State private var showFullscreenBookingCard = false
     @State private var fullscreenBookingCardFlipped = false
     @State private var fullscreenCardLandscape = false
+    @State private var securityConfirmation: IumrahSecurityConfirmation?
 
+    private let bookingService = BookingService()
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
 
     var body: some View {
@@ -147,6 +149,7 @@ struct BookingDetailView: View {
                     .task {
                         await bookings.refreshAll()
                         await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
+                        await loadSecurityConfirmation()
                         loadZiyaratDraft()
                         loadESIMDraft()
                     }
@@ -467,6 +470,46 @@ struct BookingDetailView: View {
 
             if shouldShowCheckoutEntry(for: session) {
                 NavigationLink {
+                    IumrahSecurityConfirmationView(bookingID: bookingID)
+                        .environmentObject(settings)
+                        .environmentObject(bookings)
+                } label: {
+                    HStack(spacing: 13) {
+                        Image(systemName: securityConfirmation?.isSubmitted == true ? "checkmark.shield.fill" : "lock.shield.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(securityConfirmation?.isSubmitted == true ? Color.iumrahCareLight : Color.primary)
+                            .frame(width: 42, height: 42)
+                            .iumrahGlass(in: Circle())
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(securityConfirmation?.isSubmitted == true ? securityConfirmationDoneTitle : securityConfirmationTitle)
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(securityConfirmationSubtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
                     PilgrimCheckoutView(bookingID: bookingID)
                 } label: {
                     HStack(spacing: 13) {
@@ -552,6 +595,44 @@ struct BookingDetailView: View {
                 "PAYMENT_AND_DATA_PENDING",
                 "AWAITING_PAYMENT_AND_DATA"
             ].contains(normalized)
+        }
+    }
+
+    private var securityConfirmationTitle: String {
+        switch settings.language {
+        case .russian: return "Подтвердить личность"
+        case .english: return "Confirm identity"
+        case .uzbek: return "Shaxsni tasdiqlash"
+        case .uzbekCyrillic: return "Шахсни тасдиқлаш"
+        }
+    }
+
+    private var securityConfirmationDoneTitle: String {
+        switch settings.language {
+        case .russian: return "Личность отправлена на проверку"
+        case .english: return "Identity submitted for review"
+        case .uzbek: return "Shaxs tekshiruvga yuborildi"
+        case .uzbekCyrillic: return "Шахс текширувга юборилди"
+        }
+    }
+
+    private var securityConfirmationSubtitle: String {
+        switch settings.language {
+        case .russian: return "iumrah Security · паспортный профиль"
+        case .english: return "iumrah Security · passport profile"
+        case .uzbek: return "iumrah Security · pasport profili"
+        case .uzbekCyrillic: return "iumrah Security · паспорт профили"
+        }
+    }
+
+    @MainActor
+    private func loadSecurityConfirmation() async {
+        guard let session, shouldShowCheckoutEntry(for: session) else {
+            securityConfirmation = nil
+            return
+        }
+        if let response = try? await bookingService.securityConfirmation(id: bookingID, accessToken: session.accessToken) {
+            securityConfirmation = response.confirmation
         }
     }
 

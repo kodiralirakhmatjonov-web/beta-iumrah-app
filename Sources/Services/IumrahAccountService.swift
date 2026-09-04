@@ -125,6 +125,13 @@ struct IumrahAccountService {
         )
     }
 
+    func friendsDashboard(token: String) async throws -> IumrahFriendsDashboard {
+        try await api.get(
+            "/api/package/client/account/friends",
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
     func claimPrimaryDevice(password: String, token: String) async throws -> IumrahSecurityOverview {
         try await api.post(
             "/api/package/client/account/security/claim-primary",

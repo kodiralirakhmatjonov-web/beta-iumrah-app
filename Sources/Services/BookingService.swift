@@ -157,6 +157,55 @@ struct BookingService {
         )
     }
 
+    func securityConfirmation(id: String, accessToken: String) async throws -> IumrahSecurityConfirmationResponse {
+        try await api.get(
+            "/api/package/booking/\(id)/identity-confirmation",
+            headers: ["x-booking-token": accessToken]
+        )
+    }
+
+    func submitSecurityConfirmation(
+        id: String,
+        accessToken: String,
+        firstName: String,
+        lastName: String,
+        passportNumber: String
+    ) async throws -> IumrahSecurityConfirmationResponse {
+        try await api.put(
+            "/api/package/booking/\(id)/identity-confirmation",
+            body: IumrahSecurityConfirmationRequest(
+                firstName: firstName,
+                lastName: lastName,
+                passportNumber: passportNumber,
+                holderConfirmed: true
+            ),
+            headers: ["x-booking-token": accessToken]
+        )
+    }
+
+    func friendsSummary(id: String, headers: [String: String]) async throws -> IumrahFriendsBookingSummary {
+        try await api.get(
+            "/api/package/booking/\(id)/friends",
+            headers: headers
+        )
+    }
+
+    func redeemFriendGift(id: String, headers: [String: String], code: String) async throws -> IumrahFriendsBookingSummary {
+        try await api.post(
+            "/api/package/booking/\(id)/friends/redeem",
+            body: IumrahFriendGiftRedeemRequest(code: code),
+            headers: headers
+        )
+    }
+
+    func applyFriendCredit(id: String, headers: [String: String], amountUsd: Int) async throws -> IumrahFriendsBookingSummary {
+        try await api.post(
+            "/api/package/booking/\(id)/friends/credit",
+            body: IumrahFriendCreditApplyRequest(amountUsd: amountUsd),
+            headers: headers
+        )
+    }
+
     func deleteBooking(id: String, accessToken: String) async throws -> BookingMutationResponse {
         try await deleteBooking(id: id, headers: ["x-booking-token": accessToken])
     }

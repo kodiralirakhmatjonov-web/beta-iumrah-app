@@ -1107,6 +1107,194 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
   });
 }
 
+
+function friendGiftCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  let value = "";
+  for (const byte of bytes) value += alphabet[byte % alphabet.length];
+  return `IUMF-${value}`;
+}
+
+async function ensureFriendGifts(db: D1Like, pilgrimID: number) {
+  const existing = await db.prepare(
+    `SELECT position FROM iumrah_friends_gifts
+     WHERE referrer_pilgrim_id=?1 ORDER BY position ASC`,
+  ).bind(pilgrimID).all<{ position: number }>();
+  const positions = new Set((existing.results ?? []).map((row) => Number(row.position)));
+  const now = new Date().toISOString();
+
+  for (let position = 1; position <= 3; position += 1) {
+    if (positions.has(position)) continue;
+    let inserted = false;
+    for (let attempt = 0; attempt < 5 && !inserted; attempt += 1) {
+      try {
+        await db.prepare(
+          `INSERT INTO iumrah_friends_gifts(
+             id,gift_token,referrer_pilgrim_id,position,status,created_at
+           ) VALUES(?1,?2,?3,?4,'available',?5)`,
+        ).bind(`gift-${crypto.randomUUID()}`, friendGiftCode(), pilgrimID, position, now).run();
+        inserted = true;
+      } catch (error) {
+        if (attempt === 4) throw error;
+      }
+    }
+  }
+}
+
+function normalizedBookingSettlementStatus(value: unknown) {
+  return cleanText(value, 80).replace(/-/g, "_").toUpperCase();
+}
+
+async function internalBookingStatus(env: Env, bookingID: string) {
+  if (!env.BOOKINGS_DB) return "";
+  try {
+    const row = await env.BOOKINGS_DB.prepare(
+      "SELECT status,payload_json FROM bookings WHERE id=?1 LIMIT 1",
+    ).bind(bookingID).first<{ status?: string | null; payload_json?: string | null }>();
+    if (!row) return "";
+    const direct = normalizedBookingSettlementStatus(row.status);
+    if (direct) return direct;
+    try {
+      const payload = JSON.parse(row.payload_json ?? "{}") as Record<string, unknown>;
+      return normalizedBookingSettlementStatus(payload.status);
+    } catch {
+      return "";
+    }
+  } catch {
+    try {
+      const row = await env.BOOKINGS_DB.prepare(
+        "SELECT payload_json FROM bookings WHERE id=?1 LIMIT 1",
+      ).bind(bookingID).first<{ payload_json?: string | null }>();
+      if (!row) return "";
+      const payload = JSON.parse(row.payload_json ?? "{}") as Record<string, unknown>;
+      return normalizedBookingSettlementStatus(payload.status);
+    } catch {
+      return "";
+    }
+  }
+}
+
+async function settleFriendRewards(env: Env, referrerPilgrimID: number) {
+  if (!env.HOTELS_DB || !env.BOOKINGS_DB) return;
+  const pending = await env.HOTELS_DB.prepare(
+    `SELECT r.id,r.gift_id,r.booking_id,r.reward_usd
+     FROM iumrah_friends_redemptions r
+     WHERE r.referrer_pilgrim_id=?1 AND r.reward_status='pending'
+     ORDER BY r.created_at ASC LIMIT 40`,
+  ).bind(referrerPilgrimID).all<{
+    id: string;
+    gift_id: string;
+    booking_id: string;
+    reward_usd: number;
+  }>();
+
+  for (const row of pending.results ?? []) {
+    const status = await internalBookingStatus(env, row.booking_id);
+    const paid = ["PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"].includes(status);
+    const cancelled = status === "CANCELLED";
+    if (!paid && !cancelled) continue;
+
+    const now = new Date().toISOString();
+    if (paid) {
+      await env.HOTELS_DB.prepare(
+        `UPDATE iumrah_friends_redemptions
+         SET status='earned',reward_status='earned',settled_at=?1
+         WHERE id=?2 AND reward_status='pending'`,
+      ).bind(now, row.id).run();
+      await env.HOTELS_DB.prepare(
+        `INSERT OR IGNORE INTO iumrah_friends_credit_ledger(
+           id,pilgrim_id,amount_usd,source_type,source_id,booking_id,created_at
+         ) VALUES(?1,?2,?3,'friend_paid',?4,?5,?6)`,
+      ).bind(
+        `credit-${crypto.randomUUID()}`,
+        referrerPilgrimID,
+        Number(row.reward_usd || 100),
+        row.id,
+        row.booking_id,
+        now,
+      ).run();
+    } else {
+      await env.HOTELS_DB.prepare(
+        `UPDATE iumrah_friends_redemptions
+         SET status='cancelled',reward_status='cancelled',settled_at=?1
+         WHERE id=?2 AND reward_status='pending'`,
+      ).bind(now, row.id).run();
+      await env.HOTELS_DB.prepare(
+        `UPDATE iumrah_friends_gifts
+         SET status='available',redeemed_booking_id=NULL,redeemed_at=NULL
+         WHERE id=?1`,
+      ).bind(row.gift_id).run();
+    }
+  }
+}
+
+async function friendCreditBalance(db: D1Like, pilgrimID: number) {
+  const row = await db.prepare(
+    `SELECT COALESCE(SUM(amount_usd),0) AS balance
+     FROM iumrah_friends_credit_ledger WHERE pilgrim_id=?1`,
+  ).bind(pilgrimID).first<{ balance: number | string }>();
+  return Math.max(0, Number(row?.balance ?? 0));
+}
+
+async function friendsDashboard(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  await ensureFriendGifts(db, auth.pilgrimID);
+  await settleFriendRewards(env, auth.pilgrimID);
+
+  const gifts = await db.prepare(
+    `SELECT g.id,g.gift_token,g.position,g.status,g.redeemed_booking_id,g.created_at,g.redeemed_at,
+            r.reward_status,r.reward_usd,r.discount_usd
+     FROM iumrah_friends_gifts g
+     LEFT JOIN iumrah_friends_redemptions r ON r.gift_id=g.id AND r.status<>'cancelled'
+     WHERE g.referrer_pilgrim_id=?1
+     ORDER BY g.position ASC`,
+  ).bind(auth.pilgrimID).all<{
+    id: string;
+    gift_token: string;
+    position: number;
+    status: string;
+    redeemed_booking_id: string | null;
+    created_at: string;
+    redeemed_at: string | null;
+    reward_status: string | null;
+    reward_usd: number | null;
+    discount_usd: number | null;
+  }>();
+
+  const balance = await friendCreditBalance(db, auth.pilgrimID);
+  const pending = await db.prepare(
+    `SELECT COALESCE(SUM(reward_usd),0) AS amount
+     FROM iumrah_friends_redemptions
+     WHERE referrer_pilgrim_id=?1 AND reward_status='pending'`,
+  ).bind(auth.pilgrimID).first<{ amount: number | string }>();
+  const earned = await db.prepare(
+    `SELECT COALESCE(SUM(reward_usd),0) AS amount
+     FROM iumrah_friends_redemptions
+     WHERE referrer_pilgrim_id=?1 AND reward_status='earned'`,
+  ).bind(auth.pilgrimID).first<{ amount: number | string }>();
+
+  return json({
+    ok: true,
+    availableCreditUsd: balance,
+    pendingRewardsUsd: Number(pending?.amount ?? 0),
+    earnedRewardsUsd: Number(earned?.amount ?? 0),
+    gifts: (gifts.results ?? []).map((gift) => ({
+      id: gift.id,
+      code: gift.gift_token,
+      position: Number(gift.position),
+      status: gift.status,
+      redeemedBookingID: gift.redeemed_booking_id,
+      rewardStatus: gift.reward_status ?? null,
+      rewardUsd: Number(gift.reward_usd ?? 100),
+      discountUsd: Number(gift.discount_usd ?? 100),
+      createdAt: gift.created_at,
+      redeemedAt: gift.redeemed_at,
+    })),
+  });
+}
+
 export async function handleClientAccountSecurity(request: Request, env: Env, url: URL) {
   if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
   const db = env.HOTELS_DB;
@@ -1116,6 +1304,9 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/security/register") {
       return await register(request, db);
+    }
+    if (request.method === "GET" && url.pathname === "/api/package/client/account/friends") {
+      return await friendsDashboard(request, env, db);
     }
     if (request.method === "GET" && url.pathname === "/api/package/client/account/security") {
       const auth = await requireDevice(request, db);

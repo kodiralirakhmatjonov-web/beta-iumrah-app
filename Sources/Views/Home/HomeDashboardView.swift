@@ -37,6 +37,7 @@ struct HomeDashboardView: View {
                 HomeVideoCarousel()
                 IumrahBackendSystemHomeCard()
                 hero
+                friendsHomeCard
                 UmrahAdvisorHomeCard()
                 confidenceStrip
                 philosophyCard
@@ -409,6 +410,63 @@ struct HomeDashboardView: View {
                 .foregroundStyle(.white.opacity(0.72))
         }
         .iumrahMarketingCard(dark: true)
+    }
+
+    private var friendsHomeCard: some View {
+        NavigationLink {
+            IumrahFriendsView()
+        } label: {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(LinearGradient(colors: [Color.black, Color.iumrahCareDark], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    Image(systemName: "gift.fill")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 82, height: 82)
+                .overlay(alignment: .topTrailing) {
+                    Text("3")
+                        .font(.caption2.monospaced().weight(.bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 26, height: 26)
+                        .background(.white, in: Circle())
+                        .offset(x: 5, y: -5)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 7) {
+                        Text("iumrah Friends")
+                            .font(.headline)
+                        Text("3 × $100")
+                            .font(.caption2.monospaced().weight(.bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(friendsHomeSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .iumrahCard()
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var friendsHomeSubtitle: String {
+        switch settings.language {
+        case .russian: return "Подарите другу $100 на умру. Получите $100 iumrah Credit после его оплаты."
+        case .english: return "Give a friend $100 toward Umrah. Earn $100 iumrah Credit after they pay."
+        case .uzbek: return "Do‘stingizga Umrah uchun $100 bering. U to‘lagach $100 iumrah Credit oling."
+        case .uzbekCyrillic: return "Дўстингизга Умра учун $100 беринг. У тўлагач $100 iumrah Credit олинг."
+        }
     }
 
     private var confidenceStrip: some View {

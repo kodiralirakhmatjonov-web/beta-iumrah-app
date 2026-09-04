@@ -1,0 +1,11 @@
+iumrah Beta update 085 — Friends + Security Confirmation KYC
+
+- Native SwiftUI iumrah Security Confirmation page is available only at payment/pilgrim-data stage.
+- Supplied biometric reference video is embedded in the Security hero.
+- Passport holder confirms first name, last name and passport number with an explicit booking-data warning.
+- PackageEngine stores only masked passport metadata plus an identity fingerprint; full passport number is not persisted by this feature.
+- iumrah Friends gives each authenticated account 3 × $100 shareable Gifts.
+- Friend receives $100 booking benefit; referrer receives $100 iumrah Credit after the referred booking reaches a paid/confirmed state.
+- Friends cap: $100 for trips up to $2,000; up to $200 above $2,000.
+- Gift redemption requires Security Confirmation, blocks self-referral and repeated first-booking use by the same identity.
+- iumrah Credit is ledger-backed and can be applied to future eligible bookings.

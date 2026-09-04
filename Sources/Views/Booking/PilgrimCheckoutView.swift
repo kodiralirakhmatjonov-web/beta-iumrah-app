@@ -26,8 +26,13 @@ struct PilgrimCheckoutView: View {
     @State private var paymeQRImage: UIImage?
     @State private var previewFile: IumrahPreviewFile?
     @State private var isLoadingDocument = false
+    @State private var friendsSummary: IumrahFriendsBookingSummary?
+    @State private var giftCode = ""
+    @State private var isApplyingFriendBenefit = false
+    @State private var friendsMessage: String?
 
     private let service = IumrahAccountService()
+    private let bookingService = BookingService()
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
     private var isPaymentPending: Bool { checkout?.status == "payment_pending" }
     private var accountMatchesTrip: Bool {
@@ -72,6 +77,9 @@ struct PilgrimCheckoutView: View {
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .task { await loadCheckout() }
+        .onAppear {
+            if account.isAuthenticated { Task { await loadFriendsSummary() } }
+        }
         .sheet(item: $travelerEditor) { traveler in
             TravelerFormEditorSheet(
                 bookingID: bookingID,
@@ -314,6 +322,8 @@ struct PilgrimCheckoutView: View {
         VStack(alignment: .leading, spacing: 16) {
             stageHeader(number: "03", icon: "creditcard.fill", title: tr("Payment", "Оплата", "To‘lov", "Тўлов"))
 
+            friendsBenefitCard
+
             if paymentOptions(value).isEmpty {
                 Label(tr("Payment details will appear after iumrah Business adds them.", "Реквизиты появятся после того, как iumrah Business их добавит.", "To‘lov rekvizitlari iumrah Business qo‘shgandan keyin paydo bo‘ladi.", "Тўлов реквизитлари iumrah Business қўшгандан кейин пайдо бўлади."), systemImage: "clock")
                     .font(.subheadline).foregroundStyle(.secondary)
@@ -381,6 +391,293 @@ struct PilgrimCheckoutView: View {
             }
         }
         .iumrahCard()
+    }
+
+    @ViewBuilder
+    private var friendsBenefitCard: some View {
+        if account.isAuthenticated {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "gift.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 42, height: 42)
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("iumrah Friends")
+                            .font(.headline)
+                        Text(tr("Gift & iumrah Credit", "Gift-карты и iumrah Credit", "Gift va iumrah Credit", "Gift ва iumrah Credit"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if isApplyingFriendBenefit { ProgressView() }
+                }
+
+                if let summary = friendsSummary {
+                    if !summary.identityConfirmed {
+                        VStack(alignment: .leading, spacing: 11) {
+                            Label(
+                                tr(
+                                    "Confirm the passport holder before using a Friends benefit.",
+                                    "Подтвердите владельца паспорта перед применением Friends Gift.",
+                                    "Friends Gift ishlatishdan oldin pasport egasini tasdiqlang.",
+                                    "Friends Gift ишлатишдан олдин паспорт эгасини тасдиқланг."
+                                ),
+                                systemImage: "lock.shield.fill"
+                            )
+                            .font(.subheadline.weight(.medium))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                            NavigationLink {
+                                IumrahSecurityConfirmationView(bookingID: bookingID)
+                            } label: {
+                                HStack {
+                                    Text("iumrah Security Confirmation")
+                                    Spacer()
+                                    Image(systemName: "arrow.right")
+                                }
+                            }
+                            .buttonStyle(IumrahSecondaryButtonStyle())
+                        }
+                    } else {
+                        friendsPricingSummary(summary)
+
+                        if summary.remainingAllowanceUsd >= 100 {
+                            VStack(alignment: .leading, spacing: 9) {
+                                Text(tr("Use an Umrah Gift", "Применить Umrah Gift", "Umrah Gift ishlatish", "Umrah Gift ишлатиш"))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+
+                                HStack(spacing: 9) {
+                                    TextField("IUMF-XXXXXXXXX", text: $giftCode)
+                                        .textInputAutocapitalization(.characters)
+                                        .autocorrectionDisabled()
+                                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                                        .padding(.horizontal, 13)
+                                        .frame(height: 50)
+                                        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+
+                                    Button {
+                                        Task { await redeemFriendGift() }
+                                    } label: {
+                                        Text(tr("Apply", "Применить", "Qo‘llash", "Қўллаш"))
+                                            .font(.subheadline.weight(.bold))
+                                            .padding(.horizontal, 15)
+                                            .frame(height: 50)
+                                            .foregroundStyle(Color.iumrahPrimaryButtonText)
+                                            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(normalizedGiftCode.count < 8 || isApplyingFriendBenefit)
+                                }
+                            }
+                        }
+
+                        if summary.availableCreditUsd >= 100 && summary.remainingAllowanceUsd >= 100 {
+                            let amount = Int(min(200.0, min(summary.availableCreditUsd, summary.remainingAllowanceUsd)) / 100) * 100
+                            Button {
+                                Task { await applyFriendCredit(amountUsd: max(100, amount)) }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "creditcard.and.123")
+                                    Text(tr(
+                                        "Use $\(max(100, amount)) iumrah Credit",
+                                        "Использовать $\(max(100, amount)) iumrah Credit",
+                                        "$\(max(100, amount)) iumrah Credit ishlatish",
+                                        "$\(max(100, amount)) iumrah Credit ишлатиш"
+                                    ))
+                                    Spacer()
+                                    Image(systemName: "minus.circle.fill")
+                                }
+                            }
+                            .buttonStyle(IumrahSecondaryButtonStyle())
+                            .disabled(isApplyingFriendBenefit)
+                        }
+
+                        if !summary.appliedGifts.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(summary.appliedGifts) { gift in
+                                    HStack {
+                                        Label(gift.code, systemImage: "checkmark.circle.fill")
+                                            .font(.caption.monospaced().weight(.semibold))
+                                            .foregroundStyle(.green)
+                                        Spacer()
+                                        Text("−\(friendMoney(gift.discountUsd))")
+                                            .font(.caption.weight(.bold))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(tr("Checking Friends benefits…", "Проверяем Friends…", "Friends imtiyozlari tekshirilmoqda…", "Friends имтиёзлари текширилмоқда…"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let friendsMessage {
+                    Label(friendsMessage, systemImage: "info.circle.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(friendsMessageIsError ? Color.red : Color.green)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(14)
+            .background(Color.iumrahRaisedBackground.opacity(0.45), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+    }
+
+    private func friendsPricingSummary(_ summary: IumrahFriendsBookingSummary) -> some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text(tr("Friends limit", "Лимит Friends", "Friends limiti", "Friends лимити"))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(friendMoney(summary.maxDiscountUsd)).fontWeight(.semibold)
+            }
+            if summary.totalUsd > 0 {
+                HStack {
+                    Text(tr("Package", "Пакет", "Paket", "Пакет"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(friendMoney(summary.totalUsd))
+                }
+            }
+            if summary.totalDiscountUsd > 0 {
+                HStack {
+                    Text("iumrah Friends")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("−\(friendMoney(summary.totalDiscountUsd))")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.green)
+                }
+            }
+            if summary.totalUsd > 0 {
+                Divider()
+                HStack {
+                    Text(tr("Amount to pay", "К оплате", "To‘lov summasi", "Тўлов суммаси"))
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Text(friendMoney(summary.payableUsd))
+                        .font(.headline.monospacedDigit())
+                }
+            }
+            HStack {
+                Text(tr("Available iumrah Credit", "Доступный iumrah Credit", "Mavjud iumrah Credit", "Мавжуд iumrah Credit"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(friendMoney(summary.availableCreditUsd))
+                    .font(.caption.weight(.bold))
+            }
+        }
+        .font(.subheadline)
+    }
+
+    private var normalizedGiftCode: String {
+        giftCode.uppercased().filter { !$0.isWhitespace }
+    }
+
+    private var friendsMessageIsError: Bool {
+        guard let value = friendsMessage?.lowercased() else { return false }
+        return value.contains("не ") || value.contains("cannot") || value.contains("required") || value.contains("нельзя") || value.contains("xato") || value.contains("kerak") || value.contains("керак")
+    }
+
+    private func friendMoney(_ amount: Double) -> String {
+        "$\(Int(amount.rounded()))"
+    }
+
+    @MainActor
+    private func loadFriendsSummary() async {
+        guard let session, account.isAuthenticated else {
+            friendsSummary = nil
+            return
+        }
+        do {
+            let headers = account.authorizationHeaders(bookingToken: session.accessToken)
+            friendsSummary = try await bookingService.friendsSummary(id: bookingID, headers: headers)
+        } catch APIError.status(let code) where code == 404 {
+            friendsSummary = nil
+        } catch APIError.server(_, let message) where message == "FRIENDS_UNAVAILABLE" {
+            friendsSummary = nil
+        } catch {
+            // Friends is supplemental to checkout. Do not block payment if the service is temporarily unavailable.
+        }
+    }
+
+    @MainActor
+    private func redeemFriendGift() async {
+        guard let session else { return }
+        isApplyingFriendBenefit = true
+        friendsMessage = nil
+        defer { isApplyingFriendBenefit = false }
+        do {
+            let headers = account.authorizationHeaders(bookingToken: session.accessToken)
+            friendsSummary = try await bookingService.redeemFriendGift(
+                id: bookingID,
+                headers: headers,
+                code: normalizedGiftCode
+            )
+            giftCode = ""
+            friendsMessage = tr("$100 Umrah Gift applied.", "Umrah Gift на $100 применён.", "$100 Umrah Gift qo‘llandi.", "$100 Umrah Gift қўлланди.")
+            IumrahHaptics.success()
+        } catch APIError.server(_, let code) {
+            friendsMessage = friendError(code)
+            IumrahHaptics.error()
+        } catch {
+            friendsMessage = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func applyFriendCredit(amountUsd: Int) async {
+        guard let session else { return }
+        isApplyingFriendBenefit = true
+        friendsMessage = nil
+        defer { isApplyingFriendBenefit = false }
+        do {
+            let headers = account.authorizationHeaders(bookingToken: session.accessToken)
+            friendsSummary = try await bookingService.applyFriendCredit(
+                id: bookingID,
+                headers: headers,
+                amountUsd: amountUsd
+            )
+            friendsMessage = tr("iumrah Credit applied.", "iumrah Credit применён.", "iumrah Credit qo‘llandi.", "iumrah Credit қўлланди.")
+            IumrahHaptics.success()
+        } catch APIError.server(_, let code) {
+            friendsMessage = friendError(code)
+            IumrahHaptics.error()
+        } catch {
+            friendsMessage = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    private func friendError(_ code: String) -> String {
+        switch code.uppercased() {
+        case "IDENTITY_CONFIRMATION_REQUIRED":
+            return tr("iumrah Security Confirmation is required.", "Сначала пройдите iumrah Security Confirmation.", "Avval iumrah Security Confirmation dan o‘ting.", "Аввал iumrah Security Confirmation дан ўтинг.")
+        case "FRIENDS_GIFT_INVALID":
+            return tr("Check the Gift code.", "Проверьте код Gift-карты.", "Gift kodini tekshiring.", "Gift кодини текширинг.")
+        case "FRIENDS_GIFT_NOT_AVAILABLE":
+            return tr("This Gift is unavailable or already used.", "Эта Gift-карта недоступна или уже использована.", "Bu Gift mavjud emas yoki allaqachon ishlatilgan.", "Бу Gift мавжуд эмас ёки аллақачон ишлатилган.")
+        case "FRIENDS_NEW_CUSTOMER_ONLY":
+            return tr("This identity has already used a first-booking Friends Gift.", "Эта личность уже использовала Friends Gift для первого бронирования.", "Bu shaxs birinchi bron uchun Friends Gift dan foydalangan.", "Бу шахс биринчи брон учун Friends Gift дан фойдаланган.")
+        case "FRIENDS_DISCOUNT_LIMIT_REACHED":
+            return tr("The Friends limit for this trip is already reached.", "Лимит Friends для этой поездки уже исчерпан.", "Bu safar uchun Friends limiti tugagan.", "Бу сафар учун Friends лимити тугаган.")
+        case "FRIENDS_SELF_REFERRAL":
+            return tr("You cannot use your own Gift.", "Нельзя применить собственную Gift-карту.", "O‘z Gift kartangizni ishlata olmaysiz.", "Ўз Gift картангизни ишлата олмайсиз.")
+        case "FRIENDS_CREDIT_UNAVAILABLE":
+            return tr("There is not enough available iumrah Credit for this booking.", "Недостаточно доступного iumrah Credit для этого бронирования.", "Bu bron uchun iumrah Credit yetarli emas.", "Бу брон учун iumrah Credit етарли эмас.")
+        default:
+            return L10n.error(APIError.server(409, code), settings.language)
+        }
     }
 
     private func documentsCard(_ value: IumrahCheckoutResponse) -> some View {
@@ -516,6 +813,7 @@ struct PilgrimCheckoutView: View {
             if let first = options.first, !options.contains(paymentMethod) {
                 paymentMethod = first
             }
+            if account.isAuthenticated { await loadFriendsSummary() }
         } catch {
             errorMessage = L10n.error(error, settings.language)
         }
