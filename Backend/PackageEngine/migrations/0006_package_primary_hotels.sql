@@ -148,9 +148,9 @@ CREATE TABLE IF NOT EXISTS iumrah_client_security_audit (
 CREATE INDEX IF NOT EXISTS idx_iumrah_client_security_audit_account
 ON iumrah_client_security_audit(pilgrim_id, created_at DESC);
 
--- iumrah Security Confirmation. Only masked passport metadata is retained here;
--- the full passport number is never stored by PackageEngine. The deterministic
--- identity fingerprint is used to detect repeated identity use across bookings.
+-- iumrah Security final identity registry. PackageEngine never accepts KYC
+-- self-confirmation: only iumrah Business manual approval writes a confirmed row.
+-- Only masked passport metadata and the deterministic anti-fraud fingerprint live here.
 CREATE TABLE IF NOT EXISTS iumrah_identity_confirmations (
   id TEXT PRIMARY KEY,
   booking_id TEXT NOT NULL UNIQUE,
@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS iumrah_identity_confirmations (
   passport_last4 TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'submitted'
     CHECK (status IN ('submitted','manual_review','confirmed','rejected')),
-  verification_method TEXT NOT NULL DEFAULT 'passport_self_confirmation',
+  verification_method TEXT NOT NULL DEFAULT 'business_manual_passport_review',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

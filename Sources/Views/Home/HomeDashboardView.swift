@@ -414,17 +414,13 @@ struct HomeDashboardView: View {
 
     private var friendsHomeCard: some View {
         NavigationLink {
-            IumrahFriendsView()
+            IumrahGiftCardsView()
         } label: {
             HStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(LinearGradient(colors: [Color.black, Color.iumrahCareDark], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Image(systemName: "gift.fill")
-                        .font(.system(size: 25, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 82, height: 82)
+                Image(systemName: "gift.fill")
+                    .font(.system(size: 25, weight: .semibold))
+                    .frame(width: 82, height: 82)
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(alignment: .topTrailing) {
                     Text("3")
                         .font(.caption2.monospaced().weight(.bold))
@@ -436,7 +432,7 @@ struct HomeDashboardView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 7) {
-                        Text("iumrah Friends")
+                        Text("iUmrah Gift Cards")
                             .font(.headline)
                         Text("3 × $100")
                             .font(.caption2.monospaced().weight(.bold))
@@ -462,10 +458,10 @@ struct HomeDashboardView: View {
 
     private var friendsHomeSubtitle: String {
         switch settings.language {
-        case .russian: return "Подарите другу $100 на умру. Получите $100 iumrah Credit после его оплаты."
-        case .english: return "Give a friend $100 toward Umrah. Earn $100 iumrah Credit after they pay."
-        case .uzbek: return "Do‘stingizga Umrah uchun $100 bering. U to‘lagach $100 iumrah Credit oling."
-        case .uzbekCyrillic: return "Дўстингизга Умра учун $100 беринг. У тўлагач $100 iumrah Credit олинг."
+        case .russian: return "Подарочные карты для близких · $100 на умру и $100 iumrah Credit после подтверждения и оплаты."
+        case .english: return "Gift cards for someone close · $100 toward Umrah and $100 iumrah Credit after confirmation and payment."
+        case .uzbek: return "Yaqinlar uchun Gift Card · Umrah uchun $100 va tasdiqlanib to‘langach $100 iumrah Credit."
+        case .uzbekCyrillic: return "Яқинлар учун Gift Card · Умра учун $100 ва тасдиқланиб тўлангач $100 iumrah Credit."
         }
     }
 

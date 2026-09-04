@@ -147,194 +147,6 @@ async function persistBookingPayload(db: BookingD1, id: string, payload: Record<
 }
 
 
-function normalizeIdentityName(value: unknown) {
-  return clean(value, 80).normalize("NFKC").replace(/\s+/g, " ");
-}
-
-function normalizePassportNumber(value: unknown) {
-  return clean(value, 40).normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
-}
-
-function validIdentityName(value: string) {
-  return value.length >= 2 && value.length <= 80 && /^[\p{L}][\p{L}\s'’\-]{1,79}$/u.test(value);
-}
-
-async function identityFingerprint(firstName: string, lastName: string, passportNumber: string) {
-  const canonical = [firstName, lastName, passportNumber]
-    .map((value) => value.normalize("NFKC").toUpperCase())
-    .join("|");
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
-  return bytesToHex(new Uint8Array(digest));
-}
-
-async function operationalBookingStatus(request: Request, id: string) {
-  const url = new URL(`/api/catalog/hotels/client/trips/${encodeURIComponent(id)}`, request.url);
-  const headers = new Headers({ Accept: "application/json" });
-  const bookingAccess = request.headers.get("x-booking-token")?.trim();
-  const authorization = request.headers.get("authorization")?.trim();
-  if (bookingAccess) headers.set("x-booking-token", bookingAccess);
-  if (authorization) headers.set("authorization", authorization);
-  try {
-    const response = await fetch(url, { method: "GET", headers, redirect: "manual" });
-    if (!response.ok) return "";
-    const payload = await response.json().catch(() => null) as {
-      trip?: { status?: unknown };
-      status?: unknown;
-    } | null;
-    return clean(payload?.trip?.status ?? payload?.status, 80)
-      .replace(/-/g, "_")
-      .toUpperCase();
-  } catch {
-    return "";
-  }
-}
-
-function identityConfirmationJSON(row: {
-  booking_id: string;
-  first_name: string;
-  last_name: string;
-  passport_last4: string;
-  status: string;
-  verification_method: string;
-  created_at: string;
-  updated_at: string;
-}, reusedIdentity: boolean) {
-  return {
-    bookingID: row.booking_id,
-    status: row.status,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    passportLast4: row.passport_last4,
-    verificationMethod: row.verification_method,
-    reusedIdentity,
-    submittedAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-export async function getPilgrimIdentityConfirmation(request: Request, id: string, env: BookingControlEnv): Promise<Response> {
-  if (!env.BOOKINGS_DB) return json({ ok: false, error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
-  if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
-
-  try {
-    const booking = await authorizedBooking(request, id, env.BOOKINGS_DB);
-    if (!booking) return json({ ok: false, error: "BOOKING_NOT_FOUND" }, 404);
-
-    const row = await env.HOTELS_DB.prepare(
-      `SELECT booking_id,identity_fingerprint,first_name,last_name,passport_last4,status,
-              verification_method,created_at,updated_at
-       FROM iumrah_identity_confirmations WHERE booking_id=?1 LIMIT 1`,
-    ).bind(id).first<{
-      booking_id: string;
-      identity_fingerprint: string;
-      first_name: string;
-      last_name: string;
-      passport_last4: string;
-      status: string;
-      verification_method: string;
-      created_at: string;
-      updated_at: string;
-    }>();
-    if (!row) return json({ ok: false, error: "IDENTITY_CONFIRMATION_NOT_FOUND" }, 404);
-
-    const duplicate = await env.HOTELS_DB.prepare(
-      `SELECT booking_id FROM iumrah_identity_confirmations
-       WHERE identity_fingerprint=?1 AND booking_id<>?2 AND status<>'rejected' LIMIT 1`,
-    ).bind(row.identity_fingerprint, id).first<{ booking_id: string }>();
-
-    return json({ ok: true, confirmation: identityConfirmationJSON(row, Boolean(duplicate)) });
-  } catch (error) {
-    console.error("booking-control-identity-read-failed", error);
-    return json({ ok: false, error: "IDENTITY_CONFIRMATION_UNAVAILABLE" }, 500);
-  }
-}
-
-export async function submitPilgrimIdentityConfirmation(request: Request, id: string, env: BookingControlEnv): Promise<Response> {
-  if (!env.BOOKINGS_DB) return json({ ok: false, error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
-  if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
-
-  let body: Record<string, unknown>;
-  try {
-    const value = await request.json();
-    if (!value || typeof value !== "object") throw new Error("INVALID_REQUEST");
-    body = value as Record<string, unknown>;
-  } catch {
-    return json({ ok: false, error: "INVALID_REQUEST" }, 400);
-  }
-
-  const firstName = normalizeIdentityName(body.firstName);
-  const lastName = normalizeIdentityName(body.lastName);
-  const passportNumber = normalizePassportNumber(body.passportNumber);
-  const holderConfirmed = body.holderConfirmed === true;
-  if (!validIdentityName(firstName) || !validIdentityName(lastName)
-      || passportNumber.length < 5 || passportNumber.length > 20 || !holderConfirmed) {
-    return json({ ok: false, error: "INVALID_IDENTITY_DETAILS" }, 400);
-  }
-
-  try {
-    const booking = await authorizedBooking(request, id, env.BOOKINGS_DB);
-    if (!booking) return json({ ok: false, error: "BOOKING_NOT_FOUND" }, 404);
-
-    const status = await operationalBookingStatus(request, id);
-    const allowedStatuses = new Set([
-      "PAYMENT_PENDING", "PENDING_PAYMENT", "WAITING_PAYMENT", "AWAITING_PAYMENT",
-      "PAYMENT_AND_DATA_PENDING", "AWAITING_PAYMENT_AND_DATA",
-    ]);
-    if (!allowedStatuses.has(status)) {
-      return json({ ok: false, error: "IDENTITY_CONFIRMATION_NOT_AVAILABLE" }, 409);
-    }
-
-    const fingerprint = await identityFingerprint(firstName, lastName, passportNumber);
-    const duplicate = await env.HOTELS_DB.prepare(
-      `SELECT booking_id FROM iumrah_identity_confirmations
-       WHERE identity_fingerprint=?1 AND booking_id<>?2 AND status<>'rejected' LIMIT 1`,
-    ).bind(fingerprint, id).first<{ booking_id: string }>();
-
-    const existing = await env.HOTELS_DB.prepare(
-      "SELECT id,created_at FROM iumrah_identity_confirmations WHERE booking_id=?1 LIMIT 1",
-    ).bind(id).first<{ id: string; created_at: string }>();
-    const now = new Date().toISOString();
-    const confirmationID = existing?.id ?? `identity-${crypto.randomUUID()}`;
-    const createdAt = existing?.created_at ?? now;
-
-    await env.HOTELS_DB.prepare(
-      `INSERT INTO iumrah_identity_confirmations(
-         id,booking_id,identity_fingerprint,first_name,last_name,passport_last4,status,
-         verification_method,created_at,updated_at
-       ) VALUES(?1,?2,?3,?4,?5,?6,'submitted','passport_self_confirmation',?7,?8)
-       ON CONFLICT(booking_id) DO UPDATE SET
-         identity_fingerprint=excluded.identity_fingerprint,
-         first_name=excluded.first_name,
-         last_name=excluded.last_name,
-         passport_last4=excluded.passport_last4,
-         status='submitted',
-         verification_method='passport_self_confirmation',
-         updated_at=excluded.updated_at`,
-    ).bind(
-      confirmationID, id, fingerprint, firstName, lastName, passportNumber.slice(-4), createdAt, now,
-    ).run();
-
-    return json({
-      ok: true,
-      confirmation: {
-        bookingID: id,
-        status: "submitted",
-        firstName,
-        lastName,
-        passportLast4: passportNumber.slice(-4),
-        verificationMethod: "passport_self_confirmation",
-        reusedIdentity: Boolean(duplicate),
-        submittedAt: createdAt,
-        updatedAt: now,
-      },
-    });
-  } catch (error) {
-    console.error("booking-control-identity-submit-failed", error);
-    return json({ ok: false, error: "IDENTITY_CONFIRMATION_UNAVAILABLE" }, 500);
-  }
-}
-
-
 async function accountPilgrimID(request: Request, db: D1Like) {
   const authorization = request.headers.get("authorization")?.trim() ?? "";
   if (!authorization.toLowerCase().startsWith("bearer ")) return null;
@@ -381,6 +193,51 @@ async function bookingIdentity(db: D1Like, bookingID: string) {
   ).bind(bookingID).first<{ identity_fingerprint: string; status: string }>();
 }
 
+function normalizedSettlementStatus(value: unknown) {
+  return clean(value, 80).replace(/-/g, "_").toUpperCase();
+}
+
+async function sourceBookingStatus(db: BookingD1, bookingID: string) {
+  try {
+    const row = await db.prepare(
+      "SELECT status,payload_json FROM bookings WHERE id=?1 LIMIT 1",
+    ).bind(bookingID).first<{ status?: string | null; payload_json?: string | null }>();
+    if (!row) return "";
+    const direct = normalizedSettlementStatus(row.status);
+    if (direct) return direct;
+    try {
+      const payload = JSON.parse(row.payload_json ?? "{}") as Record<string, unknown>;
+      return normalizedSettlementStatus(payload.status);
+    } catch {
+      return "";
+    }
+  } catch {
+    return "";
+  }
+}
+
+async function priorPaidIdentityBooking(
+  identityDB: D1Like,
+  bookingsDB: BookingD1,
+  fingerprint: string,
+  currentBookingID: string,
+) {
+  const rows = await identityDB.prepare(
+    `SELECT booking_id FROM iumrah_identity_confirmations
+     WHERE identity_fingerprint=?1 AND booking_id<>?2 AND status='confirmed'
+     ORDER BY updated_at DESC LIMIT 20`,
+  ).bind(fingerprint, currentBookingID).all<{ booking_id: string }>();
+
+  const paidStatuses = new Set([
+    "PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED",
+  ]);
+  for (const row of rows.results ?? []) {
+    const status = await sourceBookingStatus(bookingsDB, row.booking_id);
+    if (paidStatuses.has(status)) return row.booking_id;
+  }
+  return null;
+}
+
 async function friendsBookingSummary(
   request: Request,
   id: string,
@@ -420,7 +277,7 @@ async function friendsBookingSummary(
   return {
     ok: true,
     bookingID: id,
-    identityConfirmed: Boolean(identity && ["submitted", "manual_review", "confirmed"].includes(identity.status)),
+    identityConfirmed: Boolean(identity && identity.status === "confirmed"),
     totalUsd,
     maxDiscountUsd,
     giftDiscountUsd,
@@ -470,7 +327,7 @@ export async function redeemPilgrimFriendGift(request: Request, id: string, env:
 
   const payload = await request.json().catch(() => null) as { code?: unknown } | null;
   const code = clean(payload?.code, 40).normalize("NFKC").toUpperCase().replace(/\s+/g, "");
-  if (!/^IUMF-[A-Z2-9]{9}$/.test(code)) return json({ ok: false, error: "FRIENDS_GIFT_INVALID" }, 400);
+  if (!/^IUM[FG]-[A-Z2-9]{9}$/.test(code)) return json({ ok: false, error: "FRIENDS_GIFT_INVALID" }, 400);
 
   try {
     const booking = await authorizedBooking(request, id, env.BOOKINGS_DB);
@@ -479,8 +336,18 @@ export async function redeemPilgrimFriendGift(request: Request, id: string, env:
     if (!currentPilgrimID) return json({ ok: false, error: "ACCOUNT_SESSION_REQUIRED" }, 401);
 
     const identity = await bookingIdentity(env.HOTELS_DB, id);
-    if (!identity || !["submitted", "manual_review", "confirmed"].includes(identity.status)) {
+    if (!identity || identity.status !== "confirmed") {
       return json({ ok: false, error: "IDENTITY_CONFIRMATION_REQUIRED" }, 409);
+    }
+
+    const previousPaidBooking = await priorPaidIdentityBooking(
+      env.HOTELS_DB,
+      env.BOOKINGS_DB,
+      identity.identity_fingerprint,
+      id,
+    );
+    if (previousPaidBooking) {
+      return json({ ok: false, error: "FRIENDS_NEW_CUSTOMER_ONLY" }, 409);
     }
 
     const existingOtherTrip = await env.HOTELS_DB.prepare(
@@ -554,7 +421,7 @@ export async function applyPilgrimFriendCredit(request: Request, id: string, env
     if (!currentPilgrimID) return json({ ok: false, error: "ACCOUNT_SESSION_REQUIRED" }, 401);
 
     const identity = await bookingIdentity(env.HOTELS_DB, id);
-    if (!identity || !["submitted", "manual_review", "confirmed"].includes(identity.status)) {
+    if (!identity || identity.status !== "confirmed") {
       return json({ ok: false, error: "IDENTITY_CONFIRMATION_REQUIRED" }, 409);
     }
 

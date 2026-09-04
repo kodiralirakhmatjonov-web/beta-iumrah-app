@@ -8,12 +8,18 @@ struct IumrahSecurityConfirmation: Codable, Hashable {
     let passportLast4: String
     let verificationMethod: String
     let reusedIdentity: Bool
+    let hasPassportPhoto: Bool
+    let reviewNote: String
     let submittedAt: String
     let updatedAt: String
 
-    var isSubmitted: Bool {
-        ["submitted", "confirmed", "manual_review"].contains(status.lowercased())
-    }
+    var normalizedStatus: String { status.lowercased() }
+    var isConfirmed: Bool { normalizedStatus == "confirmed" }
+    var isPendingReview: Bool { ["submitted", "under_review"].contains(normalizedStatus) }
+    var needsResubmission: Bool { ["rejected", "needs_resubmission"].contains(normalizedStatus) }
+    var isDraft: Bool { normalizedStatus == "draft" }
+    var isSubmitted: Bool { isPendingReview || isConfirmed }
+    var canEdit: Bool { !isConfirmed && !isPendingReview }
 }
 
 struct IumrahSecurityConfirmationResponse: Decodable {

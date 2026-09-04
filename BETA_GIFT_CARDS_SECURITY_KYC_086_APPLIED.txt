@@ -1,0 +1,10 @@
+iumrah Beta update 086 — iUmrah Gift Cards + manual Security KYC
+
+- iumrah Security Confirmation appears only after availability is confirmed and the trip reaches payment/pilgrim-data status.
+- The supplied biometric video stays unobstructed; KYC title/copy is below the animation.
+- The booking holder submits first name, last name, passport number and a passport photo for manual review in iumrah Business.
+- Client submission never creates a confirmed identity by itself. Gift Card anti-fraud reads only Business-confirmed identity records.
+- iUmrah Gift Cards provides 3 × $100 cards per authenticated account; newly generated codes use IUMG while legacy IUMF codes remain valid.
+- Referral: recipient gets $100; referrer earns $100 iumrah Credit only after an eligible paid booking. Cancellation reverses the reward.
+- Benefit cap is $100 through $2,000 and up to $200 above $2,000.
+- iOS 26 interactive controls added by this update use native Liquid Glass (`glassEffect(.regular.interactive())`) with an opaque compatibility fallback on older iOS.

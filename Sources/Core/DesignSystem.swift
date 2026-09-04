@@ -163,21 +163,53 @@ enum IumrahHaptics {
 
 private struct IumrahGlassModifier<S: Shape>: ViewModifier {
     let shape: S
+    let interactive: Bool
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: shape)
+            // iOS 26: use Apple's native Liquid Glass renderer. Interactive
+            // controls opt into the system scale/bounce/shimmer response.
+            if interactive {
+                content.glassEffect(.regular.interactive(), in: shape)
+            } else {
+                content.glassEffect(.regular, in: shape)
+            }
         } else {
+            // Functional compatibility for iOS 17–25. This is deliberately a
+            // normal opaque system surface, not a simulated Liquid Glass blur.
             content
-                .background(.ultraThinMaterial, in: shape)
-                .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.7))
+                .background(Color.iumrahCardBackground, in: shape)
+                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.8))
         }
     }
 }
 
 extension View {
-    func iumrahGlass<S: Shape>(in shape: S) -> some View {
-        modifier(IumrahGlassModifier(shape: shape))
+    func iumrahGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
+        modifier(IumrahGlassModifier(shape: shape, interactive: interactive))
+    }
+}
+
+/// Groups nearby native Liquid Glass elements so iOS 26 can sample and morph
+/// them as one visual system. Older iOS versions simply render the content.
+struct IumrahGlassGroup<Content: View>: View {
+    let spacing: CGFloat?
+    private let content: Content
+
+    init(spacing: CGFloat? = nil, @ViewBuilder content: () -> Content) {
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) {
+                content
+            }
+        } else {
+            content
+        }
     }
 }

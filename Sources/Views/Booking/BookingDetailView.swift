@@ -252,11 +252,7 @@ struct BookingDetailView: View {
         .foregroundStyle(.primary)
         .padding(.horizontal, 15)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay {
-            Capsule()
-                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.8)
-        }
+        .iumrahGlass(in: Capsule())
         .scaleEffect(0.92 + (0.08 * progress))
         .opacity(0.18 + (0.82 * progress))
         .blur(radius: (1 - progress) * 2.2)
@@ -401,8 +397,7 @@ struct BookingDetailView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .bold))
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
+                    .iumrahGlass(in: Circle(), interactive: true)
             }
             .buttonStyle(.plain)
 
@@ -427,7 +422,7 @@ struct BookingDetailView: View {
         }
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(Color.iumrahPageBackground)
     }
 
     private func outboundFallback(_ session: StoredBookingSession) -> String {
@@ -475,14 +470,13 @@ struct BookingDetailView: View {
                         .environmentObject(bookings)
                 } label: {
                     HStack(spacing: 13) {
-                        Image(systemName: securityConfirmation?.isSubmitted == true ? "checkmark.shield.fill" : "lock.shield.fill")
+                        Image(systemName: securityConfirmationIcon)
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(securityConfirmation?.isSubmitted == true ? Color.iumrahCareLight : Color.primary)
+                            .foregroundStyle(securityConfirmation?.isConfirmed == true ? Color.green : Color.primary)
                             .frame(width: 42, height: 42)
-                            .iumrahGlass(in: Circle())
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(securityConfirmation?.isSubmitted == true ? securityConfirmationDoneTitle : securityConfirmationTitle)
+                            Text(securityConfirmationDisplayTitle)
                                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
                             Text(securityConfirmationSubtitle)
@@ -500,11 +494,7 @@ struct BookingDetailView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-                    }
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                     .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -607,13 +597,43 @@ struct BookingDetailView: View {
         }
     }
 
+    private var securityConfirmationPendingTitle: String {
+        switch settings.language {
+        case .russian: return "Ожидает ручной проверки"
+        case .english: return "Waiting for manual review"
+        case .uzbek: return "Qo‘lda tekshirish kutilmoqda"
+        case .uzbekCyrillic: return "Қўлда текшириш кутилмоқда"
+        }
+    }
+
     private var securityConfirmationDoneTitle: String {
         switch settings.language {
-        case .russian: return "Личность отправлена на проверку"
-        case .english: return "Identity submitted for review"
-        case .uzbek: return "Shaxs tekshiruvga yuborildi"
-        case .uzbekCyrillic: return "Шахс текширувга юборилди"
+        case .russian: return "Личность подтверждена"
+        case .english: return "Identity confirmed"
+        case .uzbek: return "Shaxs tasdiqlandi"
+        case .uzbekCyrillic: return "Шахс тасдиқланди"
         }
+    }
+
+    private var securityConfirmationDisplayTitle: String {
+        if securityConfirmation?.isConfirmed == true { return securityConfirmationDoneTitle }
+        if securityConfirmation?.isPendingReview == true { return securityConfirmationPendingTitle }
+        if securityConfirmation?.needsResubmission == true {
+            switch settings.language {
+            case .russian: return "Исправить данные iumrah Security"
+            case .english: return "Correct iumrah Security details"
+            case .uzbek: return "iumrah Security ma’lumotlarini tuzatish"
+            case .uzbekCyrillic: return "iumrah Security маълумотларини тузатиш"
+            }
+        }
+        return securityConfirmationTitle
+    }
+
+    private var securityConfirmationIcon: String {
+        if securityConfirmation?.isConfirmed == true { return "checkmark.shield.fill" }
+        if securityConfirmation?.isPendingReview == true { return "hourglass.circle.fill" }
+        if securityConfirmation?.needsResubmission == true { return "arrow.triangle.2.circlepath" }
+        return "lock.shield.fill"
     }
 
     private var securityConfirmationSubtitle: String {

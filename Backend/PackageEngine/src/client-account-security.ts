@@ -1114,7 +1114,7 @@ function friendGiftCode() {
   crypto.getRandomValues(bytes);
   let value = "";
   for (const byte of bytes) value += alphabet[byte % alphabet.length];
-  return `IUMF-${value}`;
+  return `IUMG-${value}`;
 }
 
 async function ensureFriendGifts(db: D1Like, pilgrimID: number) {
@@ -1227,6 +1227,49 @@ async function settleFriendRewards(env: Env, referrerPilgrimID: number) {
          WHERE id=?1`,
       ).bind(row.gift_id).run();
     }
+  }
+
+  // A reward is earned only while the referred paid booking remains valid.
+  // If Business later cancels/refunds that trip, reverse the iumrah Credit and
+  // release the Gift Card again. The ledger makes the reversal idempotent.
+  const earned = await env.HOTELS_DB.prepare(
+    `SELECT r.id,r.gift_id,r.booking_id,r.reward_usd
+     FROM iumrah_friends_redemptions r
+     WHERE r.referrer_pilgrim_id=?1 AND r.reward_status='earned'
+     ORDER BY r.settled_at DESC LIMIT 40`,
+  ).bind(referrerPilgrimID).all<{
+    id: string;
+    gift_id: string;
+    booking_id: string;
+    reward_usd: number;
+  }>();
+
+  for (const row of earned.results ?? []) {
+    const status = await internalBookingStatus(env, row.booking_id);
+    if (status !== "CANCELLED") continue;
+    const now = new Date().toISOString();
+    await env.HOTELS_DB.prepare(
+      `UPDATE iumrah_friends_redemptions
+       SET status='cancelled',reward_status='cancelled',settled_at=?1
+       WHERE id=?2 AND reward_status='earned'`,
+    ).bind(now, row.id).run();
+    await env.HOTELS_DB.prepare(
+      `INSERT OR IGNORE INTO iumrah_friends_credit_ledger(
+         id,pilgrim_id,amount_usd,source_type,source_id,booking_id,created_at
+       ) VALUES(?1,?2,?3,'friend_cancelled_reversal',?4,?5,?6)`,
+    ).bind(
+      `credit-${crypto.randomUUID()}`,
+      referrerPilgrimID,
+      -Math.abs(Number(row.reward_usd || 100)),
+      row.id,
+      row.booking_id,
+      now,
+    ).run();
+    await env.HOTELS_DB.prepare(
+      `UPDATE iumrah_friends_gifts
+       SET status='available',redeemed_booking_id=NULL,redeemed_at=NULL
+       WHERE id=?1`,
+    ).bind(row.gift_id).run();
   }
 }
 

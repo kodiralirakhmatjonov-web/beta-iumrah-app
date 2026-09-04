@@ -159,8 +159,23 @@ struct BookingService {
 
     func securityConfirmation(id: String, accessToken: String) async throws -> IumrahSecurityConfirmationResponse {
         try await api.get(
-            "/api/package/booking/\(id)/identity-confirmation",
+            "/api/catalog/hotels/client/trips/\(id)/security",
             headers: ["x-booking-token": accessToken]
+        )
+    }
+
+    func uploadSecurityPassport(
+        id: String,
+        accessToken: String,
+        data: Data,
+        contentType: String
+    ) async throws -> IumrahSecurityConfirmationResponse {
+        try await api.upload(
+            "/api/catalog/hotels/client/trips/\(id)/security/passport",
+            data: data,
+            contentType: contentType,
+            headers: ["x-booking-token": accessToken],
+            timeoutInterval: 60
         )
     }
 
@@ -172,7 +187,7 @@ struct BookingService {
         passportNumber: String
     ) async throws -> IumrahSecurityConfirmationResponse {
         try await api.put(
-            "/api/package/booking/\(id)/identity-confirmation",
+            "/api/catalog/hotels/client/trips/\(id)/security",
             body: IumrahSecurityConfirmationRequest(
                 firstName: firstName,
                 lastName: lastName,

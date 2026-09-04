@@ -116,7 +116,7 @@ struct PilgrimCheckoutView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .bold))
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .iumrahGlass(in: Circle(), interactive: true)
             }
             .buttonStyle(.plain)
 
@@ -133,7 +133,7 @@ struct PilgrimCheckoutView: View {
         }
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(Color.iumrahPageBackground)
     }
 
     private var hero: some View {
@@ -404,9 +404,9 @@ struct PilgrimCheckoutView: View {
                         .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("iumrah Friends")
+                        Text("iUmrah Gift Cards")
                             .font(.headline)
-                        Text(tr("Gift & iumrah Credit", "Gift-карты и iumrah Credit", "Gift va iumrah Credit", "Gift ва iumrah Credit"))
+                        Text(tr("Gift Card & iumrah Credit", "Gift Card и iumrah Credit", "Gift Card va iumrah Credit", "Gift Card ва iumrah Credit"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -419,10 +419,10 @@ struct PilgrimCheckoutView: View {
                         VStack(alignment: .leading, spacing: 11) {
                             Label(
                                 tr(
-                                    "Confirm the passport holder before using a Friends benefit.",
-                                    "Подтвердите владельца паспорта перед применением Friends Gift.",
-                                    "Friends Gift ishlatishdan oldin pasport egasini tasdiqlang.",
-                                    "Friends Gift ишлатишдан олдин паспорт эгасини тасдиқланг."
+                                    "Confirm the passport holder and wait for manual review before using a Gift Card benefit.",
+                                    "Подтвердите владельца паспорта и дождитесь ручной проверки перед применением Gift Card.",
+                                    "Gift Card ishlatishdan oldin pasport egasini tasdiqlang va qo‘lda tekshirishni kuting.",
+                                    "Gift Card ишлатишдан олдин паспорт эгасини тасдиқланг ва қўлда текширишни кутинг."
                                 ),
                                 systemImage: "lock.shield.fill"
                             )
@@ -437,20 +437,24 @@ struct PilgrimCheckoutView: View {
                                     Spacer()
                                     Image(systemName: "arrow.right")
                                 }
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 15)
+                                .frame(height: 50)
+                                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                             }
-                            .buttonStyle(IumrahSecondaryButtonStyle())
+                            .buttonStyle(.plain)
                         }
                     } else {
                         friendsPricingSummary(summary)
 
                         if summary.remainingAllowanceUsd >= 100 {
                             VStack(alignment: .leading, spacing: 9) {
-                                Text(tr("Use an Umrah Gift", "Применить Umrah Gift", "Umrah Gift ishlatish", "Umrah Gift ишлатиш"))
+                                Text(tr("Use a Gift Card", "Применить Gift Card", "Gift Card ishlatish", "Gift Card ишлатиш"))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
 
                                 HStack(spacing: 9) {
-                                    TextField("IUMF-XXXXXXXXX", text: $giftCode)
+                                    TextField("IUMG-XXXXXXXXX", text: $giftCode)
                                         .textInputAutocapitalization(.characters)
                                         .autocorrectionDisabled()
                                         .font(.system(size: 15, weight: .semibold, design: .monospaced))
@@ -465,8 +469,7 @@ struct PilgrimCheckoutView: View {
                                             .font(.subheadline.weight(.bold))
                                             .padding(.horizontal, 15)
                                             .frame(height: 50)
-                                            .foregroundStyle(Color.iumrahPrimaryButtonText)
-                                            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
                                     }
                                     .buttonStyle(.plain)
                                     .disabled(normalizedGiftCode.count < 8 || isApplyingFriendBenefit)
@@ -490,8 +493,12 @@ struct PilgrimCheckoutView: View {
                                     Spacer()
                                     Image(systemName: "minus.circle.fill")
                                 }
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 15)
+                                .frame(height: 50)
+                                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                             }
-                            .buttonStyle(IumrahSecondaryButtonStyle())
+                            .buttonStyle(.plain)
                             .disabled(isApplyingFriendBenefit)
                         }
 
@@ -513,7 +520,7 @@ struct PilgrimCheckoutView: View {
                 } else {
                     HStack(spacing: 10) {
                         ProgressView()
-                        Text(tr("Checking Friends benefits…", "Проверяем Friends…", "Friends imtiyozlari tekshirilmoqda…", "Friends имтиёзлари текширилмоқда…"))
+                        Text(tr("Checking Gift Card benefits…", "Проверяем Gift Card…", "Gift Card imtiyozlari tekshirilmoqda…", "Gift Card имтиёзлари текширилмоқда…"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -534,7 +541,7 @@ struct PilgrimCheckoutView: View {
     private func friendsPricingSummary(_ summary: IumrahFriendsBookingSummary) -> some View {
         VStack(spacing: 8) {
             HStack {
-                Text(tr("Friends limit", "Лимит Friends", "Friends limiti", "Friends лимити"))
+                Text(tr("Gift Card limit", "Лимит Gift Card", "Gift Card limiti", "Gift Card лимити"))
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(friendMoney(summary.maxDiscountUsd)).fontWeight(.semibold)
@@ -549,7 +556,7 @@ struct PilgrimCheckoutView: View {
             }
             if summary.totalDiscountUsd > 0 {
                 HStack {
-                    Text("iumrah Friends")
+                    Text("iUmrah Gift Cards")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text("−\(friendMoney(summary.totalDiscountUsd))")
@@ -624,7 +631,7 @@ struct PilgrimCheckoutView: View {
                 code: normalizedGiftCode
             )
             giftCode = ""
-            friendsMessage = tr("$100 Umrah Gift applied.", "Umrah Gift на $100 применён.", "$100 Umrah Gift qo‘llandi.", "$100 Umrah Gift қўлланди.")
+            friendsMessage = tr("$100 Gift Card applied.", "Gift Card на $100 применён.", "$100 Gift Card qo‘llandi.", "$100 Gift Card қўлланди.")
             IumrahHaptics.success()
         } catch APIError.server(_, let code) {
             friendsMessage = friendError(code)
@@ -668,9 +675,9 @@ struct PilgrimCheckoutView: View {
         case "FRIENDS_GIFT_NOT_AVAILABLE":
             return tr("This Gift is unavailable or already used.", "Эта Gift-карта недоступна или уже использована.", "Bu Gift mavjud emas yoki allaqachon ishlatilgan.", "Бу Gift мавжуд эмас ёки аллақачон ишлатилган.")
         case "FRIENDS_NEW_CUSTOMER_ONLY":
-            return tr("This identity has already used a first-booking Friends Gift.", "Эта личность уже использовала Friends Gift для первого бронирования.", "Bu shaxs birinchi bron uchun Friends Gift dan foydalangan.", "Бу шахс биринчи брон учун Friends Gift дан фойдаланган.")
+            return tr("This identity already has a previously paid iumrah trip or has used a first-booking Gift Card.", "У этой личности уже есть ранее оплаченная поездка iumrah или использованная Gift Card первого бронирования.", "Bu shaxsning avval to‘langan iumrah safari bor yoki birinchi bron Gift Card idan foydalangan.", "Бу шахснинг аввал тўланган iumrah сафари бор ёки биринчи брон Gift Card идан фойдаланган.")
         case "FRIENDS_DISCOUNT_LIMIT_REACHED":
-            return tr("The Friends limit for this trip is already reached.", "Лимит Friends для этой поездки уже исчерпан.", "Bu safar uchun Friends limiti tugagan.", "Бу сафар учун Friends лимити тугаган.")
+            return tr("The Gift Card limit for this trip is already reached.", "Лимит Gift Card для этой поездки уже исчерпан.", "Bu safar uchun Gift Card limiti tugagan.", "Бу сафар учун Gift Card лимити тугаган.")
         case "FRIENDS_SELF_REFERRAL":
             return tr("You cannot use your own Gift.", "Нельзя применить собственную Gift-карту.", "O‘z Gift kartangizni ishlata olmaysiz.", "Ўз Gift картангизни ишлата олмайсиз.")
         case "FRIENDS_CREDIT_UNAVAILABLE":
