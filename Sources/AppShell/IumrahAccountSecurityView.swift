@@ -15,7 +15,9 @@ struct IumrahAccountSecurityView: View {
     @State private var primaryPassword = ""
     @State private var isClaimingPrimary = false
     @State private var pendingTermination: IumrahSecuritySession?
-    @State private var isTerminating = false
+    @State private var workingSessionID: String?
+    @State private var pendingTerminateOthers = false
+    @State private var isTerminatingOthers = false
     @State private var appleNonce = ""
     @State private var isLinkingApple = false
     @State private var showingEmailSheet = false
@@ -84,6 +86,25 @@ struct IumrahAccountSecurityView: View {
             Text(session.isCurrent
                  ? tr("You will need to sign in again.", "Для продолжения потребуется войти снова.", "Qayta kirish kerak bo‘ladi.", "Қайта кириш керак бўлади.")
                  : tr("This device will immediately lose access to your account.", "Это устройство сразу потеряет доступ к Вашему аккаунту.", "Bu qurilma akkauntga kirish huquqini darhol yo‘qotadi.", "Бу қурилма аккаунтга кириш ҳуқуқини дарҳол йўқотади."))
+        }
+        .confirmationDialog(
+            tr("End all other sessions?", "Завершить все другие сеансы?", "Boshqa barcha seanslar tugatilsinmi?", "Бошқа барча сеанслар тугатилсинми?"),
+            isPresented: $pendingTerminateOthers
+        ) {
+            Button(
+                tr("End all", "Завершить все", "Barchasini tugatish", "Барчасини тугатиш"),
+                role: .destructive
+            ) {
+                Task { await terminateOtherSessions() }
+            }
+            Button(tr("Cancel", "Отмена", "Bekor qilish", "Бекор қилиш"), role: .cancel) {}
+        } message: {
+            Text(tr(
+                "All other devices will lose access. This device will stay signed in.",
+                "Все остальные устройства потеряют доступ. Это устройство останется в аккаунте.",
+                "Boshqa barcha qurilmalar kirish huquqini yo‘qotadi. Bu qurilma akkauntda qoladi.",
+                "Бошқа барча қурилмалар кириш ҳуқуқини йўқотади. Бу қурилма аккаунтда қолади."
+            ))
         }
     }
 
@@ -282,86 +303,179 @@ struct IumrahAccountSecurityView: View {
     }
 
     private func sessionsCard(_ value: IumrahSecurityOverview) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                sectionTitle(icon: "rectangle.stack.badge.person.crop.fill", title: tr("Active sessions", "Активные сеансы", "Faol seanslar", "Фаол сеанслар"), tint: .blue)
+        let current = value.sessions.first(where: \.isCurrent)
+        let others = value.sessions.filter { !$0.isCurrent }
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                sectionTitle(
+                    icon: "rectangle.stack.badge.person.crop.fill",
+                    title: tr("Devices and sessions", "Устройства и сеансы", "Qurilmalar va seanslar", "Қурилмалар ва сеанслар"),
+                    tint: .blue
+                )
                 Spacer(minLength: 8)
                 Text("\(value.sessions.count)")
                     .font(.caption.monospaced().weight(.bold))
                     .padding(.horizontal, 10)
                     .frame(height: 28)
-                    .background(Color.iumrahRaisedBackground, in: Capsule())
+                    .iumrahGlass(in: Capsule())
             }
 
-            VStack(spacing: 0) {
-                ForEach(Array(value.sessions.enumerated()), id: \.element.id) { index, session in
-                    sessionRow(session)
-                    if index < value.sessions.count - 1 {
-                        Divider().padding(.leading, 58)
+            if let current {
+                sessionGroupLabel(tr("THIS DEVICE", "ЭТО УСТРОЙСТВО", "BU QURILMA", "БУ ҚУРИЛМА"))
+                sessionCard(current)
+            }
+
+            if !others.isEmpty {
+                sessionGroupLabel(tr("ACTIVE SESSIONS", "АКТИВНЫЕ СЕАНСЫ", "FAOL SEANSLAR", "ФАОЛ СЕАНСЛАР"))
+                VStack(spacing: 12) {
+                    ForEach(others) { session in
+                        sessionCard(session)
                     }
                 }
+
+                if value.currentDeviceIsPrimary {
+                    Button(role: .destructive) {
+                        IumrahHaptics.soft()
+                        pendingTerminateOthers = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "hand.raised.fill")
+                            Text(tr(
+                                "End all other sessions",
+                                "Завершить все другие сеансы",
+                                "Boshqa barcha seanslarni tugatish",
+                                "Бошқа барча сеансларни тугатиш"
+                            ))
+                            .font(.subheadline.weight(.semibold))
+                            Spacer(minLength: 0)
+                            if isTerminatingOthers {
+                                ProgressView().controlSize(.small)
+                            }
+                        }
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 18)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                    }
+                    .buttonStyle(.plain)
+                    .iumrahGlass(in: Capsule(), interactive: true)
+                    .disabled(workingSessionID != nil || isTerminatingOthers)
+                }
+            }
+        }
+    }
+
+    private func sessionGroupLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .tracking(0.8)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .padding(.top, 2)
+    }
+
+    private func sessionCard(_ session: IumrahSecuritySession) -> some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(alignment: .top, spacing: 14) {
+                sessionDeviceIcon(session)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 7) {
+                        Text(sessionDisplayName(session))
+                            .font(.headline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+
+                        if session.isCurrent {
+                            badge(
+                                tr("THIS DEVICE", "ЭТО УСТРОЙСТВО", "BU QURILMA", "БУ ҚУРИЛМА"),
+                                color: .blue
+                            )
+                        }
+                    }
+
+                    let software = sessionSoftwareLine(session)
+                    if !software.isEmpty {
+                        Text(software)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Text(sessionLocationAndActivity(session))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 4)
+
+                if session.isPrimary {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.orange)
+                        .accessibilityLabel(tr("Primary device", "Основное устройство", "Asosiy qurilma", "Асосий қурилма"))
+                }
+            }
+
+            Divider().opacity(0.65)
+
+            if session.canTerminate {
+                Button(role: .destructive) {
+                    IumrahHaptics.soft()
+                    pendingTermination = session
+                } label: {
+                    HStack {
+                        Label(
+                            session.isCurrent
+                                ? tr("End this session", "Завершить этот сеанс", "Bu seansni tugatish", "Бу сеансни тугатиш")
+                                : tr("End session", "Завершить сеанс", "Seansni tugatish", "Сеансни тугатиш"),
+                            systemImage: "hand.raised"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        if workingSessionID == session.id {
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(workingSessionID != nil || isTerminatingOthers)
+            } else {
+                Label(
+                    tr(
+                        "Managed by the primary device",
+                        "Управляется основным устройством",
+                        "Asosiy qurilma orqali boshqariladi",
+                        "Асосий қурилма орқали бошқарилади"
+                    ),
+                    systemImage: "lock.fill"
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
             }
         }
         .iumrahCard()
     }
 
-    private func sessionRow(_ session: IumrahSecuritySession) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: session.platform.lowercased().contains("ios") ? "iphone.gen3" : "desktopcomputer")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(session.isCurrent ? Color.blue : Color.secondary)
-                    .frame(width: 44, height: 44)
-                    .background((session.isCurrent ? Color.blue : Color.secondary).opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    @ViewBuilder
+    private func sessionDeviceIcon(_ session: IumrahSecuritySession) -> some View {
+        let platform = session.platform.lowercased()
+        let isAndroid = platform.contains("android")
+        let tint: Color = isAndroid ? .green : .blue
+        let icon = isAndroid ? "apps.iphone" : (platform.contains("ios") ? "iphone.gen3" : "desktopcomputer")
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(localizedDeviceName(session))
-                            .font(.subheadline.weight(.bold))
-                            .lineLimit(1)
-                        if session.isCurrent { badge(tr("This device", "Это устройство", "Bu qurilma", "Бу қурилма"), color: .blue) }
-                        if session.isPrimary { badge(tr("Primary", "Основное", "Asosiy", "Асосий"), color: Color.iumrahCareLight) }
-                    }
-                    if !deviceDetails(session).isEmpty {
-                        Text(deviceDetails(session))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(sessionLocationAndActivity(session))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 4)
-            }
-
-            if session.canTerminate {
-                Button(role: .destructive) {
-                    pendingTermination = session
-                } label: {
-                    Label(
-                        session.isCurrent
-                            ? tr("End my session", "Завершить мой сеанс", "Seansimni tugatish", "Сеансимни тугатиш")
-                            : tr("End session", "Завершить сеанс", "Seansni tugatish", "Сеансни тугатиш"),
-                        systemImage: "hand.raised.fill"
-                    )
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
-                .disabled(isTerminating)
-                .padding(.leading, 56)
-            } else {
-                Label(
-                    tr("This session cannot manage other devices", "Этот сеанс не может управлять другими устройствами", "Bu seans boshqa qurilmalarni boshqara olmaydi", "Бу сеанс бошқа қурилмаларни бошқара олмайди"),
-                    systemImage: "lock.fill"
-                )
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 56)
-            }
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.gradient)
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
         }
-        .padding(.vertical, 12)
+        .frame(width: 48, height: 48)
+        .shadow(color: tint.opacity(0.20), radius: 8, y: 4)
     }
 
     private var privacyNote: some View {
@@ -500,9 +614,9 @@ struct IumrahAccountSecurityView: View {
 
     @MainActor
     private func terminate(_ session: IumrahSecuritySession) async {
-        isTerminating = true
+        workingSessionID = session.id
         pendingTermination = nil
-        defer { isTerminating = false }
+        defer { workingSessionID = nil }
         do {
             let signedOut = try await account.terminateSecuritySession(id: session.id)
             IumrahHaptics.success()
@@ -512,6 +626,29 @@ struct IumrahAccountSecurityView: View {
                 await load()
             }
         } catch {
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func terminateOtherSessions() async {
+        guard let overview else { return }
+        let targets = overview.sessions.filter { !$0.isCurrent && $0.canTerminate }
+        guard !targets.isEmpty else { return }
+
+        isTerminatingOthers = true
+        pendingTerminateOthers = false
+        defer { isTerminatingOthers = false }
+
+        do {
+            for session in targets {
+                _ = try await account.terminateSecuritySession(id: session.id)
+            }
+            await load()
+            IumrahHaptics.success()
+        } catch {
+            await load()
             errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
             IumrahHaptics.error()
         }
@@ -545,36 +682,102 @@ struct IumrahAccountSecurityView: View {
         }
     }
 
-    private func localizedDeviceName(_ session: IumrahSecuritySession) -> String {
-        session.deviceName == "Unknown device"
-            ? tr("Unknown device", "Неизвестное устройство", "Noma’lum qurilma", "Номаълум қурилма")
-            : session.deviceName
+    private func sessionDisplayName(_ session: IumrahSecuritySession) -> String {
+        let name = session.deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let model = session.model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let genericNames = ["", "iPhone", "iPad", "Unknown device", "Apple device"]
+
+        if !genericNames.contains(name) { return name }
+
+        if model.hasPrefix("iPhone") {
+            let resolved = IumrahAccountDeviceIdentity.friendlyModelName(for: model)
+            if resolved != "iPhone" { return resolved }
+        }
+        if model.hasPrefix("iPad") {
+            return name == "Unknown device"
+                ? tr("iPad", "iPad", "iPad", "iPad")
+                : name
+        }
+
+        let platform = session.platform.lowercased()
+        if platform.contains("android") {
+            if !model.isEmpty, model.lowercased() != "android" { return model }
+            return "Android"
+        }
+
+        if !name.isEmpty, name != "Unknown device" { return name }
+        if !model.isEmpty { return model }
+        return tr("Unknown device", "Неизвестное устройство", "Noma’lum qurilma", "Номаълум қурилма")
     }
 
-    private func deviceDetails(_ session: IumrahSecuritySession) -> String {
-        let platform = [session.platform, session.osVersion].filter { !$0.isEmpty }.joined(separator: " ")
-        return [session.model, platform].filter { !$0.isEmpty }.joined(separator: " · ")
+    private func sessionSoftwareLine(_ session: IumrahSecuritySession) -> String {
+        let platform = session.platform.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = platform.lowercased()
+        let osName: String
+        if lower.contains("ios") {
+            osName = "iOS"
+        } else if lower.contains("android") {
+            osName = "Android"
+        } else {
+            osName = platform
+        }
+
+        let os = [osName, session.osVersion]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: " ")
+
+        let version = normalizedAppVersion(session.appVersion)
+        let app = version.isEmpty ? "" : "iumrah \(version)"
+        return [os, app].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    private func normalizedAppVersion(_ raw: String) -> String {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return "" }
+        if let range = value.range(of: " (") {
+            return String(value[..<range.lowerBound])
+        }
+        return value
     }
 
     private func sessionLocationAndActivity(_ session: IumrahSecuritySession) -> String {
-        let location = [session.city, session.country].filter { !$0.isEmpty }.joined(separator: ", ")
-        let activity = relativeDate(session.lastActiveAt)
+        let country = localizedCountry(session.country)
+        let location = [session.city, country]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+        let activity = session.isCurrent
+            ? tr("online", "в сети", "onlayn", "онлайн")
+            : relativeDate(session.lastActiveAt)
         return [location, activity].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    private func relativeDate(_ raw: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let date = formatter.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
-        guard let date else { return raw }
-        if abs(date.timeIntervalSinceNow) < 45 {
-            return tr("online", "в сети", "onlayn", "онлайн")
+    private func localizedCountry(_ raw: String) -> String {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.count == 2 else { return value }
+        let code = value.uppercased()
+        let locale: Locale
+        switch settings.language {
+        case .russian: locale = Locale(identifier: "ru_RU")
+        case .english: locale = Locale(identifier: "en_US")
+        case .uzbek: locale = Locale(identifier: "uz_Latn_UZ")
+        case .uzbekCyrillic: locale = Locale(identifier: "uz_Cyrl_UZ")
         }
+        return locale.localizedString(forRegionCode: code) ?? value
+    }
+
+    private func relativeDate(_ raw: String) -> String {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let regular = ISO8601DateFormatter()
+        regular.formatOptions = [.withInternetDateTime]
+        guard let date = fractional.date(from: raw) ?? regular.date(from: raw) else { return raw }
+
         let relative = RelativeDateTimeFormatter()
         relative.unitsStyle = .full
         switch settings.language {
-        case .russian: relative.locale = Locale(identifier: "ru")
-        case .english: relative.locale = Locale(identifier: "en")
+        case .russian: relative.locale = Locale(identifier: "ru_RU")
+        case .english: relative.locale = Locale(identifier: "en_US")
         case .uzbek: relative.locale = Locale(identifier: "uz-Latn")
         case .uzbekCyrillic: relative.locale = Locale(identifier: "uz-Cyrl")
         }

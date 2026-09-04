@@ -9,6 +9,7 @@ struct IumrahClientDevice: Codable, Hashable {
     let secret: String
     let name: String
     let model: String
+    let hardwareIdentifier: String
     let platform: String
     let osVersion: String
     let appVersion: String
@@ -26,19 +27,82 @@ enum IumrahAccountDeviceIdentity {
 
     static func current(locale: String = Locale.current.identifier) -> IumrahClientDevice {
         let credentials = load() ?? create()
-        let device = UIDevice.current
+        let hardware = hardwareIdentifier
+        let modelName = friendlyModelName(for: hardware)
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+
         return IumrahClientDevice(
             installationID: credentials.installationID,
             secret: credentials.secret,
-            name: device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "iPhone" : device.name,
-            model: device.localizedModel,
-            platform: device.systemName,
-            osVersion: device.systemVersion,
-            appVersion: build.isEmpty ? version : "\(version) (\(build))",
+            name: modelName,
+            // Keep the raw Apple hardware identifier as the technical model. The
+            // backend already persists this field, so no schema change is needed.
+            // It also gives us an exact fallback for future devices that have not
+            // yet been added to the marketing-name map.
+            model: hardware,
+            hardwareIdentifier: hardware,
+            platform: "ios",
+            osVersion: UIDevice.current.systemVersion,
+            appVersion: version,
             locale: locale
         )
+    }
+
+    static func friendlyModelName(for identifier: String) -> String {
+        let models: [String: String] = [
+            "iPhone7,2": "iPhone 6",
+            "iPhone7,1": "iPhone 6 Plus",
+            "iPhone8,1": "iPhone 6s",
+            "iPhone8,2": "iPhone 6s Plus",
+            "iPhone8,4": "iPhone SE (1st generation)",
+            "iPhone9,1": "iPhone 7", "iPhone9,3": "iPhone 7",
+            "iPhone9,2": "iPhone 7 Plus", "iPhone9,4": "iPhone 7 Plus",
+            "iPhone10,1": "iPhone 8", "iPhone10,4": "iPhone 8",
+            "iPhone10,2": "iPhone 8 Plus", "iPhone10,5": "iPhone 8 Plus",
+            "iPhone10,3": "iPhone X", "iPhone10,6": "iPhone X",
+            "iPhone11,2": "iPhone XS",
+            "iPhone11,4": "iPhone XS Max", "iPhone11,6": "iPhone XS Max",
+            "iPhone11,8": "iPhone XR",
+            "iPhone12,1": "iPhone 11",
+            "iPhone12,3": "iPhone 11 Pro",
+            "iPhone12,5": "iPhone 11 Pro Max",
+            "iPhone12,8": "iPhone SE (2nd generation)",
+            "iPhone13,1": "iPhone 12 mini",
+            "iPhone13,2": "iPhone 12",
+            "iPhone13,3": "iPhone 12 Pro",
+            "iPhone13,4": "iPhone 12 Pro Max",
+            "iPhone14,4": "iPhone 13 mini",
+            "iPhone14,5": "iPhone 13",
+            "iPhone14,2": "iPhone 13 Pro",
+            "iPhone14,3": "iPhone 13 Pro Max",
+            "iPhone14,6": "iPhone SE (3rd generation)",
+            "iPhone14,7": "iPhone 14",
+            "iPhone14,8": "iPhone 14 Plus",
+            "iPhone15,2": "iPhone 14 Pro",
+            "iPhone15,3": "iPhone 14 Pro Max",
+            "iPhone15,4": "iPhone 15",
+            "iPhone15,5": "iPhone 15 Plus",
+            "iPhone16,1": "iPhone 15 Pro",
+            "iPhone16,2": "iPhone 15 Pro Max",
+            "iPhone17,3": "iPhone 16",
+            "iPhone17,4": "iPhone 16 Plus",
+            "iPhone17,1": "iPhone 16 Pro",
+            "iPhone17,2": "iPhone 16 Pro Max",
+            "iPhone17,5": "iPhone 16e",
+            "iPhone18,3": "iPhone 17",
+            "iPhone18,1": "iPhone 17 Pro",
+            "iPhone18,2": "iPhone 17 Pro Max",
+            "iPhone18,4": "iPhone Air",
+            "iPhone18,5": "iPhone 17e",
+        ]
+
+        if let name = models[identifier] { return name }
+        if identifier == "i386" || identifier == "x86_64" || identifier == "arm64" {
+            return "iPhone Simulator"
+        }
+        if identifier.hasPrefix("iPhone") { return "iPhone" }
+        if identifier.hasPrefix("iPad") { return "iPad" }
+        return UIDevice.current.localizedModel
     }
 
     static func securityHeaders(token: String) -> [String: String] {
@@ -48,6 +112,21 @@ enum IumrahAccountDeviceIdentity {
             "x-iumrah-device-id": device.installationID,
             "x-iumrah-device-secret": device.secret,
         ]
+    }
+
+    private static var hardwareIdentifier: String {
+#if targetEnvironment(simulator)
+        if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"],
+           !simulated.isEmpty {
+            return simulated
+        }
+#endif
+        var system = utsname()
+        uname(&system)
+        return withUnsafeBytes(of: &system.machine) { buffer in
+            let bytes = buffer.prefix { $0 != 0 }
+            return String(bytes: bytes, encoding: .utf8) ?? UIDevice.current.localizedModel
+        }
     }
 
     private static func create() -> Credentials {
