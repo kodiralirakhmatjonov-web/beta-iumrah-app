@@ -1,0 +1,4 @@
+iumrah Beta Fare Calendar Liquid Glass V8.1
+- Polished fare-calendar modal with native iOS 26 Liquid Glass controls and iOS 17-18 fallback.
+- Added the supplied iumrah Flights wordmark at the modal header.
+- No airline-filter UI or backend pricing/cache behavior changed in this update.

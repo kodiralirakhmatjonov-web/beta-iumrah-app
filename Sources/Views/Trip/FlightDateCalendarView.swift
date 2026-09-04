@@ -7,6 +7,7 @@ struct FlightDateCalendarView: View {
     let onApply: (Date, Date) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var settings: AppSettingsStore
     @State private var departure: Date?
     @State private var returnDate: Date?
@@ -24,22 +25,26 @@ struct FlightDateCalendarView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    routeSummary
-                    fareLegend
-                    ForEach(monthStarts, id: \.self) { month in
-                        monthSection(month)
+            ZStack {
+                calendarBackground
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        header
+                        routeSummary
+                        fareLegend
+                        ForEach(monthStarts, id: \.self) { month in
+                            monthSection(month)
+                        }
+                        if !suggestions.isEmpty { bestDatesSection }
+                        cacheExplanation
                     }
-                    if !suggestions.isEmpty { bestDatesSection }
-                    cacheExplanation
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 136)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 132)
+                .scrollIndicators(.hidden)
             }
-            .background(Color.iumrahPageBackground)
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
             .task { await loadCalendar() }
@@ -48,29 +53,67 @@ struct FlightDateCalendarView: View {
             departure = calendar.startOfDay(for: initialDeparture)
             returnDate = calendar.startOfDay(for: initialReturn)
         }
+        .presentationDragIndicator(.hidden)
+        .presentationCornerRadius(36)
+    }
+
+    private var calendarBackground: some View {
+        ZStack {
+            Color.iumrahPageBackground
+            LinearGradient(
+                colors: [
+                    Color.primary.opacity(colorScheme == .dark ? 0.025 : 0.018),
+                    Color.clear,
+                    Color.iumrahCareLight.opacity(colorScheme == .dark ? 0.055 : 0.10)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .ignoresSafeArea()
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 18, weight: .bold))
-                    .frame(width: 50, height: 50)
-                    .background(.thinMaterial, in: Circle())
-            }
-            .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 16) {
+            ZStack {
+                HStack {
+                    glassIconButton(systemName: "xmark") { dismiss() }
+                    Spacer()
+                }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(copy(.title))
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                Text(copy(.subtitle))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Image("IumrahFlightsCalendarLogo")
+                    .resizable()
+                    .renderingMode(.template)
+                    .scaledToFit()
+                    .foregroundStyle(.primary)
+                    .frame(width: 178, height: 52)
+                    .accessibilityLabel("iumrah Flights")
             }
-            Spacer()
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(copy(.title))
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .tracking(-0.5)
+                Text(copy(.subtitle))
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+    }
+
+    private func glassIconButton(systemName: String, action: @escaping () -> Void) -> some View {
+        Button {
+            IumrahHaptics.selection()
+            action()
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 18, weight: .bold))
+                .frame(width: 50, height: 50)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .iumrahGlass(in: Circle())
     }
 
     private var routeSummary: some View {
@@ -89,8 +132,10 @@ struct FlightDateCalendarView: View {
                 .foregroundStyle(.secondary)
             routeCode(trip.originCode)
         }
-        .padding(14)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(.horizontal, 16)
+        .frame(height: 64)
+        .background(Color.iumrahCardBackground.opacity(colorScheme == .dark ? 0.38 : 0.62), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func routeCode(_ value: String) -> some View {
@@ -104,8 +149,8 @@ struct FlightDateCalendarView: View {
         HStack(spacing: 10) {
             Image(systemName: "chart.line.downtrend.xyaxis")
                 .font(.system(size: 16, weight: .semibold))
-                .frame(width: 38, height: 38)
-                .background(Color.iumrahCareLight.opacity(0.18), in: Circle())
+                .frame(width: 40, height: 40)
+                .iumrahGlass(in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text(copy(.priceCalendar))
                     .font(.subheadline.weight(.bold))
@@ -117,10 +162,15 @@ struct FlightDateCalendarView: View {
             if loadError {
                 Button(copy(.retry)) { Task { await loadCalendar() } }
                     .font(.caption.weight(.bold))
+                    .padding(.horizontal, 12)
+                    .frame(height: 36)
+                    .iumrahGlass(in: Capsule())
+                    .buttonStyle(.plain)
             }
         }
         .padding(14)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color.iumrahRaisedBackground.opacity(colorScheme == .dark ? 0.34 : 0.56), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private func monthSection(_ month: Date) -> some View {
@@ -146,7 +196,8 @@ struct FlightDateCalendarView: View {
             }
         }
         .padding(16)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(Color.iumrahCardBackground.opacity(colorScheme == .dark ? 0.30 : 0.70), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
     private func dayCell(_ date: Date) -> some View {
@@ -221,7 +272,8 @@ struct FlightDateCalendarView: View {
                             }
                             .padding(.horizontal, 14)
                             .frame(height: 72)
-                            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                            .background(Color.iumrahRaisedBackground.opacity(colorScheme == .dark ? 0.28 : 0.52), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                         }
                         .buttonStyle(.plain)
                     }
@@ -244,44 +296,51 @@ struct FlightDateCalendarView: View {
     }
 
     private var bottomBar: some View {
-        VStack(spacing: 10) {
-            Divider().opacity(0.25)
-            HStack(spacing: 10) {
-                Button(copy(.reset)) {
-                    departure = nil
-                    returnDate = nil
-                    returnPrices = [:]
-                    IumrahHaptics.selection()
-                }
-                .font(.headline)
-                .frame(width: 116, height: 58)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-
-                Button {
-                    guard let departure, let returnDate, returnDate > departure else { return }
-                    onApply(departure, returnDate)
-                    dismiss()
-                } label: {
-                    VStack(spacing: 2) {
-                        Text(copy(.chooseDates))
-                            .font(.headline)
-                        if let selectedFare {
-                            Text("\(copy(.from)) \(compactPrice(selectedFare)) \(copy(.perPerson))")
-                                .font(.caption.weight(.semibold))
-                                .opacity(0.8)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                }
-                .buttonStyle(IumrahPrimaryButtonStyle())
-                .disabled(!hasValidRange)
-                .opacity(hasValidRange ? 1 : 0.45)
+        HStack(spacing: 12) {
+            Button {
+                departure = nil
+                returnDate = nil
+                returnPrices = [:]
+                IumrahHaptics.selection()
+            } label: {
+                Text(copy(.reset))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .frame(width: 116, height: 60)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .buttonStyle(.plain)
+            .background(Color.iumrahRaisedBackground.opacity(colorScheme == .dark ? 0.24 : 0.50), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+            Button {
+                guard let departure, let returnDate, returnDate > departure else { return }
+                IumrahHaptics.success()
+                onApply(departure, returnDate)
+                dismiss()
+            } label: {
+                VStack(spacing: 2) {
+                    Text(copy(.chooseDates))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                    if let selectedFare {
+                        Text("\(copy(.from)) \(compactPrice(selectedFare)) \(copy(.perPerson))")
+                            .font(.caption.weight(.semibold))
+                            .opacity(0.78)
+                    }
+                }
+                .foregroundStyle(Color.iumrahCardBackground)
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .background(Color.primary.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .disabled(!hasValidRange)
+            .opacity(hasValidRange ? 1 : 0.42)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
         .background(.ultraThinMaterial)
+        .overlay(alignment: .top) { Divider().opacity(0.14) }
     }
 
     private var hasValidRange: Bool {
