@@ -7,6 +7,11 @@ struct UmrahAdvisorCard: View {
     let audioKey: String
     var subtitle: String? = nil
 
+    // Kept for compatibility with the current Umrah Flow screens, which pass
+    // the overall ritual progress into the Advisor card. The visualizer itself
+    // is driven by the real narration amplitude.
+    var progress: Double? = nil
+
     private var isCurrentPlaying: Bool {
         audio.currentKey == audioKey && audio.isPlaying
     }

@@ -60,6 +60,40 @@ struct IumrahSiriOrb: View {
                     )
                 }
                 .frame(width: side, height: side)
+                .overlay {
+                    // SwiftUI's AngularGradient is used for the physical rim.
+                    // GraphicsContext.Shading does not expose angularGradient,
+                    // including on Xcode 26.6 / Swift 6.3.3.
+                    Circle()
+                        .stroke(
+                            AngularGradient(
+                                gradient: Gradient(colors: [
+                                    palette.cyan.opacity(0.72),
+                                    palette.indigo.opacity(0.36),
+                                    palette.violet.opacity(0.78),
+                                    palette.magenta.opacity(0.62),
+                                    palette.aqua.opacity(0.38),
+                                    palette.cyan.opacity(0.72)
+                                ]),
+                                center: .center,
+                                startAngle: Angle.degrees(phase * 150.0),
+                                endAngle: Angle.degrees(phase * 150.0 + 360.0)
+                            ),
+                            lineWidth: max(
+                                1.0,
+                                side * (0.012 + (audioLevel == nil ? 0 : CGFloat(audioEnergy) * 0.004))
+                            )
+                        )
+                        .padding(side * 0.035)
+                        .blur(radius: side * 0.014)
+                        .blendMode(.screen)
+                        .opacity(
+                            0.68
+                                * resolvedIntensity
+                                * (audioLevel == nil ? 1.0 : (0.82 + audioEnergy * 0.48))
+                        )
+                        .allowsHitTesting(false)
+                }
                 .scaleEffect(breath)
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
@@ -345,30 +379,8 @@ struct IumrahSiriOrb: View {
             }
         }
 
-        // Physical shell. Two rims with different softness prevent the orb from
-        // looking like a clipped animation inside a flat circle.
-        context.drawLayer { rimGlow in
-            rimGlow.blendMode = .screen
-            rimGlow.addFilter(.blur(radius: side * 0.014))
-            rimGlow.opacity = 0.68 * resolvedIntensity * luminanceGain
-            rimGlow.stroke(
-                circle,
-                with: .angularGradient(
-                    Gradient(colors: [
-                        palette.cyan.opacity(0.72),
-                        palette.indigo.opacity(0.36),
-                        palette.violet.opacity(0.78),
-                        palette.magenta.opacity(0.62),
-                        palette.aqua.opacity(0.38),
-                        palette.cyan.opacity(0.72)
-                    ]),
-                    center: center,
-                    startAngle: .degrees(phase * 150.0),
-                    endAngle: .degrees(phase * 150.0 + 360.0)
-                ),
-                lineWidth: max(1.0, side * (0.012 + (reactive ? energy * 0.004 : 0)))
-            )
-        }
+        // The colored physical rim is rendered as a SwiftUI AngularGradient
+        // overlay in body; the neutral shell edge stays in Canvas below.
 
         context.stroke(
             circle,

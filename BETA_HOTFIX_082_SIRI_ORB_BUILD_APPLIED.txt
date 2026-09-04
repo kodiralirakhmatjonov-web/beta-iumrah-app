@@ -1,0 +1,6 @@
+Beta hotfix 082 — Siri orb build compatibility
+
+- Fixes Xcode 26.6 build failure: GraphicsContext.Shading has no angularGradient API.
+- Keeps the same moving multicolor rim using SwiftUI AngularGradient outside Canvas.
+- Restores the optional `progress` argument on UmrahAdvisorCard so the current Tawaf/Safa screens compile unchanged.
+- Preserves real-audio amplitude metering and the audio-reactive liquid Siri orb from update 081.
