@@ -1,0 +1,5 @@
+Iumrah Beta update 084
+- Rebuilt IumrahSiriOrb geometry as moving edge-to-edge translucent fluid sheets instead of radial/petal forms.
+- Dynamic front/back sheet ordering, travelling pinches, folded seams and blue/violet/orange palette tuned to the supplied Siri reference.
+- Increased real playback amplitude responsiveness with 45 Hz metering, short peak hold, faster attack and stronger visual deformation.
+- No changes to Umrah Flow navigation, audio URLs, booking, generator or backend contracts.

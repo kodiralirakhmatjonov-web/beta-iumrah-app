@@ -19,6 +19,7 @@ final class UmrahFlowAudioService: ObservableObject {
     private var meterTimer: Timer?
     private var loadTask: Task<Void, Never>?
     private var activeRequestID = UUID()
+    private var peakHold: Double = 0
 
     private let audioCache: NSCache<NSURL, NSData> = {
         let cache = NSCache<NSURL, NSData>()
@@ -75,6 +76,7 @@ final class UmrahFlowAudioService: ObservableObject {
         isPlaying = false
         isLoading = false
         amplitude = 0
+        peakHold = 0
         currentKey = nil
     }
 
@@ -123,7 +125,7 @@ final class UmrahFlowAudioService: ObservableObject {
     private func startMetering() {
         stopMetering()
 
-        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0 / 45.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateAmplitudeMeter()
             }
@@ -161,18 +163,24 @@ final class UmrahFlowAudioService: ObservableObject {
             peakDB = max(peakDB, player.peakPower(forChannel: channel))
         }
 
-        let average = normalizedPower(averageDB, floor: -52)
-        let peak = normalizedPower(peakDB, floor: -44)
-        var target = min(1.0, average * 0.72 + peak * 0.38)
+        let average = normalizedPower(averageDB, floor: -56)
+        let peak = normalizedPower(peakDB, floor: -48)
 
-        // Keep true silence visually calm while retaining speech articulation.
-        if target < 0.035 {
+        // Voice is transient-heavy, so a max-weighted meter reads syllables more
+        // naturally than a simple average. Keep a very short peak hold so the
+        // visual can visibly "open" on consonants without becoming jittery.
+        var target = min(1.0, max(average * 0.92, peak * 0.86) * 1.20)
+        peakHold = max(target, peakHold * 0.80)
+        target = max(target, peakHold * 0.92)
+
+        // Keep true silence visually calm while retaining ordinary speech.
+        if target < 0.018 {
             target = 0
         }
 
-        // Fast attack, slower release gives the orb a voice-like response without
-        // flickering on every individual PCM sample.
-        let smoothing = target > amplitude ? 0.58 : 0.16
+        // Faster attack and a controlled release make amplitude changes visible
+        // at the small Advisor widget size while still looking fluid.
+        let smoothing = target > amplitude ? 0.80 : 0.17
         amplitude += (target - amplitude) * smoothing
 
         if amplitude < 0.002 {
@@ -186,7 +194,7 @@ final class UmrahFlowAudioService: ObservableObject {
 
         // Mild perceptual compression keeps normal spoken voice expressive while
         // still leaving headroom for louder syllables.
-        return pow(max(0, min(1, normalized)), 1.18)
+        return pow(max(0, min(1, normalized)), 0.66)
     }
 
     private func finishPlayback(clearKey: Bool) {
@@ -196,6 +204,7 @@ final class UmrahFlowAudioService: ObservableObject {
         isPlaying = false
         isLoading = false
         amplitude = 0
+        peakHold = 0
 
         if clearKey {
             currentKey = nil
