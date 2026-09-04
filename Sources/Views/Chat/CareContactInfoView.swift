@@ -15,14 +15,11 @@ struct CareContactInfoView: View {
     let onCall: () -> Void
     let onTelegram: () -> Void
     let onWhatsApp: () -> Void
-    let onRequestFounder: () async -> Bool
-    let transitionNamespace: Namespace.ID
     let onClose: () -> Void
 
     @State private var section: Section = .info
     @State private var selectedPhoto: PhotosPickerItem?
     @GestureState private var dismissDragX: CGFloat = 0
-    @State private var isRequestingFounder = false
 
     var body: some View {
         ZStack {
@@ -48,7 +45,7 @@ struct CareContactInfoView: View {
                         .padding(.top, 10)
 
                     segmentControl
-                        .padding(.top, 27)
+                        .padding(.top, 22)
 
                     ZStack(alignment: .top) {
                         if section == .info {
@@ -59,10 +56,10 @@ struct CareContactInfoView: View {
                                 .transition(.opacity.combined(with: .offset(x: 12)))
                         }
                     }
-                    .padding(.top, 24)
+                    .padding(.top, 18)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 44)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 34)
             }
         }
         .offset(x: max(0, dismissDragX))
@@ -113,11 +110,12 @@ struct CareContactInfoView: View {
                     onClose()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 21, weight: .semibold))
-                        .frame(width: 48, height: 48)
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 30, height: 30)
                         .contentShape(Circle())
                 }
                 .foregroundStyle(primaryText)
+                .controlSize(.small)
                 .careNativeGlassButton()
                 .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
 
@@ -128,29 +126,28 @@ struct CareContactInfoView: View {
                     onClose()
                 } label: {
                     Text(tr("Done", "Готово", "Tayyor", "Тайёр"))
-                        .font(.system(size: 17, weight: .semibold))
-                        .padding(.horizontal, 17)
-                        .frame(height: 48)
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
                 }
                 .foregroundStyle(primaryText)
+                .controlSize(.small)
                 .careNativeGlassButton()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 4)
-        .padding(.bottom, 3)
+        .padding(.horizontal, 16)
+        .padding(.top, 2)
+        .padding(.bottom, 1)
     }
 
     private var profileHero: some View {
         VStack(spacing: 12) {
-            CareProfileAvatar(profile: nil, size: 112)
-                .matchedGeometryEffect(id: "care-profile-avatar", in: transitionNamespace, isSource: true)
-                .shadow(color: .black.opacity(appearance.wallpaper.isVisual ? 0.20 : 0.12), radius: 20, y: 9)
+            CareProfileAvatar(profile: nil, size: 92)
+                .shadow(color: .black.opacity(appearance.wallpaper.isVisual ? 0.18 : 0.10), radius: 16, y: 7)
 
             Text("iumrah Care")
-                .matchedGeometryEffect(id: "care-profile-name", in: transitionNamespace, isSource: true)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .tracking(-0.75)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .tracking(-0.55)
                 .foregroundStyle(primaryText)
                 .multilineTextAlignment(.center)
 
@@ -159,7 +156,7 @@ struct CareContactInfoView: View {
                 .foregroundStyle(secondaryText)
                 .multilineTextAlignment(.center)
 
-            HStack(spacing: 28) {
+            HStack(spacing: 24) {
                 actionButton(
                     title: tr("Call", "Позвонить", "Qo‘ng‘iroq", "Қўнғироқ"),
                     icon: "phone.fill",
@@ -179,7 +176,7 @@ struct CareContactInfoView: View {
                     action: onWhatsApp
                 )
             }
-            .padding(.top, 11)
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
     }
@@ -190,27 +187,28 @@ struct CareContactInfoView: View {
         enabled: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button {
-            guard enabled else { return }
-            if appearance.hapticsEnabled { IumrahHaptics.selection() }
-            action()
-        } label: {
-            VStack(spacing: 8) {
+        VStack(spacing: 6) {
+            Button {
+                guard enabled else { return }
+                if appearance.hapticsEnabled { IumrahHaptics.selection() }
+                action()
+            } label: {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: .semibold))
-                    .frame(width: 58, height: 58)
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 30, height: 30)
                     .contentShape(Circle())
-                    .careNativeGlassSurface(in: Circle(), interactive: true)
-
-                Text(title)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
             }
-            .foregroundStyle(enabled ? primaryText : secondaryText.opacity(0.48))
+            .foregroundStyle(enabled ? primaryText : secondaryText.opacity(0.42))
+            .controlSize(.small)
+            .careNativeGlassButton()
+            .disabled(!enabled)
+
+            Text(title)
+                .font(.system(size: 11.5, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .foregroundStyle(enabled ? primaryText : secondaryText.opacity(0.42))
         }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
     }
 
     private var segmentControl: some View {
@@ -221,51 +219,15 @@ struct CareContactInfoView: View {
                 .tag(Section.background)
         }
         .pickerStyle(.segmented)
-        .frame(maxWidth: 286)
+        .frame(maxWidth: 258)
         .onChange(of: section) { _, _ in
             if appearance.hapticsEnabled { IumrahHaptics.selection() }
         }
     }
 
     private var informationSection: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             founderConnectCard
-
-            if let bio = profile?.bio.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
-                glassCard {
-                    Text(bio)
-                        .font(.system(size: 16))
-                        .foregroundStyle(primaryText.opacity(0.90))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(18)
-                }
-            }
-
-            glassCard {
-                VStack(spacing: 0) {
-                    if !preferredPhone.isEmpty {
-                        infoRow(
-                            label: tr("Phone", "Телефон", "Telefon", "Телефон"),
-                            value: preferredPhone,
-                            icon: "phone.fill"
-                        )
-                        if hasTelegram || hasWhatsApp {
-                            Divider().opacity(0.24).padding(.leading, 56)
-                        }
-                    }
-                    if hasTelegram {
-                        infoRow(label: "Telegram", value: profile?.telegram ?? "", icon: "paperplane.fill")
-                        if hasWhatsApp {
-                            Divider().opacity(0.24).padding(.leading, 56)
-                        }
-                    }
-                    if hasWhatsApp {
-                        infoRow(label: "WhatsApp", value: profile?.whatsapp ?? "", icon: "message.fill")
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
 
             glassCard {
                 VStack(spacing: 0) {
@@ -274,35 +236,35 @@ struct CareContactInfoView: View {
                         icon: "speaker.wave.2.fill",
                         isOn: $appearance.soundsEnabled
                     )
-                    Divider().opacity(0.24).padding(.leading, 56)
+                    Divider().opacity(0.22).padding(.leading, 52)
                     settingsToggle(
                         title: tr("Haptics", "Виброотклик", "Haptika", "Ҳаптика"),
                         icon: "hand.tap.fill",
                         isOn: $appearance.hapticsEnabled
                     )
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 14)
             }
 
             if let bookingNumber, !bookingNumber.isEmpty {
                 glassCard {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 11) {
                         Image(systemName: "suitcase.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .frame(width: 38, height: 38)
-                            .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(width: 34, height: 34)
+                            .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tr("Booking", "Бронирование", "Bron", "Брон"))
                                 .font(.caption)
                                 .foregroundStyle(secondaryText)
                             Text(bookingNumber)
-                                .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                                .font(.system(size: 15.5, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(primaryText)
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(16)
+                    .padding(14)
                 }
             }
         }
@@ -310,71 +272,85 @@ struct CareContactInfoView: View {
 
     private var founderConnectCard: some View {
         Button {
-            guard !isRequestingFounder else { return }
-            Task { @MainActor in
-                isRequestingFounder = true
-                let success = await onRequestFounder()
-                isRequestingFounder = false
-                if success {
-                    onClose()
-                }
-            }
+            guard !appearance.founderConnected else { return }
+            if appearance.hapticsEnabled { IumrahHaptics.selection() }
+            appearance.connectFounder()
         } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    if isRequestingFounder {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "person.crop.circle.badge.checkmark")
-                            .font(.system(size: 21, weight: .semibold))
-                    }
-                }
-                .frame(width: 48, height: 48)
-                .careNativeGlassSurface(in: Circle(), interactive: true)
+            HStack(spacing: 12) {
+                Image(systemName: appearance.founderConnected ? "checkmark.circle.fill" : "person.crop.circle.badge.plus")
+                    .font(.system(size: 19, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 36, height: 36)
+                    .careNativeGlassSurface(in: Circle(), interactive: !appearance.founderConnected)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr(
-                        "Connect Abdulaziz to this chat",
-                        "Подключить к чату Абдулазиза",
-                        "Abdulazizni chatga ulash",
-                        "Абдулазизни чатга улаш"
-                    ))
-                    .font(.system(size: 16.5, weight: .semibold))
-                    .foregroundStyle(primaryText)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(founderButtonTitle)
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundStyle(primaryText)
+                        .multilineTextAlignment(.leading)
 
-                    Text(tr(
-                        "The founder will personally review your trip once more.",
-                        "Основатель сам ещё раз проверит вашу поездку.",
-                        "Asoschi safaringizni yana bir bor shaxsan tekshiradi.",
-                        "Асосчи сафарингизни яна бир бор шахсан текширади."
-                    ))
-                    .font(.system(size: 13.5))
-                    .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(founderButtonSubtitle)
+                        .font(.system(size: 13.2))
+                        .foregroundStyle(secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 2)
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(secondaryText)
+                if !appearance.founderConnected {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(secondaryText)
+                }
             }
-            .padding(16)
-            .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .careNativeGlassSurface(
-                in: RoundedRectangle(cornerRadius: 28, style: .continuous),
-                interactive: true
+                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                interactive: !appearance.founderConnected,
+                tint: appearance.founderConnected ? Color.iumrahCareLight.opacity(0.08) : nil
             )
         }
         .buttonStyle(.plain)
-        .disabled(isRequestingFounder)
-        .accessibilityHint(tr(
-            "Sends a request to bring the founder into this conversation",
-            "Отправляет запрос на подключение основателя к этому чату",
-            "Asoschini ushbu suhbatga qo‘shish so‘rovini yuboradi",
-            "Асосчини ушбу суҳбатга қўшиш сўровини юборади"
-        ))
+        .disabled(appearance.founderConnected)
+        .animation(.spring(response: 0.34, dampingFraction: 0.88), value: appearance.founderConnected)
+        .accessibilityHint(founderButtonSubtitle)
+    }
+
+    private var founderButtonTitle: String {
+        if appearance.founderConnected {
+            return tr(
+                "Abdulaziz is connected",
+                "Абдулазиз подключён",
+                "Abdulaziz ulandi",
+                "Абдулазиз уланди"
+            )
+        }
+        return tr(
+            "Connect Abdulaziz",
+            "Подключить Абдулазиза",
+            "Abdulazizni ulash",
+            "Абдулазизни улаш"
+        )
+    }
+
+    private var founderButtonSubtitle: String {
+        if appearance.founderConnected {
+            return tr(
+                "We connected your chat with the founder’s chat as well. He can now see your conversation too.",
+                "Мы соединили ваш чат одновременно с чатом основателя, и он тоже видит вашу переписку.",
+                "Chatingizni asoschining chatiga ham uladik. Endi u ham yozishmalaringizni ko‘radi.",
+                "Чатингизни асосчининг чатига ҳам уладик. Энди у ҳам ёзишмаларингизни кўради."
+            )
+        }
+        return tr(
+            "The founder will personally review your trip once more.",
+            "Основатель сам ещё раз проверит вашу поездку.",
+            "Asoschi safaringizni yana bir bor shaxsan tekshiradi.",
+            "Асосчи сафарингизни яна бир бор шахсан текширади."
+        )
     }
 
     private var backgroundSection: some View {

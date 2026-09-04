@@ -17,16 +17,22 @@ final class CareChatAppearanceStore: ObservableObject {
         didSet { UserDefaults.standard.set(hapticsEnabled, forKey: Self.hapticsKey) }
     }
 
+    @Published private(set) var founderConnected: Bool {
+        didSet { UserDefaults.standard.set(founderConnected, forKey: founderConnectedKey) }
+    }
+
     @Published private(set) var customImage: UIImage?
 
     private let bookingID: String
     private let wallpaperKey: String
+    private let founderConnectedKey: String
     private static let soundsKey = "iumrah.care.chat.sounds.enabled.v2"
     private static let hapticsKey = "iumrah.care.chat.haptics.enabled.v2"
 
     init(bookingID: String) {
         self.bookingID = bookingID
         self.wallpaperKey = "iumrah.care.chat.wallpaper.\(bookingID).v2"
+        self.founderConnectedKey = "iumrah.care.chat.founder-connected.\(bookingID).v1"
 
         // Preserve a v1 choice if the user already used the first Care chat build.
         let legacyWallpaperKey = "iumrah.care.chat.wallpaper.\(bookingID).v1"
@@ -50,9 +56,17 @@ final class CareChatAppearanceStore: ObservableObject {
             self.hapticsEnabled = true
         }
 
+        self.founderConnected = UserDefaults.standard.bool(forKey: founderConnectedKey)
         self.customImage = Self.loadCustomImage(bookingID: bookingID)
         if wallpaper == .photo, customImage == nil {
             wallpaper = .none
+        }
+    }
+
+    func connectFounder() {
+        guard !founderConnected else { return }
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+            founderConnected = true
         }
     }
 
