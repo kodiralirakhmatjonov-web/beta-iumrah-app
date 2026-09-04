@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct IumrahGiftCardsView: View {
     @EnvironmentObject private var settings: AppSettingsStore
@@ -9,6 +10,8 @@ struct IumrahGiftCardsView: View {
     @State private var dashboard: IumrahFriendsDashboard?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var selectedGiftID: String?
+    @State private var copiedCode: String?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -46,13 +49,19 @@ struct IumrahGiftCardsView: View {
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .task(id: account.bearerToken) { await loadDashboard() }
         .refreshable { await loadDashboard() }
+        .animation(.spring(response: 0.44, dampingFraction: 0.88), value: selectedGiftID)
+    }
+
+    private var selectedGift: IumrahFriendGift? {
+        guard let dashboard else { return nil }
+        if let selectedGiftID, let exact = dashboard.gifts.first(where: { $0.id == selectedGiftID }) { return exact }
+        return dashboard.gifts.first
     }
 
     private var topBar: some View {
         HStack(spacing: 12) {
             Button {
-                IumrahHaptics.soft()
-                dismiss()
+                IumrahHaptics.soft(); dismiss()
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .bold))
@@ -95,10 +104,10 @@ struct IumrahGiftCardsView: View {
             }
 
             Text(tr(
-                "Give someone close $100 toward their first eligible Umrah booking. When that booking is confirmed and paid, you earn $100 iumrah Credit.",
-                "Подарите близкому $100 на первое подходящее бронирование умры. После подтверждения личности и оплаты поездки Вы получите $100 iumrah Credit.",
-                "Yaqin insoningizga birinchi mos Umrah broniga $100 sovg‘a qiling. Shaxs tasdiqlanib, safar to‘langach, Siz $100 iumrah Credit olasiz.",
-                "Яқин инсонга биринчи мос Умра бронига $100 совға қилинг. Шахс тасдиқланиб, сафар тўлангач, Сиз $100 iumrah Credit оласиз."
+                "Give someone close $100 toward their first eligible Umrah booking. When that booking is confirmed and paid, you earn $100 iUmrah Balance.",
+                "Подарите близкому $100 на первое подходящее бронирование умры. После подтверждения личности и оплаты поездки Вы получите $100 в iUmrah Balance.",
+                "Yaqin insoningizga birinchi mos Umrah broniga $100 sovg‘a qiling. Shaxs tasdiqlanib, safar to‘langach, Siz $100 iUmrah Balance olasiz.",
+                "Яқин инсонга биринчи мос Умра бронига $100 совға қилинг. Шахс тасдиқланиб, сафар тўлангач, Сиз $100 iUmrah Balance оласиз."
             ))
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -136,8 +145,7 @@ struct IumrahGiftCardsView: View {
             .fixedSize(horizontal: false, vertical: true)
 
             Button {
-                dismiss()
-                chrome.navigate(to: .account)
+                dismiss(); chrome.navigate(to: .account)
             } label: {
                 HStack {
                     Text(tr("Open iumrah account", "Открыть аккаунт iumrah", "iumrah akkauntini ochish", "iumrah аккаунтини очиш"))
@@ -158,14 +166,14 @@ struct IumrahGiftCardsView: View {
         VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("Your iumrah Credit", "Ваш iumrah Credit", "Sizning iumrah Credit", "Сизнинг iumrah Credit"))
+                    Text(tr("Your iUmrah Balance", "Ваш iUmrah Balance", "Sizning iUmrah Balance", "Сизнинг iUmrah Balance"))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(money(value.availableCreditUsd))
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                 }
                 Spacer()
-                Image(systemName: "creditcard.and.123")
+                Image(systemName: "wallet.bifold.fill")
                     .font(.system(size: 19, weight: .semibold))
                     .frame(width: 46, height: 46)
                     .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -206,38 +214,75 @@ struct IumrahGiftCardsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(value.gifts) { gift in
-                VStack(spacing: 12) {
-                    IumrahGiftCardPass(gift: gift, language: settings.language)
-
-                    if gift.isAvailable {
-                        ShareLink(item: shareText(gift)) {
-                            HStack {
-                                Image(systemName: "paperplane.fill")
-                                Text(tr("Send Gift Card", "Отправить Gift Card", "Gift Card yuborish", "Gift Card юбориш"))
-                                Spacer()
-                                Image(systemName: "square.and.arrow.up")
-                            }
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 16)
-                            .frame(height: 50)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
-                        }
-                        .buttonStyle(.plain)
-                    } else if gift.isRewardEarned {
-                        Label(tr("$100 added to iumrah Credit", "$100 зачислены в iumrah Credit", "$100 iumrah Credit ga qo‘shildi", "$100 iumrah Credit га қўшилди"), systemImage: "checkmark.seal.fill")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.green)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        Label(tr("$100 reward after your friend pays", "$100 будут начислены после оплаты близкого", "Yaqin insoningiz to‘lagach $100 hisoblanadi", "Яқин инсонингиз тўлагач $100 ҳисобланади"), systemImage: "clock.fill")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+            GiftCardCarousel(gifts: value.gifts, language: settings.language, selectedGiftID: $selectedGiftID)
+                .frame(height: 255)
+                .onAppear {
+                    if selectedGiftID == nil { selectedGiftID = value.gifts.first?.id }
                 }
+
+            if let selectedGift {
+                actionPanel(for: selectedGift)
             }
         }
+    }
+
+    private func actionPanel(for gift: IumrahFriendGift) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(gift.code)
+                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                    Text(localizedSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let copiedCode, copiedCode == gift.code {
+                    Label(tr("Copied", "Скопировано", "Nusxalandi", "Нусхаланди"), systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+            }
+
+            HStack(spacing: 10) {
+                if gift.isAvailable {
+                    ShareLink(item: shareText(gift), preview: SharePreview("iUmrah Gift Card", image: Image(systemName: "gift.fill"))) {
+                        Label(tr("Share / AirDrop", "Поделиться / AirDrop", "Ulashish / AirDrop", "Улашиш / AirDrop"), systemImage: "square.and.arrow.up")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    UIPasteboard.general.string = gift.code
+                    copiedCode = gift.code
+                    IumrahHaptics.success()
+                } label: {
+                    Label(tr("Copy code", "Копировать код", "Koddan nusxa olish", "Коддан нусха олиш"), systemImage: "doc.on.doc")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if gift.isRewardEarned {
+                Label(tr("$100 added to iUmrah Balance", "$100 зачислены в iUmrah Balance", "$100 iUmrah Balance ga qo‘shildi", "$100 iUmrah Balance га қўшилди"), systemImage: "checkmark.seal.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !gift.isAvailable {
+                Label(tr("$100 reward after your friend pays", "$100 будут начислены после оплаты близкого", "Yaqin insoningiz to‘lagach $100 hisoblanadi", "Яқин инсонингиз тўлагач $100 ҳисобланади"), systemImage: "clock.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .iumrahCard()
     }
 
     private var rulesCard: some View {
@@ -250,9 +295,9 @@ struct IumrahGiftCardsView: View {
             }
 
             rule("1", tr("The recipient receives $100 toward their first eligible iumrah booking.", "Получатель получает $100 на первое подходящее бронирование iumrah.", "Qabul qiluvchi birinchi mos iumrah broniga $100 oladi.", "Қабул қилувчи биринчи мос iumrah бронига $100 олади."))
-            rule("2", tr("You receive $100 iumrah Credit only after their identity is confirmed and the booking is paid.", "Вы получаете $100 iumrah Credit только после подтверждения личности получателя и оплаты бронирования.", "Siz $100 iumrah Credit ni faqat qabul qiluvchining shaxsi tasdiqlanib, bron to‘langandan keyin olasiz.", "Сиз $100 iumrah Credit ни фақат қабул қилувчининг шахси тасдиқланиб, брон тўлангандан кейин оласиз."))
+            rule("2", tr("You receive $100 iUmrah Balance only after their identity is confirmed and the booking is paid.", "Вы получаете $100 в iUmrah Balance только после подтверждения личности получателя и оплаты бронирования.", "Siz $100 iUmrah Balance ni faqat qabul qiluvchining shaxsi tasdiqlanib, bron to‘langandan keyin olasiz.", "Сиз $100 iUmrah Balance ни фақат қабул қилувчининг шахси тасдиқланиб, брон тўлангандан кейин оласиз."))
             rule("3", tr("Trips up to $2,000 can use up to $100. Above $2,000, up to $200.", "Для поездки до $2,000 применяется максимум $100. Свыше $2,000 — максимум $200.", "$2,000 gacha bo‘lgan safarda limit $100. $2,000 dan yuqori — $200 gacha.", "$2,000 гача бўлган сафарда лимит $100. $2,000 дан юқори — $200 гача."))
-            rule("4", tr("iumrah Security uses only a manually confirmed passport identity for Gift Card anti-fraud.", "Антифрод Gift Card использует только паспортную личность, вручную подтверждённую через iumrah Security.", "Gift Card antifraud faqat iumrah Security orqali qo‘lda tasdiqlangan pasport shaxsidan foydalanadi.", "Gift Card antifraud фақат iumrah Security орқали қўлда тасдиқланган паспорт шахсидан фойдаланади."))
+            rule("4", tr("iUmrah Security uses only a manually confirmed passport identity for Gift Card anti-fraud.", "Антифрод Gift Card использует только паспортную личность, вручную подтверждённую через iUmrah Security.", "Gift Card antifraud faqat iUmrah Security orqali qo‘lda tasdiqlangan pasport shaxsidan foydalanadi.", "Gift Card antifraud фақат iUmrah Security орқали қўлда тасдиқланган паспорт шахсидан фойдаланади."))
             rule("5", tr("If the referred booking is cancelled or refunded, the $100 referral reward is reversed and the Gift Card becomes available again.", "Если бронирование приглашённого отменено или возвращено, реферальные $100 аннулируются, а Gift Card снова становится доступной.", "Taklif qilingan bron bekor qilinsa yoki puli qaytarilsa, $100 referral mukofoti bekor qilinadi va Gift Card yana mavjud bo‘ladi.", "Таклиф қилинган брон бекор қилинса ёки пули қайтарилса, $100 referral мукофоти бекор қилинади ва Gift Card яна мавжуд бўлади."))
         }
         .iumrahCard()
@@ -278,7 +323,7 @@ struct IumrahGiftCardsView: View {
 
     private func shareText(_ gift: IumrahFriendGift) -> String {
         let sender = account.account?.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let name = (sender?.isEmpty == false ? sender! : "iumrah")
+        let name = (sender?.isEmpty == false ? sender! : "iUmrah")
         return tr(
             "🎁 \(name) sent you an iUmrah Gift Card worth $100 toward your first eligible Umrah booking. Open iumrah and use code \(gift.code). https://iumrah.app",
             "🎁 \(name) отправил(а) Вам iUmrah Gift Card на $100 для первого подходящего бронирования умры. Откройте iumrah и примените код \(gift.code). https://iumrah.app",
@@ -298,15 +343,14 @@ struct IumrahGiftCardsView: View {
         defer { isLoading = false }
         do {
             dashboard = try await account.friendsDashboard()
+            selectedGiftID = dashboard?.gifts.first?.id
             errorMessage = nil
         } catch {
             errorMessage = L10n.error(error, settings.language)
         }
     }
 
-    private func money(_ value: Double) -> String {
-        "$\(Int(value.rounded()))"
-    }
+    private func money(_ value: Double) -> String { "$\(Int(value.rounded()))" }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
@@ -314,6 +358,37 @@ struct IumrahGiftCardsView: View {
         case .russian: return ru
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
+        }
+    }
+}
+
+private struct GiftCardCarousel: View {
+    let gifts: [IumrahFriendGift]
+    let language: AppSettingsStore.Language
+    @Binding var selectedGiftID: String?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let cardWidth = max(280, min(proxy.size.width - 54, 360))
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 14) {
+                    ForEach(gifts) { gift in
+                        IumrahGiftCardPass(gift: gift, language: language)
+                            .frame(width: cardWidth)
+                            .scrollTransition(axis: .horizontal) { content, phase in
+                                content
+                                    .scaleEffect(phase.isIdentity ? 1.0 : 0.94)
+                                    .rotationEffect(.degrees(phase.isIdentity ? 0 : (phase.value < 0 ? -2.2 : 2.2)))
+                                    .opacity(phase.isIdentity ? 1.0 : 0.88)
+                            }
+                            .id(gift.id)
+                    }
+                }
+                .scrollTargetLayout()
+                .padding(.horizontal, max(0, (proxy.size.width - cardWidth) / 2))
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $selectedGiftID)
         }
     }
 }

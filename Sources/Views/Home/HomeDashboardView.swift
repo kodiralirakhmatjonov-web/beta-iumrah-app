@@ -458,10 +458,10 @@ struct HomeDashboardView: View {
 
     private var friendsHomeSubtitle: String {
         switch settings.language {
-        case .russian: return "Подарочные карты для близких · $100 на умру и $100 iumrah Credit после подтверждения и оплаты."
-        case .english: return "Gift cards for someone close · $100 toward Umrah and $100 iumrah Credit after confirmation and payment."
-        case .uzbek: return "Yaqinlar uchun Gift Card · Umrah uchun $100 va tasdiqlanib to‘langach $100 iumrah Credit."
-        case .uzbekCyrillic: return "Яқинлар учун Gift Card · Умра учун $100 ва тасдиқланиб тўлангач $100 iumrah Credit."
+        case .russian: return "Подарочные карты для близких · $100 на умру и $100 в iUmrah Balance после подтверждения и оплаты."
+        case .english: return "Gift cards for someone close · $100 toward Umrah and $100 in iUmrah Balance after confirmation and payment."
+        case .uzbek: return "Yaqinlar uchun Gift Card · Umrah uchun $100 va tasdiqlanib to‘langach $100 iUmrah Balance."
+        case .uzbekCyrillic: return "Яқинлар учун Gift Card · Умра учун $100 ва тасдиқланиб тўлангач $100 iUmrah Balance."
         }
     }
 

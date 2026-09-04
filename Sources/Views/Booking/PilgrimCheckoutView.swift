@@ -406,7 +406,7 @@ struct PilgrimCheckoutView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("iUmrah Gift Cards")
                             .font(.headline)
-                        Text(tr("Gift Card & iumrah Credit", "Gift Card и iumrah Credit", "Gift Card va iumrah Credit", "Gift Card ва iumrah Credit"))
+                        Text(tr("Gift Card & iUmrah Balance", "Gift Card и iUmrah Balance", "Gift Card va iUmrah Balance", "Gift Card ва iUmrah Balance"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -433,7 +433,7 @@ struct PilgrimCheckoutView: View {
                                 IumrahSecurityConfirmationView(bookingID: bookingID)
                             } label: {
                                 HStack {
-                                    Text("iumrah Security Confirmation")
+                                    Text("iUmrah Security Confirmation")
                                     Spacer()
                                     Image(systemName: "arrow.right")
                                 }
@@ -485,10 +485,10 @@ struct PilgrimCheckoutView: View {
                                 HStack {
                                     Image(systemName: "creditcard.and.123")
                                     Text(tr(
-                                        "Use $\(max(100, amount)) iumrah Credit",
-                                        "Использовать $\(max(100, amount)) iumrah Credit",
-                                        "$\(max(100, amount)) iumrah Credit ishlatish",
-                                        "$\(max(100, amount)) iumrah Credit ишлатиш"
+                                        "Use $\(max(100, amount)) iUmrah Balance",
+                                        "Использовать $\(max(100, amount)) iUmrah Balance",
+                                        "$\(max(100, amount)) iUmrah Balance ishlatish",
+                                        "$\(max(100, amount)) iUmrah Balance ишлатиш"
                                     ))
                                     Spacer()
                                     Image(systemName: "minus.circle.fill")
@@ -575,7 +575,7 @@ struct PilgrimCheckoutView: View {
                 }
             }
             HStack {
-                Text(tr("Available iumrah Credit", "Доступный iumrah Credit", "Mavjud iumrah Credit", "Мавжуд iumrah Credit"))
+                Text(tr("Available iUmrah Balance", "Доступный iUmrah Balance", "Mavjud iUmrah Balance", "Мавжуд iUmrah Balance"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -655,7 +655,7 @@ struct PilgrimCheckoutView: View {
                 headers: headers,
                 amountUsd: amountUsd
             )
-            friendsMessage = tr("iumrah Credit applied.", "iumrah Credit применён.", "iumrah Credit qo‘llandi.", "iumrah Credit қўлланди.")
+            friendsMessage = tr("iUmrah Balance applied.", "iUmrah Balance применён.", "iUmrah Balance qo‘llandi.", "iUmrah Balance қўлланди.")
             IumrahHaptics.success()
         } catch APIError.server(_, let code) {
             friendsMessage = friendError(code)
@@ -669,7 +669,7 @@ struct PilgrimCheckoutView: View {
     private func friendError(_ code: String) -> String {
         switch code.uppercased() {
         case "IDENTITY_CONFIRMATION_REQUIRED":
-            return tr("iumrah Security Confirmation is required.", "Сначала пройдите iumrah Security Confirmation.", "Avval iumrah Security Confirmation dan o‘ting.", "Аввал iumrah Security Confirmation дан ўтинг.")
+            return tr("iUmrah Security Confirmation is required.", "Сначала пройдите iUmrah Security Confirmation.", "Avval iUmrah Security Confirmation dan o‘ting.", "Аввал iUmrah Security Confirmation дан ўтинг.")
         case "FRIENDS_GIFT_INVALID":
             return tr("Check the Gift code.", "Проверьте код Gift-карты.", "Gift kodini tekshiring.", "Gift кодини текширинг.")
         case "FRIENDS_GIFT_NOT_AVAILABLE":
@@ -681,7 +681,7 @@ struct PilgrimCheckoutView: View {
         case "FRIENDS_SELF_REFERRAL":
             return tr("You cannot use your own Gift.", "Нельзя применить собственную Gift-карту.", "O‘z Gift kartangizni ishlata olmaysiz.", "Ўз Gift картангизни ишлата олмайсиз.")
         case "FRIENDS_CREDIT_UNAVAILABLE":
-            return tr("There is not enough available iumrah Credit for this booking.", "Недостаточно доступного iumrah Credit для этого бронирования.", "Bu bron uchun iumrah Credit yetarli emas.", "Бу брон учун iumrah Credit етарли эмас.")
+            return tr("There is not enough available iUmrah Balance for this booking.", "Недостаточно доступного iUmrah Balance для этого бронирования.", "Bu bron uchun iUmrah Balance yetarli emas.", "Бу брон учун iUmrah Balance етарли эмас.")
         default:
             return L10n.error(APIError.server(409, code), settings.language)
         }

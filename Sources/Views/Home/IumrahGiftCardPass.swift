@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Native animated pass for iumrah Gift Cards.
-/// It intentionally follows the same physical-card and Canvas motion language
-/// as IumrahBookingDomeCard, while the value itself is formed from live dots.
+/// Native animated pass for iUmrah Gift Cards.
+/// Front: premium gift symbol built from animated spectral dots.
+/// Back: animated $100 value and copyable code side.
 struct IumrahGiftCardPass: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -15,24 +15,16 @@ struct IumrahGiftCardPass: View {
         ZStack {
             surfaced(frontFace)
                 .opacity(isFlipped ? 0 : 1)
-                .rotation3DEffect(
-                    .degrees(isFlipped ? -180 : 0),
-                    axis: (x: 0, y: 1, z: 0),
-                    perspective: 0.72
-                )
+                .rotation3DEffect(.degrees(isFlipped ? -180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
                 .zIndex(isFlipped ? 0 : 1)
 
             surfaced(backFace)
                 .opacity(isFlipped ? 1 : 0)
-                .rotation3DEffect(
-                    .degrees(isFlipped ? 0 : 180),
-                    axis: (x: 0, y: 1, z: 0),
-                    perspective: 0.72
-                )
+                .rotation3DEffect(.degrees(isFlipped ? 0 : 180), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
                 .zIndex(isFlipped ? 1 : 0)
         }
-        .aspectRatio(1.60, contentMode: .fit)
-        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .aspectRatio(1.58, contentMode: .fit)
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture {
             IumrahHaptics.soft()
             withAnimation(reduceMotion ? .easeInOut(duration: 0.18) : .spring(response: 0.66, dampingFraction: 0.84)) {
@@ -46,34 +38,30 @@ struct IumrahGiftCardPass: View {
 
     private func surfaced<Content: View>(_ content: Content) -> some View {
         content
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.085), lineWidth: 0.8)
             }
-            .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
+            .shadow(color: .black.opacity(0.18), radius: 24, y: 12)
     }
 
     private var frontFace: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
             GeometryReader { proxy in
-                ZStack {
+                ZStack(alignment: .topLeading) {
                     cardBackground
 
                     Canvas(rendersAsynchronously: true) { context, size in
-                        renderValue(
-                            in: &context,
-                            size: size,
-                            time: reduceMotion ? 0.72 : timeline.date.timeIntervalSinceReferenceDate
-                        )
+                        renderGift(in: &context, size: size, time: reduceMotion ? 0.74 : timeline.date.timeIntervalSinceReferenceDate)
                     }
                     .allowsHitTesting(false)
 
                     VStack(alignment: .leading, spacing: 0) {
-                        HStack(spacing: 7) {
+                        HStack(spacing: 8) {
                             Text("iUmrah Gift Card")
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                .tracking(-0.2)
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .tracking(-0.25)
                             GiftActivityDots()
                             Spacer()
                             Text(stateTitle)
@@ -82,16 +70,11 @@ struct IumrahGiftCardPass: View {
                                 .foregroundStyle(.white.opacity(0.56))
                         }
 
-                        Spacer()
+                        Spacer(minLength: 0)
 
-                        Text(localized(
-                            "Gift card for someone close",
-                            "Подарочная карта для близких",
-                            "Yaqinlar uchun sovg‘a kartasi",
-                            "Яқинлар учун совға картаси"
-                        ))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.58))
+                        Text(localized("Gift card for someone close", "Подарочная карта для близких", "Yaqinlar uchun sovg‘a kartasi", "Яқинлар учун совға картаси"))
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.58))
                     }
                     .foregroundStyle(.white)
                     .padding(16)
@@ -102,63 +85,67 @@ struct IumrahGiftCardPass: View {
     }
 
     private var backFace: some View {
-        GeometryReader { proxy in
-            ZStack {
-                cardBackground
-                RadialGradient(
-                    colors: [Color.white.opacity(0.07), .clear],
-                    center: .topTrailing,
-                    startRadius: 0,
-                    endRadius: proxy.size.width * 0.72
-                )
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
+            GeometryReader { proxy in
+                ZStack(alignment: .topLeading) {
+                    cardBackground
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.07), .clear],
+                        center: .topTrailing,
+                        startRadius: 0,
+                        endRadius: proxy.size.width * 0.72
+                    )
 
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text("iUmrah Gift Card")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        Spacer()
-                        Text("$100")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .monospacedDigit()
+                    Canvas(rendersAsynchronously: true) { context, size in
+                        renderValue(in: &context, size: size, time: reduceMotion ? 0.72 : timeline.date.timeIntervalSinceReferenceDate)
                     }
-                    .foregroundStyle(.white)
+                    .allowsHitTesting(false)
 
-                    Spacer(minLength: 14)
-
-                    Text(localized("Gift code", "Код Gift Card", "Gift Card kodi", "Gift Card коди"))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.46))
-
-                    Text(gift.code)
-                        .font(.system(size: min(26, proxy.size.width * 0.068), weight: .semibold, design: .monospaced))
-                        .tracking(0.45)
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text("iUmrah Gift Card")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            Spacer()
+                            Text(stateTitle)
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .textCase(.uppercase)
+                                .foregroundStyle(.white.opacity(0.56))
+                        }
                         .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
 
-                    Spacer(minLength: 12)
+                        Spacer(minLength: 0)
 
-                    Rectangle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(height: 0.7)
+                        Text(localized("Gift code", "Код Gift Card", "Gift Card kodi", "Gift Card коди"))
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.46))
+                        Text(gift.code)
+                            .font(.system(size: min(24, proxy.size.width * 0.062), weight: .semibold, design: .monospaced))
+                            .tracking(0.4)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                            .padding(.top, 3)
 
-                    HStack {
-                        Text(localized(
-                            "Give $100 toward Umrah",
-                            "Подарите $100 на умру",
-                            "Umrah uchun $100 sovg‘a qiling",
-                            "Умра учун $100 совға қилинг"
-                        ))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.58))
-                        Spacer()
-                        Text("#\(gift.position)")
-                            .font(.caption.monospaced().weight(.bold))
-                            .foregroundStyle(.white.opacity(0.42))
+                        Spacer(minLength: 12)
+
+                        Rectangle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(height: 0.7)
+
+                        HStack(alignment: .lastTextBaseline) {
+                            Text(localized("Give $100 toward Umrah", "Подарите $100 на умру", "Umrah uchun $100 sovg‘a qiling", "Умра учун $100 совға қилинг"))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.58))
+                            Spacer()
+                            Text("#\(gift.position)")
+                                .font(.caption.monospaced().weight(.bold))
+                                .foregroundStyle(.white.opacity(0.42))
+                        }
+                        .padding(.top, 10)
                     }
-                    .padding(.top, 10)
+                    .padding(16)
                 }
-                .padding(16)
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
         }
     }
@@ -180,11 +167,52 @@ struct IumrahGiftCardPass: View {
         return localized("Pending", "Ожидание", "Kutilmoqda", "Кутилмоқда")
     }
 
-    private func renderValue(
-        in context: inout GraphicsContext,
-        size: CGSize,
-        time: TimeInterval
-    ) {
+    private func renderGift(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        guard size.width > 1, size.height > 1 else { return }
+        let cycle = 4.6
+        let progress = positiveRemainder(time, cycle) / cycle
+        let baseRadius = min(size.width, size.height) * 0.0082
+
+        func drawDot(_ cx: CGFloat, _ cy: CGFloat, scale: CGFloat = 1.0, phase: Double = 0.0) {
+            let hue = positiveRemainder(0.58 + progress + phase, 1.0)
+            let wave = 0.5 + 0.5 * sin(2 * .pi * (progress + phase))
+            let intensity = 0.25 + 0.75 * wave
+            let spectral = Color(hue: hue, saturation: 0.78, brightness: 1.0)
+            let radius = baseRadius * scale * CGFloat(0.88 + 0.16 * sin(time * 1.7 + phase * 9.0))
+            fillCircle(in: &context, center: CGPoint(x: cx, y: cy), radius: radius * 1.75, color: spectral.opacity(0.12 * intensity))
+            fillCircle(in: &context, center: CGPoint(x: cx, y: cy), radius: radius, color: Color.white.opacity(0.22))
+            fillCircle(in: &context, center: CGPoint(x: cx, y: cy), radius: radius * 0.88, color: spectral.opacity(0.95 * intensity))
+            fillCircle(in: &context, center: CGPoint(x: cx, y: cy), radius: radius * 0.42, color: Color(red: 0.015, green: 0.016, blue: 0.021).opacity(0.94))
+        }
+
+        let rect = CGRect(x: size.width * 0.28, y: size.height * 0.26, width: size.width * 0.44, height: size.height * 0.31)
+        let bowY = rect.minY - rect.height * 0.08
+        let stepX = rect.width / 10.5
+        let stepY = rect.height / 6.0
+
+        for row in 0..<6 {
+            for col in 0..<11 {
+                let x = rect.minX + CGFloat(col) * stepX
+                let y = rect.minY + CGFloat(row) * stepY
+                if row == 0 || row == 5 || col == 0 || col == 10 || col == 5 {
+                    drawDot(x, y, scale: col == 5 ? 1.16 : 1.0, phase: Double(row * 11 + col) * 0.013)
+                }
+            }
+        }
+
+        for i in 0..<7 {
+            let t = CGFloat(i) / 6
+            drawDot(rect.minX + rect.width * 0.5 - rect.width * 0.18 * t, bowY - rect.height * 0.18 * sin(t * .pi), scale: 1.08, phase: Double(i) * 0.019)
+            drawDot(rect.minX + rect.width * 0.5 + rect.width * 0.18 * t, bowY - rect.height * 0.18 * sin(t * .pi), scale: 1.08, phase: Double(i+7) * 0.019)
+        }
+        for i in 0..<5 {
+            let t = CGFloat(i) / 4
+            drawDot(rect.minX + rect.width * 0.38 + rect.width * 0.12 * t, rect.minY + rect.height * 0.03 + rect.height * 0.10 * t, scale: 0.98, phase: Double(i+13) * 0.021)
+            drawDot(rect.minX + rect.width * 0.62 - rect.width * 0.12 * t, rect.minY + rect.height * 0.03 + rect.height * 0.10 * t, scale: 0.98, phase: Double(i+19) * 0.021)
+        }
+    }
+
+    private func renderValue(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
         guard size.width > 1, size.height > 1 else { return }
         let points = Self.valuePoints
         guard !points.isEmpty else { return }
@@ -197,12 +225,9 @@ struct IumrahGiftCardPass: View {
         let gridHeight = maxY - minY + 1
 
         let availableWidth = size.width * 0.74
-        let availableHeight = size.height * 0.44
+        let availableHeight = size.height * 0.28
         let spacing = min(availableWidth / gridWidth, availableHeight / gridHeight)
-        let origin = CGPoint(
-            x: (size.width - gridWidth * spacing) / 2 + spacing * 0.5,
-            y: size.height * 0.29
-        )
+        let origin = CGPoint(x: (size.width - gridWidth * spacing) / 2 + spacing * 0.5, y: size.height * 0.29)
         let cycle = 4.6
         let progress = positiveRemainder(time, cycle) / cycle
         let baseRadius = max(1.25, spacing * 0.20)
@@ -214,10 +239,7 @@ struct IumrahGiftCardPass: View {
             let x = origin.x + (point.x - minX) * spacing + CGFloat(driftX)
             let y = origin.y + (point.y - minY) * spacing + CGFloat(driftY)
 
-            let hue = positiveRemainder(
-                0.58 + progress + Double(point.x / max(gridWidth, 1)) * 0.28 + Double(point.y / max(gridHeight, 1)) * 0.08,
-                1.0
-            )
+            let hue = positiveRemainder(0.58 + progress + Double(point.x / max(gridWidth, 1)) * 0.28 + Double(point.y / max(gridHeight, 1)) * 0.08, 1.0)
             let wave = 0.5 + 0.5 * sin(2 * .pi * (progress + Double(point.x) * 0.031 - Double(point.y) * 0.019))
             let breathe = 0.5 + 0.5 * sin(2 * .pi * (progress * 2.0 + 0.08))
             let intensity = 0.22 + 0.78 * wave * (0.32 + 0.68 * breathe)
@@ -228,21 +250,10 @@ struct IumrahGiftCardPass: View {
             fillCircle(in: &context, center: CGPoint(x: x, y: y), radius: radius, color: Color.white.opacity(0.22))
             fillCircle(in: &context, center: CGPoint(x: x, y: y), radius: radius * 0.88, color: spectral.opacity(0.92 * intensity))
             fillCircle(in: &context, center: CGPoint(x: x, y: y), radius: radius * 0.43, color: Color(red: 0.015, green: 0.016, blue: 0.021).opacity(0.94))
-            fillCircle(
-                in: &context,
-                center: CGPoint(x: x - radius * 0.25, y: y - radius * 0.27),
-                radius: max(0.26, radius * 0.16),
-                color: Color.white.opacity(0.25 * intensity)
-            )
         }
     }
 
-    private func fillCircle(
-        in context: inout GraphicsContext,
-        center: CGPoint,
-        radius: CGFloat,
-        color: Color
-    ) {
+    private func fillCircle(in context: inout GraphicsContext, center: CGPoint, radius: CGFloat, color: Color) {
         guard radius > 0 else { return }
         let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
         context.fill(Path(ellipseIn: rect), with: .color(color))
@@ -269,41 +280,10 @@ struct IumrahGiftCardPass: View {
 
     private static let valuePoints: [DotPoint] = {
         let glyphs: [Character: [String]] = [
-            "$": [
-                "00100",
-                "01111",
-                "10100",
-                "10100",
-                "01110",
-                "00101",
-                "00101",
-                "11110",
-                "00100"
-            ],
-            "1": [
-                "00100",
-                "01100",
-                "10100",
-                "00100",
-                "00100",
-                "00100",
-                "00100",
-                "00100",
-                "11111"
-            ],
-            "0": [
-                "01110",
-                "10001",
-                "10011",
-                "10101",
-                "10101",
-                "11001",
-                "10001",
-                "10001",
-                "01110"
-            ]
+            "$": ["00100","01111","10100","10100","01110","00101","00101","11110","00100"],
+            "1": ["00100","01100","10100","00100","00100","00100","00100","00100","11111"],
+            "0": ["01110","10001","10011","10101","10101","11001","10001","10001","01110"]
         ]
-
         var output: [DotPoint] = []
         var xOffset: CGFloat = 0
         for character in Array("$100") {
