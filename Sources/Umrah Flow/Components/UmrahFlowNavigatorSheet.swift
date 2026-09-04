@@ -5,7 +5,9 @@ struct UmrahFlowNavigatorSheet: View {
     @ObservedObject var store: UmrahFlowStore
     let onExit: () -> Void
 
+    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedStage: UmrahFlowState.Stage
 
     init(flow: UmrahFlowState, store: UmrahFlowStore, onExit: @escaping () -> Void) {
@@ -15,94 +17,148 @@ struct UmrahFlowNavigatorSheet: View {
         _selectedStage = State(initialValue: flow.stage)
     }
 
+    private var palette: UmrahFlowPalette {
+        colorScheme == .dark ? .dark : .light
+    }
+
     var body: some View {
-        VStack(spacing: 18) {
-            HStack {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(palette.textSecondary.opacity(0.28))
+                .frame(width: 38, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Umrah Flow")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                    Text("Choose a stage or leave Umrah")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
+                    Text(UmrahFlowCopy.chooseStage(settings.language))
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
+                        .foregroundStyle(palette.textPrimary)
+                    Text(stageTitle(flow.stage))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(palette.textSecondary)
                 }
                 Spacer()
                 UmrahGlassIconButton(
                     systemName: "xmark",
-                    foreground: .primary,
+                    foreground: palette.textPrimary,
                     accessibilityLabel: store.text("close_button", fallback: "Close")
-                ) { dismiss() }
-            }
-
-            Picker("Umrah stage", selection: $selectedStage) {
-                ForEach(navigableStages, id: \.self) { stage in
-                    Text(stageTitle(stage)).tag(stage)
+                ) {
+                    dismiss()
                 }
             }
-            .pickerStyle(.wheel)
-            .frame(maxWidth: .infinity, minHeight: 170)
-            .clipped()
-            .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .padding(.horizontal, 20)
 
-            Button {
-                IumrahHaptics.selection()
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
-                    flow.stage = selectedStage
+            ScrollView {
+                LazyVStack(spacing: 9) {
+                    ForEach(navigableStages, id: \.self) { stage in
+                        stageButton(stage)
+                    }
                 }
-                dismiss()
-            } label: {
-                Text(store.text("navigate_button", fallback: "Go"))
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                    .background(Color(red: 0.96, green: 0.38, blue: 0.04).opacity(0.70), in: Capsule())
-                    .iumrahGlass(in: Capsule())
+                .padding(.horizontal, 20)
+                .padding(.vertical, 2)
             }
-            .buttonStyle(.plain)
+            .scrollIndicators(.hidden)
 
-            Button {
-                IumrahHaptics.selection()
-                dismiss()
-            } label: {
-                Text(store.text("close_button", fallback: "Close"))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                    .background(Color.primary.opacity(0.025), in: Capsule())
-                    .iumrahGlass(in: Capsule())
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                IumrahHaptics.soft()
-                dismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
-                    onExit()
+            VStack(spacing: 10) {
+                Button {
+                    IumrahHaptics.selection()
+                    withAnimation(.smooth(duration: 0.38, extraBounce: 0)) {
+                        flow.stage = selectedStage
+                    }
+                    dismiss()
+                } label: {
+                    Text(store.text("navigate_button", fallback: "Go"))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(palette.accent.opacity(0.78), in: Capsule())
+                        .iumrahGlass(in: Capsule())
                 }
-            } label: {
-                Text(store.text("cancel_omra", fallback: "Exit Umrah"))
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                    .background(Color.red.opacity(0.72), in: Capsule())
-                    .iumrahGlass(in: Capsule())
+                .buttonStyle(.plain)
+
+                Button {
+                    IumrahHaptics.soft()
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                        onExit()
+                    }
+                } label: {
+                    Text(UmrahFlowCopy.leaveUmrah(settings.language))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(palette.danger)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(palette.glassTint, in: Capsule())
+                        .iumrahGlass(in: Capsule())
+                        .overlay { Capsule().stroke(palette.danger.opacity(0.18), lineWidth: 0.7) }
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 18)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 22)
-        .padding(.bottom, 18)
-        .presentationDetents([.fraction(0.64), .large])
-        .presentationDragIndicator(.visible)
+        .presentationDetents([.fraction(0.72), .large])
+        .presentationDragIndicator(.hidden)
         .presentationCornerRadius(38)
-        .presentationBackground(.thinMaterial)
+        .presentationBackground(.ultraThinMaterial)
+    }
+
+    private func stageButton(_ stage: UmrahFlowState.Stage) -> some View {
+        let selected = selectedStage == stage
+
+        return Button {
+            IumrahHaptics.selection()
+            withAnimation(.smooth(duration: 0.26, extraBounce: 0)) {
+                selectedStage = stage
+            }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: stageSymbol(stage))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(selected ? Color.white : palette.textSecondary)
+                    .frame(width: 38, height: 38)
+                    .background(selected ? palette.accent.opacity(0.78) : palette.glassTint, in: Circle())
+                    .iumrahGlass(in: Circle())
+
+                Text(stageTitle(stage))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+
+                Spacer()
+
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(palette.accent)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 58)
+            .background(palette.glassTint.opacity(selected ? 1.0 : 0.72), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(selected ? palette.accent.opacity(0.28) : palette.glassStroke, lineWidth: 0.7)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var navigableStages: [UmrahFlowState.Stage] {
         [.start, .tawaf, .postTawaf, .safa, .end]
+    }
+
+    private func stageSymbol(_ stage: UmrahFlowState.Stage) -> String {
+        switch stage {
+        case .start: return "play.fill"
+        case .tawaf: return "circle.dashed"
+        case .postTawaf: return "hands.sparkles.fill"
+        case .safa: return "figure.walk"
+        case .end: return "checkmark"
+        default: return "circle"
+        }
     }
 
     private func stageTitle(_ stage: UmrahFlowState.Stage) -> String {

@@ -4,52 +4,64 @@ struct InUmrahView: View {
     @ObservedObject var flow: UmrahFlowState
     @ObservedObject var store: UmrahFlowStore
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: UmrahFlowPalette {
+        colorScheme == .dark ? .dark : .light
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 9) {
+        GeometryReader { proxy in
+            ZStack {
+                AdvisorVoiceGradient(amplitude: 0.03, isSpeaking: false, maximumHeightRatio: 0.38)
+                    .opacity(0.55)
+                    .allowsHitTesting(false)
+
+                VStack(spacing: 18) {
+                    Spacer()
+
+                    Image(systemName: "waveform")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(palette.accent)
+                        .frame(width: 48, height: 48)
+                        .background(palette.glassTint, in: Circle())
+                        .iumrahGlass(in: Circle())
+
                     UmrahAnimatedText(
                         text: store.text("home1_title", fallback: "Your Umrah"),
-                        font: .system(size: 36, weight: .bold, design: .rounded),
-                        foreground: .white,
-                        alignment: .leading
+                        font: .system(size: 28, weight: .bold, design: .rounded),
+                        foreground: palette.textPrimary,
+                        alignment: .center
                     )
+
                     UmrahAnimatedText(
                         text: store.text("home1_sub", fallback: "A step-by-step Umrah with iumrah Advisor."),
-                        font: .title3.weight(.medium),
-                        foreground: .white.opacity(0.58),
-                        alignment: .leading
+                        font: .system(size: 17, weight: .medium, design: .rounded),
+                        foreground: palette.textSecondary,
+                        alignment: .center
                     )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(spacing: 12) {
-                    Image(systemName: "waveform.circle.fill")
-                        .font(.system(size: 48, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.98, green: 0.47, blue: 0.08))
-                    Text("iumrah Advisor")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text(store.text("home1_btn3_sub", fallback: "Voice guidance stays with you through Tawaf, Sa'i and the final steps."))
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.56))
-                        .multilineTextAlignment(.center)
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity)
-                .background(Color.white.opacity(0.022), in: RoundedRectangle(cornerRadius: 42, style: .continuous))
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 42, style: .continuous))
+                    Button {
+                        IumrahHaptics.success()
+                        withAnimation(.smooth(duration: 0.42, extraBounce: 0)) {
+                            flow.stage = .start
+                        }
+                    } label: {
+                        Label(store.text("home1_btn", fallback: "Start Umrah"), systemImage: "play.fill")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 22)
+                            .frame(height: 54)
+                            .background(palette.accent.opacity(0.80), in: Capsule())
+                            .iumrahGlass(in: Capsule())
+                    }
+                    .buttonStyle(.plain)
 
-                UmrahFlowPrimaryButton(
-                    title: store.text("home1_btn", fallback: "Start Umrah"),
-                    systemImage: "play.fill"
-                ) {
-                    IumrahHaptics.success()
-                    withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) { flow.stage = .start }
+                    Spacer()
+                        .frame(height: max(120, proxy.size.height * 0.22))
                 }
+                .padding(.horizontal, 54)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
         }
     }
 }

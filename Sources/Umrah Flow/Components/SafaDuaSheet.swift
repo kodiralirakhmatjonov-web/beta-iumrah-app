@@ -2,7 +2,14 @@ import SwiftUI
 
 struct SafaDuaSheet: View {
     @ObservedObject var store: UmrahFlowStore
+
+    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: UmrahFlowPalette {
+        colorScheme == .dark ? .dark : .light
+    }
 
     private let arabic = """
 اللّٰهُ أَكْبَرُ، اللّٰهُ أَكْبَرُ، اللّٰهُ أَكْبَرُ
@@ -17,50 +24,99 @@ Allāhu akbar, Allāhu akbar, Allāhu akbar. Lā ilāha illallāhu waḥdahu lā
 """
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                HStack {
-                    Text(store.text("overlay_safa_title", fallback: "Dua at Safa and Marwa"))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                    Spacer()
-                    UmrahGlassIconButton(systemName: "xmark", foreground: .primary, accessibilityLabel: "Close") {
-                        dismiss()
-                    }
-                }
+        ZStack {
+            sheetBackground
 
-                Text(arabic)
-                    .font(.system(size: 27, weight: .medium, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(10)
-                    .environment(\.layoutDirection, .rightToLeft)
+            ScrollView {
+                VStack(spacing: 24) {
+                    header
 
-                Text(transliteration)
-                    .font(.system(size: 19, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(6)
+                    UmrahAnimatedText(
+                        text: arabic,
+                        font: .system(size: 25, weight: .medium, design: .rounded),
+                        foreground: palette.textPrimary,
+                        alignment: .center,
+                        lineSpacing: 10,
+                        isArabic: true
+                    )
 
-                Text(store.text("overlay_safa_text1", fallback: "Repeat this remembrance, then make your own dua."))
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    Text(transliteration)
+                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                        .foregroundStyle(palette.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(6)
 
-                Button { dismiss() } label: {
-                    Text(store.text("complete_btn", fallback: "Done"))
-                        .font(.headline)
-                        .foregroundStyle(.white)
+                    Text(store.text("overlay_safa_text1", fallback: "Repeat this remembrance, then make your own dua."))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(palette.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 58)
-                        .background(Color(red: 0.96, green: 0.38, blue: 0.04).opacity(0.70), in: Capsule())
-                        .iumrahGlass(in: Capsule())
+                        .background(palette.glassTint, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+                    Button {
+                        IumrahHaptics.selection()
+                        dismiss()
+                    } label: {
+                        Text(store.text("complete_btn", fallback: UmrahFlowCopy.done(settings.language)))
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(palette.accent.opacity(0.78), in: Capsule())
+                            .iumrahGlass(in: Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 22)
+                .padding(.top, 14)
+                .padding(.bottom, 30)
             }
-            .padding(22)
+            .scrollIndicators(.hidden)
         }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(40)
-        .presentationBackground(.thinMaterial)
+        .presentationDragIndicator(.hidden)
+        .presentationCornerRadius(38)
+        .presentationBackground(.ultraThinMaterial)
+    }
+
+    private var header: some View {
+        HStack(spacing: 14) {
+            Text(store.text("overlay_safa_title", fallback: "Dua at Safa and Marwa"))
+                .font(.system(size: 23, weight: .bold, design: .rounded))
+                .foregroundStyle(palette.textPrimary)
+                .lineLimit(2)
+
+            Spacer(minLength: 12)
+
+            UmrahGlassIconButton(
+                systemName: "xmark",
+                foreground: palette.textPrimary,
+                accessibilityLabel: store.text("close_button", fallback: "Close")
+            ) {
+                dismiss()
+            }
+        }
+    }
+
+    private var sheetBackground: some View {
+        ZStack {
+            palette.background.opacity(colorScheme == .dark ? 0.94 : 0.86)
+            RadialGradient(
+                colors: [palette.progressStart.opacity(colorScheme == .dark ? 0.10 : 0.07), .clear],
+                center: .bottomLeading,
+                startRadius: 0,
+                endRadius: 360
+            )
+            RadialGradient(
+                colors: [palette.progressEnd.opacity(colorScheme == .dark ? 0.08 : 0.06), .clear],
+                center: .bottomTrailing,
+                startRadius: 0,
+                endRadius: 340
+            )
+        }
+        .ignoresSafeArea()
     }
 }

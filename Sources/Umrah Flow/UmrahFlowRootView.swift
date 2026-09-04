@@ -9,7 +9,6 @@ struct UmrahFlowRootView: View {
     @StateObject private var store = UmrahFlowStore()
     @StateObject private var audio = UmrahFlowAudioService()
     @State private var showsNavigator = false
-    @State private var showsRitualModeBar = true
 
     init(initialStage: UmrahFlowState.Stage = .start) {
         _flow = StateObject(wrappedValue: UmrahFlowState(initialStage: initialStage))
@@ -17,30 +16,13 @@ struct UmrahFlowRootView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-
-            RadialGradient(
-                colors: [
-                    Color(red: 0.94, green: 0.32, blue: 0.03).opacity(0.23),
-                    Color.black.opacity(0)
-                ],
-                center: .bottom,
-                startRadius: 20,
-                endRadius: 470
-            )
-            .ignoresSafeArea()
+            UmrahFlowBackground()
 
             VStack(spacing: 0) {
                 UmrahFlowHeader(
                     title: stageTitle,
                     progress: flow.topProgress,
-                    showsModeToggle: supportsRitualModeBar,
-                    isModeBarVisible: showsRitualModeBar,
-                    onToggleModeBar: {
-                        withAnimation(.spring(response: 0.38, dampingFraction: 0.90)) {
-                            showsRitualModeBar.toggle()
-                        }
-                    },
+                    advisorStatus: advisorStatus,
                     onOpenNavigator: {
                         audio.stop()
                         showsNavigator = true
@@ -54,11 +36,11 @@ struct UmrahFlowRootView: View {
                     case .start:
                         UmrahStartView(flow: flow, store: store, audio: audio)
                     case .tawaf:
-                        TawafView(flow: flow, store: store, audio: audio, showsModeBar: showsRitualModeBar)
+                        TawafView(flow: flow, store: store, audio: audio, showsModeBar: true)
                     case .postTawaf:
                         UmrahView(flow: flow, store: store, audio: audio)
                     case .safa:
-                        SafaView(flow: flow, store: store, audio: audio, showsModeBar: showsRitualModeBar)
+                        SafaView(flow: flow, store: store, audio: audio, showsModeBar: true)
                     case .end:
                         UmrahEndView(flow: flow, store: store, audio: audio)
                     case .afterUmrah:
@@ -66,19 +48,17 @@ struct UmrahFlowRootView: View {
                     }
                 }
                 .id(flow.stage)
-                .transition(.opacity.combined(with: .move(edge: .trailing)))
-                .animation(.spring(response: 0.48, dampingFraction: 0.90), value: flow.stage)
+                .transition(.opacity)
+                .animation(.smooth(duration: 0.44, extraBounce: 0), value: flow.stage)
             }
         }
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .preferredColorScheme(.dark)
         .task(id: settings.language.rawValue) {
             await store.load(language: settings.language)
         }
         .onChange(of: flow.stage) { _, _ in
             audio.stop()
-            showsRitualModeBar = true
         }
         .onAppear { chrome.setImmersive(true) }
         .onDisappear {
@@ -87,6 +67,7 @@ struct UmrahFlowRootView: View {
         }
         .sheet(isPresented: $showsNavigator) {
             UmrahFlowNavigatorSheet(flow: flow, store: store, onExit: close)
+                .environmentObject(settings)
         }
     }
 
@@ -96,8 +77,18 @@ struct UmrahFlowRootView: View {
         dismiss()
     }
 
-    private var supportsRitualModeBar: Bool {
-        flow.stage == .tawaf || flow.stage == .safa
+    private var advisorStatus: String? {
+        if flow.stage == .inUmrah || flow.stage == .afterUmrah { return nil }
+        if flow.stage == .tawaf && flow.tawafMode == .reading { return nil }
+        if flow.stage == .safa && flow.safaMode == .reading { return nil }
+
+        if audio.isLoading {
+            return UmrahFlowCopy.loadingVoice(settings.language)
+        }
+        if audio.isPlaying {
+            return UmrahFlowCopy.advisorSpeaking(settings.language)
+        }
+        return UmrahFlowCopy.tapToListen(settings.language)
     }
 
     private var stageTitle: String {
@@ -122,7 +113,7 @@ struct UmrahFlowRootView: View {
             case .end: return "Complete Umrah"
             case .afterUmrah: return "After Umrah"
             }
-        case .uzbek, .uzbekCyrillic:
+        case .uzbek:
             switch flow.stage {
             case .inUmrah: return "Umra"
             case .start: return "Umrani boshlash"
@@ -131,6 +122,16 @@ struct UmrahFlowRootView: View {
             case .safa: return "Safo va Marva"
             case .end: return "Umrani yakunlash"
             case .afterUmrah: return "Umradan keyin"
+            }
+        case .uzbekCyrillic:
+            switch flow.stage {
+            case .inUmrah: return "Умра"
+            case .start: return "Умрани бошлаш"
+            case .tawaf: return "Тавоф"
+            case .postTawaf: return "Тавофдан кейин"
+            case .safa: return "Сафо ва Марва"
+            case .end: return "Умрани якунлаш"
+            case .afterUmrah: return "Умрадан кейин"
             }
         }
     }

@@ -1,0 +1,15 @@
+IUMRAH BETA — UMRAH FLOW VOICE GRADIENT REDESIGN 085
+Applied: 2026-09-04
+
+Cumulative Umrah Flow redesign based on beta-iumrah-app-main 6(3).zip.
+- New audio-reactive bottom Advisor gradient inspired by the supplied reference video.
+- Real AVAudioPlayer metering drives the gradient amplitude.
+- New light/dark Umrah Flow visual palette.
+- User-provided iumrah Project logo integrated into the flow header.
+- Progress + localized Advisor status in the header.
+- Previous/Next/Done controls moved to the left/right middle of the screen.
+- Native smooth fade/blur/slide text transitions and tap-to-change text variants.
+- Tawaf and Safa/Sa'i keep Reading mode; intermediate prayer/Zamzam steps remain listening-only.
+- Prayer step uses a prayer/dua symbol.
+- Navigator/exit, Sunnah Dua and Safa Dua sheets redesigned with native glass/material surfaces.
+- Umrah Flow remains free: no StoreKit/paywall/subscription entitlement checks added.

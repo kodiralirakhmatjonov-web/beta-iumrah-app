@@ -7,50 +7,65 @@ struct TawafReadingPage: View {
     @State private var pageID: Int?
     @State private var showsSunnahDua = false
 
+    @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.colorScheme) private var colorScheme
+
     init(flow: UmrahFlowState, store: UmrahFlowStore) {
         self.flow = flow
         self.store = store
         _pageID = State(initialValue: flow.tawafReadingStep)
     }
 
+    private var palette: UmrahFlowPalette {
+        colorScheme == .dark ? .dark : .light
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(store.text("tawaf_title", fallback: "Tawaf"))
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("Reading · Round \(flow.tawafRound) of 7")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.44))
+        GeometryReader { proxy in
+            ZStack {
+                AdvisorVoiceGradient(
+                    amplitude: 0.025,
+                    isSpeaking: false,
+                    minimumHeight: min(190, proxy.size.height * 0.24),
+                    maximumHeightRatio: 0.36
+                )
+                .opacity(0.56)
+                .allowsHitTesting(false)
+
+                VStack(spacing: 8) {
+                    HStack {
+                        Text(store.text("tawaf_title", fallback: "Tawaf").uppercased())
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .tracking(1.25)
+                            .foregroundStyle(palette.textSecondary)
+                        Spacer()
+                        Text("\(flow.tawafRound) / 7  ·  \(flow.tawafReadingStep + 1) / 7")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    .padding(.horizontal, 72)
+                    .padding(.top, 8)
+
+                    readingPager
                 }
-                Spacer()
-                Text("\(flow.tawafReadingStep + 1) / 7")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.48))
-                    .padding(.horizontal, 12)
-                    .frame(height: 36)
-                    .background(Color.white.opacity(0.025), in: Capsule())
-                    .iumrahGlass(in: Capsule())
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
 
-            readingPager
-
-            UmrahRoundSwipeControl(
-                round: flow.tawafRound,
-                total: 7,
-                label: isLastStep ? store.text("tap_btn", fallback: "complete round") : "Read all 7 cards first",
-                isEnabled: isLastStep
-            ) {
-                completeRound()
+                HStack {
+                    UmrahSideStepButton(
+                        systemName: "chevron.left",
+                        accessibilityLabel: UmrahFlowCopy.previous(settings.language),
+                        action: previousStep
+                    )
+                    Spacer()
+                    UmrahSideStepButton(
+                        systemName: isLastStep ? "checkmark" : "chevron.right",
+                        emphasized: true,
+                        accessibilityLabel: isLastStep ? UmrahFlowCopy.done(settings.language) : UmrahFlowCopy.next(settings.language),
+                        action: nextStep
+                    )
+                }
+                .padding(.horizontal, 14)
+                .offset(y: -8)
             }
-            .id("tawaf-reading-\(flow.tawafRound)")
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 14)
         }
         .onChange(of: pageID) { _, newValue in
             guard let newValue else { return }
@@ -69,172 +84,191 @@ struct TawafReadingPage: View {
     }
 
     private var readingPager: some View {
-        GeometryReader { proxy in
-            HStack(spacing: 12) {
-                sideProgress(height: min(390, max(250, proxy.size.height * 0.72)))
-                    .frame(width: 20)
-
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(steps.indices, id: \.self) { index in
-                            readingStep(steps[index], index: index)
-                                .containerRelativeFrame(.vertical)
-                                .id(index)
-                        }
-                    }
-                    .scrollTargetLayout()
+        ScrollView(.vertical) {
+            LazyVStack(spacing: 0) {
+                ForEach(steps.indices, id: \.self) { index in
+                    readingStep(steps[index], index: index)
+                        .containerRelativeFrame(.vertical)
+                        .id(index)
                 }
-                .scrollIndicators(.hidden)
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: $pageID)
             }
-            .padding(.horizontal, 20)
+            .scrollTargetLayout()
         }
-    }
-
-    private func sideProgress(height: CGFloat) -> some View {
-        let fraction = CGFloat(flow.tawafReadingStep + 1) / 7.0
-        return ZStack(alignment: .top) {
-            Capsule()
-                .fill(Color.white.opacity(0.035))
-                .iumrahGlass(in: Capsule())
-            Capsule()
-                .fill(Color.white.opacity(0.38))
-                .frame(height: max(42, height * fraction))
-                .animation(.spring(response: 0.42, dampingFraction: 0.90), value: flow.tawafReadingStep)
-        }
-        .frame(width: 18, height: height)
+        .contentMargins(.horizontal, 72, for: .scrollContent)
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $pageID)
     }
 
     @ViewBuilder
     private func readingStep(_ step: ReadingStep, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
+        ScrollView(.vertical) {
+            VStack(spacing: 18) {
                 Text(step.label.uppercased())
                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .tracking(1.25)
-                    .foregroundStyle(.white.opacity(0.35))
-                Spacer()
-                Text("\(index + 1)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.28))
-            }
+                    .tracking(1.2)
+                    .foregroundStyle(palette.accent)
 
-            switch step.kind {
-            case .arabic:
-                UmrahAnimatedText(
-                    text: step.primary,
-                    font: .system(size: 29, weight: .medium, design: .rounded),
-                    foreground: .white,
-                    alignment: .center,
-                    lineSpacing: 12,
-                    isArabic: true
-                )
-
-            case .regular:
-                UmrahAnimatedText(
-                    text: step.primary,
-                    font: .system(size: 21, weight: .semibold, design: .rounded),
-                    foreground: .white.opacity(0.90),
-                    alignment: .leading,
-                    lineSpacing: 6
-                )
-                if let secondary = step.secondary, !secondary.isEmpty {
+                switch step.kind {
+                case .arabic:
                     UmrahAnimatedText(
-                        text: secondary,
-                        font: .system(size: 20, weight: .medium, design: .rounded),
-                        foreground: .white.opacity(0.58),
-                        alignment: .leading,
-                        lineSpacing: 6
+                        text: step.primary,
+                        font: .system(size: arabicFontSize(step.primary), weight: .medium, design: .rounded),
+                        foreground: palette.textPrimary,
+                        alignment: .center,
+                        lineSpacing: 11,
+                        isArabic: true
                     )
-                }
 
-            case .zikr:
-                Button {
-                    guard flow.tawafZikrCount < 20 else { return }
-                    IumrahHaptics.selection()
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                        flow.tawafZikrCount += 1
-                    }
-                } label: {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .top) {
-                            Text("\(max(0, 20 - flow.tawafZikrCount))")
-                                .font(.system(size: 58, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.14))
-                                .contentTransition(.numericText())
-                            Spacer()
-                            Image(systemName: "hand.tap.fill")
-                                .foregroundStyle(.white.opacity(0.20))
-                        }
-                        Text(step.primary)
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                        if let secondary = step.secondary {
-                            Text(secondary)
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.55))
-                        }
-                    }
-                    .padding(18)
-                    .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                }
-                .buttonStyle(.plain)
+                case .regular:
+                    UmrahAnimatedText(
+                        text: step.primary,
+                        font: .system(size: readingFontSize(step.primary), weight: .semibold, design: .rounded),
+                        foreground: palette.textPrimary,
+                        alignment: .center,
+                        lineSpacing: 7
+                    )
 
-                Button {
-                    IumrahHaptics.soft()
-                    showsSunnahDua = true
-                } label: {
-                    HStack {
-                        Image(systemName: "hands.sparkles.fill")
-                        Text(store.text("sunna_dua_btn", fallback: "Sunnah Dua"))
-                        Spacer()
-                        Image(systemName: "chevron.up")
+                    if let secondary = step.secondary, !secondary.isEmpty {
+                        UmrahAnimatedText(
+                            text: secondary,
+                            font: .system(size: readingFontSize(secondary) - 1, weight: .medium, design: .rounded),
+                            foreground: palette.textSecondary,
+                            alignment: .center,
+                            lineSpacing: 7
+                        )
                     }
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
-                    .frame(height: 54)
-                    .background(Color.white.opacity(0.025), in: Capsule())
-                    .iumrahGlass(in: Capsule())
+
+                case .zikr:
+                    zikrContent(step)
                 }
-                .buttonStyle(.plain)
             }
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity, minHeight: 330, alignment: .center)
+            .padding(.vertical, 28)
         }
-        .padding(22)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .background(Color.white.opacity(0.018), in: RoundedRectangle(cornerRadius: 42, style: .continuous))
-        .umrahEntranceMotion()
+        .scrollIndicators(.hidden)
+    }
+
+    private func zikrContent(_ step: ReadingStep) -> some View {
+        VStack(spacing: 16) {
+            Button {
+                guard flow.tawafZikrCount < 20 else { return }
+                IumrahHaptics.selection()
+                withAnimation(.smooth(duration: 0.26, extraBounce: 0)) {
+                    flow.tawafZikrCount += 1
+                }
+            } label: {
+                VStack(spacing: 10) {
+                    Text("\(max(0, 20 - flow.tawafZikrCount))")
+                        .font(.system(size: 54, weight: .light, design: .rounded))
+                        .foregroundStyle(palette.textPrimary.opacity(0.20))
+                        .contentTransition(.numericText())
+
+                    Text(step.primary)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(palette.textPrimary)
+                        .multilineTextAlignment(.center)
+
+                    if let secondary = step.secondary, !secondary.isEmpty {
+                        Text(secondary)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(palette.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity)
+                .background(palette.glassTint, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(palette.glassStroke, lineWidth: 0.65)
+                }
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                IumrahHaptics.soft()
+                showsSunnahDua = true
+            } label: {
+                Label(store.text("sunna_dua_btn", fallback: "Sunnah Dua"), systemImage: "hands.sparkles.fill")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                    .padding(.horizontal, 16)
+                    .frame(height: 44)
+                    .background(palette.glassTint, in: Capsule())
+                    .iumrahGlass(in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var steps: [ReadingStep] {
-        let r = flow.tawafRound
+        let round = flow.tawafRound
         return [
-            .init(kind: .arabic, label: "Dua", primary: store.text("tawaf\(r)_reading_arab1", fallback: "")),
-            .init(kind: .regular, label: "Meaning", primary: store.text("tawaf\(r)_reading_text1", fallback: ""), secondary: store.text("tawaf\(r)_reading_text2", fallback: "")),
-            .init(kind: .arabic, label: "Dua", primary: store.text("tawaf\(r)_reading_arab2", fallback: "")),
-            .init(kind: .regular, label: "Meaning", primary: store.text("tawaf\(r)_reading_text3", fallback: ""), secondary: store.text("tawaf\(r)_reading_text4", fallback: "")),
-            .init(kind: .arabic, label: "Dua", primary: store.text("tawaf\(r)_reading_arab3", fallback: "")),
-            .init(kind: .regular, label: "Meaning", primary: store.text("tawaf\(r)_reading_text5", fallback: ""), secondary: store.text("tawaf\(r)_reading_text6", fallback: "")),
-            .init(kind: .zikr, label: "Dhikr", primary: store.text("tawaf\(r)_zikr_repeat", fallback: "Dhikr"), secondary: store.text("tawaf\(r)_zikr_text", fallback: "Remember Allah and make dua."))
+            .init(kind: .arabic, label: UmrahFlowCopy.dua(settings.language), primary: store.text("tawaf\(round)_reading_arab1", fallback: "")),
+            .init(kind: .regular, label: UmrahFlowCopy.meaning(settings.language), primary: store.text("tawaf\(round)_reading_text1", fallback: ""), secondary: store.text("tawaf\(round)_reading_text2", fallback: "")),
+            .init(kind: .arabic, label: UmrahFlowCopy.dua(settings.language), primary: store.text("tawaf\(round)_reading_arab2", fallback: "")),
+            .init(kind: .regular, label: UmrahFlowCopy.meaning(settings.language), primary: store.text("tawaf\(round)_reading_text3", fallback: ""), secondary: store.text("tawaf\(round)_reading_text4", fallback: "")),
+            .init(kind: .arabic, label: UmrahFlowCopy.dua(settings.language), primary: store.text("tawaf\(round)_reading_arab3", fallback: "")),
+            .init(kind: .regular, label: UmrahFlowCopy.meaning(settings.language), primary: store.text("tawaf\(round)_reading_text5", fallback: ""), secondary: store.text("tawaf\(round)_reading_text6", fallback: "")),
+            .init(kind: .zikr, label: UmrahFlowCopy.dhikr(settings.language), primary: store.text("tawaf\(round)_zikr_repeat", fallback: "Dhikr"), secondary: store.text("tawaf\(round)_zikr_text", fallback: "Remember Allah and make dua."))
         ]
     }
 
     private var isLastStep: Bool { flow.tawafReadingStep >= 6 }
 
+    private func previousStep() {
+        if flow.tawafReadingStep > 0 {
+            withAnimation(.smooth(duration: 0.34, extraBounce: 0)) {
+                pageID = flow.tawafReadingStep - 1
+            }
+        } else if flow.tawafRound > 1 {
+            withAnimation(.smooth(duration: 0.34, extraBounce: 0)) {
+                flow.tawafRound -= 1
+            }
+        } else {
+            withAnimation(.smooth(duration: 0.30, extraBounce: 0)) {
+                flow.tawafMode = .listening
+            }
+        }
+    }
+
+    private func nextStep() {
+        if !isLastStep {
+            withAnimation(.smooth(duration: 0.34, extraBounce: 0)) {
+                pageID = flow.tawafReadingStep + 1
+            }
+        } else {
+            completeRound()
+        }
+    }
+
     private func completeRound() {
         flow.resetTawafReading()
         pageID = 0
         if flow.tawafRound < 7 {
-            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) {
+            withAnimation(.smooth(duration: 0.38, extraBounce: 0)) {
                 flow.tawafRound += 1
             }
         } else {
-            withAnimation(.spring(response: 0.44, dampingFraction: 0.90)) {
+            withAnimation(.smooth(duration: 0.42, extraBounce: 0)) {
                 flow.stage = .postTawaf
             }
         }
+    }
+
+    private func readingFontSize(_ text: String) -> CGFloat {
+        if text.count > 260 { return 19 }
+        if text.count > 170 { return 21 }
+        return 23
+    }
+
+    private func arabicFontSize(_ text: String) -> CGFloat {
+        if text.count > 220 { return 23 }
+        if text.count > 140 { return 25 }
+        return 28
     }
 }
 

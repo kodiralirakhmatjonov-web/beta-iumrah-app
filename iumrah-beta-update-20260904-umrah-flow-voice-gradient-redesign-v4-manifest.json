@@ -1,0 +1,141 @@
+{
+  "update": "iumrah-beta-update-20260904-umrah-flow-voice-gradient-redesign-v4",
+  "base_repository": "beta-iumrah-app-main 6(3).zip",
+  "target": "com.iumrah.beta",
+  "date": "2026-09-04",
+  "scope": "Umrah Flow UI/UX only plus its logo asset; no booking/generator/backend changes.",
+  "free_flow": true,
+  "requires_previous_advisor_gradient_component_patch": false,
+  "highlights": [
+    "Bottom full-width fluid Advisor voice gradient driven by real playback amplitude",
+    "Adaptive light/dark palettes and native iOS 26 glassEffect with existing iOS 17 fallback",
+    "Mid-screen previous and next/done glass controls",
+    "Smooth native text fade/blur/slide changes and tap-to-cycle text",
+    "Tawaf and Safa/Sa’i Reading modes retained; intermediate ritual steps remain listening-only",
+    "Redesigned stage navigator/exit and dua sheets",
+    "User-provided iumrah Project header logo"
+  ],
+  "qa": {
+    "swift_syntax_parse": "passed for all changed Swift files with Swift 6.2.1",
+    "asset_json": "valid",
+    "structural_checks": "passed",
+    "xcode_ios_sdk_build": "not available in this Linux environment"
+  },
+  "files": [
+    {
+      "path": "BETA_UMRAH_FLOW_VOICE_GRADIENT_085_APPLIED.txt",
+      "bytes": 939,
+      "sha256": "a06e610434d64605f695c3507bd287dae67b62e5ef7e29ec356ddb1e86111fcd"
+    },
+    {
+      "path": "Resources/Assets.xcassets/UmrahFlowLogo.imageset/Contents.json",
+      "bytes": 492,
+      "sha256": "af59adeae77ada3591d0469f1f44819bbb1ac47dd2f65a3a09bfbf68ed339672"
+    },
+    {
+      "path": "Resources/Assets.xcassets/UmrahFlowLogo.imageset/umrah-flow-logo-dark.png",
+      "bytes": 27492,
+      "sha256": "85e8b844ecea70885abea033ba0c7ec07fa1088d50fcf493c4e5f4bdf13c746d"
+    },
+    {
+      "path": "Resources/Assets.xcassets/UmrahFlowLogo.imageset/umrah-flow-logo-light.png",
+      "bytes": 56338,
+      "sha256": "d76e627cf3dda3e039b384ed4afae8bfc7a247348939378f1b493ba0d3538573"
+    },
+    {
+      "path": "Sources/Umrah Flow/UmrahFlowRootView.swift",
+      "bytes": 5178,
+      "sha256": "6d34d0c177593b5350b3d3c24b7d62c1ab05a2bd2453b16cf8dec8ac3910004f"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/AdvisorVoiceGradient.swift",
+      "bytes": 11631,
+      "sha256": "cd88d4f4afa77b8b1fd603ee94370f7acbd7819aaccc5d984b77525067e96bc2"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/SafaDuaSheet.swift",
+      "bytes": 5088,
+      "sha256": "d27cb952842f86718661cacc706144471b8ce0dc8fb033437c9190e36404a1c1"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/SunnahDuaSheet.swift",
+      "bytes": 5415,
+      "sha256": "3e15d3a4b01e39fd378400c3c84adb850ba612db2c2ab8111e4e4b059675862e"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahFlowHeader.swift",
+      "bytes": 2933,
+      "sha256": "f3ba1ea40a47baa4a8c4ade5f0cdd5892102dec43d3ac9fe9af34c7a02c2b989"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahFlowMotion.swift",
+      "bytes": 2744,
+      "sha256": "6243782d9a1c82f721ee7a2a2cb606f388e9ec8aa5228cd0ef858a1b7523ab3b"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahFlowNavigatorSheet.swift",
+      "bytes": 7200,
+      "sha256": "8fc88ec12370de27a985560e04501bf81152801c632a8815cd7144821be8076d"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahFlowTheme.swift",
+      "bytes": 7493,
+      "sha256": "72778ddedd4bc5fb43b1708b1fe330b424d0796f75e746178fb8f90cfb1a0b68"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahGlassControls.swift",
+      "bytes": 3200,
+      "sha256": "413b94516a52519792a98f68397ca27cd082e026e445341f2536a28cb5ce20e3"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahVoiceStepScreen.swift",
+      "bytes": 9637,
+      "sha256": "b0685662535dd8ae414a620e44c0731fba3febc23fe0d38065571a7c061fe001"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/AfterUmrahView.swift",
+      "bytes": 3742,
+      "sha256": "e2d1014120c6b0478de145f185a4b36bb14f8b08a8f328a1ba30f1a0979b1856"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/InUmrahView.swift",
+      "bytes": 2661,
+      "sha256": "fa3aed086ce3e668022f7388a044d5e6fc8c7f6d016d61c9c7a8f2941b7f308a"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/SafaReadingPage.swift",
+      "bytes": 8176,
+      "sha256": "22d9b0693c65c1642f6b2546be9e578142095b6ac67d8f6293eaf2bcf47bd192"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/SafaView.swift",
+      "bytes": 3057,
+      "sha256": "99195a2f43b2e471b24fc75e5fe8934bcf4a714209d23b4176b2ef8a417c7db9"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/TawafReadingPage.swift",
+      "bytes": 11312,
+      "sha256": "15d0fc3c2812d02f940519062f35e67f1fc3b4233427041cf761ce38fef88b44"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/TawafView.swift",
+      "bytes": 3781,
+      "sha256": "2526658c4fab523c0689d4af0b303d258343a65ee420721c0bae36764ebc69ad"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/UmrahEndView.swift",
+      "bytes": 2166,
+      "sha256": "b06969ca4b639984e359cc4b199a80bd1fea0e6febd152f2411f45e6134cb17c"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/UmrahStartView.swift",
+      "bytes": 2018,
+      "sha256": "f46adc0024299f308fa066e8ac1e0bfd00fba960d02a03b64024451ba4e3694a"
+    },
+    {
+      "path": "Sources/Umrah Flow/Views/UmrahView.swift",
+      "bytes": 3215,
+      "sha256": "3fafc71778ea98a15455d7c23f7b41beb4ede5d81c3e907d83100349f47a78e8"
+    }
+  ]
+}
