@@ -48,7 +48,11 @@ struct SystemNotificationCard: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(Color.white.opacity(0.92))
                             .frame(width: 28, height: 28)
-                            .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .iumrahGlass(
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous),
+                                interactive: true,
+                                tint: .black.opacity(0.12)
+                            )
                     }
                     .buttonStyle(.plain)
                 }

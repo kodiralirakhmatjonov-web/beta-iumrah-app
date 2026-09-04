@@ -258,8 +258,8 @@ struct OutboundFlightView: View {
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .frame(height: 36)
-                .background(selected ? Color.primary : Color.iumrahRaisedBackground, in: Capsule())
                 .foregroundStyle(selected ? Color.iumrahCardBackground : Color.primary)
+                .iumrahGlass(in: Capsule(), interactive: true, tint: selected ? Color.primary : nil)
         }
         .buttonStyle(.plain)
     }
@@ -304,7 +304,7 @@ struct OutboundFlightView: View {
             .padding(.top, 10)
             .padding(.bottom, 8)
         }
-        .background(.ultraThinMaterial)
+        .background(Color.iumrahCardBackground)
     }
 
     private func search(continueExisting: Bool) async {

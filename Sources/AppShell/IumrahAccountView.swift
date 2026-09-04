@@ -137,7 +137,7 @@ struct IumrahAccountView: View {
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 12)
                         .frame(height: 36)
-                        .background(Color.iumrahRaisedBackground, in: Capsule())
+                        .iumrahGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -260,7 +260,8 @@ struct IumrahAccountView: View {
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 46, height: 46)
-                                .background(.white.opacity(0.12), in: Circle())
+                                .contentShape(Circle())
+                                .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18))
                         }
                         .buttonStyle(.plain)
                     }
@@ -439,7 +440,7 @@ struct IumrahAccountView: View {
                         .font(.caption.weight(.bold))
                         .padding(.horizontal, 12)
                         .frame(height: 38)
-                        .background(Color.iumrahRaisedBackground, in: Capsule())
+                        .iumrahGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }

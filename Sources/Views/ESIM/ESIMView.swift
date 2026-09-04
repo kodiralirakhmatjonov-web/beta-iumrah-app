@@ -440,7 +440,7 @@ private struct ESIMProfileCard: View {
                     .foregroundStyle(.secondary)
             }
             .padding(12)
-            .background(Color.iumrahRaisedBackground.opacity(0.64), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
         }
         .buttonStyle(.plain)
     }

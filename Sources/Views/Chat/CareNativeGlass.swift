@@ -55,9 +55,9 @@ private struct CareNativeGlassSurfaceModifier<S: Shape>: ViewModifier {
             content.glassEffect(glass, in: shape)
         } else {
             content
-                .background(.ultraThinMaterial, in: shape)
+                .background(Color.iumrahCardBackground, in: shape)
                 .overlay {
-                    shape.stroke(Color.white.opacity(0.28), lineWidth: 0.65)
+                    shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.65)
                 }
         }
     }
@@ -72,7 +72,7 @@ private struct CareLegacyGlassButtonStyle: ButtonStyle {
                 if prominent {
                     Capsule().fill(Color.iumrahCareDark.opacity(0.96))
                 } else {
-                    Capsule().fill(.ultraThinMaterial)
+                    Capsule().fill(Color.iumrahCardBackground)
                 }
             }
             .overlay {

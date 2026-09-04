@@ -71,8 +71,7 @@ struct UmrahFlowNavigatorSheet: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(palette.accent.opacity(0.78), in: Capsule())
-                        .iumrahGlass(in: Capsule())
+                        .iumrahGlass(in: Capsule(), interactive: true, tint: palette.accent.opacity(0.56))
                 }
                 .buttonStyle(.plain)
 
@@ -88,9 +87,7 @@ struct UmrahFlowNavigatorSheet: View {
                         .foregroundStyle(palette.danger)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(palette.glassTint, in: Capsule())
-                        .iumrahGlass(in: Capsule())
-                        .overlay { Capsule().stroke(palette.danger.opacity(0.18), lineWidth: 0.7) }
+                        .iumrahGlass(in: Capsule(), interactive: true, tint: palette.danger.opacity(0.08))
                 }
                 .buttonStyle(.plain)
             }
@@ -100,7 +97,6 @@ struct UmrahFlowNavigatorSheet: View {
         .presentationDetents([.fraction(0.72), .large])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(38)
-        .presentationBackground(.ultraThinMaterial)
     }
 
     private func stageButton(_ stage: UmrahFlowState.Stage) -> some View {
@@ -117,8 +113,7 @@ struct UmrahFlowNavigatorSheet: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(selected ? Color.white : palette.textSecondary)
                     .frame(width: 38, height: 38)
-                    .background(selected ? palette.accent.opacity(0.78) : palette.glassTint, in: Circle())
-                    .iumrahGlass(in: Circle())
+                    .iumrahGlass(in: Circle(), interactive: true, tint: selected ? palette.accent.opacity(0.56) : nil)
 
                 Text(stageTitle(stage))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -135,12 +130,11 @@ struct UmrahFlowNavigatorSheet: View {
             }
             .padding(.horizontal, 13)
             .frame(height: 58)
-            .background(palette.glassTint.opacity(selected ? 1.0 : 0.72), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(selected ? palette.accent.opacity(0.28) : palette.glassStroke, lineWidth: 0.7)
-            }
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                interactive: true,
+                tint: selected ? palette.accent.opacity(0.14) : nil
+            )
         }
         .buttonStyle(.plain)
     }

@@ -45,11 +45,7 @@ struct IumrahFlowProgress: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-        }
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 

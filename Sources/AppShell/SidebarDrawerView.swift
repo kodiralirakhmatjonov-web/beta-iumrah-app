@@ -142,7 +142,7 @@ struct SidebarDrawerView: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 52)
-            .background(Color.iumrahRaisedBackground.opacity(0.72), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
         }
         .buttonStyle(.plain)
     }

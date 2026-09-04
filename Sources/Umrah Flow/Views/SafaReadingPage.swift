@@ -170,8 +170,7 @@ struct SafaReadingPage: View {
                             .foregroundStyle(palette.textPrimary)
                             .padding(.horizontal, 16)
                             .frame(height: 44)
-                            .background(palette.glassTint, in: Capsule())
-                            .iumrahGlass(in: Capsule())
+                            .iumrahGlass(in: Capsule(), interactive: true)
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 4)

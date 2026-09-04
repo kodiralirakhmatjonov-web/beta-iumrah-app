@@ -24,7 +24,6 @@ struct InUmrahView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(palette.accent)
                         .frame(width: 48, height: 48)
-                        .background(palette.glassTint, in: Circle())
                         .iumrahGlass(in: Circle())
 
                     UmrahAnimatedText(
@@ -52,8 +51,7 @@ struct InUmrahView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 22)
                             .frame(height: 54)
-                            .background(palette.accent.opacity(0.80), in: Capsule())
-                            .iumrahGlass(in: Capsule())
+                            .iumrahGlass(in: Capsule(), interactive: true, tint: palette.accent.opacity(0.58))
                     }
                     .buttonStyle(.plain)
 

@@ -26,7 +26,6 @@ struct SunnahDuaSheet: View {
                         .padding(.horizontal, 18)
                         .padding(.vertical, 13)
                         .frame(maxWidth: .infinity)
-                        .background(palette.glassTint, in: Capsule())
                         .iumrahGlass(in: Capsule())
 
                     UmrahAnimatedText(
@@ -51,7 +50,6 @@ struct SunnahDuaSheet: View {
                         .padding(.horizontal, 18)
                         .padding(.vertical, 14)
                         .frame(maxWidth: .infinity)
-                        .background(palette.glassTint, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                         .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
                     Text(store.text("tawaf_common_text4", fallback: "Ask Allah in your own words."))
@@ -74,7 +72,6 @@ struct SunnahDuaSheet: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(38)
-        .presentationBackground(.ultraThinMaterial)
     }
 
     private var header: some View {

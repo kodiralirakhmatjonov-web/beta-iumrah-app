@@ -22,15 +22,12 @@ struct UmrahGlassIconButton: View {
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(foreground ?? palette.textPrimary)
                 .frame(width: 46, height: 46)
-                .background(
-                    (accent ?? palette.glassTint).opacity(accent == nil ? 1 : 0.48),
-                    in: Circle()
+                .contentShape(Circle())
+                .iumrahGlass(
+                    in: Circle(),
+                    interactive: true,
+                    tint: accent?.opacity(0.34)
                 )
-                .iumrahGlass(in: Circle())
-                .overlay {
-                    Circle().stroke(palette.glassStroke, lineWidth: 0.65)
-                }
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.07), radius: 14, y: 7)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
@@ -54,9 +51,7 @@ struct UmrahRitualModeBar: View {
             modeButton(.reading, title: UmrahFlowCopy.reading(language), icon: "text.book.closed")
         }
         .padding(5)
-        .background(palette.glassTint, in: Capsule())
         .iumrahGlass(in: Capsule())
-        .overlay { Capsule().stroke(palette.glassStroke, lineWidth: 0.65) }
         .padding(.horizontal, 74)
         .padding(.top, 4)
         .padding(.bottom, 4)

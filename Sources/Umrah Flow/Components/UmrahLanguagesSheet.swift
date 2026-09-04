@@ -132,12 +132,7 @@ struct UmrahLanguagesSheet: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
-                .background(palette.accent.opacity(colorScheme == .dark ? 0.70 : 0.84), in: Capsule())
-                .iumrahGlass(in: Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.24), lineWidth: 0.7)
-                }
+                .iumrahGlass(in: Capsule(), interactive: true, tint: palette.accent.opacity(colorScheme == .dark ? 0.52 : 0.62))
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
@@ -146,7 +141,6 @@ struct UmrahLanguagesSheet: View {
         .presentationDetents([.fraction(0.68), .large])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(38)
-        .presentationBackground(.ultraThinMaterial)
     }
 
     private func languageButton(_ language: UmrahGuideLanguage) -> some View {
@@ -174,15 +168,11 @@ struct UmrahLanguagesSheet: View {
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(
-                isSelected ? palette.accent.opacity(colorScheme == .dark ? 0.56 : 0.78) : palette.glassTint,
-                in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 19, style: .continuous),
+                interactive: true,
+                tint: isSelected ? palette.accent.opacity(colorScheme == .dark ? 0.52 : 0.62) : nil
             )
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 19, style: .continuous)
-                    .stroke(isSelected ? palette.accent.opacity(0.42) : palette.glassStroke, lineWidth: 0.7)
-            }
         }
         .buttonStyle(.plain)
     }

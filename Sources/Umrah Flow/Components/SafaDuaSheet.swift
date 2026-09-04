@@ -52,7 +52,6 @@ Allāhu akbar, Allāhu akbar, Allāhu akbar. Lā ilāha illallāhu waḥdahu lā
                         .padding(.horizontal, 18)
                         .padding(.vertical, 14)
                         .frame(maxWidth: .infinity)
-                        .background(palette.glassTint, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                         .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
                     Button {
@@ -64,8 +63,7 @@ Allāhu akbar, Allāhu akbar, Allāhu akbar. Lā ilāha illallāhu waḥdahu lā
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(palette.accent.opacity(0.78), in: Capsule())
-                            .iumrahGlass(in: Capsule())
+                            .iumrahGlass(in: Capsule(), interactive: true, tint: palette.accent.opacity(0.56))
                     }
                     .buttonStyle(.plain)
                 }
@@ -78,7 +76,6 @@ Allāhu akbar, Allāhu akbar, Allāhu akbar. Lā ilāha illallāhu waḥdahu lā
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(38)
-        .presentationBackground(.ultraThinMaterial)
     }
 
     private var header: some View {

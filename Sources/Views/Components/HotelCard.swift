@@ -33,8 +33,7 @@ struct HotelCard: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 11)
                         .padding(.vertical, 7)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
+                        .iumrahGlass(in: Capsule())
                         .padding(12)
                 }
             }

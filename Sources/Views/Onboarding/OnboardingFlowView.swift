@@ -155,12 +155,8 @@ struct OnboardingFlowView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(headerForeground)
                     .frame(width: 48, height: 48)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder((page == 0 || page == 2 ? Color.white : Color.black).opacity(0.10), lineWidth: 1)
-                    }
                     .contentShape(Circle())
+                    .iumrahGlass(in: Circle(), interactive: true)
             }
             .buttonStyle(.plain)
         }
@@ -259,10 +255,8 @@ struct OnboardingFlowView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay {
-                            Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
-                        }
+                        .contentShape(Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isMuted ? "Sound off" : "Sound on")
@@ -501,12 +495,7 @@ struct OnboardingFlowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.13), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.18), radius: 20, y: 10)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private func floatingSummaryCard(title: String, subtitle: String, icon: String) -> some View {
@@ -531,12 +520,7 @@ struct OnboardingFlowView: View {
         }
         .padding(11)
         .frame(width: 178)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.10), radius: 16, y: 8)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var introOverlay: some View {
@@ -1315,10 +1299,6 @@ private struct OnboardingGlassPill: View {
         .foregroundStyle(lightText ? Color.white : Color.primary)
         .padding(.horizontal, 13)
         .frame(height: 34)
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-        .overlay {
-            Capsule(style: .continuous)
-                .strokeBorder((lightText ? Color.white : Color.primary).opacity(lightText ? 0.14 : 0.06), lineWidth: 1)
-        }
+        .iumrahGlass(in: Capsule(style: .continuous))
     }
 }

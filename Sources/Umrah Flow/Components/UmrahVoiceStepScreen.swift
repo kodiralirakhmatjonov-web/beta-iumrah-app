@@ -127,7 +127,6 @@ struct UmrahVoiceStepScreen: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(palette.accent)
                     .frame(width: 46, height: 46)
-                    .background(palette.glassTint, in: Circle())
                     .iumrahGlass(in: Circle())
                     .umrahEntranceMotion()
             }
@@ -195,11 +194,7 @@ struct UmrahVoiceStepScreen: View {
                         .foregroundStyle(palette.textPrimary)
                         .padding(.horizontal, 17)
                         .frame(height: 44)
-                        .background(palette.glassTint, in: Capsule())
-                        .iumrahGlass(in: Capsule())
-                        .overlay {
-                            Capsule().stroke(palette.glassStroke.opacity(0.72), lineWidth: 0.65)
-                        }
+                        .iumrahGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
@@ -285,17 +280,11 @@ struct UmrahSideStepButton: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(emphasized ? Color.white : palette.textPrimary)
                 .frame(width: 54, height: 54)
-                .background(
-                    emphasized
-                        ? palette.accent.opacity(colorScheme == .dark ? 0.48 : 0.72)
-                        : palette.glassTint,
-                    in: Circle()
+                .iumrahGlass(
+                    in: Circle(),
+                    interactive: true,
+                    tint: emphasized ? palette.accent.opacity(colorScheme == .dark ? 0.48 : 0.56) : nil
                 )
-                .iumrahGlass(in: Circle())
-                .overlay {
-                    Circle().stroke(palette.glassStroke.opacity(emphasized ? 0.45 : 0.70), lineWidth: 0.7)
-                }
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.08), radius: 16, y: 8)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)

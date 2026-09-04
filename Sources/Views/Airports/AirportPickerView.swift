@@ -38,8 +38,7 @@ struct AirportPickerView: View {
                                 .font(.subheadline.weight(.semibold))
                                 .padding(.horizontal, 16)
                                 .frame(height: 44)
-                                .background(Color.iumrahRaisedBackground)
-                                .clipShape(Capsule())
+                                .iumrahGlass(in: Capsule(), interactive: true)
                         }
                         .buttonStyle(.plain)
                         .padding(.top, 4)

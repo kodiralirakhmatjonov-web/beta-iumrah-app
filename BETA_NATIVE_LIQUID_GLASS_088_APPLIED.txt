@@ -1,0 +1,26 @@
+BETA_NATIVE_LIQUID_GLASS_088_APPLIED
+Date: 2026-09-05
+Target: iumrah Beta / com.iumrah.beta
+Reference UI: supplied AutoSale Umar iOS application
+
+Scope:
+- unified iumrah Beta around one native iOS 26 Liquid Glass design system
+- removed direct Material-based UI surfaces from Sources
+- interactive glass controls use Apple's glassEffect on iOS 26
+- selected glass states use native glass tint instead of painted blur layers
+- restored system-owned tab bar chrome on iOS 26
+- normalized card/control geometry and reusable glass controls
+- cleaned Umrah Flow, flights, hotels, onboarding, account/sidebar, booking/chat and package controls
+- compatibility path for iOS 17-25 remains functional without imitating Liquid Glass with Material blur
+
+Preserved:
+- backend and API contracts
+- booking/package/generator logic
+- navigation destinations and data models
+- Signing and GitHub Actions
+- resources/assets
+
+Validation:
+- Swift frontend parse passed for all 172 Swift source files
+- direct ultraThinMaterial/thinMaterial/regularMaterial/thickMaterial references in Sources: 0
+- forced custom tabBar toolbarBackground references: 0

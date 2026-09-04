@@ -96,12 +96,13 @@ struct CareChatMessageRow: View {
                     shape.fill(outgoingBubbleColor.opacity(wallpaperActive ? 0.96 : 1))
                 } else if wallpaperActive {
                     shape
-                        .fill(.ultraThinMaterial)
+                        .fill(Color.clear)
+                        .iumrahGlass(in: shape)
                         .overlay {
                             shape.fill(
                                 colorScheme == .dark
-                                    ? Color.black.opacity(0.12)
-                                    : Color.white.opacity(0.18)
+                                    ? Color.black.opacity(0.10)
+                                    : Color.white.opacity(0.14)
                             )
                         }
                 } else {

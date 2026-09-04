@@ -136,8 +136,7 @@ struct HotelDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .background(.black.opacity(0.38), in: Capsule())
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .iumrahGlass(in: Capsule(), interactive: true, tint: .black.opacity(0.22))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 14)
@@ -155,8 +154,8 @@ struct HotelDetailView: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.primary)
                 .frame(width: 46, height: 46)
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay { Circle().strokeBorder(Color.white.opacity(0.24), lineWidth: 0.5) }
+                .contentShape(Circle())
+                .iumrahGlass(in: Circle(), interactive: true)
         }
         .buttonStyle(.plain)
         .padding(.leading, 18)
@@ -358,7 +357,11 @@ struct HotelDetailView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 16)
                     .frame(height: 50)
-                    .background(.white.opacity(selected ? 0.96 : 0.9), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .iumrahGlass(
+                        in: RoundedRectangle(cornerRadius: 17, style: .continuous),
+                        interactive: true,
+                        tint: selected ? Color.white.opacity(0.24) : nil
+                    )
                 }
                 .buttonStyle(.plain)
                 .disabled(isSavingSelection)
@@ -668,8 +671,7 @@ struct HotelDetailView: View {
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 16)
                         .frame(height: 50)
-                        .background(Color.iumrahRaisedBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
                     }
                     .buttonStyle(.plain)
                 }
@@ -730,8 +732,8 @@ struct HotelDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .overlay(alignment: .top) { Divider().opacity(0.35) }
+        .background(Color.iumrahCardBackground)
+        .overlay(alignment: .top) { Divider().opacity(0.18) }
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -1012,9 +1014,13 @@ private struct RoomSelectButtonStyle: ButtonStyle {
             .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
-            .background(selected ? Color.iumrahCareLight.opacity(0.26) : Color.iumrahRaisedBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 17, style: .continuous),
+                interactive: true,
+                tint: selected ? Color.iumrahCareLight.opacity(0.22) : nil
+            )
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.90 : 1)
     }
 }
 
@@ -1054,7 +1060,8 @@ struct HotelGalleryView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .contentShape(Circle())
+                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18))
             }
             .buttonStyle(.plain)
             .padding(18)
@@ -1066,7 +1073,7 @@ struct HotelGalleryView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .iumrahGlass(in: Capsule(), tint: .black.opacity(0.18))
                     .padding(22)
             }
         }

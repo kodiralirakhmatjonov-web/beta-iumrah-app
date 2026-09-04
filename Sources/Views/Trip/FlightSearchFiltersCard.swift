@@ -114,9 +114,8 @@ struct FlightSearchFiltersCard: View {
                                             }
                                             .padding(.horizontal, 11)
                                             .frame(height: 36)
-                                            .background(selected ? Color.primary : Color.iumrahRaisedBackground)
                                             .foregroundStyle(selected ? Color(uiColor: .systemBackground) : Color.primary)
-                                            .clipShape(Capsule())
+                                            .iumrahGlass(in: Capsule(), interactive: true, tint: selected ? Color.primary : nil)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -180,9 +179,8 @@ struct FlightSearchFiltersCard: View {
                             .font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 13)
                             .frame(height: 38)
-                            .background(selection == value ? Color.primary : Color.iumrahRaisedBackground)
                             .foregroundStyle(selection == value ? Color(uiColor: .systemBackground) : Color.primary)
-                            .clipShape(Capsule())
+                            .iumrahGlass(in: Capsule(), interactive: true, tint: selection == value ? Color.primary : nil)
                     }
                     .buttonStyle(.plain)
                 }
@@ -204,7 +202,7 @@ struct FlightSearchFiltersCard: View {
             }
             .padding(.horizontal, 13)
             .frame(maxWidth: .infinity, minHeight: 54)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
         }
     }
 
@@ -224,7 +222,7 @@ struct FlightSearchFiltersCard: View {
             }
             .padding(.horizontal, 13)
             .frame(maxWidth: .infinity, minHeight: 54)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
         }
     }
 
@@ -238,9 +236,8 @@ struct FlightSearchFiltersCard: View {
                         .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
-                        .background(airlineMode == mode ? Color.primary : Color.iumrahRaisedBackground)
                         .foregroundStyle(airlineMode == mode ? Color(uiColor: .systemBackground) : Color.primary)
-                        .clipShape(Capsule())
+                        .iumrahGlass(in: Capsule(), interactive: true, tint: airlineMode == mode ? Color.primary : nil)
                 }
                 .buttonStyle(.plain)
             }

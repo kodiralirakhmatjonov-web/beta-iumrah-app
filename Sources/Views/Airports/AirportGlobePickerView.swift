@@ -204,7 +204,8 @@ struct AirportGlobePickerView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .bold))
                         .frame(width: 32, height: 32)
-                        .background(.primary.opacity(0.08), in: Circle())
+                        .contentShape(Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }

@@ -279,8 +279,11 @@ private struct SoftHotelActionButtonStyle: ButtonStyle {
             .foregroundStyle(.primary)
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Color.iumrahRaisedBackground.opacity(configuration.isPressed ? 0.72 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                interactive: true
+            )
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.90 : 1)
     }
 }

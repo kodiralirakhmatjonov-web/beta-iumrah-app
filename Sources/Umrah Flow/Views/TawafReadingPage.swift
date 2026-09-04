@@ -178,12 +178,10 @@ struct TawafReadingPage: View {
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity)
-                .background(palette.glassTint, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(palette.glassStroke, lineWidth: 0.65)
-                }
+                .iumrahGlass(
+                    in: RoundedRectangle(cornerRadius: 28, style: .continuous),
+                    interactive: true
+                )
             }
             .buttonStyle(.plain)
 
@@ -196,8 +194,7 @@ struct TawafReadingPage: View {
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
                     .frame(height: 44)
-                    .background(palette.glassTint, in: Capsule())
-                    .iumrahGlass(in: Capsule())
+                    .iumrahGlass(in: Capsule(), interactive: true)
             }
             .buttonStyle(.plain)
         }

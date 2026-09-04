@@ -74,11 +74,8 @@ struct HomeVideoCarousel: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 42, height: 42)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                    }
+                    .contentShape(Circle())
+                    .iumrahGlass(in: Circle(), interactive: true)
             }
             .buttonStyle(.plain)
             .padding(16)
@@ -104,7 +101,7 @@ struct HomeVideoCarousel: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+        .iumrahGlass(in: Capsule(style: .continuous))
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

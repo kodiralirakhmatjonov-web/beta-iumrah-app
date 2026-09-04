@@ -141,7 +141,7 @@ struct AccountNotificationsView: View {
                     .font(.caption.weight(.bold))
                     .padding(.horizontal, 12)
                     .frame(height: 32)
-                    .background(Color.iumrahRaisedBackground, in: Capsule())
+                    .iumrahGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -158,7 +158,7 @@ struct AccountNotificationsView: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 14)
                 .frame(height: 46)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
             }
             .buttonStyle(.plain)
         }

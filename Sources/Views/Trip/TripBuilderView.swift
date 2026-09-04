@@ -186,7 +186,7 @@ struct TripBuilderView: View {
                     }
                     .padding(.horizontal, 14)
                     .frame(height: 76)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
                 }
                 .buttonStyle(.plain)
 
@@ -265,9 +265,8 @@ struct TripBuilderView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 42)
-        .background(selected ? Color.primary : Color.iumrahRaisedBackground)
         .foregroundStyle(selected ? Color.iumrahCardBackground : Color.primary)
-        .clipShape(Capsule())
+        .iumrahGlass(in: Capsule(), interactive: true, tint: selected ? Color.primary : nil)
     }
 
     private func dateSummaryColumn(title: String, date: Date) -> some View {
@@ -532,9 +531,12 @@ struct TripBuilderView: View {
                             .font(.subheadline.weight(.bold))
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
-                            .background(selected ? Color.primary : Color.iumrahRaisedBackground)
                             .foregroundColor(selected ? Color(uiColor: .systemBackground) : Color.primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .iumrahGlass(
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                                interactive: true,
+                                tint: selected ? Color.primary : nil
+                            )
                     }
                     .buttonStyle(.plain)
                 }

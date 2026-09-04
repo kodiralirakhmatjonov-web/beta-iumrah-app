@@ -386,11 +386,7 @@ struct IumrahFlightsView: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-        }
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     // MARK: - Active-trip-only search

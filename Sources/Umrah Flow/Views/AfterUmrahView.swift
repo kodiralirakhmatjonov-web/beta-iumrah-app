@@ -51,8 +51,7 @@ struct AfterUmrahView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 22)
                                 .frame(height: 54)
-                                .background(palette.accent.opacity(0.80), in: Capsule())
-                                .iumrahGlass(in: Capsule())
+                                .iumrahGlass(in: Capsule(), interactive: true, tint: palette.accent.opacity(0.58))
                         }
                         .buttonStyle(.plain)
 
@@ -67,8 +66,7 @@ struct AfterUmrahView: View {
                                 .foregroundStyle(palette.textPrimary)
                                 .padding(.horizontal, 18)
                                 .frame(height: 46)
-                                .background(palette.glassTint, in: Capsule())
-                                .iumrahGlass(in: Capsule())
+                                .iumrahGlass(in: Capsule(), interactive: true)
                         }
                         .buttonStyle(.plain)
 

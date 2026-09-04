@@ -2,33 +2,27 @@ import SwiftUI
 import UIKit
 
 enum IumrahDesign {
-    static let pagePadding: CGFloat = 20
-    static let cardRadius: CGFloat = 30
+    // Keep the same compact geometry discipline as the AutoSale Umar reference:
+    // system surfaces, rounded continuous corners and restrained spacing.
+    static let pagePadding: CGFloat = 18
+    static let cardRadius: CGFloat = 28
     static let heroRadius: CGFloat = 34
-    static let compactRadius: CGFloat = 20
+    static let compactRadius: CGFloat = 19
     static let controlHeight: CGFloat = 56
+    static let glassIconSize: CGFloat = 46
 }
 
 private extension UIColor {
-    static let iumrahPage = UIColor { traits in
-        if traits.userInterfaceStyle == .dark {
-            return UIColor(red: 0.105, green: 0.112, blue: 0.126, alpha: 1)
-        }
-        return UIColor(red: 0.965, green: 0.968, blue: 0.974, alpha: 1)
+    static let iumrahPage = UIColor { _ in
+        .systemBackground
     }
 
-    static let iumrahCard = UIColor { traits in
-        if traits.userInterfaceStyle == .dark {
-            return UIColor(red: 0.145, green: 0.154, blue: 0.172, alpha: 1)
-        }
-        return .systemBackground
+    static let iumrahCard = UIColor { _ in
+        .secondarySystemGroupedBackground
     }
 
-    static let iumrahRaised = UIColor { traits in
-        if traits.userInterfaceStyle == .dark {
-            return UIColor(red: 0.185, green: 0.196, blue: 0.216, alpha: 1)
-        }
-        return UIColor(red: 0.925, green: 0.934, blue: 0.949, alpha: 1)
+    static let iumrahRaised = UIColor { _ in
+        .tertiarySystemGroupedBackground
     }
 
     static let iumrahPrimaryButton = UIColor { traits in
@@ -67,9 +61,9 @@ struct IumrahCardModifier: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.055), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.7)
             }
-            .shadow(color: .black.opacity(0.055), radius: 22, y: 10)
+            .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
     }
 }
 
@@ -89,9 +83,9 @@ struct IumrahMarketingCardModifier: ViewModifier {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
-                    .strokeBorder(dark ? Color.white.opacity(0.08) : Color.primary.opacity(0.055), lineWidth: 1)
+                    .strokeBorder(dark ? Color.white.opacity(0.08) : Color.primary.opacity(0.075), lineWidth: 0.7)
             }
-            .shadow(color: .black.opacity(dark ? 0.16 : 0.055), radius: 26, y: 12)
+            .shadow(color: .black.opacity(dark ? 0.14 : 0.045), radius: 20, y: 9)
     }
 }
 
@@ -100,38 +94,40 @@ extension View {
     func iumrahMarketingCard(dark: Bool = false) -> some View { modifier(IumrahMarketingCardModifier(dark: dark)) }
 }
 
+/// Primary call-to-action follows the AutoSale Umar reference: a crisp system
+/// primary surface. Liquid Glass is reserved for floating / secondary controls.
 struct IumrahPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
             .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(height: IumrahDesign.controlHeight)
             .foregroundStyle(Color.iumrahPrimaryButtonText)
-            .background(Color.iumrahPrimaryButtonBackground.opacity(configuration.isPressed ? 0.82 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
-            .shadow(color: .black.opacity(0.10), radius: 12, y: 7)
+            .background(
+                Color.iumrahPrimaryButtonBackground.opacity(configuration.isPressed ? 0.84 : 1),
+                in: RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
+            )
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(.spring(response: 0.24, dampingFraction: 0.86), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
 struct IumrahSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
             .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(height: IumrahDesign.controlHeight)
             .foregroundStyle(.primary)
-            .background(Color.iumrahRaisedBackground.opacity(configuration.isPressed ? 0.72 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.07), lineWidth: 1)
-            }
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous),
+                interactive: true
+            )
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(.spring(response: 0.24, dampingFraction: 0.86), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.90 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
@@ -164,30 +160,91 @@ enum IumrahHaptics {
 private struct IumrahGlassModifier<S: Shape>: ViewModifier {
     let shape: S
     let interactive: Bool
+    let tint: Color?
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            // iOS 26: use Apple's native Liquid Glass renderer. Interactive
-            // controls opt into the system scale/bounce/shimmer response.
-            if interactive {
-                content.glassEffect(.regular.interactive(), in: shape)
+            // Apple's native Liquid Glass renderer. Interactive controls opt into
+            // the system response rather than recreating blur/highlight effects.
+            if let tint {
+                content.glassEffect(.regular.interactive(interactive).tint(tint), in: shape)
             } else {
-                content.glassEffect(.regular, in: shape)
+                content.glassEffect(.regular.interactive(interactive), in: shape)
             }
         } else {
-            // Functional compatibility for iOS 17–25. This is deliberately a
-            // normal opaque system surface, not a simulated Liquid Glass blur.
+            // Compatibility only. Do not imitate Liquid Glass with Material/blur.
             content
-                .background(Color.iumrahCardBackground, in: shape)
-                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.8))
+                .background(tint ?? Color.iumrahCardBackground, in: shape)
+                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.7))
         }
     }
 }
 
 extension View {
-    func iumrahGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
-        modifier(IumrahGlassModifier(shape: shape, interactive: interactive))
+    func iumrahGlass<S: Shape>(
+        in shape: S,
+        interactive: Bool = false,
+        tint: Color? = nil
+    ) -> some View {
+        modifier(IumrahGlassModifier(shape: shape, interactive: interactive, tint: tint))
+    }
+}
+
+/// Canonical floating icon control used throughout the app.
+/// Its iOS 26 appearance is entirely provided by Apple's Liquid Glass API.
+struct IumrahGlassIconButton: View {
+    let systemName: String
+    var size: CGFloat = IumrahDesign.glassIconSize
+    var fontSize: CGFloat = 17
+    var foreground: Color? = nil
+    var tint: Color? = nil
+    var accessibilityLabel: String? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            IumrahHaptics.selection()
+            action()
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: fontSize, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(foreground ?? Color.primary)
+                .frame(width: size, height: size)
+                .contentShape(Circle())
+                .iumrahGlass(in: Circle(), interactive: true, tint: tint)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel ?? systemName)
+    }
+}
+
+/// Canonical glass surface for compact floating information and controls.
+struct IumrahGlassSurface<Content: View>: View {
+    var radius: CGFloat = 22
+    var interactive = false
+    var tint: Color? = nil
+    private let content: Content
+
+    init(
+        radius: CGFloat = 22,
+        interactive: Bool = false,
+        tint: Color? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.radius = radius
+        self.interactive = interactive
+        self.tint = tint
+        self.content = content()
+    }
+
+    var body: some View {
+        content.iumrahGlass(
+            in: RoundedRectangle(cornerRadius: radius, style: .continuous),
+            interactive: interactive,
+            tint: tint
+        )
     }
 }
 

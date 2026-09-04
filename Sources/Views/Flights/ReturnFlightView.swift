@@ -216,7 +216,7 @@ struct ReturnFlightView: View {
             .padding(.top, 10)
             .padding(.bottom, 8)
         }
-        .background(.ultraThinMaterial)
+        .background(Color.iumrahCardBackground)
     }
 
     private func search(continueExisting: Bool) async {

@@ -339,7 +339,7 @@ struct FlightDateCalendarView: View {
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 10)
-        .background(.ultraThinMaterial)
+        .background(Color.iumrahCardBackground)
         .overlay(alignment: .top) { Divider().opacity(0.14) }
     }
 

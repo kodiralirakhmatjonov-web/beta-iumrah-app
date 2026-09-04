@@ -328,8 +328,7 @@ struct BookingChatView: View {
             .foregroundStyle(conversationPrimary.opacity(0.82))
             .padding(.horizontal, 15)
             .padding(.vertical, 11)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay { Capsule().stroke(Color.white.opacity(appearance.wallpaper.isVisual ? 0.20 : 0.32), lineWidth: 0.6) }
+            .iumrahGlass(in: Capsule())
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
@@ -343,7 +342,9 @@ struct BookingChatView: View {
             .padding(.vertical, 6)
             .background {
                 if appearance.wallpaper.isVisual {
-                    Capsule().fill(.ultraThinMaterial)
+                    Capsule()
+                        .fill(Color.clear)
+                        .iumrahGlass(in: Capsule())
                 }
             }
             .frame(maxWidth: .infinity)
@@ -618,7 +619,7 @@ struct BookingChatView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background(Color.iumrahCardBackground)
     }
 
     // MARK: - Loading / Sending

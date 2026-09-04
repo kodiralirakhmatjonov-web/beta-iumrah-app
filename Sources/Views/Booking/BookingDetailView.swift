@@ -555,7 +555,7 @@ struct BookingDetailView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 14)
                     .frame(height: 50)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -1031,7 +1031,7 @@ struct BookingDetailView: View {
                         .font(.caption.weight(.bold))
                         .padding(.horizontal, 11)
                         .frame(height: 34)
-                        .background(Color.iumrahRaisedBackground, in: Capsule())
+                        .iumrahGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -1466,7 +1466,8 @@ private struct BookingContactEditSheet: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .bold))
                             .frame(width: 36, height: 36)
-                            .background(Color.iumrahRaisedBackground, in: Circle())
+                            .contentShape(Circle())
+                            .iumrahGlass(in: Circle(), interactive: true)
                     }
                     .buttonStyle(.plain)
                 }

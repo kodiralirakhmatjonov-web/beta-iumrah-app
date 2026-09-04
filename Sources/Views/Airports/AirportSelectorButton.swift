@@ -41,8 +41,7 @@ struct AirportSelectorButton: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.iumrahRaisedBackground.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $isPresented) {

@@ -21,8 +21,11 @@ struct UmrahFlowPrimaryButton: View {
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 60)
-            .background(Color(red: 0.96, green: 0.38, blue: 0.04).opacity(0.70), in: Capsule())
-            .iumrahGlass(in: Capsule())
+            .iumrahGlass(
+                in: Capsule(),
+                interactive: true,
+                tint: Color(red: 0.96, green: 0.38, blue: 0.04).opacity(0.58)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -43,8 +46,7 @@ struct UmrahFlowSecondaryButton: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 18)
             .frame(minHeight: 60)
-            .background(Color.white.opacity(0.025), in: Capsule())
-            .iumrahGlass(in: Capsule())
+            .iumrahGlass(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
     }
@@ -70,7 +72,7 @@ struct UmrahRoundSwipeControl: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.035))
+                    .fill(Color.clear)
                     .iumrahGlass(in: Capsule())
 
                 Capsule()
@@ -104,15 +106,18 @@ struct UmrahRoundSwipeControl: View {
                     .padding(.trailing, 78)
 
                 Circle()
-                    .fill(Color(red: 0.96, green: 0.38, blue: 0.04).opacity(isEnabled ? 0.90 : 0.36))
+                    .fill(Color.clear)
                     .overlay {
                         Image(systemName: completed ? "checkmark" : "chevron.right")
                             .font(.system(size: 19, weight: .bold))
                             .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.48))
                     }
                     .frame(width: knob, height: knob)
-                    .iumrahGlass(in: Circle())
-                    .shadow(color: .black.opacity(0.24), radius: 12, y: 6)
+                    .iumrahGlass(
+                        in: Circle(),
+                        interactive: true,
+                        tint: Color(red: 0.96, green: 0.38, blue: 0.04).opacity(isEnabled ? 0.62 : 0.20)
+                    )
                     .offset(x: 9 + dragX)
                     .gesture(
                         DragGesture(minimumDistance: 2)

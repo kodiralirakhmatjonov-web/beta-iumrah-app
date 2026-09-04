@@ -472,7 +472,8 @@ struct FinalPackageView: View {
                 Button { Task { await push.requestAuthorization() } } label: {
                     Image(systemName: "arrow.up.right")
                         .frame(width: 36, height: 36)
-                        .background(Color.iumrahRaisedBackground, in: Circle())
+                        .contentShape(Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }

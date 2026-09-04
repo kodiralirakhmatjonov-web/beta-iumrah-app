@@ -22,8 +22,8 @@ struct CounterRow: View {
                 } label: {
                     Image(systemName: "minus")
                         .frame(width: 32, height: 32)
-                        .background(.thinMaterial)
-                        .clipShape(Circle())
+                        .contentShape(Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(value <= minimum)
@@ -37,8 +37,8 @@ struct CounterRow: View {
                 } label: {
                     Image(systemName: "plus")
                         .frame(width: 32, height: 32)
-                        .background(.thinMaterial)
-                        .clipShape(Circle())
+                        .contentShape(Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(value >= maximum)

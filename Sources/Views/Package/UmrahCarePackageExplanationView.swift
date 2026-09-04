@@ -53,7 +53,8 @@ struct UmrahCarePackageExplanationView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .bold))
                             .frame(width: 38, height: 38)
-                            .background(Color.iumrahRaisedBackground, in: Circle())
+                            .contentShape(Circle())
+                            .iumrahGlass(in: Circle(), interactive: true)
                     }
                     .buttonStyle(.plain)
                 }

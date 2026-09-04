@@ -241,8 +241,6 @@ struct RootView: View {
         }
         .tint(.primary)
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
-        .toolbarBackground(Color.iumrahCardBackground.opacity(0.96), for: .tabBar)
         .fullScreenCover(isPresented: $chrome.isESIMPresented) {
             ESIMView()
                 .environmentObject(settings)
