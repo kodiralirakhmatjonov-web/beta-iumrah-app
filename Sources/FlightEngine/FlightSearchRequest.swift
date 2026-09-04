@@ -279,7 +279,10 @@ struct LiveFlightCandidate: Identifiable, Hashable, Codable {
               fareScope != .unknown,
               observedCurrency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
               age >= -5 * 60,
-              age <= 30 * 60,
+              // Search responses may come from the Package Engine's 12-hour
+              // exact-query cache. The server enforces freshness and rejects
+              // past travel dates before a cached fare reaches the client.
+              age <= 12 * 60 * 60 + 5 * 60,
               origin.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
               destination.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
               origin != destination,

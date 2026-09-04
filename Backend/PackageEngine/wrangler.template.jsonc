@@ -4,6 +4,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-24",
   "workers_dev": true,
+  "triggers": {
+    "crons": ["17 0 * * *"]
+  },
   "routes": [
     {
       "pattern": "iumrah.app/api/package*",

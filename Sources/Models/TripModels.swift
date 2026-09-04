@@ -27,7 +27,7 @@ enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
     /// The current product has one flexible flight-discovery mode: search a full
     /// seven-day window around the selected date. The old ±1 raw value remains
     /// decodable and is normalized into the same weekly mode.
-    static var allCases: [DateFlexibility] { [.exact, .plusMinusTwo, .weekend] }
+    static var allCases: [DateFlexibility] { [.exact, .weekend] }
 
     var id: String { rawValue }
 
@@ -35,7 +35,9 @@ enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
         self == .plusMinusOne || self == .plusMinusTwo
     }
 
-    var isWeeklyDiscovery: Bool { isFlexibleDayRange }
+    /// Weekly provider fan-out is retired. Legacy drafts still decode these raw
+    /// values, but date discovery now happens in the D1-backed fare calendar.
+    var isWeeklyDiscovery: Bool { false }
 
     func title(_ language: AppSettingsStore.Language) -> String {
         switch self {

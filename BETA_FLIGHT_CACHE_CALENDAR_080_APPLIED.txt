@@ -1,0 +1,8 @@
+iumrah Beta production update 080
+Flight search exact-query D1 cache + crowd-built fare calendar.
+- 12h exact-search cache before provider call
+- calendar observations persist until outbound date passes
+- daily Worker cleanup + opportunistic calendar cleanup
+- OTA range date picker with cached cheapest-date indicators
+- legacy weekly 7-request fan-out retired
+Built on beta-iumrah-app-main(6).zip + cumulative V7 client experience.

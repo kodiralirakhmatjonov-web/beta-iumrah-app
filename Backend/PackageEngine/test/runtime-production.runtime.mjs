@@ -328,3 +328,154 @@ test('Ignav proxy accepts one-way searches and returns the complete one-leg fare
     globalThis.fetch = originalFetch;
   }
 });
+
+function flightCacheDb() {
+  const searches = new Map();
+  const locks = new Map();
+  const calendar = new Map();
+  return {
+    searches,
+    calendar,
+    prepare(sql) {
+      const normalized = sql.replace(/\s+/g, ' ').trim();
+      return {
+        values: [],
+        bind(...values) { this.values = values; return this; },
+        async first() {
+          if (normalized.startsWith('SELECT response_json, provider_observed_at, cached_at, fresh_until FROM flight_search_cache')) {
+            const [key, now, today] = this.values;
+            const row = searches.get(key);
+            if (!row || row.fresh_until <= now || row.outbound_date < today) return null;
+            return row;
+          }
+          throw new Error(`Unexpected cache first SQL: ${normalized}`);
+        },
+        async all() {
+          if (normalized.startsWith('SELECT outbound_date, inbound_date, min_total_fare, min_per_traveler_fare, currency, observed_at FROM flight_calendar_fares')) {
+            const [outOrigin, outDestination, inOrigin, inDestination, signature, cabin, from, to, selectedOutbound] = this.values;
+            const results = [...calendar.values()].filter((row) =>
+              row.outbound_origin === outOrigin && row.outbound_destination === outDestination &&
+              (row.inbound_origin ?? '') === (inOrigin ?? '') && (row.inbound_destination ?? '') === (inDestination ?? '') &&
+              row.passenger_signature === signature && row.cabin_class === cabin &&
+              row.outbound_date >= from && row.outbound_date <= to &&
+              (selectedOutbound == null || row.outbound_date === selectedOutbound)
+            );
+            return { results };
+          }
+          return { results: [] };
+        },
+        async run() {
+          if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('CREATE INDEX')) return { success: true, meta: { changes: 0 } };
+          if (normalized.startsWith('DELETE FROM flight_search_cache WHERE fresh_until <= ? OR outbound_date < ?')) {
+            const [now, today] = this.values;
+            for (const [key, row] of searches) if (row.fresh_until <= now || row.outbound_date < today) searches.delete(key);
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('DELETE FROM flight_calendar_fares WHERE delete_after < ? OR outbound_date < ?')) {
+            const [today] = this.values;
+            for (const [key, row] of calendar) if (row.delete_after < today || row.outbound_date < today) calendar.delete(key);
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('DELETE FROM flight_search_locks WHERE expires_at <= ?')) {
+            const [now] = this.values;
+            for (const [key, expires] of locks) if (expires <= now) locks.delete(key);
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('DELETE FROM flight_search_locks WHERE cache_key = ? AND expires_at <= ?')) {
+            const [key, now] = this.values;
+            if ((locks.get(key) ?? '') <= now) locks.delete(key);
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('INSERT OR IGNORE INTO flight_search_locks')) {
+            const [key, expires] = this.values;
+            if (locks.has(key)) return { success: true, meta: { changes: 0 } };
+            locks.set(key, expires);
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('DELETE FROM flight_search_locks WHERE cache_key = ?')) {
+            locks.delete(this.values[0]);
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('INSERT INTO ignav_api_usage_monthly')) return { success: true, meta: { changes: 1 } };
+          if (normalized.startsWith('INSERT INTO flight_search_cache')) {
+            const [cache_key, request_json, response_json, outbound_origin, outbound_destination, outbound_date, inbound_origin, inbound_destination, inbound_date, passenger_signature, cabin_class, provider_observed_at, cached_at, fresh_until, delete_after] = this.values;
+            searches.set(cache_key, { request_json, response_json, outbound_origin, outbound_destination, outbound_date, inbound_origin, inbound_destination, inbound_date, passenger_signature, cabin_class, provider_observed_at, cached_at, fresh_until, delete_after });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('INSERT INTO flight_calendar_fares')) {
+            const [calendar_key, outbound_origin, outbound_destination, inbound_origin, inbound_destination, passenger_signature, cabin_class, outbound_date, inbound_date, min_total_fare, min_per_traveler_fare, currency, observed_at, updated_at, delete_after] = this.values;
+            calendar.set(calendar_key, { outbound_origin, outbound_destination, inbound_origin, inbound_destination, passenger_signature, cabin_class, outbound_date, inbound_date, min_total_fare, min_per_traveler_fare, currency, observed_at, updated_at, delete_after });
+            return { success: true, meta: { changes: 1 } };
+          }
+          throw new Error(`Unexpected cache run SQL: ${normalized}`);
+        },
+      };
+    },
+  };
+}
+
+test('same provider search is served from D1 cache without a second upstream request, even when UI filters differ', async () => {
+  const originalFetch = globalThis.fetch;
+  let upstreamCalls = 0;
+  globalThis.fetch = async () => {
+    upstreamCalls += 1;
+    return new Response(JSON.stringify(validIgnavResponse()), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const db = flightCacheDb();
+  const env = { IGNAV_API_KEY: 'test-secret', HOTELS_DB: db };
+  try {
+    const makeRequest = (body = searchBody()) => new Request('https://iumrah.app/api/package/flights/search', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const first = await worker.fetch(makeRequest(), env);
+    assert.equal(first.status, 200);
+    assert.equal((await first.json()).cache.status, 'miss');
+    const second = await worker.fetch(makeRequest(searchBody({
+      max_price: 900,
+      airlines_include: ['FZ'],
+      min_checked_bags: 2,
+      allow_self_transfer: true,
+    })), env);
+    assert.equal(second.status, 200);
+    const secondBody = await second.json();
+    assert.equal(secondBody.cache.status, 'hit');
+    assert.equal(secondBody.itineraries.length, 1);
+    assert.equal(upstreamCalls, 1);
+    assert.equal(db.searches.size, 1);
+    assert.equal(db.calendar.size, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('flight fare calendar reads accumulated D1 observations without calling upstream', async () => {
+  const originalFetch = globalThis.fetch;
+  let upstreamCalls = 0;
+  globalThis.fetch = async () => {
+    upstreamCalls += 1;
+    return new Response(JSON.stringify(validIgnavResponse()), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const db = flightCacheDb();
+  const env = { IGNAV_API_KEY: 'test-secret', HOTELS_DB: db };
+  try {
+    const search = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),
+    }), env);
+    assert.equal(search.status, 200);
+    assert.equal(upstreamCalls, 1);
+
+    const calendarResponse = await worker.fetch(new Request('https://iumrah.app/api/package/flights/calendar?outbound_origin=TAS&outbound_destination=JED&inbound_origin=MED&inbound_destination=TAS&adults=2&children=1&infants_in_seat=0&infants_on_lap=1&cabin_class=economy&from=2026-10-01&to=2026-10-31'), env);
+    assert.equal(calendarResponse.status, 200);
+    const body = await calendarResponse.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.prices.length, 1);
+    assert.equal(body.prices[0].outbound_date, '2026-10-03');
+    assert.equal(body.prices[0].inbound_date, '2026-10-10');
+    assert.equal(body.prices[0].min_total_fare, 612);
+    assert.equal(body.prices[0].min_per_traveler_fare, 153);
+    assert.equal(upstreamCalls, 1, 'calendar endpoint must never buy a provider search');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

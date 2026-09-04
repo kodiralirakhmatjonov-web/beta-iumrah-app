@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { acquireFlightSearchLock, readFlightSearchCache, releaseFlightSearchLock, storeFlightSearchCache, type NormalizedFlightSearch } from "./flight-cache";
 
 const IGNAV_BASE_URL = "https://ignav.com/api";
 const IATA_AIRPORT = /^[A-Z]{3}$/;
@@ -419,26 +420,53 @@ export async function searchIgnavFlights(request: Request, env: Env): Promise<Re
   try { body = validateSearchBody(raw); }
   catch (error) { return json({ ok: false, error: error instanceof Error ? error.message : "INVALID_REQUEST" }, 400); }
 
+  const cacheBody = body as unknown as NormalizedFlightSearch;
+  if (env.HOTELS_DB) {
+    const cached = await readFlightSearchCache(env.HOTELS_DB, cacheBody).catch(() => null);
+    if (cached) return json(cached);
+  }
+
+  let ownsLock = false;
+  if (env.HOTELS_DB) {
+    ownsLock = await acquireFlightSearchLock(env.HOTELS_DB, cacheBody).catch(() => false);
+    if (!ownsLock) {
+      // Another Worker is already buying this exact provider search. Give it a
+      // short window to populate D1 instead of creating a duplicate paid request.
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const cached = await readFlightSearchCache(env.HOTELS_DB!, cacheBody).catch(() => null);
+        if (cached) return json(cached);
+      }
+    }
+  }
+
   try {
     const observedAt = new Date().toISOString();
     const upstream = await fetchIgnav(env.IGNAV_API_KEY, body as unknown as Record<string, unknown>);
-    // Ignav bills successful HTTP 200 searches. Track exactly one unit after the
-    // retry loop reaches its successful response, regardless of itinerary count.
+    // Only a real upstream success consumes the provider budget. D1 cache hits
+    // return before this line and therefore never increment usage.
     await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
     const itineraries = (upstream.itineraries ?? [])
       .map((itinerary, index) => normalizeItinerary(itinerary, body, observedAt, index))
       .filter((value): value is NonNullable<typeof value> => value !== null);
 
-    return json({
+    const payload = {
       ok: true,
       source: "ignav",
       observed_at: observedAt,
       legs: body.legs,
       itineraries,
-    });
+      cache: { status: "miss", cached_at: observedAt, fresh_until: null, provider_observed_at: observedAt },
+    };
+    if (env.HOTELS_DB) {
+      await storeFlightSearchCache(env.HOTELS_DB, cacheBody, payload, itineraries, observedAt).catch(() => undefined);
+    }
+    return json(payload);
   } catch (error) {
     const status = Number((error as any)?.status ?? 0);
     const retryable = status === 424 || status === 503 || status === 0;
     return json({ ok: false, error: "FLIGHT_SEARCH_UPSTREAM_FAILED", retryable, upstream_status: status || null }, retryable ? 503 : 502);
+  } finally {
+    if (ownsLock && env.HOTELS_DB) await releaseFlightSearchLock(env.HOTELS_DB, cacheBody).catch(() => undefined);
   }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct TripBuilderView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @State private var showsDateCalendar = false
 
     var body: some View {
         ScrollView {
@@ -41,8 +42,11 @@ struct TripBuilderView: View {
             } else if journey.trip.flightTripType == nil {
                 journey.trip.flightTripType = .roundTrip
             }
-            if journey.trip.flexibility == .plusMinusOne {
-                journey.trip.flexibility = .plusMinusTwo
+            // The former week-wide discovery mode is retired from the customer flow.
+            // Date discovery now happens in the cached OTA calendar without buying
+            // seven provider searches at once.
+            if journey.trip.flexibility.isFlexibleDayRange {
+                journey.trip.flexibility = .exact
             }
             if journey.trip.isWeekendUmrah {
                 journey.trip.applyWeekendWindow(around: journey.trip.departureDate)
@@ -160,62 +164,165 @@ struct TripBuilderView: View {
             Label(L10n.text("trip_dates_title", settings.language), systemImage: "calendar")
                 .font(.headline)
 
-            flexibilityPicker
+            dateModePicker
 
             if journey.trip.isWeekendUmrah {
                 weekendDatesContent
             } else {
-                DatePicker(
-                    L10n.text("departure", settings.language),
-                    selection: departureBinding,
-                    in: Date()...,
-                    displayedComponents: .date
-                )
-                DatePicker(
-                    journey.trip.isRoundTripFlight ? L10n.text("return", settings.language) : tripEndDateTitle,
-                    selection: returnBinding,
-                    in: journey.trip.departureDate...,
-                    displayedComponents: .date
-                )
+                Button {
+                    showsDateCalendar = true
+                    IumrahHaptics.selection()
+                } label: {
+                    HStack(spacing: 12) {
+                        dateSummaryColumn(title: L10n.text("departure", settings.language), date: journey.trip.departureDate)
+                        Image(systemName: "arrow.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                        dateSummaryColumn(title: L10n.text("return", settings.language), date: journey.trip.returnDate)
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 76)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+                .buttonStyle(.plain)
 
-                Text(L10n.text("trip_flexible_hint", settings.language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "chart.line.downtrend.xyaxis")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.iumrahCareDark)
+                    Text(dateCalendarHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .iumrahCard()
+        .sheet(isPresented: $showsDateCalendar) {
+            FlightDateCalendarView(
+                trip: journey.trip,
+                initialDeparture: journey.trip.departureDate,
+                initialReturn: journey.trip.returnDate
+            ) { outbound, inbound in
+                journey.resetAfterTripChange()
+                journey.trip.flexibility = .exact
+                journey.trip.departureDate = outbound
+                journey.trip.returnDate = inbound
+            }
+            .environmentObject(settings)
+        }
     }
 
-    private var flexibilityPicker: some View {
+    private var dateModePicker: some View {
         HStack(spacing: 8) {
-            ForEach(DateFlexibility.allCases) { option in
-                Button {
-                    guard journey.trip.flexibility != option else { return }
+            Button {
+                if journey.trip.isWeekendUmrah {
                     journey.resetAfterTripChange()
-                    journey.trip.selectFlexibility(option)
-                    if option == .weekend { journey.trip.flightTripType = .roundTrip }
-                    IumrahHaptics.selection()
-                } label: {
-                    let selected = normalizedFlexibility == option
-                    Text(option.title(settings.language))
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 42)
-                        .background(selected ? Color.primary : Color.iumrahRaisedBackground)
-                        .foregroundColor(selected ? Color(uiColor: .systemBackground) : Color.primary)
-                        .clipShape(Capsule())
+                    journey.trip.flexibility = .exact
                 }
-                .buttonStyle(.plain)
+                IumrahHaptics.selection()
+            } label: {
+                dateModeChip(dateExactTitle, selected: !journey.trip.isWeekendUmrah)
             }
+            .buttonStyle(.plain)
+
+            Button {
+                if journey.trip.isWeekendUmrah {
+                    journey.resetAfterTripChange()
+                    journey.trip.flexibility = .exact
+                }
+                showsDateCalendar = true
+                IumrahHaptics.selection()
+            } label: {
+                dateModeChip(dateCalendarTitle, selected: false, systemImage: "calendar.badge.clock")
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                guard !journey.trip.isWeekendUmrah else { return }
+                journey.resetAfterTripChange()
+                journey.trip.selectFlexibility(.weekend)
+                journey.trip.flightTripType = .roundTrip
+                IumrahHaptics.selection()
+            } label: {
+                dateModeChip(dateWeekendTitle, selected: journey.trip.isWeekendUmrah)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func dateModeChip(_ title: String, selected: Bool, systemImage: String? = nil) -> some View {
+        HStack(spacing: 6) {
+            if let systemImage { Image(systemName: systemImage).font(.caption.weight(.bold)) }
+            Text(title)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
+        .frame(height: 42)
+        .background(selected ? Color.primary : Color.iumrahRaisedBackground)
+        .foregroundStyle(selected ? Color.iumrahCardBackground : Color.primary)
+        .clipShape(Capsule())
     }
 
-    private var normalizedFlexibility: DateFlexibility {
-        journey.trip.flexibility == .plusMinusOne ? .plusMinusTwo : journey.trip.flexibility
+    private func dateSummaryColumn(title: String, date: Date) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(dateSummary(date))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+        }
+        .frame(minWidth: 88, alignment: .leading)
+    }
+
+    private func dateSummary(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate("dMMMyyyy")
+        return formatter.string(from: date)
+    }
+
+    private var dateExactTitle: String {
+        switch settings.language {
+        case .russian: return "Точно"
+        case .english: return "Exact"
+        case .uzbek: return "Aniq"
+        case .uzbekCyrillic: return "Аниқ"
+        }
+    }
+
+    private var dateCalendarTitle: String {
+        switch settings.language {
+        case .russian: return "Даты"
+        case .english: return "Dates"
+        case .uzbek: return "Sanalar"
+        case .uzbekCyrillic: return "Саналар"
+        }
+    }
+
+    private var dateWeekendTitle: String {
+        switch settings.language {
+        case .russian: return "Выходные"
+        case .english: return "Weekend"
+        case .uzbek: return "Dam olish"
+        case .uzbekCyrillic: return "Дам олиш"
+        }
+    }
+
+    private var dateCalendarHint: String {
+        switch settings.language {
+        case .russian: return "Откройте календарь цен: он постепенно заполняется реальными поисками и помогает увидеть более выгодные даты до запуска нового поиска."
+        case .english: return "Open the fare calendar: it grows from real searches and helps reveal better dates before a new flight search is started."
+        case .uzbek: return "Narxlar kalendarini oching: u haqiqiy qidiruvlar bilan to‘lib boradi va yangi qidiruvdan oldin qulayroq sanalarni ko‘rsatadi."
+        case .uzbekCyrillic: return "Нархлар календарини очинг: у ҳақиқий қидирувлар билан тўлиб боради ва янги қидирувдан олдин қулайроқ саналарни кўрсатади."
+        }
     }
 
     private var weekendDatesContent: some View {

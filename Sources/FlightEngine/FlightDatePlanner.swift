@@ -7,11 +7,10 @@ enum FlightDatePlanner {
         case .exact:
             return [start]
         case .plusMinusOne, .plusMinusTwo:
-            // Weekly discovery keeps the chosen date as the first attempt for
-            // perceived performance, then covers the entire seven-day window.
-            // The unified flight provider is queried with real dates under the hood,
-            // while the product contract remains "find which days this week fly".
-            return [0, -1, 1, -2, 2, -3, 3].compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+            // Legacy persisted values are deliberately collapsed to the anchor
+            // date. Flexible discovery is now a zero-provider-cost D1 calendar;
+            // never fan one customer tap into seven billable flight searches.
+            return [start]
         case .weekend:
             // Weekend dates are normalized at TripDraft level to Friday → Monday.
             // Do not fan the flight search out to neighbouring weekends.

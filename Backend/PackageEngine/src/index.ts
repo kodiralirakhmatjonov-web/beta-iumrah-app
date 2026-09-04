@@ -6,6 +6,7 @@ import { curatedPrimaryHotel } from "./generator-components";
 import { searchIgnavFlights } from "./ignav-flights";
 import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
+import { cleanupExpiredFlightCache, flightCalendarResponse } from "./flight-cache";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -132,6 +133,10 @@ export default {
       return searchIgnavFlights(request, env);
     }
 
+    if (request.method === "GET" && url.pathname === "/api/package/flights/calendar") {
+      return flightCalendarResponse(url, env.HOTELS_DB);
+    }
+
     const hotelPricingSourcesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/pricing-sources$/);
     if (request.method === "GET" && hotelPricingSourcesMatch) {
       const hotelId = decodeURIComponent(hotelPricingSourcesMatch[1]).trim();
@@ -170,5 +175,10 @@ export default {
     }
 
     return json({ ok: false, error: "Not found" }, 404);
+  },
+
+  async scheduled(_controller: unknown, env: Env): Promise<void> {
+    if (!env.HOTELS_DB) return;
+    await cleanupExpiredFlightCache(env.HOTELS_DB);
   },
 };
