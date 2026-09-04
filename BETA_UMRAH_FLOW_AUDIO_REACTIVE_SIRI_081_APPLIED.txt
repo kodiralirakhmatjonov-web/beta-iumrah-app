@@ -1,0 +1,8 @@
+Beta update 081 — Umrah Flow real-audio reactive Siri orb
+
+- Replaces the legacy Advisor waveform inside Umrah Flow with reusable IumrahSiriOrb.
+- Measures the actual playing narration level with AVAudioPlayer metering at 30 Hz.
+- Publishes a smoothed normalized amplitude (0...1) from UmrahFlowAudioService.
+- Feeds real voice amplitude into the orb: ribbon width/length/bend, core, halo, rim and scale react to speech dynamics.
+- Keeps the Home Advisor orb reusable/decorative when no audioLevel is supplied.
+- Existing Umrah Flow navigation/content/state remains unchanged.

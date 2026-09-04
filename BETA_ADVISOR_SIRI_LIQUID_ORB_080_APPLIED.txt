@@ -1,0 +1,3 @@
+Update 080 — Siri liquid orb reconstruction.
+Replaces the previous gradient orb with a native Canvas-rendered liquid-ribbon orb based on the supplied motion references.
+No video/GIF/Lottie assets. Existing Advisor integration remains unchanged.
