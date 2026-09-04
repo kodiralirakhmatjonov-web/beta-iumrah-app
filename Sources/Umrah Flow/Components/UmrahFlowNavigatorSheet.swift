@@ -5,7 +5,6 @@ struct UmrahFlowNavigatorSheet: View {
     @ObservedObject var store: UmrahFlowStore
     let onExit: () -> Void
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedStage: UmrahFlowState.Stage
@@ -30,7 +29,7 @@ struct UmrahFlowNavigatorSheet: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(UmrahFlowCopy.chooseStage(settings.language))
+                    Text(UmrahFlowCopy.chooseStage(store.guideLanguage))
                         .font(.system(size: 23, weight: .bold, design: .rounded))
                         .foregroundStyle(palette.textPrimary)
                     Text(stageTitle(flow.stage))
@@ -84,7 +83,7 @@ struct UmrahFlowNavigatorSheet: View {
                         onExit()
                     }
                 } label: {
-                    Text(UmrahFlowCopy.leaveUmrah(settings.language))
+                    Text(UmrahFlowCopy.leaveUmrah(store.guideLanguage))
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(palette.danger)
                         .frame(maxWidth: .infinity)

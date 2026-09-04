@@ -39,9 +39,9 @@ struct UmrahGlassIconButton: View {
 
 struct UmrahRitualModeBar: View {
     @Binding var mode: UmrahFlowState.RitualMode
+    let language: UmrahGuideLanguage
     let onModeChanged: () -> Void
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.colorScheme) private var colorScheme
 
     private var palette: UmrahFlowPalette {
@@ -50,8 +50,8 @@ struct UmrahRitualModeBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            modeButton(.listening, title: UmrahFlowCopy.listening(settings.language), icon: "waveform")
-            modeButton(.reading, title: UmrahFlowCopy.reading(settings.language), icon: "text.book.closed")
+            modeButton(.listening, title: UmrahFlowCopy.listening(language), icon: "waveform")
+            modeButton(.reading, title: UmrahFlowCopy.reading(language), icon: "text.book.closed")
         }
         .padding(5)
         .background(palette.glassTint, in: Capsule())

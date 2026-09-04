@@ -5,7 +5,6 @@ struct AfterUmrahView: View {
     @ObservedObject var store: UmrahFlowStore
     let onFinish: () -> Void
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.colorScheme) private var colorScheme
 
     private var palette: UmrahFlowPalette {
@@ -47,7 +46,7 @@ struct AfterUmrahView: View {
                             IumrahHaptics.success()
                             onFinish()
                         } label: {
-                            Label(UmrahFlowCopy.done(settings.language), systemImage: "checkmark")
+                            Label(UmrahFlowCopy.done(store.guideLanguage), systemImage: "checkmark")
                                 .font(.system(size: 15, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 22)

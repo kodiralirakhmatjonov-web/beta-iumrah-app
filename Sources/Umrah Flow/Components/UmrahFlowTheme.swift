@@ -77,139 +77,367 @@ struct UmrahFlowBackground: View {
 }
 
 enum UmrahFlowCopy {
-    static func advisorSpeaking(_ language: AppSettingsStore.Language) -> String {
+    static func advisorTitle(_ language: UmrahGuideLanguage) -> String {
+        "iumrah Advisor"
+    }
+
+    static func advisorSubtitle(_ language: UmrahGuideLanguage) -> String {
+        switch language {
+        case .russian: return "Голосовой гид для Умры"
+        case .english: return "Voice guide for Umrah"
+        case .uzbek: return "Umra uchun ovozli gid"
+        case .kazakh: return "Умраға арналған дауыстық гид"
+        case .indonesian: return "Panduan suara untuk Umrah"
+        case .turkish: return "Umre için sesli rehber"
+        case .arabic: return "دليل صوتي للعمرة"
+        case .malay: return "Panduan suara untuk Umrah"
+        case .bengali: return "উমরাহর জন্য ভয়েস গাইড"
+        case .french: return "Guide vocal pour la Omra"
+        }
+    }
+
+    static func advisorSpeaking(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Advisor говорит"
         case .english: return "Advisor speaking"
         case .uzbek: return "Advisor gapiryapti"
-        case .uzbekCyrillic: return "Advisor гапиряпти"
+        case .kazakh: return "Advisor сөйлеп тұр"
+        case .indonesian: return "Advisor sedang berbicara"
+        case .turkish: return "Advisor konuşuyor"
+        case .arabic: return "Advisor يتحدث"
+        case .malay: return "Advisor sedang bercakap"
+        case .bengali: return "Advisor কথা বলছে"
+        case .french: return "Advisor parle"
         }
     }
 
-    static func tapToListen(_ language: AppSettingsStore.Language) -> String {
+    static func tapToListen(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Коснитесь градиента, чтобы слушать"
         case .english: return "Tap the gradient to listen"
         case .uzbek: return "Tinglash uchun gradientga teging"
-        case .uzbekCyrillic: return "Тинглаш учун градиентга тегинг"
+        case .kazakh: return "Тыңдау үшін градиентті түртіңіз"
+        case .indonesian: return "Ketuk gradien untuk mendengarkan"
+        case .turkish: return "Dinlemek için gradyana dokunun"
+        case .arabic: return "المس التدرج للاستماع"
+        case .malay: return "Sentuh gradien untuk mendengar"
+        case .bengali: return "শুনতে গ্রেডিয়েন্টে ট্যাপ করুন"
+        case .french: return "Touchez le dégradé pour écouter"
         }
     }
 
-    static func loadingVoice(_ language: AppSettingsStore.Language) -> String {
+    static func loadingVoice(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Загружаем голос"
         case .english: return "Loading voice"
         case .uzbek: return "Ovoz yuklanmoqda"
-        case .uzbekCyrillic: return "Овоз юкланмоқда"
+        case .kazakh: return "Дауыс жүктелуде"
+        case .indonesian: return "Memuat suara"
+        case .turkish: return "Ses yükleniyor"
+        case .arabic: return "جارٍ تحميل الصوت"
+        case .malay: return "Memuatkan suara"
+        case .bengali: return "ভয়েস লোড হচ্ছে"
+        case .french: return "Chargement de la voix"
         }
     }
 
-    static func tapToChange(_ language: AppSettingsStore.Language) -> String {
+    static func audioUnavailable(_ language: UmrahGuideLanguage) -> String {
+        switch language {
+        case .russian: return "Аудио пока недоступно"
+        case .english: return "Audio is not available yet"
+        case .uzbek: return "Audio hozircha mavjud emas"
+        case .kazakh: return "Аудио әзірге қолжетімсіз"
+        case .indonesian: return "Audio belum tersedia"
+        case .turkish: return "Ses henüz mevcut değil"
+        case .arabic: return "الصوت غير متاح بعد"
+        case .malay: return "Audio belum tersedia"
+        case .bengali: return "অডিও এখনো উপলভ্য নয়"
+        case .french: return "L’audio n’est pas encore disponible"
+        }
+    }
+
+    static func tapToChange(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Коснитесь текста, чтобы изменить"
         case .english: return "Tap the text to change"
         case .uzbek: return "Matnni o‘zgartirish uchun teging"
-        case .uzbekCyrillic: return "Матнни ўзгартириш учун тегинг"
+        case .kazakh: return "Мәтінді өзгерту үшін түртіңіз"
+        case .indonesian: return "Ketuk teks untuk mengganti"
+        case .turkish: return "Metni değiştirmek için dokunun"
+        case .arabic: return "المس النص للتغيير"
+        case .malay: return "Sentuh teks untuk menukar"
+        case .bengali: return "লেখা বদলাতে ট্যাপ করুন"
+        case .french: return "Touchez le texte pour changer"
         }
     }
 
-    static func listening(_ language: AppSettingsStore.Language) -> String {
+    static func listening(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Слушать"
-        case .english: return "Listening"
+        case .english: return "Listen"
         case .uzbek: return "Tinglash"
-        case .uzbekCyrillic: return "Тинглаш"
+        case .kazakh: return "Тыңдау"
+        case .indonesian: return "Dengarkan"
+        case .turkish: return "Dinle"
+        case .arabic: return "استماع"
+        case .malay: return "Dengar"
+        case .bengali: return "শুনুন"
+        case .french: return "Écouter"
         }
     }
 
-    static func reading(_ language: AppSettingsStore.Language) -> String {
+    static func reading(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Читать"
-        case .english: return "Reading"
+        case .english: return "Read"
         case .uzbek: return "O‘qish"
-        case .uzbekCyrillic: return "Ўқиш"
+        case .kazakh: return "Оқу"
+        case .indonesian: return "Baca"
+        case .turkish: return "Oku"
+        case .arabic: return "قراءة"
+        case .malay: return "Baca"
+        case .bengali: return "পড়ুন"
+        case .french: return "Lire"
         }
     }
 
-    static func previous(_ language: AppSettingsStore.Language) -> String {
+    static func previous(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Назад"
         case .english: return "Previous"
         case .uzbek: return "Orqaga"
-        case .uzbekCyrillic: return "Орқага"
+        case .kazakh: return "Артқа"
+        case .indonesian: return "Kembali"
+        case .turkish: return "Geri"
+        case .arabic: return "السابق"
+        case .malay: return "Kembali"
+        case .bengali: return "আগেরটি"
+        case .french: return "Précédent"
         }
     }
 
-    static func next(_ language: AppSettingsStore.Language) -> String {
+    static func next(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Далее"
         case .english: return "Next"
         case .uzbek: return "Keyingi"
-        case .uzbekCyrillic: return "Кейинги"
+        case .kazakh: return "Келесі"
+        case .indonesian: return "Berikutnya"
+        case .turkish: return "İleri"
+        case .arabic: return "التالي"
+        case .malay: return "Seterusnya"
+        case .bengali: return "পরবর্তী"
+        case .french: return "Suivant"
         }
     }
 
-    static func done(_ language: AppSettingsStore.Language) -> String {
+    static func done(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Готово"
         case .english: return "Done"
         case .uzbek: return "Tayyor"
-        case .uzbekCyrillic: return "Тайёр"
+        case .kazakh: return "Дайын"
+        case .indonesian: return "Selesai"
+        case .turkish: return "Tamam"
+        case .arabic: return "تم"
+        case .malay: return "Selesai"
+        case .bengali: return "সম্পন্ন"
+        case .french: return "Terminé"
         }
     }
 
-
-    static func guidance(_ language: AppSettingsStore.Language) -> String {
+    static func guidance(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Подсказка"
         case .english: return "Guidance"
         case .uzbek: return "Yo‘riqnoma"
-        case .uzbekCyrillic: return "Йўриқнома"
+        case .kazakh: return "Нұсқаулық"
+        case .indonesian: return "Panduan"
+        case .turkish: return "Rehberlik"
+        case .arabic: return "إرشاد"
+        case .malay: return "Panduan"
+        case .bengali: return "নির্দেশনা"
+        case .french: return "Guide"
         }
     }
 
-    static func dua(_ language: AppSettingsStore.Language) -> String {
+    static func dua(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Дуа"
         case .english: return "Dua"
         case .uzbek: return "Duo"
-        case .uzbekCyrillic: return "Дуо"
+        case .kazakh: return "Дұға"
+        case .indonesian: return "Doa"
+        case .turkish: return "Dua"
+        case .arabic: return "دعاء"
+        case .malay: return "Doa"
+        case .bengali: return "দোয়া"
+        case .french: return "Doua"
         }
     }
 
-    static func meaning(_ language: AppSettingsStore.Language) -> String {
+    static func meaning(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Смысл"
         case .english: return "Meaning"
         case .uzbek: return "Ma’nosi"
-        case .uzbekCyrillic: return "Маъноси"
+        case .kazakh: return "Мағынасы"
+        case .indonesian: return "Arti"
+        case .turkish: return "Anlamı"
+        case .arabic: return "المعنى"
+        case .malay: return "Maksud"
+        case .bengali: return "অর্থ"
+        case .french: return "Sens"
         }
     }
 
-    static func dhikr(_ language: AppSettingsStore.Language) -> String {
+    static func dhikr(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Зикр"
         case .english: return "Dhikr"
         case .uzbek: return "Zikr"
-        case .uzbekCyrillic: return "Зикр"
+        case .kazakh: return "Зікір"
+        case .indonesian: return "Dzikir"
+        case .turkish: return "Zikir"
+        case .arabic: return "ذكر"
+        case .malay: return "Zikir"
+        case .bengali: return "যিকর"
+        case .french: return "Dhikr"
         }
     }
 
-    static func chooseStage(_ language: AppSettingsStore.Language) -> String {
+    static func chooseStage(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Перейти к этапу"
         case .english: return "Go to a stage"
         case .uzbek: return "Bosqichga o‘tish"
-        case .uzbekCyrillic: return "Босқичга ўтиш"
+        case .kazakh: return "Кезеңге өту"
+        case .indonesian: return "Pilih tahap"
+        case .turkish: return "Aşamaya git"
+        case .arabic: return "الانتقال إلى مرحلة"
+        case .malay: return "Pergi ke peringkat"
+        case .bengali: return "ধাপে যান"
+        case .french: return "Aller à une étape"
         }
     }
 
-    static func leaveUmrah(_ language: AppSettingsStore.Language) -> String {
+    static func leaveUmrah(_ language: UmrahGuideLanguage) -> String {
         switch language {
         case .russian: return "Выйти из Умры"
         case .english: return "Exit Umrah"
         case .uzbek: return "Umradan chiqish"
-        case .uzbekCyrillic: return "Умрадан чиқиш"
+        case .kazakh: return "Умрадан шығу"
+        case .indonesian: return "Keluar dari Umrah"
+        case .turkish: return "Umre’den çık"
+        case .arabic: return "الخروج من العمرة"
+        case .malay: return "Keluar daripada Umrah"
+        case .bengali: return "উমরাহ থেকে বের হন"
+        case .french: return "Quitter la Omra"
+        }
+    }
+
+    static func stageTitle(_ stage: UmrahFlowState.Stage, language: UmrahGuideLanguage) -> String {
+        switch language {
+        case .russian:
+            switch stage {
+            case .inUmrah: return "Умра"
+            case .start: return "Начало Умры"
+            case .tawaf: return "Таваф"
+            case .postTawaf: return "После Тавафа"
+            case .safa: return "Сафа и Марва"
+            case .end: return "Завершение"
+            case .afterUmrah: return "После Умры"
+            }
+        case .english:
+            switch stage {
+            case .inUmrah: return "Umrah"
+            case .start: return "Start Umrah"
+            case .tawaf: return "Tawaf"
+            case .postTawaf: return "After Tawaf"
+            case .safa: return "Safa & Marwa"
+            case .end: return "Complete Umrah"
+            case .afterUmrah: return "After Umrah"
+            }
+        case .uzbek:
+            switch stage {
+            case .inUmrah: return "Umra"
+            case .start: return "Umrani boshlash"
+            case .tawaf: return "Tavof"
+            case .postTawaf: return "Tavofdan keyin"
+            case .safa: return "Safo va Marva"
+            case .end: return "Umrani yakunlash"
+            case .afterUmrah: return "Umradan keyin"
+            }
+        case .kazakh:
+            switch stage {
+            case .inUmrah: return "Умра"
+            case .start: return "Умраны бастау"
+            case .tawaf: return "Тауап"
+            case .postTawaf: return "Тауаптан кейін"
+            case .safa: return "Сафа және Маруа"
+            case .end: return "Умраны аяқтау"
+            case .afterUmrah: return "Умрадан кейін"
+            }
+        case .indonesian:
+            switch stage {
+            case .inUmrah: return "Umrah"
+            case .start: return "Mulai Umrah"
+            case .tawaf: return "Tawaf"
+            case .postTawaf: return "Setelah Tawaf"
+            case .safa: return "Safa & Marwah"
+            case .end: return "Selesaikan Umrah"
+            case .afterUmrah: return "Setelah Umrah"
+            }
+        case .turkish:
+            switch stage {
+            case .inUmrah: return "Umre"
+            case .start: return "Umreye Başla"
+            case .tawaf: return "Tavaf"
+            case .postTawaf: return "Tavaftan Sonra"
+            case .safa: return "Safa ve Merve"
+            case .end: return "Umreyi Tamamla"
+            case .afterUmrah: return "Umreden Sonra"
+            }
+        case .arabic:
+            switch stage {
+            case .inUmrah: return "العمرة"
+            case .start: return "بدء العمرة"
+            case .tawaf: return "الطواف"
+            case .postTawaf: return "بعد الطواف"
+            case .safa: return "الصفا والمروة"
+            case .end: return "إتمام العمرة"
+            case .afterUmrah: return "بعد العمرة"
+            }
+        case .malay:
+            switch stage {
+            case .inUmrah: return "Umrah"
+            case .start: return "Mulakan Umrah"
+            case .tawaf: return "Tawaf"
+            case .postTawaf: return "Selepas Tawaf"
+            case .safa: return "Safa & Marwah"
+            case .end: return "Selesaikan Umrah"
+            case .afterUmrah: return "Selepas Umrah"
+            }
+        case .bengali:
+            switch stage {
+            case .inUmrah: return "উমরাহ"
+            case .start: return "উমরাহ শুরু"
+            case .tawaf: return "তাওয়াফ"
+            case .postTawaf: return "তাওয়াফের পর"
+            case .safa: return "সাফা ও মারওয়া"
+            case .end: return "উমরাহ সম্পন্ন"
+            case .afterUmrah: return "উমরাহর পর"
+            }
+        case .french:
+            switch stage {
+            case .inUmrah: return "Omra"
+            case .start: return "Commencer la Omra"
+            case .tawaf: return "Tawaf"
+            case .postTawaf: return "Après le Tawaf"
+            case .safa: return "Safa & Marwa"
+            case .end: return "Terminer la Omra"
+            case .afterUmrah: return "Après la Omra"
+            }
         }
     }
 }

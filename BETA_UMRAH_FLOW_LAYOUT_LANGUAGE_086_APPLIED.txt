@@ -1,0 +1,12 @@
+IUMRAH BETA — UMRAH FLOW LAYOUT + LANGUAGE PASS 086
+
+- Bottom voice gradient now reaches the physical screen edge; bottom safe-area strip removed inside Umrah Flow.
+- Voice-step content uses adaptive fitting/scroll fallback so text and secondary controls are not clipped.
+- Body typography reduced and balanced for long RU/UZ/AR guidance.
+- Header iumrah Project logo increased by 30% (112 pt -> 146 pt).
+- Added iumrah Advisor title + localized "Voice guide for Umrah" subtitle.
+- Home Umrah Advisor card now contains the animated voice gradient.
+- Tapping the home card opens a native Liquid Glass language chooser before Umrah starts.
+- Guide-language selector supports RU, EN, UZ, KK, ID, TR, AR, MS, BN, FR and persists the last selection.
+- Selected guide language drives Supabase translations/audio and Umrah Flow UI labels.
+- No premium/paywall/StoreKit gating added; Umrah Flow remains free.

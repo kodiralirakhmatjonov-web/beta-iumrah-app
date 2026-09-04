@@ -3,7 +3,6 @@ import SwiftUI
 struct SafaDuaSheet: View {
     @ObservedObject var store: UmrahFlowStore
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -60,7 +59,7 @@ Allāhu akbar, Allāhu akbar, Allāhu akbar. Lā ilāha illallāhu waḥdahu lā
                         IumrahHaptics.selection()
                         dismiss()
                     } label: {
-                        Text(store.text("complete_btn", fallback: UmrahFlowCopy.done(settings.language)))
+                        Text(store.text("complete_btn", fallback: UmrahFlowCopy.done(store.guideLanguage)))
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)

@@ -9,7 +9,7 @@ struct SafaView: View {
     var body: some View {
         VStack(spacing: 0) {
             if showsModeBar {
-                UmrahRitualModeBar(mode: $flow.safaMode) {
+                UmrahRitualModeBar(mode: $flow.safaMode, language: store.guideLanguage) {
                     audio.stop()
                 }
                 .transition(.opacity)

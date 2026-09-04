@@ -3,6 +3,8 @@ import SwiftUI
 struct UmrahFlowHeader: View {
     let title: String
     let progress: Double
+    let advisorTitle: String
+    let advisorSubtitle: String
     let advisorStatus: String?
     let onOpenNavigator: () -> Void
 
@@ -13,12 +15,13 @@ struct UmrahFlowHeader: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 9) {
             HStack(spacing: 14) {
                 Image("UmrahFlowLogo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 112, height: 42, alignment: .leading)
+                    // +30% versus the previous 112 pt header mark.
+                    .frame(width: 146, height: 55, alignment: .leading)
                     .accessibilityLabel("iumrah Project")
 
                 Spacer(minLength: 10)
@@ -30,6 +33,21 @@ struct UmrahFlowHeader: View {
                     action: onOpenNavigator
                 )
             }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(advisorTitle)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .tracking(-0.2)
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+
+                Text(advisorSubtitle)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.84)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             GeometryReader { proxy in
                 let normalized = max(0, min(progress, 1))
@@ -71,13 +89,14 @@ struct UmrahFlowHeader: View {
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundStyle(palette.textSecondary)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.78)
                             .transition(.opacity)
                     }
                 }
             }
         }
         .padding(.horizontal, 18)
-        .padding(.top, 8)
-        .padding(.bottom, 6)
+        .padding(.top, 5)
+        .padding(.bottom, 7)
     }
 }

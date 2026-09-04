@@ -26,7 +26,6 @@ struct UmrahVoiceStepScreen: View {
     var secondaryActionSymbol: String = "sparkles"
     var onSecondaryAction: (() -> Void)? = nil
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.colorScheme) private var colorScheme
 
     private var palette: UmrahFlowPalette {
@@ -47,32 +46,28 @@ struct UmrahVoiceStepScreen: View {
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack {
+            let gradientHeight = min(300, max(205, proxy.size.height * 0.33))
+            let bottomContentClearance = min(122, max(92, gradientHeight * 0.39))
+            let contentHeight = max(250, proxy.size.height - bottomContentClearance - 16)
+
+            ZStack(alignment: .bottom) {
                 AdvisorVoiceGradient(
                     amplitude: CGFloat(isCurrentPlaying ? audio.amplitude : 0),
                     isSpeaking: isCurrentPlaying || isCurrentLoading,
-                    minimumHeight: min(245, max(180, proxy.size.height * 0.29)),
-                    maximumHeightRatio: 0.60
+                    minimumHeight: gradientHeight,
+                    maximumHeightRatio: 0.64,
+                    bottomOverscan: 58
                 )
                 .allowsHitTesting(false)
+                .zIndex(0)
 
-                VStack(spacing: 0) {
-                    Spacer(minLength: 18)
-
-                    mainTextArea(maxHeight: max(245, proxy.size.height * 0.57))
-                        .frame(maxWidth: .infinity)
-
-                    Spacer(minLength: 124)
-                }
-                .padding(.horizontal, 70)
-
-                sideNavigation
-
+                // The gradient is itself the playback control, but its hit target
+                // sits below the content layer so buttons/text can never be blocked.
                 VStack {
                     Spacer()
                     Color.clear
                         .contentShape(Rectangle())
-                        .frame(height: min(210, max(150, proxy.size.height * 0.29)))
+                        .frame(height: gradientHeight * 0.72)
                         .onTapGesture {
                             guard audioAvailable else { return }
                             IumrahHaptics.soft()
@@ -81,98 +76,132 @@ struct UmrahVoiceStepScreen: View {
                         .accessibilityLabel(voiceStatus)
                         .accessibilityAddTraits(.isButton)
                 }
+                .zIndex(1)
+
+                VStack(spacing: 0) {
+                    Spacer(minLength: 4)
+
+                    mainTextArea(maxHeight: contentHeight)
+                        .frame(maxWidth: .infinity)
+
+                    Spacer()
+                        .frame(height: bottomContentClearance)
+                }
+                .padding(.horizontal, 66)
+                .zIndex(2)
+
+                sideNavigation
+                    .zIndex(3)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
     }
 
     @ViewBuilder
     private func mainTextArea(maxHeight: CGFloat) -> some View {
-        ScrollView(.vertical) {
-            VStack(spacing: 16) {
-                if let symbol {
-                    Image(systemName: symbol)
-                        .font(.system(size: 21, weight: .semibold))
-                        .foregroundStyle(palette.accent)
-                        .frame(width: 48, height: 48)
-                        .background(palette.glassTint, in: Circle())
-                        .iumrahGlass(in: Circle())
-                        .umrahEntranceMotion()
-                }
+        ViewThatFits(in: .vertical) {
+            mainContent
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxHeight: maxHeight, alignment: .center)
 
-                HStack(spacing: 10) {
-                    Text(kicker.uppercased())
+            ScrollView(.vertical) {
+                mainContent
+                    .padding(.vertical, 10)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxHeight: maxHeight)
+        }
+    }
+
+    private var mainContent: some View {
+        VStack(spacing: 14) {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(palette.accent)
+                    .frame(width: 46, height: 46)
+                    .background(palette.glassTint, in: Circle())
+                    .iumrahGlass(in: Circle())
+                    .umrahEntranceMotion()
+            }
+
+            HStack(spacing: 9) {
+                Text(kicker.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .tracking(1.25)
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                if let counterText, !counterText.isEmpty {
+                    Circle()
+                        .fill(palette.textSecondary.opacity(0.45))
+                        .frame(width: 3, height: 3)
+                    Text(counterText)
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .tracking(1.35)
                         .foregroundStyle(palette.textSecondary)
-
-                    if let counterText, !counterText.isEmpty {
-                        Circle()
-                            .fill(palette.textSecondary.opacity(0.45))
-                            .frame(width: 3, height: 3)
-                        Text(counterText)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                }
-
-                if !title.isEmpty {
-                    UmrahAnimatedText(
-                        text: title,
-                        font: .system(size: 18, weight: .semibold, design: .rounded),
-                        foreground: palette.accent,
-                        alignment: .center,
-                        lineSpacing: 3
-                    )
-                }
-
-                Button {
-                    guard allowsTextCycling, let onTextTap else { return }
-                    IumrahHaptics.selection()
-                    onTextTap()
-                } label: {
-                    UmrahAnimatedText(
-                        text: text,
-                        font: .system(size: bodyFontSize, weight: isArabic ? .medium : .semibold, design: .rounded),
-                        foreground: palette.textPrimary,
-                        alignment: alignment,
-                        lineSpacing: isArabic ? 9 : 6,
-                        isArabic: isArabic
-                    )
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(!allowsTextCycling || onTextTap == nil)
-
-                if allowsTextCycling {
-                    Label(UmrahFlowCopy.tapToChange(settings.language), systemImage: "hand.tap")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(palette.textSecondary.opacity(0.78))
-                        .padding(.top, 1)
-                }
-
-                if let secondaryActionTitle, let onSecondaryAction {
-                    Button {
-                        IumrahHaptics.soft()
-                        onSecondaryAction()
-                    } label: {
-                        Label(secondaryActionTitle, systemImage: secondaryActionSymbol)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(palette.textPrimary)
-                            .padding(.horizontal, 16)
-                            .frame(height: 44)
-                            .background(palette.glassTint, in: Capsule())
-                            .iumrahGlass(in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
                 }
             }
-            .frame(maxWidth: 620)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+
+            if !title.isEmpty {
+                UmrahAnimatedText(
+                    text: title,
+                    font: .system(size: 17, weight: .semibold, design: .rounded),
+                    foreground: palette.accent,
+                    alignment: .center,
+                    lineSpacing: 3
+                )
+            }
+
+            Button {
+                guard allowsTextCycling, let onTextTap else { return }
+                IumrahHaptics.selection()
+                onTextTap()
+            } label: {
+                UmrahAnimatedText(
+                    text: text,
+                    font: .system(size: bodyFontSize, weight: isArabic ? .medium : .semibold, design: .rounded),
+                    foreground: palette.textPrimary,
+                    alignment: alignment,
+                    lineSpacing: isArabic ? 8 : 5,
+                    isArabic: isArabic
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!allowsTextCycling || onTextTap == nil)
+
+            if allowsTextCycling {
+                Label(UmrahFlowCopy.tapToChange(store.guideLanguage), systemImage: "hand.tap")
+                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(palette.textSecondary.opacity(0.78))
+                    .padding(.top, 1)
+            }
+
+            if let secondaryActionTitle, let onSecondaryAction {
+                Button {
+                    IumrahHaptics.soft()
+                    onSecondaryAction()
+                } label: {
+                    Label(secondaryActionTitle, systemImage: secondaryActionSymbol)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(palette.textPrimary)
+                        .padding(.horizontal, 17)
+                        .frame(height: 44)
+                        .background(palette.glassTint, in: Capsule())
+                        .iumrahGlass(in: Capsule())
+                        .overlay {
+                            Capsule().stroke(palette.glassStroke.opacity(0.72), lineWidth: 0.65)
+                        }
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
+            }
         }
-        .scrollIndicators(.hidden)
-        .frame(maxHeight: maxHeight)
+        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
     }
 
     private var sideNavigation: some View {
@@ -180,7 +209,7 @@ struct UmrahVoiceStepScreen: View {
             if showsPrevious, let onPrevious {
                 UmrahSideStepButton(
                     systemName: "chevron.left",
-                    accessibilityLabel: UmrahFlowCopy.previous(settings.language),
+                    accessibilityLabel: UmrahFlowCopy.previous(store.guideLanguage),
                     action: onPrevious
                 )
             } else {
@@ -193,7 +222,7 @@ struct UmrahVoiceStepScreen: View {
                 UmrahSideStepButton(
                     systemName: nextIsDone ? "checkmark" : "chevron.right",
                     emphasized: true,
-                    accessibilityLabel: nextIsDone ? UmrahFlowCopy.done(settings.language) : UmrahFlowCopy.next(settings.language),
+                    accessibilityLabel: nextIsDone ? UmrahFlowCopy.done(store.guideLanguage) : UmrahFlowCopy.next(store.guideLanguage),
                     action: onNext
                 )
             } else {
@@ -201,27 +230,32 @@ struct UmrahVoiceStepScreen: View {
             }
         }
         .padding(.horizontal, 14)
-        .offset(y: -12)
+        // True middle-of-screen navigation, independent of text height.
+        .offset(y: 2)
     }
 
     private var bodyFontSize: CGFloat {
         let count = text.count
         if isArabic {
-            if count > 290 { return 22 }
-            if count > 190 { return 24 }
-            return 27
+            if count > 290 { return 19 }
+            if count > 190 { return 21 }
+            if count > 115 { return 22.5 }
+            return 24
         }
-        if count > 360 { return 20 }
-        if count > 250 { return 22 }
-        if count > 170 { return 24 }
-        if count > 100 { return 26 }
-        return 28
+
+        if count > 360 { return 18 }
+        if count > 250 { return 19.5 }
+        if count > 170 { return 21 }
+        if count > 105 { return 22.5 }
+        return 24.5
     }
 
     private var voiceStatus: String {
-        if isCurrentLoading { return UmrahFlowCopy.loadingVoice(settings.language) }
-        if isCurrentPlaying { return UmrahFlowCopy.advisorSpeaking(settings.language) }
-        return audioAvailable ? UmrahFlowCopy.tapToListen(settings.language) : UmrahFlowCopy.loadingVoice(settings.language)
+        if isCurrentLoading { return UmrahFlowCopy.loadingVoice(store.guideLanguage) }
+        if isCurrentPlaying { return UmrahFlowCopy.advisorSpeaking(store.guideLanguage) }
+        return audioAvailable
+            ? UmrahFlowCopy.tapToListen(store.guideLanguage)
+            : UmrahFlowCopy.audioUnavailable(store.guideLanguage)
     }
 }
 
@@ -232,7 +266,6 @@ struct UmrahSideStepButton: View {
     let action: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var pressed = false
 
     private var palette: UmrahFlowPalette {
         colorScheme == .dark ? .dark : .light

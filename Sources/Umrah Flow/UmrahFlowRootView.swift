@@ -1,17 +1,23 @@
 import SwiftUI
 
 struct UmrahFlowRootView: View {
-    @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var chrome: AppChromeStore
     @Environment(\.dismiss) private var dismiss
 
+    let guideLanguage: UmrahGuideLanguage
+
     @StateObject private var flow: UmrahFlowState
-    @StateObject private var store = UmrahFlowStore()
+    @StateObject private var store: UmrahFlowStore
     @StateObject private var audio = UmrahFlowAudioService()
     @State private var showsNavigator = false
 
-    init(initialStage: UmrahFlowState.Stage = .start) {
+    init(
+        initialStage: UmrahFlowState.Stage = .start,
+        guideLanguage: UmrahGuideLanguage = .english
+    ) {
+        self.guideLanguage = guideLanguage
         _flow = StateObject(wrappedValue: UmrahFlowState(initialStage: initialStage))
+        _store = StateObject(wrappedValue: UmrahFlowStore(language: guideLanguage))
     }
 
     var body: some View {
@@ -22,6 +28,8 @@ struct UmrahFlowRootView: View {
                 UmrahFlowHeader(
                     title: stageTitle,
                     progress: flow.topProgress,
+                    advisorTitle: UmrahFlowCopy.advisorTitle(guideLanguage),
+                    advisorSubtitle: UmrahFlowCopy.advisorSubtitle(guideLanguage),
                     advisorStatus: advisorStatus,
                     onOpenNavigator: {
                         audio.stop()
@@ -52,10 +60,13 @@ struct UmrahFlowRootView: View {
                 .animation(.smooth(duration: 0.44, extraBounce: 0), value: flow.stage)
             }
         }
+        // The voice aura must reach the physical bottom edge. The top remains
+        // safe-area aware so the status bar/header geometry stays native.
+        .ignoresSafeArea(.container, edges: .bottom)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .task(id: settings.language.rawValue) {
-            await store.load(language: settings.language)
+        .task(id: guideLanguage.rawValue) {
+            await store.load(language: guideLanguage)
         }
         .onChange(of: flow.stage) { _, _ in
             audio.stop()
@@ -67,7 +78,6 @@ struct UmrahFlowRootView: View {
         }
         .sheet(isPresented: $showsNavigator) {
             UmrahFlowNavigatorSheet(flow: flow, store: store, onExit: close)
-                .environmentObject(settings)
         }
     }
 
@@ -83,56 +93,15 @@ struct UmrahFlowRootView: View {
         if flow.stage == .safa && flow.safaMode == .reading { return nil }
 
         if audio.isLoading {
-            return UmrahFlowCopy.loadingVoice(settings.language)
+            return UmrahFlowCopy.loadingVoice(guideLanguage)
         }
         if audio.isPlaying {
-            return UmrahFlowCopy.advisorSpeaking(settings.language)
+            return UmrahFlowCopy.advisorSpeaking(guideLanguage)
         }
-        return UmrahFlowCopy.tapToListen(settings.language)
+        return UmrahFlowCopy.tapToListen(guideLanguage)
     }
 
     private var stageTitle: String {
-        switch settings.language {
-        case .russian:
-            switch flow.stage {
-            case .inUmrah: return "Умра"
-            case .start: return "Начало Умры"
-            case .tawaf: return "Таваф"
-            case .postTawaf: return "После Тавафа"
-            case .safa: return "Сафа и Марва"
-            case .end: return "Завершение"
-            case .afterUmrah: return "После Умры"
-            }
-        case .english:
-            switch flow.stage {
-            case .inUmrah: return "Umrah"
-            case .start: return "Start Umrah"
-            case .tawaf: return "Tawaf"
-            case .postTawaf: return "After Tawaf"
-            case .safa: return "Safa & Marwa"
-            case .end: return "Complete Umrah"
-            case .afterUmrah: return "After Umrah"
-            }
-        case .uzbek:
-            switch flow.stage {
-            case .inUmrah: return "Umra"
-            case .start: return "Umrani boshlash"
-            case .tawaf: return "Tavof"
-            case .postTawaf: return "Tavofdan keyin"
-            case .safa: return "Safo va Marva"
-            case .end: return "Umrani yakunlash"
-            case .afterUmrah: return "Umradan keyin"
-            }
-        case .uzbekCyrillic:
-            switch flow.stage {
-            case .inUmrah: return "Умра"
-            case .start: return "Умрани бошлаш"
-            case .tawaf: return "Тавоф"
-            case .postTawaf: return "Тавофдан кейин"
-            case .safa: return "Сафо ва Марва"
-            case .end: return "Умрани якунлаш"
-            case .afterUmrah: return "Умрадан кейин"
-            }
-        }
+        UmrahFlowCopy.stageTitle(flow.stage, language: guideLanguage)
     }
 }

@@ -1,0 +1,21 @@
+{
+  "update": "iumrah-beta-update-20260904-umrah-flow-layout-language-v5",
+  "scope": "Umrah Flow only",
+  "base": "beta-iumrah-app-main 6(3).zip + cumulative Umrah Flow redesign v4",
+  "changes": [
+    "remove bottom safe-area gap for the Umrah voice aura",
+    "adaptive non-clipping voice-step layout",
+    "30 percent larger Umrah Flow logo",
+    "iumrah Advisor title and localized voice-guide subtitle",
+    "animated Advisor gradient on Home Umrah card",
+    "native SwiftUI Liquid Glass guide-language selector before start",
+    "ten selectable guide languages",
+    "selected language wired to Supabase Umrah translations and audio"
+  ],
+  "premium_logic": false,
+  "qa": {
+    "swift_parse_all_sources": "passed",
+    "patch_apply_clean_base": "passed",
+    "patch_apply_v4_state": "passed"
+  }
+}

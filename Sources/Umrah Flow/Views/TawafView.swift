@@ -11,7 +11,7 @@ struct TawafView: View {
     var body: some View {
         VStack(spacing: 0) {
             if showsModeBar {
-                UmrahRitualModeBar(mode: $flow.tawafMode) {
+                UmrahRitualModeBar(mode: $flow.tawafMode, language: store.guideLanguage) {
                     audio.stop()
                 }
                 .transition(.opacity)

@@ -7,7 +7,6 @@ struct SafaReadingPage: View {
     @State private var pageID: Int?
     @State private var showsSafaDua = false
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.colorScheme) private var colorScheme
 
     init(flow: UmrahFlowState, store: UmrahFlowStore) {
@@ -52,14 +51,14 @@ struct SafaReadingPage: View {
                 HStack {
                     UmrahSideStepButton(
                         systemName: "chevron.left",
-                        accessibilityLabel: UmrahFlowCopy.previous(settings.language),
+                        accessibilityLabel: UmrahFlowCopy.previous(store.guideLanguage),
                         action: previousStep
                     )
                     Spacer()
                     UmrahSideStepButton(
                         systemName: isLastStep ? "checkmark" : "chevron.right",
                         emphasized: true,
-                        accessibilityLabel: isLastStep ? UmrahFlowCopy.done(settings.language) : UmrahFlowCopy.next(settings.language),
+                        accessibilityLabel: isLastStep ? UmrahFlowCopy.done(store.guideLanguage) : UmrahFlowCopy.next(store.guideLanguage),
                         action: nextStep
                     )
                 }
@@ -103,7 +102,7 @@ struct SafaReadingPage: View {
 
     private var guidancePage: some View {
         readingPage(
-            label: UmrahFlowCopy.guidance(settings.language),
+            label: UmrahFlowCopy.guidance(store.guideLanguage),
             title: store.text("safa\(flow.safaRound)_title1", fallback: ""),
             text: store.text("safa\(flow.safaRound)_text1", fallback: "Continue Sa'i calmly and remember Allah."),
             arabic: nil,
@@ -113,7 +112,7 @@ struct SafaReadingPage: View {
 
     private var duaPage: some View {
         readingPage(
-            label: UmrahFlowCopy.dua(settings.language),
+            label: UmrahFlowCopy.dua(store.guideLanguage),
             title: store.text("safa\(flow.safaRound)_title1", fallback: ""),
             text: store.text("safa\(flow.safaRound)_text2", fallback: "Make dua while continuing this passage."),
             arabic: store.text("safa\(flow.safaRound)_sarab1", fallback: ""),

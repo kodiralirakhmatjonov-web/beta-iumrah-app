@@ -7,7 +7,6 @@ struct TawafReadingPage: View {
     @State private var pageID: Int?
     @State private var showsSunnahDua = false
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.colorScheme) private var colorScheme
 
     init(flow: UmrahFlowState, store: UmrahFlowStore) {
@@ -52,14 +51,14 @@ struct TawafReadingPage: View {
                 HStack {
                     UmrahSideStepButton(
                         systemName: "chevron.left",
-                        accessibilityLabel: UmrahFlowCopy.previous(settings.language),
+                        accessibilityLabel: UmrahFlowCopy.previous(store.guideLanguage),
                         action: previousStep
                     )
                     Spacer()
                     UmrahSideStepButton(
                         systemName: isLastStep ? "checkmark" : "chevron.right",
                         emphasized: true,
-                        accessibilityLabel: isLastStep ? UmrahFlowCopy.done(settings.language) : UmrahFlowCopy.next(settings.language),
+                        accessibilityLabel: isLastStep ? UmrahFlowCopy.done(store.guideLanguage) : UmrahFlowCopy.next(store.guideLanguage),
                         action: nextStep
                     )
                 }
@@ -207,13 +206,13 @@ struct TawafReadingPage: View {
     private var steps: [ReadingStep] {
         let round = flow.tawafRound
         return [
-            .init(kind: .arabic, label: UmrahFlowCopy.dua(settings.language), primary: store.text("tawaf\(round)_reading_arab1", fallback: "")),
-            .init(kind: .regular, label: UmrahFlowCopy.meaning(settings.language), primary: store.text("tawaf\(round)_reading_text1", fallback: ""), secondary: store.text("tawaf\(round)_reading_text2", fallback: "")),
-            .init(kind: .arabic, label: UmrahFlowCopy.dua(settings.language), primary: store.text("tawaf\(round)_reading_arab2", fallback: "")),
-            .init(kind: .regular, label: UmrahFlowCopy.meaning(settings.language), primary: store.text("tawaf\(round)_reading_text3", fallback: ""), secondary: store.text("tawaf\(round)_reading_text4", fallback: "")),
-            .init(kind: .arabic, label: UmrahFlowCopy.dua(settings.language), primary: store.text("tawaf\(round)_reading_arab3", fallback: "")),
-            .init(kind: .regular, label: UmrahFlowCopy.meaning(settings.language), primary: store.text("tawaf\(round)_reading_text5", fallback: ""), secondary: store.text("tawaf\(round)_reading_text6", fallback: "")),
-            .init(kind: .zikr, label: UmrahFlowCopy.dhikr(settings.language), primary: store.text("tawaf\(round)_zikr_repeat", fallback: "Dhikr"), secondary: store.text("tawaf\(round)_zikr_text", fallback: "Remember Allah and make dua."))
+            .init(kind: .arabic, label: UmrahFlowCopy.dua(store.guideLanguage), primary: store.text("tawaf\(round)_reading_arab1", fallback: "")),
+            .init(kind: .regular, label: UmrahFlowCopy.meaning(store.guideLanguage), primary: store.text("tawaf\(round)_reading_text1", fallback: ""), secondary: store.text("tawaf\(round)_reading_text2", fallback: "")),
+            .init(kind: .arabic, label: UmrahFlowCopy.dua(store.guideLanguage), primary: store.text("tawaf\(round)_reading_arab2", fallback: "")),
+            .init(kind: .regular, label: UmrahFlowCopy.meaning(store.guideLanguage), primary: store.text("tawaf\(round)_reading_text3", fallback: ""), secondary: store.text("tawaf\(round)_reading_text4", fallback: "")),
+            .init(kind: .arabic, label: UmrahFlowCopy.dua(store.guideLanguage), primary: store.text("tawaf\(round)_reading_arab3", fallback: "")),
+            .init(kind: .regular, label: UmrahFlowCopy.meaning(store.guideLanguage), primary: store.text("tawaf\(round)_reading_text5", fallback: ""), secondary: store.text("tawaf\(round)_reading_text6", fallback: "")),
+            .init(kind: .zikr, label: UmrahFlowCopy.dhikr(store.guideLanguage), primary: store.text("tawaf\(round)_zikr_repeat", fallback: "Dhikr"), secondary: store.text("tawaf\(round)_zikr_text", fallback: "Remember Allah and make dua."))
         ]
     }
 

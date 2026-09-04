@@ -3,7 +3,6 @@ import SwiftUI
 struct SunnahDuaSheet: View {
     @ObservedObject var store: UmrahFlowStore
 
-    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 

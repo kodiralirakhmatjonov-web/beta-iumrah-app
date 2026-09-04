@@ -8,12 +8,22 @@ final class UmrahFlowStore: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var loadedLanguage = ""
     @Published private(set) var lastError: String?
+    @Published private(set) var guideLanguage: UmrahGuideLanguage
 
     private let client = UmrahFlowSupabaseClient()
     private let defaults = UserDefaults.standard
 
-    func load(language: AppSettingsStore.Language, forceRefresh: Bool = false) async {
-        let code = backendLanguageCode(language)
+    init(language: UmrahGuideLanguage = .english) {
+        guideLanguage = language
+    }
+
+    func load(forceRefresh: Bool = false) async {
+        await load(language: guideLanguage, forceRefresh: forceRefresh)
+    }
+
+    func load(language: UmrahGuideLanguage, forceRefresh: Bool = false) async {
+        guideLanguage = language
+        let code = language.rawValue
         if !forceRefresh, loadedLanguage == code, !translations.isEmpty { return }
 
         loadedLanguage = code
@@ -36,16 +46,25 @@ final class UmrahFlowStore: ObservableObject {
             }
         } catch {
             lastError = String(describing: error)
-            // Cached content remains usable. If this language has never been cached,
-            // make one light English fallback attempt for the instructional text.
-            if translations.isEmpty, code != "en" {
-                if let fallback = try? await client.translations(language: "en"), !fallback.isEmpty {
-                    translations = fallback
-                }
+        }
+
+        // Keep every selected guide language usable even when one layer has not
+        // yet been published in Supabase. Religious copy is never fabricated:
+        // English is used only as a text fallback when the requested language
+        // contains no Umrah Flow translation rows at all.
+        if translations.isEmpty, code != UmrahGuideLanguage.english.rawValue {
+            if let fallback = try? await client.translations(language: UmrahGuideLanguage.english.rawValue),
+               !fallback.isEmpty {
+                translations = fallback
             }
         }
 
         isLoading = false
+    }
+
+    // Compatibility for any older call site that still passes the app language.
+    func load(language: AppSettingsStore.Language, forceRefresh: Bool = false) async {
+        await load(language: UmrahGuideLanguage.preferred(for: language), forceRefresh: forceRefresh)
     }
 
     func text(_ key: String, fallback: String? = nil) -> String {
@@ -56,17 +75,6 @@ final class UmrahFlowStore: ObservableObject {
 
     func audioURL(for key: String) -> URL? {
         audioURLs[key]
-    }
-
-    private func backendLanguageCode(_ language: AppSettingsStore.Language) -> String {
-        switch language {
-        case .uzbekCyrillic:
-            // Current Supabase export contains Uzbek Latin. Keep the flow usable until
-            // a dedicated uz-Cyrl pack is added to Translations 2 / audio.
-            return "uz"
-        default:
-            return language.rawValue
-        }
     }
 
     private func translationsCacheKey(_ language: String) -> String {
