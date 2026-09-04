@@ -46,24 +46,26 @@ struct UmrahVoiceStepScreen: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let gradientHeight = min(300, max(205, proxy.size.height * 0.33))
-            let bottomContentClearance = min(122, max(92, gradientHeight * 0.39))
-            let contentHeight = max(250, proxy.size.height - bottomContentClearance - 16)
+            let gradientHeight = min(286, max(196, proxy.size.height * 0.30))
+            let textBottomClearance = min(96, max(68, gradientHeight * 0.30))
+            let textMaxHeight = max(240, proxy.size.height - textBottomClearance - 28)
 
-            ZStack(alignment: .bottom) {
+            ZStack {
+                // Voice aura owns only the visual layer. It can bleed below the safe
+                // area, while navigation remains centered in the usable content area.
                 AdvisorVoiceGradient(
                     amplitude: CGFloat(isCurrentPlaying ? audio.amplitude : 0),
                     isSpeaking: isCurrentPlaying || isCurrentLoading,
                     minimumHeight: gradientHeight,
-                    maximumHeightRatio: 0.64,
-                    bottomOverscan: 58
+                    maximumHeightRatio: 0.62,
+                    bottomOverscan: 64
                 )
                 .allowsHitTesting(false)
                 .zIndex(0)
 
-                // The gradient is itself the playback control, but its hit target
-                // sits below the content layer so buttons/text can never be blocked.
-                VStack {
+                // The lower aura is the play/pause surface. Keep this hit target
+                // behind the text and side controls so nothing interactive is blocked.
+                VStack(spacing: 0) {
                     Spacer()
                     Color.clear
                         .contentShape(Rectangle())
@@ -79,18 +81,22 @@ struct UmrahVoiceStepScreen: View {
                 .zIndex(1)
 
                 VStack(spacing: 0) {
-                    Spacer(minLength: 4)
+                    Spacer(minLength: 8)
 
-                    mainTextArea(maxHeight: contentHeight)
+                    mainTextArea(maxHeight: textMaxHeight)
                         .frame(maxWidth: .infinity)
 
                     Spacer()
-                        .frame(height: bottomContentClearance)
+                        .frame(height: textBottomClearance)
                 }
-                .padding(.horizontal, 66)
+                .padding(.horizontal, 72)
                 .zIndex(2)
 
+                // Side navigation is intentionally independent of the text and
+                // gradient geometry. This keeps Previous / Next at the visual middle
+                // of the screen on every iPhone instead of falling to the bottom.
                 sideNavigation
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .zIndex(3)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -229,9 +235,8 @@ struct UmrahVoiceStepScreen: View {
                 Color.clear.frame(width: 54, height: 54)
             }
         }
-        .padding(.horizontal, 14)
-        // True middle-of-screen navigation, independent of text height.
-        .offset(y: 2)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 2)
     }
 
     private var bodyFontSize: CGFloat {

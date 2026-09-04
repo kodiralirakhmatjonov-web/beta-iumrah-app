@@ -37,13 +37,13 @@ struct UmrahAdvisorHomeCard: View {
 
     private var cardContent: some View {
         ZStack(alignment: .bottom) {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
+            RoundedRectangle(cornerRadius: 31, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.032, green: 0.028, blue: 0.055),
-                            Color(red: 0.019, green: 0.019, blue: 0.030),
-                            Color(red: 0.030, green: 0.024, blue: 0.050)
+                            Color(red: 0.025, green: 0.024, blue: 0.040),
+                            Color(red: 0.015, green: 0.016, blue: 0.024),
+                            Color(red: 0.025, green: 0.021, blue: 0.038)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -51,84 +51,107 @@ struct UmrahAdvisorHomeCard: View {
                 )
 
             UmrahAdvisorHomeAura()
-                .frame(height: 178)
-                .opacity(0.95)
+                .frame(height: 136)
+                .opacity(0.94)
                 .allowsHitTesting(false)
 
+            // Preserve legibility while allowing the moving aura to remain visible.
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.78),
+                    Color.black.opacity(0.28),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 180)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .allowsHitTesting(false)
+
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 7) {
-                            Image(systemName: "waveform.badge.mic")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("IUMRAH ADVISOR")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .tracking(1.25)
-                        }
-                        .foregroundStyle(.white.opacity(0.58))
-
-                        Text(copy.title)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .tracking(-0.60)
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.leading)
-
-                        Text(copy.subtitle)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.62))
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: 4)
-
+                HStack(alignment: .center, spacing: 10) {
                     ZStack {
                         Circle()
-                            .fill(Color.white.opacity(0.10))
-                            .frame(width: 46, height: 46)
-                            .overlay {
-                                Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.7)
-                            }
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 15, weight: .bold))
+                            .fill(Color.white.opacity(0.09))
+                        Image(systemName: "waveform.badge.mic")
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
                     }
-                }
-
-                Spacer(minLength: 104)
-
-                HStack(spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 12, weight: .bold))
-                        Text(copy.button)
-                            .font(.headline)
+                    .frame(width: 36, height: 36)
+                    .overlay {
+                        Circle().stroke(Color.white.opacity(0.10), lineWidth: 0.7)
                     }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 16)
-                    .frame(height: 48)
-                    .background(Color.white, in: Capsule())
 
-                    Spacer(minLength: 6)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("iumrah Advisor")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
 
-                    HStack(spacing: 6) {
+                        Text(copy.voiceGuide)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.58))
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    HStack(spacing: 5) {
                         Image(systemName: "globe")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 10.5, weight: .semibold))
                         Text(copy.languages)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                     }
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(.white.opacity(0.66))
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(Color.white.opacity(0.075), in: Capsule())
+                    .overlay {
+                        Capsule().stroke(Color.white.opacity(0.09), lineWidth: 0.7)
+                    }
                 }
+
+                Spacer(minLength: 16)
+
+                Text(copy.title)
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .tracking(-0.55)
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+
+                Text(copy.subtitle)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+
+                Spacer(minLength: 22)
+
+                HStack(spacing: 9) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 13, weight: .bold))
+                    Text(copy.button)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundStyle(.black)
+                .padding(.horizontal, 17)
+                .frame(height: 48)
+                .background(Color.white.opacity(0.96), in: Capsule())
+                .shadow(color: .black.opacity(0.16), radius: 14, y: 7)
             }
-            .padding(20)
+            .padding(19)
         }
-        .frame(maxWidth: .infinity, minHeight: 314, alignment: .leading)
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 268, maxHeight: 268, alignment: .leading)
+        .clipShape(RoundedRectangle(cornerRadius: 31, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color(red: 0.55, green: 0.26, blue: 1.00).opacity(0.20), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: 31, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.07), lineWidth: 0.8)
         }
-        .shadow(color: Color(red: 0.28, green: 0.12, blue: 0.72).opacity(0.16), radius: 28, y: 13)
+        .shadow(color: Color(red: 0.24, green: 0.10, blue: 0.56).opacity(0.14), radius: 24, y: 12)
     }
 
     private var savedGuideLanguage: UmrahGuideLanguage {
@@ -138,35 +161,39 @@ struct UmrahAdvisorHomeCard: View {
         return UmrahGuideLanguage.preferred(for: settings.language)
     }
 
-    private var copy: (title: String, subtitle: String, button: String, languages: String) {
+    private var copy: (title: String, subtitle: String, button: String, languages: String, voiceGuide: String) {
         switch settings.language {
         case .russian:
             return (
-                "Начать Умру с Advisor",
-                "Голосовой гид проведёт Вас пошагово через Таваф, Сафа и Марва и завершение Умры.",
                 "Начать Умру",
-                "10 языков"
+                "Advisor проведёт Вас голосом через Таваф, Сафа и Марва и завершение Умры.",
+                "Начать",
+                "10 языков",
+                "Голосовой гид для Умры"
             )
         case .english:
             return (
-                "Start Umrah with Advisor",
-                "A voice guide takes you step by step through Tawaf, Safa & Marwa and the completion of Umrah.",
                 "Start Umrah",
-                "10 languages"
+                "Advisor guides you by voice through Tawaf, Safa & Marwa and the completion of Umrah.",
+                "Start",
+                "10 languages",
+                "Voice guide for Umrah"
             )
         case .uzbek:
             return (
-                "Advisor bilan Umrani boshlang",
-                "Ovozli gid Tavof, Safo va Marva hamda Umrani yakunlashgacha bosqichma-bosqich kuzatadi.",
                 "Umrani boshlash",
-                "10 til"
+                "Advisor Tavof, Safo va Marva hamda Umrani yakunlashgacha ovoz bilan kuzatadi.",
+                "Boshlash",
+                "10 til",
+                "Umra uchun ovozli gid"
             )
         case .uzbekCyrillic:
             return (
-                "Advisor билан Умрани бошланг",
-                "Овозли гид Тавоф, Сафо ва Марва ҳамда Умрани якунлашгача босқичма-босқич кузатади.",
                 "Умрани бошлаш",
-                "10 тил"
+                "Advisor Тавоф, Сафо ва Марва ҳамда Умрани якунлашгача овоз билан кузатади.",
+                "Бошлаш",
+                "10 тил",
+                "Умра учун овозли гид"
             )
         }
     }
@@ -178,14 +205,14 @@ private struct UmrahAdvisorHomeAura: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 / 12.0 : 1.0 / 30.0)) { timeline in
             let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
-            let pulse = reduceMotion ? 0.22 : 0.22 + (sin(time * 1.30) + 1) * 0.075
+            let pulse = reduceMotion ? 0.20 : 0.18 + (sin(time * 1.18) + 1) * 0.065
 
             AdvisorVoiceGradient(
                 amplitude: CGFloat(pulse),
                 isSpeaking: true,
-                minimumHeight: 176,
+                minimumHeight: 132,
                 maximumHeightRatio: 0.98,
-                bottomOverscan: 34
+                bottomOverscan: 30
             )
             .environment(\.colorScheme, .dark)
         }

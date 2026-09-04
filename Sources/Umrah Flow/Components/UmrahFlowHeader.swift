@@ -15,13 +15,13 @@ struct UmrahFlowHeader: View {
     }
 
     var body: some View {
-        VStack(spacing: 9) {
+        VStack(spacing: 8) {
             HStack(spacing: 14) {
                 Image("UmrahFlowLogo")
                     .resizable()
                     .scaledToFit()
-                    // +30% versus the previous 112 pt header mark.
-                    .frame(width: 146, height: 55, alignment: .leading)
+                    // Kept at the requested +30% size versus the original 112 pt mark.
+                    .frame(width: 146, height: 52, alignment: .leading)
                     .accessibilityLabel("iumrah Project")
 
                 Spacer(minLength: 10)
@@ -34,20 +34,21 @@ struct UmrahFlowHeader: View {
                 )
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(advisorTitle)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .tracking(-0.2)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .tracking(-0.15)
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
 
                 Text(advisorSubtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
                     .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.84)
+                    .minimumScaleFactor(0.72)
+
+                Spacer(minLength: 2)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
             GeometryReader { proxy in
                 let normalized = max(0, min(progress, 1))
@@ -66,7 +67,10 @@ struct UmrahFlowHeader: View {
                             )
                         )
                         .frame(width: max(normalized > 0 ? 16 : 0, width))
-                        .shadow(color: palette.progressEnd.opacity(colorScheme == .dark ? 0.22 : 0.12), radius: 8)
+                        .shadow(
+                            color: palette.progressEnd.opacity(colorScheme == .dark ? 0.22 : 0.12),
+                            radius: 8
+                        )
                         .animation(.smooth(duration: 0.42, extraBounce: 0), value: normalized)
                 }
             }
@@ -85,18 +89,19 @@ struct UmrahFlowHeader: View {
                         Circle()
                             .fill(palette.accent)
                             .frame(width: 5, height: 5)
+
                         Text(advisorStatus)
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundStyle(palette.textSecondary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.78)
+                            .minimumScaleFactor(0.72)
                             .transition(.opacity)
                     }
                 }
             }
         }
         .padding(.horizontal, 18)
-        .padding(.top, 5)
-        .padding(.bottom, 7)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
     }
 }

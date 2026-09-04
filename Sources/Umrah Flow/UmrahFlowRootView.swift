@@ -60,9 +60,10 @@ struct UmrahFlowRootView: View {
                 .animation(.smooth(duration: 0.44, extraBounce: 0), value: flow.stage)
             }
         }
-        // The voice aura must reach the physical bottom edge. The top remains
-        // safe-area aware so the status bar/header geometry stays native.
-        .ignoresSafeArea(.container, edges: .bottom)
+        // Keep interactive content inside the system safe area. The background and
+        // AdvisorVoiceGradient independently extend under the bottom inset, so the
+        // aura still reaches the physical screen edge without dragging controls under
+        // the Home indicator.
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .task(id: guideLanguage.rawValue) {

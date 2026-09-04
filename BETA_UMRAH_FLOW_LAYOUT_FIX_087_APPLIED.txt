@@ -1,0 +1,9 @@
+IUMRAH BETA — UMRAH FLOW LAYOUT FIX 087
+2026-09-04
+
+Fixes:
+- Restores Previous / Next controls to the true visual middle of Umrah Flow.
+- Keeps controls inside the iOS safe layout while the voice gradient alone bleeds to the physical bottom edge.
+- Removes bottom-control clipping caused by root-level bottom safe-area ignoring.
+- Keeps the requested +30% Umrah Flow logo but compresses Advisor title/subtitle into a cleaner header line.
+- Rebuilds the Home Umrah Advisor card into a shorter single-CTA layout with live voice aura and 10-language indicator.

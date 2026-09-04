@@ -1,0 +1,36 @@
+{
+  "name": "iumrah-beta-update-20260904-umrah-flow-layout-fix-v6",
+  "base": "current iumrah Beta with Umrah Flow v5",
+  "scope": "Umrah Flow layout + Home Advisor card only",
+  "files": [
+    {
+      "path": "BETA_UMRAH_FLOW_LAYOUT_FIX_087_APPLIED.txt",
+      "size": 560,
+      "sha256": "78b3d37e75611334b05d09e54b8934b996a3dfd6c563e3fb3e07127abf628bb9"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahAdvisorHomeCard.swift",
+      "size": 8732,
+      "sha256": "c7c058f6141c2c6707d51c2ca23265bda815eedcae560588ec4a2a0fb79a17ad"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahFlowHeader.swift",
+      "size": 3838,
+      "sha256": "57594016aa1c07a7921505add49c872ad969adde756f101be2f17e94a71f63da"
+    },
+    {
+      "path": "Sources/Umrah Flow/Components/UmrahVoiceStepScreen.swift",
+      "size": 11086,
+      "sha256": "d561e8ade0b9b1e6cd6fffc17d2b18c33ef26ef6062200308195b5f4ce903311"
+    },
+    {
+      "path": "Sources/Umrah Flow/UmrahFlowRootView.swift",
+      "size": 4047,
+      "sha256": "b59f81cf7fe41849d300a6a67698ddb33432167e752bc0630a556efdcd5ad9c6"
+    }
+  ],
+  "qa": {
+    "swift_parse": "all 162 Sources/*.swift files parsed successfully after applying the patch",
+    "xcode_build": "not available in this Linux environment"
+  }
+}
