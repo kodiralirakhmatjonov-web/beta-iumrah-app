@@ -1,0 +1,4 @@
+iumrah Beta update 079
+- Replaces the rectangular edge-glow visual in the Home Advisor card with a circular Siri-style native orb.
+- Adds reusable Sources/Core/Components/IumrahSiriOrb.swift.
+- Keeps Umrah Flow logic/navigation untouched.

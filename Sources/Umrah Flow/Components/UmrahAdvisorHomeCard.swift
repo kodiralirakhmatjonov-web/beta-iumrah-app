@@ -45,15 +45,20 @@ struct UmrahAdvisorHomeCard: View {
                     }
                 }
 
-                IumrahSystemGlow(
-                    presentation: .widget,
-                    isActive: true,
-                    cornerRadius: 23,
-                    intensity: 1.0
-                )
-                .frame(height: 72)
-                .padding(.vertical, 13)
-                .allowsHitTesting(false)
+                HStack {
+                    Spacer(minLength: 0)
+
+                    IumrahSiriOrb(
+                        isActive: true,
+                        intensity: 1.0,
+                        showsCoreHighlight: true
+                    )
+                    .frame(width: 118, height: 118)
+                    .allowsHitTesting(false)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 8)
 
                 HStack(spacing: 10) {
                     HStack(spacing: 8) {
