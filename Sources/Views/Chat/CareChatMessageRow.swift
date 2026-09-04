@@ -1,0 +1,379 @@
+import SwiftUI
+import UIKit
+
+struct CareChatMessageRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let message: ChatMessage
+    let bookingID: String
+    let language: AppSettingsStore.Language
+    let isMine: Bool
+    let groupStart: Bool
+    let groupEnd: Bool
+    let showDelivery: Bool
+    let wallpaperActive: Bool
+    let timestampText: String
+    let timestampReveal: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            Text(timestampText)
+                .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                .foregroundStyle(timestampColor)
+                .lineLimit(1)
+                .opacity(timestampReveal)
+                .offset(x: 2)
+                .accessibilityHidden(true)
+
+            messageRow
+                .offset(x: -44 * timestampReveal)
+        }
+        .frame(maxWidth: .infinity)
+        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.92), value: timestampReveal)
+    }
+
+    private var messageRow: some View {
+        VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
+            HStack(alignment: .bottom, spacing: 7) {
+                if isMine { Spacer(minLength: 58) }
+
+                if !isMine {
+                    if groupEnd {
+                        Image("CareMark")
+                            .resizable()
+                            .scaledToFit()
+                            .padding(3)
+                            .frame(width: 28, height: 28)
+                            .background(Color.white, in: Circle())
+                            .overlay { Circle().stroke(Color.black.opacity(0.06), lineWidth: 0.6) }
+                            .transition(.scale(scale: 0.82).combined(with: .opacity))
+                    } else {
+                        Color.clear.frame(width: 28, height: 1)
+                    }
+                }
+
+                bubbleSurface
+                    .contextMenu {
+                        if !message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button {
+                                UIPasteboard.general.string = message.body
+                            } label: {
+                                Label(tr("Copy", "Копировать", "Nusxalash", "Нусхалаш"), systemImage: "doc.on.doc")
+                            }
+
+                            ShareLink(item: message.body) {
+                                Label(tr("Share", "Поделиться", "Ulashish", "Улашиш"), systemImage: "square.and.arrow.up")
+                            }
+                        }
+                    } preview: {
+                        bubbleSurface
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(10)
+                    }
+
+                if !isMine { Spacer(minLength: 58) }
+            }
+
+            if showDelivery {
+                Text(deliveryLabel)
+                    .font(.system(size: 11.5, weight: .regular))
+                    .foregroundStyle(deliveryColor)
+                    .padding(.trailing, 10)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .padding(.top, groupStart ? 5 : 0)
+    }
+
+    private var bubbleSurface: some View {
+        let shape = CareMessageBubbleShape(isMine: isMine, groupStart: groupStart, groupEnd: groupEnd)
+
+        return bubbleContent
+            .padding(.leading, leadingPadding)
+            .padding(.trailing, trailingPadding)
+            .padding(.vertical, verticalPadding)
+            .background {
+                if isMine {
+                    shape.fill(Color.iumrahCareDark.opacity(wallpaperActive ? 0.94 : 1))
+                } else if wallpaperActive {
+                    shape
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            shape.fill(
+                                colorScheme == .dark
+                                    ? Color.black.opacity(0.12)
+                                    : Color.white.opacity(0.18)
+                            )
+                        }
+                } else {
+                    shape.fill(Color(uiColor: .systemGray5))
+                }
+            }
+            .overlay {
+                shape.stroke(incomingStrokeColor, lineWidth: isMine ? 0 : 0.55)
+            }
+            .shadow(color: bubbleShadow, radius: wallpaperActive ? 7 : 1.5, y: wallpaperActive ? 3 : 1)
+            .contentShape(shape)
+            .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var bubbleContent: some View {
+        VStack(alignment: .leading, spacing: message.messageType == "image" ? 7 : 0) {
+            if message.messageType == "image", let path = message.attachmentURL {
+                AuthenticatedCareChatImage(path: path, bookingID: bookingID)
+                    .frame(maxWidth: 258)
+                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+
+            let trimmed = message.body.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                Text(message.body)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(isMine ? Color.white : Color.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private var leadingPadding: CGFloat {
+        let imageOnly = message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if imageOnly { return groupEnd && !isMine ? 7 : 3 }
+        return groupEnd && !isMine ? 17 : 13
+    }
+
+    private var trailingPadding: CGFloat {
+        let imageOnly = message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if imageOnly { return groupEnd && isMine ? 7 : 3 }
+        return groupEnd && isMine ? 17 : 13
+    }
+
+    private var verticalPadding: CGFloat {
+        message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 3 : 9
+    }
+
+    private var incomingStrokeColor: Color {
+        wallpaperActive ? Color.white.opacity(0.16) : Color.primary.opacity(0.045)
+    }
+
+    private var bubbleShadow: Color {
+        wallpaperActive ? Color.black.opacity(0.10) : Color.black.opacity(0.025)
+    }
+
+    private var timestampColor: Color {
+        wallpaperActive ? .white.opacity(0.66) : .secondary
+    }
+
+    private var deliveryLabel: String {
+        if message.readByStaff == true {
+            return tr("Read", "Прочитано", "O‘qildi", "Ўқилди")
+        }
+        return tr("Delivered", "Доставлено", "Yetkazildi", "Етказилди")
+    }
+
+    private var deliveryColor: Color {
+        wallpaperActive ? .white.opacity(0.66) : .secondary
+    }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch language {
+        case .english: return en
+        case .russian: return ru
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
+        }
+    }
+}
+
+struct CareMessageBubbleShape: Shape {
+    let isMine: Bool
+    let groupStart: Bool
+    let groupEnd: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let tailWidth: CGFloat = groupEnd ? 7 : 0
+        let large: CGFloat = 19.5
+        let tight: CGFloat = 6
+
+        let bodyRect = CGRect(
+            x: isMine ? rect.minX : rect.minX + tailWidth,
+            y: rect.minY,
+            width: max(1, rect.width - tailWidth),
+            height: rect.height
+        )
+
+        let rounded: UnevenRoundedRectangle
+        if isMine {
+            rounded = UnevenRoundedRectangle(
+                topLeadingRadius: large,
+                bottomLeadingRadius: large,
+                bottomTrailingRadius: groupEnd ? tight : large,
+                topTrailingRadius: groupStart ? large : tight,
+                style: .continuous
+            )
+        } else {
+            rounded = UnevenRoundedRectangle(
+                topLeadingRadius: groupStart ? large : tight,
+                bottomLeadingRadius: groupEnd ? tight : large,
+                bottomTrailingRadius: large,
+                topTrailingRadius: large,
+                style: .continuous
+            )
+        }
+
+        var path = rounded.path(in: bodyRect)
+        guard groupEnd else { return path }
+
+        var tail = Path()
+        if isMine {
+            let edge = bodyRect.maxX
+            tail.move(to: CGPoint(x: edge - 2, y: bodyRect.maxY - 14))
+            tail.addCurve(
+                to: CGPoint(x: rect.maxX, y: rect.maxY - 1.5),
+                control1: CGPoint(x: edge + 0.5, y: bodyRect.maxY - 7),
+                control2: CGPoint(x: rect.maxX - 1.5, y: rect.maxY - 3)
+            )
+            tail.addCurve(
+                to: CGPoint(x: edge - 5, y: bodyRect.maxY - 4),
+                control1: CGPoint(x: rect.maxX - 3, y: rect.maxY - 0.5),
+                control2: CGPoint(x: edge - 1, y: rect.maxY - 1)
+            )
+            tail.closeSubpath()
+        } else {
+            let edge = bodyRect.minX
+            tail.move(to: CGPoint(x: edge + 2, y: bodyRect.maxY - 14))
+            tail.addCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY - 1.5),
+                control1: CGPoint(x: edge - 0.5, y: bodyRect.maxY - 7),
+                control2: CGPoint(x: rect.minX + 1.5, y: rect.maxY - 3)
+            )
+            tail.addCurve(
+                to: CGPoint(x: edge + 5, y: bodyRect.maxY - 4),
+                control1: CGPoint(x: rect.minX + 3, y: rect.maxY - 0.5),
+                control2: CGPoint(x: edge + 1, y: rect.maxY - 1)
+            )
+            tail.closeSubpath()
+        }
+        path.addPath(tail)
+        return path
+    }
+}
+
+private struct AuthenticatedCareChatImage: View {
+    @EnvironmentObject private var bookings: BookingStore
+
+    let path: String
+    let bookingID: String
+
+    @State private var image: UIImage?
+    @State private var showViewer = false
+
+    var body: some View {
+        Button {
+            guard image != nil else { return }
+            showViewer = true
+        } label: {
+            Group {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    ZStack {
+                        Color.black.opacity(0.055)
+                        ProgressView()
+                    }
+                    .frame(width: 226, height: 156)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .task(id: path) {
+            guard image == nil,
+                  let data = try? await bookings.chatAttachmentData(path: path, bookingID: bookingID),
+                  let loaded = UIImage(data: data) else { return }
+            withAnimation(.easeInOut(duration: 0.20)) {
+                image = loaded
+            }
+        }
+        .fullScreenCover(isPresented: $showViewer) {
+            if let image {
+                CareChatImageViewer(image: image)
+            }
+        }
+    }
+}
+
+private struct CareChatImageViewer: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var committedScale: CGFloat = 1
+    @GestureState private var liveScale: CGFloat = 1
+    @GestureState private var dragY: CGFloat = 0
+
+    let image: UIImage
+
+    private var scale: CGFloat {
+        min(5, max(1, committedScale * liveScale))
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black
+                .ignoresSafeArea()
+
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .scaleEffect(scale)
+                .offset(y: committedScale == 1 ? max(0, dragY) : 0)
+                .opacity(committedScale == 1 ? 1 - min(0.28, max(0, dragY) / 900) : 1)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    MagnifyGesture()
+                        .updating($liveScale) { value, state, _ in
+                            state = value.magnification
+                        }
+                        .onEnded { value in
+                            committedScale = min(5, max(1, committedScale * value.magnification))
+                            if committedScale < 1.05 { committedScale = 1 }
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 12)
+                        .updating($dragY) { value, state, _ in
+                            guard committedScale == 1, value.translation.height > 0 else { return }
+                            state = value.translation.height
+                        }
+                        .onEnded { value in
+                            guard committedScale == 1 else { return }
+                            if value.translation.height > 120 || value.predictedEndTranslation.height > 220 {
+                                dismiss()
+                            }
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        committedScale = committedScale > 1 ? 1 : 2.2
+                    }
+                }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay { Circle().stroke(Color.white.opacity(0.24), lineWidth: 0.7) }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 12)
+            .padding(.trailing, 16)
+        }
+        .statusBarHidden(true)
+    }
+}
