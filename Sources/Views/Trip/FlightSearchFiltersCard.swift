@@ -12,13 +12,13 @@ struct FlightSearchFiltersCard: View {
                 withAnimation(.easeInOut(duration: 0.22)) { expanded.toggle() }
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 38, height: 38)
-                        .iumrahGlass(
-                            in: RoundedRectangle(cornerRadius: 13, style: .continuous),
-                            interactive: true
-                        )
+                    IumrahIconBadge(
+                        systemName: "slider.horizontal.3",
+                        role: .settings,
+                        size: 38,
+                        symbolSize: 16,
+                        cornerRadius: 13
+                    )
                     VStack(alignment: .leading, spacing: 3) {
                         Text(copy(.title))
                             .font(.headline)
@@ -220,7 +220,7 @@ struct FlightSearchFiltersCard: View {
                 HStack {
                     Text(value == 0 ? copy(.any) : "\(value)+").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                     Spacer()
-                    Image(systemName: "suitcase.fill").font(.caption).foregroundStyle(.secondary)
+                    IumrahInlineIcon(systemName: "suitcase.fill", role: .travel, size: 12)
                 }
             }
             .padding(.horizontal, 13)

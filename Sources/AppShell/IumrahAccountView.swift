@@ -263,7 +263,7 @@ struct IumrahAccountView: View {
                                 .foregroundStyle(.white)
                                 .frame(width: 46, height: 46)
                                 .contentShape(Circle())
-                                .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18))
+                                .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18), chrome: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -441,15 +441,15 @@ struct IumrahAccountView: View {
             }
 
             VStack(spacing: 0) {
-                accountSummaryRow(icon: "person.fill", title: tr("Name", "Имя", "Ism", "Исм"), value: displayName(profile))
+                accountSummaryRow(icon: "person.fill", role: .profile, title: tr("Name", "Имя", "Ism", "Исм"), value: displayName(profile))
                 Divider().padding(.leading, 52)
-                accountSummaryRow(icon: "phone.fill", title: tr("Phone", "Телефон", "Telefon", "Телефон"), value: profile.phone)
+                accountSummaryRow(icon: "phone.fill", role: .phone, title: tr("Phone", "Телефон", "Telefon", "Телефон"), value: profile.phone)
                 Divider().padding(.leading, 52)
-                accountSummaryRow(icon: "envelope.fill", title: "Email", value: profile.email)
+                accountSummaryRow(icon: "envelope.fill", role: .mail, title: "Email", value: profile.email)
                 Divider().padding(.leading, 52)
-                accountSummaryRow(icon: "paperplane.fill", title: "Telegram", value: profile.telegram)
+                accountSummaryRow(icon: "paperplane.fill", role: .telegram, title: "Telegram", value: profile.telegram)
                 Divider().padding(.leading, 52)
-                accountSummaryRow(icon: "message.fill", title: "WhatsApp", value: profile.whatsapp)
+                accountSummaryRow(icon: "message.fill", role: .whatsapp, title: "WhatsApp", value: profile.whatsapp)
             }
             .padding(.horizontal, 4)
         }
@@ -457,9 +457,9 @@ struct IumrahAccountView: View {
         .onAppear { loadProfileDraftIfNeeded(force: false, profile: profile) }
     }
 
-    private func accountSummaryRow(icon: String, title: String, value: String) -> some View {
+    private func accountSummaryRow(icon: String, role: IumrahIconRole, title: String, value: String) -> some View {
         HStack(spacing: 12) {
-            IumrahIconBadge(systemName: icon, size: 38, symbolSize: 14, cornerRadius: 12)
+            IumrahIconBadge(systemName: icon, role: role, size: 38, symbolSize: 14, cornerRadius: 12)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
@@ -545,6 +545,7 @@ struct IumrahAccountView: View {
             } label: {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
+            .tint(Color.primary)
 
             Divider().padding(.leading, 54)
 
@@ -557,6 +558,7 @@ struct IumrahAccountView: View {
             } label: {
                 settingsRow(icon: "circle.lefthalf.filled", title: tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), value: settings.appearance.title(settings.language))
             }
+            .tint(Color.primary)
 
             Divider().padding(.leading, 54)
 
@@ -749,6 +751,7 @@ struct IumrahAccountView: View {
             } label: {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
+            .tint(Color.primary)
             Divider().padding(.leading, 54)
             Menu {
                 Picker(tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), selection: $settings.appearance) {
@@ -757,6 +760,7 @@ struct IumrahAccountView: View {
             } label: {
                 settingsRow(icon: "circle.lefthalf.filled", title: tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), value: settings.appearance.title(settings.language))
             }
+            .tint(Color.primary)
             Divider().padding(.leading, 54)
             NavigationLink {
                 AccountNotificationsView()
@@ -830,7 +834,8 @@ struct IumrahAccountView: View {
             .autocorrectionDisabled(keyboard == .emailAddress)
             .padding(.horizontal, 16)
             .frame(height: 54)
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
     }
 
     private func settingsRow(icon: String, title: String, value: String, showsChevron: Bool = true) -> some View {
@@ -853,13 +858,7 @@ struct IumrahAccountView: View {
     }
 
     private func tripRole(_ status: String) -> IumrahIconRole {
-        switch status.uppercased() {
-        case "COMPLETED", "BOOKING_CONFIRMED", "READY_TO_TRAVEL": return .success
-        case "IN_TRIP": return .location
-        case "CANCELLED": return .destructive
-        case "PAYMENT_PENDING", "AVAILABILITY_CHECK": return .warning
-        default: return .booking
-        }
+        IumrahBookingStatusVisual.role(for: status)
     }
 
     private func statusChip(_ status: String) -> some View {
@@ -929,12 +928,7 @@ struct IumrahAccountView: View {
     }
 
     private func statusColor(_ status: String) -> Color {
-        switch status.uppercased() {
-        case "CANCELLED": return .red
-        case "PAYMENT_PENDING": return .orange
-        case "IN_TRIP", "READY_TO_TRAVEL", "BOOKING_CONFIRMED", "COMPLETED": return Color.iumrahCareLight
-        default: return .secondary
-        }
+        IumrahBookingStatusVisual.color(for: status)
     }
 
     @MainActor

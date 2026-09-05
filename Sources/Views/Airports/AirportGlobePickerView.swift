@@ -124,7 +124,7 @@ struct AirportGlobePickerView: View {
         }
         .padding(6)
         .foregroundStyle(.primary)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 25, style: .continuous), interactive: true)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 25, style: .continuous), interactive: true, chrome: true)
     }
 
     @ViewBuilder
@@ -206,7 +206,7 @@ struct AirportGlobePickerView: View {
                         .font(.system(size: 12, weight: .bold))
                         .frame(width: 32, height: 32)
                         .contentShape(Circle())
-                        .iumrahGlass(in: Circle(), interactive: true)
+                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
                 }
                 .buttonStyle(.plain)
             }

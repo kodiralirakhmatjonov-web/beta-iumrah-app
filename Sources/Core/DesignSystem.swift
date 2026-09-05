@@ -99,6 +99,15 @@ enum IumrahIconRole: Hashable {
     case settings
     case document
     case payment
+    case waiting
+    case paymentPending
+    case confirmed
+    case ready
+    case inTrip
+    case completed
+    case telegram
+    case whatsapp
+    case transfer
     case success
     case warning
     case destructive
@@ -130,10 +139,19 @@ enum IumrahIconRole: Hashable {
         case .settings: return Color(uiColor: .systemGray)
         case .document: return Color(uiColor: .systemCyan)
         case .payment: return Color(uiColor: .systemGreen)
+        case .waiting: return Color(uiColor: .systemYellow)
+        case .paymentPending: return Color(uiColor: .systemOrange)
+        case .confirmed: return Color(uiColor: .systemGreen)
+        case .ready: return Color(uiColor: .systemTeal)
+        case .inTrip: return Color(uiColor: .systemBlue)
+        case .completed: return Color(uiColor: .systemIndigo)
+        case .telegram: return Color(uiColor: .systemBlue)
+        case .whatsapp: return Color(uiColor: .systemGreen)
+        case .transfer: return Color(uiColor: .systemCyan)
         case .success: return Color(uiColor: .systemGreen)
-        case .warning: return Color(uiColor: .systemOrange)
+        case .warning: return Color(uiColor: .systemYellow)
         case .destructive: return Color(uiColor: .systemRed)
-        case .neutral: return Color(uiColor: .secondaryLabel)
+        case .neutral: return Color(uiColor: .systemGray)
         }
     }
 
@@ -156,7 +174,8 @@ enum IumrahIconRole: Hashable {
         if name.contains("globe") || name.contains("character") { return .language }
         if name.contains("gear") || name.contains("slider") || name.contains("switch") { return .settings }
         if name.contains("mappin") || name.contains("location") || name.contains("map") { return .location }
-        if name.contains("calendar") || name.contains("clock") || name.contains("timer") { return .calendar }
+        if name.contains("calendar") { return .calendar }
+        if name.contains("clock") || name.contains("timer") { return .waiting }
         if name.contains("phone") { return .phone }
         if name.contains("envelope") || name.contains("mail") { return .mail }
         if name.contains("paperplane") || name.contains("message") || name.contains("bubble") || name.contains("chat") { return .message }
@@ -168,6 +187,38 @@ enum IumrahIconRole: Hashable {
         if name.contains("person") || name.contains("figure") { return .profile }
         if name.contains("plus") { return .accent }
         return .neutral
+    }
+}
+
+/// One status = one color everywhere in the app. These are semantic state colors,
+/// not decorative accents and never Liquid Glass tints.
+enum IumrahBookingStatusVisual {
+    static func role(for status: String) -> IumrahIconRole {
+        switch status.uppercased() {
+        case "NEW", "AVAILABILITY_CHECK": return .waiting
+        case "PAYMENT_PENDING": return .paymentPending
+        case "PAID", "BOOKING_CONFIRMED": return .confirmed
+        case "DOCUMENTS_READY", "READY_TO_TRAVEL": return .ready
+        case "IN_TRIP": return .inTrip
+        case "COMPLETED": return .completed
+        case "CANCELLED": return .destructive
+        default: return .booking
+        }
+    }
+
+    static func color(for status: String) -> Color { role(for: status).color }
+
+    static func symbol(for status: String) -> String {
+        switch status.uppercased() {
+        case "NEW", "AVAILABILITY_CHECK": return "clock.fill"
+        case "PAYMENT_PENDING": return "creditcard.fill"
+        case "PAID", "BOOKING_CONFIRMED": return "checkmark.circle.fill"
+        case "DOCUMENTS_READY", "READY_TO_TRAVEL": return "checkmark.seal.fill"
+        case "IN_TRIP": return "location.fill"
+        case "COMPLETED": return "flag.checkered"
+        case "CANCELLED": return "xmark.circle.fill"
+        default: return "suitcase.fill"
+        }
     }
 }
 
@@ -187,40 +238,36 @@ struct IumrahIconBadge: View {
     var cornerRadius: CGFloat = 14
     var shape: IumrahIconBadgeShape = .squircle
 
-    @Environment(\.colorScheme) private var colorScheme
-
     private var resolvedRole: IumrahIconRole {
         role ?? IumrahIconRole.inferred(from: systemName)
     }
 
     private var resolvedColor: Color { tint ?? resolvedRole.color }
 
-    private var fillOpacity: Double {
-        colorScheme == .dark ? 0.22 : 0.12
+    private var symbolColor: Color {
+        switch resolvedRole {
+        case .waiting, .warning, .rating:
+            return Color.black.opacity(0.78)
+        default:
+            return .white
+        }
     }
 
     @ViewBuilder
     var body: some View {
         let symbol = Image(systemName: systemName)
             .font(.system(size: symbolSize, weight: .semibold))
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(resolvedColor)
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(symbolColor)
             .frame(width: size, height: size)
 
         switch shape {
         case .squircle:
             symbol
-                .background(resolvedColor.opacity(fillOpacity), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(resolvedColor.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 0.7)
-                }
+                .background(resolvedColor, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         case .circle:
             symbol
-                .background(resolvedColor.opacity(fillOpacity), in: Circle())
-                .overlay {
-                    Circle().strokeBorder(resolvedColor.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 0.7)
-                }
+                .background(resolvedColor, in: Circle())
         }
     }
 }
@@ -311,7 +358,8 @@ struct IumrahSecondaryButtonStyle: ButtonStyle {
             .foregroundStyle(.primary)
             .iumrahGlass(
                 in: RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous),
-                interactive: true
+                interactive: true,
+                chrome: true
             )
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .opacity(configuration.isPressed ? 0.90 : 1)
@@ -350,13 +398,14 @@ private struct IumrahGlassModifier<S: Shape>: ViewModifier {
     let interactive: Bool
     let tint: Color?
     let allowsStaticGlass: Bool
+    let chrome: Bool
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *), interactive || allowsStaticGlass {
-            // Native Liquid Glass is chrome. Interactive controls use Apple's
-            // response physics; a very small number of explicit floating chrome
-            // surfaces can opt into static glass. Ordinary content cannot.
+        if #available(iOS 26.0, *), chrome || allowsStaticGlass {
+            // Liquid Glass is opt-in chrome only. `interactive` changes the glass
+            // response after a control has been classified as chrome; it no longer
+            // turns ordinary content controls into glass by itself.
             if let tint {
                 content.glassEffect(.regular.interactive(interactive).tint(tint), in: shape)
             } else {
@@ -376,13 +425,15 @@ extension View {
         in shape: S,
         interactive: Bool = false,
         tint: Color? = nil,
-        allowsStaticGlass: Bool = false
+        allowsStaticGlass: Bool = false,
+        chrome: Bool = false
     ) -> some View {
         modifier(IumrahGlassModifier(
             shape: shape,
             interactive: interactive,
             tint: tint,
-            allowsStaticGlass: allowsStaticGlass
+            allowsStaticGlass: allowsStaticGlass,
+            chrome: chrome
         ))
     }
 }
@@ -409,7 +460,7 @@ struct IumrahGlassIconButton: View {
                 .foregroundStyle(foreground ?? Color.primary)
                 .frame(width: size, height: size)
                 .contentShape(Circle())
-                .iumrahGlass(in: Circle(), interactive: true, tint: tint)
+                .iumrahGlass(in: Circle(), interactive: true, tint: tint, chrome: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel ?? systemName)
@@ -440,7 +491,8 @@ struct IumrahGlassSurface<Content: View>: View {
             in: RoundedRectangle(cornerRadius: radius, style: .continuous),
             interactive: interactive,
             tint: tint,
-            allowsStaticGlass: true
+            allowsStaticGlass: true,
+            chrome: true
         )
     }
 }

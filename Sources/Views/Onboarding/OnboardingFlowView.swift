@@ -156,7 +156,7 @@ struct OnboardingFlowView: View {
                     .foregroundStyle(headerForeground)
                     .frame(width: 48, height: 48)
                     .contentShape(Circle())
-                    .iumrahGlass(in: Circle(), interactive: true)
+                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
             }
             .buttonStyle(.plain)
         }
@@ -256,7 +256,7 @@ struct OnboardingFlowView: View {
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
                         .contentShape(Circle())
-                        .iumrahGlass(in: Circle(), interactive: true)
+                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isMuted ? "Sound off" : "Sound on")

@@ -233,7 +233,7 @@ struct BookingsHomeView: View {
                     HStack(spacing: 12) {
                         IumrahIconBadge(
                             systemName: index < current ? "checkmark" : (index == current ? "circle.fill" : "circle"),
-                            role: index < current ? .success : (index == current ? .warning : .neutral),
+                            role: index < current ? IumrahBookingStatusVisual.role(for: stages[index]) : (index == current ? IumrahBookingStatusVisual.role(for: stage) : .neutral),
                             size: 30,
                             symbolSize: index == current ? 8 : 11,
                             cornerRadius: 15,
@@ -450,13 +450,7 @@ struct BookingsHomeView: View {
     }
 
     private func statusRole(_ status: String) -> IumrahIconRole {
-        switch status.uppercased() {
-        case "BOOKING_CONFIRMED", "READY_TO_TRAVEL", "COMPLETED": return .success
-        case "PAYMENT_PENDING", "AVAILABILITY_CHECK": return .warning
-        case "IN_TRIP": return .location
-        case "CANCELLED": return .destructive
-        default: return .booking
-        }
+        IumrahBookingStatusVisual.role(for: status)
     }
 
     private func startNewTrip() {

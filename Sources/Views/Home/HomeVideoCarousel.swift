@@ -75,7 +75,7 @@ struct HomeVideoCarousel: View {
                     .foregroundStyle(.white)
                     .frame(width: 42, height: 42)
                     .contentShape(Circle())
-                    .iumrahGlass(in: Circle(), interactive: true)
+                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
             }
             .buttonStyle(.plain)
             .padding(16)
@@ -101,7 +101,7 @@ struct HomeVideoCarousel: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .iumrahGlass(in: Capsule(style: .continuous))
+        .iumrahGlass(in: Capsule(style: .continuous), allowsStaticGlass: true, chrome: true)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

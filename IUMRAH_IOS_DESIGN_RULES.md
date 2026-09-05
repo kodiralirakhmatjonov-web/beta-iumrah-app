@@ -235,10 +235,11 @@ Regular content cards should usually remain calm solid/adaptive surfaces. This p
 
 Implementation rule for the shared helper:
 
-- `iumrahGlass(..., interactive: true)` is for actual controls;
-- `allowsStaticGlass: true` is reserved for intentionally floating chrome/status surfaces;
-- ordinary static content must not opt into `allowsStaticGlass`; it resolves to an adaptive solid content surface instead;
-- never set `allowsStaticGlass: true` simply to make a card look more expensive.
+- `interactive: true` by itself MUST NOT create Liquid Glass. Interaction and material are separate decisions.
+- Native Liquid Glass requires an explicit chrome classification (`chrome: true`) or a dedicated chrome component such as `IumrahGlassIconButton`.
+- `allowsStaticGlass: true` is reserved for intentionally floating chrome/status surfaces.
+- cards, rows, fields, selectors, chips, counters and icon badges inside content resolve to adaptive opaque surfaces even when tappable.
+- never set `chrome: true` or `allowsStaticGlass: true` simply to make content look more expensive.
 
 ---
 
@@ -404,14 +405,19 @@ booking                system orange
 Umrah / guidance       system teal
 Care                    system pink
 profile / people       system cyan
-phone / security       system green
-mail / language        system blue
+phone / WhatsApp       system green
+Telegram / mail        system blue
+language               system blue
 location / alerts      system red
 appearance             system purple
 documents              system cyan
-payment / success      system green
-warning                 system orange
-destructive             system red
+waiting / availability system yellow
+payment pending        system orange
+confirmed / paid       system green
+ready to travel        system teal
+in trip                system blue
+completed              system indigo
+destructive / cancel   system red
 ```
 
 Rules:
@@ -421,7 +427,9 @@ Rules:
 - structural glyphs such as chevrons, disclosure arrows and close/back navigation remain neutral unless state requires otherwise;
 - never make every icon a different arbitrary color merely for decoration;
 - the same semantic meaning must keep the same color family throughout the app;
-- informational icon badges are solid/adaptive content, **not Liquid Glass**.
+- informational icon badges are solid/adaptive content, **not Liquid Glass**;
+- Apple Settings is the reference behavior: a saturated semantic color block with a high-contrast symbol, not a translucent tinted-glass square;
+- semantic color belongs primarily to the icon/status cue. Row titles and chevrons remain neutral unless they themselves encode state.
 
 ---
 
@@ -674,7 +682,7 @@ Required properties:
 
 Do not let every feature build its own TextField container.
 
-On iOS 26 an interactive glass surface may be used where it matches the native design.
+Text fields and form containers inside content MUST be opaque adaptive system surfaces, including on iOS 26. Focus may change border, tint or elevation, but must not turn the field itself into Liquid Glass.
 
 Never fake an iOS 26 field using manual blur.
 
@@ -1190,7 +1198,7 @@ Primary action
 
 Do not bury core price/action information under decorative glass.
 
-Filters and selectors may use glass as controls.
+Filters, selectors, chips, counters and segmented choices inside result/form content MUST use opaque adaptive surfaces. Liquid Glass is reserved for navigation chrome or floating contextual controls around the content, not for the filter cells themselves.
 
 Result content itself should remain readable, stable, and restrained.
 

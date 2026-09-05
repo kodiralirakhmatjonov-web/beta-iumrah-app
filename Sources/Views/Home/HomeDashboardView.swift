@@ -129,7 +129,13 @@ struct HomeDashboardView: View {
 
                 Spacer()
 
-                IumrahIconBadge(systemName: statusIcon(session.effectiveStatus), size: 36, symbolSize: 15, shape: .circle)
+                IumrahIconBadge(
+                    systemName: statusIcon(session.effectiveStatus),
+                    role: IumrahBookingStatusVisual.role(for: session.effectiveStatus),
+                    size: 36,
+                    symbolSize: 15,
+                    shape: .circle
+                )
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -407,7 +413,7 @@ struct HomeDashboardView: View {
             IumrahGiftCardsView()
         } label: {
             HStack(spacing: 16) {
-                IumrahIconBadge(systemName: "gift.fill", role: .care, size: 82, symbolSize: 25, cornerRadius: 22)
+                IumrahIconBadge(systemName: "gift.fill", role: .gift, size: 82, symbolSize: 25, cornerRadius: 22)
                 .overlay(alignment: .topTrailing) {
                     Text("3")
                         .font(.caption2.monospaced().weight(.bold))
@@ -419,7 +425,7 @@ struct HomeDashboardView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 7) {
-                        Text("iUmrah Gift Cards")
+                        Text("iumrah Gift Card")
                             .font(.headline)
                         Text("3 × $100")
                             .font(.caption2.monospaced().weight(.bold))

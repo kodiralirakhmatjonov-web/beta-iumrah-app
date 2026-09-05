@@ -1,0 +1,13 @@
+iumrah Beta UI Glass Boundary + Gift Card v2
+Date: 2026-09-05
+
+Scope: presentation/navigation layer only.
+- Content surfaces and content controls are opaque adaptive surfaces, not Liquid Glass.
+- Native Liquid Glass is opt-in only for classified chrome / floating controls.
+- Content icon badges use solid semantic Apple-Settings-style colors.
+- Booking lifecycle statuses have one consistent semantic color language.
+- iumrah Gift Card redesigned as an immersive photo-card carousel using the three supplied artworks.
+- Share sheet lists only server-reported available Gift Cards; server/backend redemption logic is unchanged.
+- Umrah builder content controls use clean opaque Apple-style surfaces.
+
+No backend/API/service/model/auth/pricing/signing/workflow changes are included.

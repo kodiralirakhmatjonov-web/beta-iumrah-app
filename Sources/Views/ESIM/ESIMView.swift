@@ -87,7 +87,7 @@ struct ESIMView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true)
+                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
             }
             .buttonStyle(.plain)
         }

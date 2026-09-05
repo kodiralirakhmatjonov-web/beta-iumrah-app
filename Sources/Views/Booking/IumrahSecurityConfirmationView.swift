@@ -117,7 +117,7 @@ struct IumrahSecurityConfirmationView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .bold))
                     .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true)
+                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
             }
             .buttonStyle(.plain)
 

@@ -51,7 +51,7 @@ struct SidebarDrawerView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
                         .frame(width: 38, height: 38)
-                        .iumrahGlass(in: Circle(), interactive: true)
+                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
                 }
                 .buttonStyle(.plain)
             }

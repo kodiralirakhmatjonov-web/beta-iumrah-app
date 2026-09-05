@@ -1,0 +1,173 @@
+{
+  "update": "iumrah Beta glass boundary + semantic color system + Gift Card visual v2 / marker 092",
+  "created_date": "2026-09-05",
+  "base_requirement": "Apply after the current semantic-icons/dark-mode v1 state (the UI state shown by the user).",
+  "scope": {
+    "liquid_glass": "Native Liquid Glass is opt-in chrome only. Ordinary cards, rows, fields, selectors, chips, counters and icon badges render as opaque adaptive content surfaces.",
+    "content_icons": "Solid Apple-Settings-style semantic icon badges; no glass/tinted translucent icon containers.",
+    "booking_status_palette": {
+      "NEW_AVAILABILITY_CHECK": "systemYellow",
+      "PAYMENT_PENDING": "systemOrange",
+      "PAID_BOOKING_CONFIRMED": "systemGreen",
+      "DOCUMENTS_READY_READY_TO_TRAVEL": "systemTeal",
+      "IN_TRIP": "systemBlue",
+      "COMPLETED": "systemIndigo",
+      "CANCELLED": "systemRed"
+    },
+    "category_palette": {
+      "flight_travel": "systemBlue",
+      "hotel": "systemIndigo",
+      "booking": "systemOrange",
+      "umrah": "systemTeal",
+      "care": "systemPink",
+      "profile": "systemCyan",
+      "phone_whatsapp_security": "systemGreen",
+      "mail_telegram_language": "systemBlue",
+      "appearance": "systemPurple",
+      "notification_location": "systemRed",
+      "gift": "systemPurple"
+    },
+    "gift_card": "Apple-Invites-inspired immersive welcome composition with three supplied photo artworks, available-card carousel modal and system ShareLink.",
+    "gift_availability": "Client filters by existing IumrahFriendGift.isAvailable and refreshes on load, pull-to-refresh, app becoming active and share-sheet dismissal. No redemption/server mutation was added.",
+    "umrah_form": "TripBuilder and flight-filter content remain opaque; semantic section icons replace monochrome/glass content decoration."
+  },
+  "preserved": [
+    "Backend",
+    "API contracts",
+    "Services",
+    "Models",
+    "Authentication",
+    "Pricing",
+    "Signing",
+    "GitHub workflows",
+    "Server Gift Card redemption logic"
+  ],
+  "changed_files": [
+    {
+      "path": "IUMRAH_IOS_DESIGN_RULES.md",
+      "sha256": "57e4df6571b53221dd23b1f1616d63478038fb870bb4571af266e45420cd8928",
+      "bytes": 35422
+    },
+    {
+      "path": "Resources/Assets.xcassets/GiftCardJourney.imageset/Contents.json",
+      "sha256": "c37d3d61cd55e974e97e4b38d470acf7716d26a497a2a8f9a287e659e70a538f",
+      "bytes": 258
+    },
+    {
+      "path": "Resources/Assets.xcassets/GiftCardJourney.imageset/GiftCardJourney.jpeg",
+      "sha256": "8547b2a934629ff0094719f689a4df87df27a2879ad98c90b3acad949dbd3063",
+      "bytes": 273316
+    },
+    {
+      "path": "Resources/Assets.xcassets/GiftCardKaaba.imageset/Contents.json",
+      "sha256": "162d93b2a1cfd43665eecde982f7bd22dad056b4d411b3ee8e8cb182b7b098b0",
+      "bytes": 256
+    },
+    {
+      "path": "Resources/Assets.xcassets/GiftCardKaaba.imageset/GiftCardKaaba.jpeg",
+      "sha256": "09347399badaebbcd58538a9a1776f8923dae33e552292a9ff0b8a7eaa725a49",
+      "bytes": 125688
+    },
+    {
+      "path": "Resources/Assets.xcassets/GiftCardTogether.imageset/Contents.json",
+      "sha256": "5a1c1d1499c435b1f1c7b4c04195b0fc7c2d03758f40eaefeb282b7e7436dfe7",
+      "bytes": 259
+    },
+    {
+      "path": "Resources/Assets.xcassets/GiftCardTogether.imageset/GiftCardTogether.jpeg",
+      "sha256": "d0c86fc2c259c61a5c5bebc8df21c0e95ac4ae6e4db34886723e05bad2b5afb1",
+      "bytes": 113288
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "sha256": "b79e1513a5aeed3a16c12b1dde503c62e0db9dccc5c5f25525e1f36c8a9802f5",
+      "bytes": 52661
+    },
+    {
+      "path": "Sources/AppShell/SidebarDrawerView.swift",
+      "sha256": "e0bebec68ea3dd571fc876768338d4b24785d5093abb2487fae89f0d823abafc",
+      "bytes": 8438
+    },
+    {
+      "path": "Sources/Core/DesignSystem.swift",
+      "sha256": "32b02330fae69bda5bf0fa82053c8719ffed332605f1308827f1bbad9d117b7f",
+      "bytes": 20446
+    },
+    {
+      "path": "Sources/Views/Airports/AirportGlobePickerView.swift",
+      "sha256": "ad988d65efe60bf91e5bc1b888b649b5806d845060a13de8c95047110f4306ac",
+      "bytes": 14904
+    },
+    {
+      "path": "Sources/Views/Booking/BookingDetailView.swift",
+      "sha256": "308f730bcf3799d96c17860933157f652a65b4811eb912aa8b0ee7e18e9d6529",
+      "bytes": 74761
+    },
+    {
+      "path": "Sources/Views/Booking/IumrahSecurityConfirmationView.swift",
+      "sha256": "a7030aea8f2c27086c2b96dd6d53d17e9995aff57ec308dd7e1dc7f691a6597d",
+      "bytes": 40264
+    },
+    {
+      "path": "Sources/Views/Components/IumrahRootPageTitle.swift",
+      "sha256": "c564cc8d750293915fe2ccff0f96203c1f5da52286fc07cddd0a41293c76bef8",
+      "bytes": 4083
+    },
+    {
+      "path": "Sources/Views/ESIM/ESIMView.swift",
+      "sha256": "11371bb7b4840e08a659ba4d3a5dbb18c2799629179f6471ce5fb644390424e7",
+      "bytes": 34501
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "e4e7eeac060a6edff27a67393660fe350c1f2ca4937178c4187d503cde9f62a2",
+      "bytes": 30695
+    },
+    {
+      "path": "Sources/Views/Home/HomeVideoCarousel.swift",
+      "sha256": "0e1497a52bed6fed7ab664f8815b9c5ca5758bb30356025c0309431c68a5af51",
+      "bytes": 4382
+    },
+    {
+      "path": "Sources/Views/Home/IumrahFriendsView.swift",
+      "sha256": "8d25200839247361733a93628e177e804cef1d12466ce59db00c0f845cb1e3a3",
+      "bytes": 23711
+    },
+    {
+      "path": "Sources/Views/Home/IumrahGiftCardPass.swift",
+      "sha256": "537df61e86b19bcc7bd8a9e0ea9739ec8bcd50e0385eab070a74b556eec47986",
+      "bytes": 3571
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "sha256": "1df67d2c083a68f7f0b64497df7f237d879897bd2f4f9b077a0960731b1a6cff",
+      "bytes": 46601
+    },
+    {
+      "path": "Sources/Views/Onboarding/OnboardingFlowView.swift",
+      "sha256": "30e603d733c9e921152f03b72c0b50711d11426f0360718a58eb95dd19fe13c9",
+      "bytes": 53677
+    },
+    {
+      "path": "Sources/Views/Tabs/BookingsHomeView.swift",
+      "sha256": "8ab1c37a1d1580a898426728baf290f7aa46a23169ebfafd56d14de0a65d0f88",
+      "bytes": 22533
+    },
+    {
+      "path": "Sources/Views/Trip/FlightSearchFiltersCard.swift",
+      "sha256": "61bdc7967f6407f72aaa249d11e3073ba925c9d0e4d330f40496d218e4ec48d3",
+      "bytes": 19978
+    },
+    {
+      "path": "Sources/Views/Trip/TripBuilderView.swift",
+      "sha256": "8b53fcccf2d4a76e93acd394e70f8551442bb7b8c99cf38dbaa96e975ff474fb",
+      "bytes": 24831
+    }
+  ],
+  "qa": {
+    "swift_parse": "PASS 173/173 Swift files",
+    "gift_asset_catalog_json": "PASS 3/3 Contents.json",
+    "direct_native_glass_scan": "Only shared DesignSystem glass implementation and CareNativeGlass control style remain; content callsites opt out unless explicitly classified as chrome.",
+    "incremental_patch_target_count": 24
+  }
+}

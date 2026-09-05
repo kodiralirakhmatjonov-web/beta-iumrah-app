@@ -452,11 +452,14 @@ struct BookingDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: statusIcon(session.effectiveStatus))
-                    .font(.system(size: 24, weight: .semibold))
-                    .frame(width: 52, height: 52)
-                    .background(Color.iumrahRaisedBackground)
-                    .clipShape(Circle())
+                IumrahIconBadge(
+                    systemName: statusIcon(session.effectiveStatus),
+                    role: IumrahBookingStatusVisual.role(for: session.effectiveStatus),
+                    size: 52,
+                    symbolSize: 22,
+                    cornerRadius: 26,
+                    shape: .circle
+                )
             }
 
             Text(L10n.text("detail_updates", settings.language))
@@ -1668,15 +1671,7 @@ private struct BookingFlightDisclosureCard: View {
 }
 
 func statusIcon(_ status: String) -> String {
-    switch status.uppercased() {
-    case "BOOKING_CONFIRMED": return "checkmark.seal.fill"
-    case "PAYMENT_PENDING": return "creditcard.fill"
-    case "READY_TO_TRAVEL": return "airplane.circle.fill"
-    case "IN_TRIP": return "location.fill"
-    case "COMPLETED": return "flag.checkered.circle.fill"
-    case "CANCELLED": return "xmark.circle.fill"
-    default: return "clock.fill"
-    }
+    IumrahBookingStatusVisual.symbol(for: status)
 }
 
 

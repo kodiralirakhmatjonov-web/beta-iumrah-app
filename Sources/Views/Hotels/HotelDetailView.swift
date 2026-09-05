@@ -136,7 +136,7 @@ struct HotelDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .iumrahGlass(in: Capsule(), interactive: true, tint: .black.opacity(0.22))
+                    .iumrahGlass(in: Capsule(), interactive: true, tint: .black.opacity(0.22), chrome: true)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 14)
@@ -1044,7 +1044,7 @@ struct HotelGalleryView: View {
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
                     .contentShape(Circle())
-                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18))
+                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18), chrome: true)
             }
             .buttonStyle(.plain)
             .padding(18)
@@ -1056,7 +1056,7 @@ struct HotelGalleryView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .iumrahGlass(in: Capsule(), tint: .black.opacity(0.18))
+                    .iumrahGlass(in: Capsule(), tint: .black.opacity(0.18), allowsStaticGlass: true, chrome: true)
                     .padding(22)
             }
         }

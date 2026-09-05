@@ -50,7 +50,8 @@ struct IumrahRootPageTitle: View {
                         .iumrahGlass(
                             in: Circle(),
                             interactive: true,
-                            tint: lightStyle ? Color.black.opacity(0.18) : nil
+                            tint: lightStyle ? Color.black.opacity(0.18) : nil,
+                            chrome: true
                         )
                 }
                 .buttonStyle(.plain)

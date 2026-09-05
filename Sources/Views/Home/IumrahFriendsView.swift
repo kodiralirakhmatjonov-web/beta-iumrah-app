@@ -6,308 +6,354 @@ struct IumrahGiftCardsView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var chrome: AppChromeStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var dashboard: IumrahFriendsDashboard?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var selectedArtwork = 1
     @State private var selectedGiftID: String?
-    @State private var copiedCode: String?
+    @State private var showShareSheet = false
+
+    private let artworkNames = ["GiftCardTogether", "GiftCardKaaba", "GiftCardJourney"]
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                intro
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-                if account.isAuthenticated {
-                    if isLoading && dashboard == nil {
-                        loadingCard
-                    } else if let dashboard {
-                        balanceCard(dashboard)
-                        giftCardsSection(dashboard)
-                        rulesCard
+            backgroundGlow
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    welcomeCarousel
+                        .padding(.top, 10)
+
+                    welcomeCopy
+                        .padding(.top, 28)
+                        .padding(.horizontal, 34)
+
+                    actionArea
+                        .padding(.top, 22)
+                        .padding(.horizontal, 44)
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color(uiColor: .systemYellow))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 28)
+                            .padding(.top, 16)
                     }
-                } else {
-                    lockedCard
-                    rulesCard
-                }
 
-                if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
+                    footerStatus
+                        .padding(.top, 18)
+                        .padding(.bottom, 40)
                 }
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
-            .padding(.bottom, 42)
         }
-        .background(Color.iumrahPageBackground)
-        .navigationTitle("iUmrah Gift Cards")
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
-        .iumrahInternalNavigation()
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(.white)
+        .preferredColorScheme(.dark)
         .task(id: account.bearerToken) { await loadDashboard() }
         .refreshable { await loadDashboard() }
-        .animation(.spring(response: 0.44, dampingFraction: 0.88), value: selectedGiftID)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, account.isAuthenticated else { return }
+            Task { await loadDashboard() }
+        }
+        .sheet(isPresented: $showShareSheet, onDismiss: {
+            Task { await loadDashboard() }
+        }) {
+            shareSheet
+                .preferredColorScheme(.dark)
+        }
+    }
+
+    private var availableGifts: [IumrahFriendGift] {
+        dashboard?.gifts.filter(\.isAvailable) ?? []
     }
 
     private var selectedGift: IumrahFriendGift? {
-        guard let dashboard else { return nil }
-        if let selectedGiftID, let exact = dashboard.gifts.first(where: { $0.id == selectedGiftID }) { return exact }
-        return dashboard.gifts.first
+        if let selectedGiftID,
+           let exact = availableGifts.first(where: { $0.id == selectedGiftID }) {
+            return exact
+        }
+        return availableGifts.first
     }
 
+    private var backgroundGlow: some View {
+        GeometryReader { proxy in
+            Image(artworkNames[max(0, min(selectedArtwork - 1, artworkNames.count - 1))])
+                .resizable()
+                .scaledToFill()
+                .frame(width: proxy.size.width * 1.15, height: proxy.size.height * 0.60)
+                .blur(radius: 58)
+                .saturation(0.85)
+                .opacity(0.24)
+                .mask(
+                    LinearGradient(
+                        colors: [.white, .white.opacity(0.70), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .offset(y: -50)
+                .allowsHitTesting(false)
+        }
+        .ignoresSafeArea()
+    }
 
-    private var intro: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("iUmrah Gift Cards")
-                        .font(.system(size: 31, weight: .bold, design: .rounded))
-                        .tracking(-0.7)
-                    Text(localizedSubtitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+    private var welcomeCarousel: some View {
+        let positions = dashboard == nil ? [1, 2, 3] : availableGifts.map(\.position)
+        return GeometryReader { proxy in
+            let width = min(238.0, proxy.size.width * 0.60)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 14) {
+                    if positions.isEmpty {
+                        GiftWelcomeEmptyArtwork(language: settings.language)
+                            .frame(width: width)
+                            .id(0)
+                    } else {
+                        ForEach(positions, id: \.self) { position in
+                            let assetIndex = ((position - 1) % artworkNames.count + artworkNames.count) % artworkNames.count
+                            GiftWelcomeArtwork(assetName: artworkNames[assetIndex], position: position, language: settings.language)
+                                .frame(width: width)
+                                .scrollTransition(axis: .horizontal) { content, phase in
+                                    content
+                                        .scaleEffect(phase.isIdentity ? 1.0 : 0.91)
+                                        .opacity(phase.isIdentity ? 1.0 : 0.70)
+                                }
+                                .id(position)
+                        }
+                    }
                 }
-                Spacer()
-                Text("3 × $100")
-                    .font(.caption.monospaced().weight(.bold))
-                    .padding(.horizontal, 13)
-                    .frame(height: 38)
-                    .iumrahGlass(in: Capsule())
+                .scrollTargetLayout()
+                .padding(.horizontal, max(0, (proxy.size.width - width) / 2))
             }
-
-            Text(tr(
-                "Give someone close $100 toward their first eligible Umrah booking. When that booking is confirmed and paid, you earn $100 iUmrah Balance.",
-                "Подарите близкому $100 на первое подходящее бронирование умры. После подтверждения личности и оплаты поездки Вы получите $100 в iUmrah Balance.",
-                "Yaqin insoningizga birinchi mos Umrah broniga $100 sovg‘a qiling. Shaxs tasdiqlanib, safar to‘langach, Siz $100 iUmrah Balance olasiz.",
-                "Яқин инсонга биринчи мос Умра бронига $100 совға қилинг. Шахс тасдиқланиб, сафар тўлангач, Сиз $100 iUmrah Balance оласиз."
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: Binding(
+                get: { selectedArtwork },
+                set: { if let newValue = $0 { selectedArtwork = newValue } }
             ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 360)
     }
 
-    private var loadingCard: some View {
-        HStack(spacing: 12) {
-            ProgressView()
-            Text(tr("Preparing your Gift Cards…", "Готовим Ваши Gift Cards…", "Gift Card laringiz tayyorlanmoqda…", "Gift Card ларингиз тайёрланмоқда…"))
-                .font(.subheadline.weight(.medium))
+    private var welcomeCopy: some View {
+        VStack(spacing: 8) {
+            Text(tr("Welcome to", "Добро пожаловать в", "Xush kelibsiz", "Хуш келибсиз"))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.58))
+
+            Text("iumrah Gift Card")
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .tracking(-0.9)
+                .foregroundStyle(.white)
+
+            Text(tr(
+                "Share a $100 Gift Card with someone close to you for their first eligible Umrah booking.",
+                "Подарите близкому Gift Card на $100 для первого подходящего бронирования Умры.",
+                "Yaqin insoningizga birinchi mos Umrah broni uchun $100 Gift Card ulashing.",
+                "Яқин инсонингизга биринчи мос Умра брони учун $100 Gift Card улашинг."
+            ))
+            .font(.system(size: 14, weight: .regular, design: .rounded))
+            .foregroundStyle(.white.opacity(0.62))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .iumrahCard()
     }
 
-    private var lockedCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            IumrahIconBadge(
-                systemName: "person.badge.key.fill",
-                role: .security,
-                size: 50,
-                symbolSize: 21,
-                cornerRadius: 17
-            )
-
-            Text(tr("Unlock your 3 Gift Cards", "Откройте 3 Gift Cards", "3 ta Gift Card ni oching", "3 та Gift Card ни очинг"))
-                .font(.title3.bold())
-            Text(tr(
-                "Sign in or create your iumrah account. Every registered pilgrim receives three $100 Gift Cards to share with people close to them.",
-                "Войдите или создайте аккаунт iumrah. Каждый зарегистрированный паломник получает три Gift Cards по $100 для близких.",
-                "iumrah akkauntingizga kiring yoki yarating. Har bir ro‘yxatdan o‘tgan ziyoratchi yaqinlari uchun uchta $100 Gift Card oladi.",
-                "iumrah аккаунтингизга киринг ёки яратинг. Ҳар бир рўйхатдан ўтган зиёратчи яқинлари учун учта $100 Gift Card олади."
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-
+    @ViewBuilder
+    private var actionArea: some View {
+        if account.isAuthenticated {
             Button {
-                dismiss(); chrome.navigate(to: .account)
+                guard !availableGifts.isEmpty else { return }
+                selectedGiftID = availableGifts.first?.id
+                IumrahHaptics.selection()
+                showShareSheet = true
             } label: {
-                HStack {
-                    Text(tr("Open iumrah account", "Открыть аккаунт iumrah", "iumrah akkauntini ochish", "iumrah аккаунтини очиш"))
-                    Spacer()
-                    Image(systemName: "arrow.right")
+                HStack(spacing: 8) {
+                    if isLoading && dashboard == nil {
+                        ProgressView().tint(.black)
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    Text(tr("Share Gift Card", "Поделиться Gift Card", "Gift Card ulashish", "Gift Card улашиш"))
                 }
-                .font(.headline)
-                .padding(.horizontal, 16)
-                .frame(height: 54)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 20)
+                .frame(height: 46)
+                .background(Color.white, in: Capsule(style: .continuous))
+                .contentShape(Capsule(style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(availableGifts.isEmpty || (isLoading && dashboard == nil))
+            .opacity(availableGifts.isEmpty && dashboard != nil ? 0.48 : 1)
+        } else {
+            Button {
+                dismiss()
+                chrome.navigate(to: .account)
+            } label: {
+                Text(tr("Open iumrah account", "Открыть аккаунт iumrah", "iumrah akkauntini ochish", "iumrah аккаунтини очиш"))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 20)
+                    .frame(height: 46)
+                    .background(Color.white, in: Capsule(style: .continuous))
             }
             .buttonStyle(.plain)
         }
-        .iumrahCard()
     }
 
-    private func balanceCard(_ value: IumrahFriendsDashboard) -> some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("Your iUmrah Balance", "Ваш iUmrah Balance", "Sizning iUmrah Balance", "Сизнинг iUmrah Balance"))
-                        .font(.caption.weight(.semibold))
+    @ViewBuilder
+    private var footerStatus: some View {
+        if account.isAuthenticated, let dashboard {
+            VStack(spacing: 4) {
+                Text(tr(
+                    "\(availableGifts.count) of 3 available",
+                    "Доступно: \(availableGifts.count) из 3",
+                    "3 tadan \(availableGifts.count) tasi mavjud",
+                    "3 тадан \(availableGifts.count) таси мавжуд"
+                ))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.55))
+
+                if dashboard.availableCreditUsd > 0 {
+                    Text(tr(
+                        "iumrah Balance: \(money(dashboard.availableCreditUsd))",
+                        "iumrah Balance: \(money(dashboard.availableCreditUsd))",
+                        "iumrah Balance: \(money(dashboard.availableCreditUsd))",
+                        "iumrah Balance: \(money(dashboard.availableCreditUsd))"
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.42))
+                }
+            }
+        }
+    }
+
+    private var shareSheet: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    VStack(spacing: 6) {
+                        Text(tr("Choose a Gift Card", "Выберите Gift Card", "Gift Card tanlang", "Gift Card танланг"))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .tracking(-0.6)
+                        Text(tr(
+                            "Choose one card, then send it with the system Share menu.",
+                            "Выберите одну карту и отправьте её через системное меню «Поделиться».",
+                            "Bitta kartani tanlang va tizimdagi ulashish menyusi orqali yuboring.",
+                            "Битта картани танланг ва тизимдаги улашиш менюси орқали юборинг."
+                        ))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(money(value.availableCreditUsd))
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                }
-                Spacer()
-                IumrahIconBadge(
-                    systemName: "wallet.bifold.fill",
-                    role: .payment,
-                    size: 46,
-                    symbolSize: 19,
-                    cornerRadius: 16
-                )
-            }
-
-            HStack(spacing: 10) {
-                metric(title: tr("Pending", "Ожидается", "Kutilmoqda", "Кутилмоқда"), value: money(value.pendingRewardsUsd), icon: "clock.fill")
-                metric(title: tr("Earned", "Заработано", "Ishlangan", "Ишланган"), value: money(value.earnedRewardsUsd), icon: "checkmark.circle.fill")
-            }
-        }
-        .iumrahCard()
-    }
-
-    private func metric(title: String, value: String, icon: String) -> some View {
-        HStack(spacing: 9) {
-            IumrahInlineIcon(systemName: icon, size: 12)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.caption2).foregroundStyle(.secondary)
-                Text(value).font(.subheadline.weight(.bold))
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    private func giftCardsSection(_ value: IumrahFriendsDashboard) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(tr("Your Gift Cards", "Ваши Gift Cards", "Gift Card laringiz", "Gift Card ларингиз"))
-                    .font(.title3.bold())
-                Spacer()
-                Text("\(value.gifts.filter(\.isAvailable).count)/3")
-                    .font(.caption.monospaced().weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
-
-            GiftCardCarousel(gifts: value.gifts, language: settings.language, selectedGiftID: $selectedGiftID)
-                .frame(height: 255)
-                .onAppear {
-                    if selectedGiftID == nil { selectedGiftID = value.gifts.first?.id }
-                }
-
-            if let selectedGift {
-                actionPanel(for: selectedGift)
-            }
-        }
-    }
-
-    private func actionPanel(for gift: IumrahFriendGift) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(gift.code)
-                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                    Text(localizedSubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if let copiedCode, copiedCode == gift.code {
-                    Label(tr("Copied", "Скопировано", "Nusxalandi", "Нусхаланди"), systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.green)
-                }
-            }
-
-            HStack(spacing: 10) {
-                if gift.isAvailable {
-                    ShareLink(item: shareText(gift), preview: SharePreview("iUmrah Gift Card", image: Image(systemName: "gift.fill"))) {
-                        Label(tr("Share / AirDrop", "Поделиться / AirDrop", "Ulashish / AirDrop", "Улашиш / AirDrop"), systemImage: "square.and.arrow.up")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                        .multilineTextAlignment(.center)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 22)
+
+                    if availableGifts.isEmpty {
+                        VStack(spacing: 10) {
+                            IumrahIconBadge(systemName: "checkmark", role: .confirmed, size: 50, symbolSize: 20, cornerRadius: 17)
+                            Text(tr("No Gift Cards available", "Нет доступных Gift Cards", "Mavjud Gift Card yo‘q", "Мавжуд Gift Card йўқ"))
+                                .font(.headline)
+                            Text(tr(
+                                "Cards that are no longer available are removed from this list.",
+                                "Карты, которые больше недоступны, исчезают из этого списка.",
+                                "Endi mavjud bo‘lmagan kartalar bu ro‘yxatdan yo‘qoladi.",
+                                "Энди мавжуд бўлмаган карталар бу рўйхатдан йўқолади."
+                            ))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        }
+                        .padding(.vertical, 60)
+                        .padding(.horizontal, 28)
+                    } else {
+                        GiftCardCarousel(
+                            gifts: availableGifts,
+                            language: settings.language,
+                            selectedGiftID: $selectedGiftID
+                        )
+                        .frame(height: 356)
+
+                        if let gift = selectedGift {
+                            VStack(spacing: 14) {
+                                HStack(spacing: 12) {
+                                    IumrahIconBadge(systemName: "gift.fill", role: .gift, size: 42, symbolSize: 17, cornerRadius: 13)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(tr("Gift code", "Код Gift Card", "Gift Card kodi", "Gift Card коди"))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text(gift.code)
+                                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                                            .textSelection(.enabled)
+                                    }
+                                    Spacer()
+                                    Button {
+                                        UIPasteboard.general.string = gift.code
+                                        IumrahHaptics.success()
+                                    } label: {
+                                        Image(systemName: "doc.on.doc")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .frame(width: 38, height: 38)
+                                            .background(Color.iumrahRaisedBackground, in: Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(14)
+                                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+                                ShareLink(item: shareText(gift), preview: SharePreview("iumrah Gift Card", image: Image(systemName: "gift.fill"))) {
+                                    Label(tr("Share Gift Card", "Поделиться Gift Card", "Gift Card ulashish", "Gift Card улашиш"), systemImage: "square.and.arrow.up")
+                                        .font(.headline)
+                                        .foregroundStyle(Color.iumrahPrimaryButtonText)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 56)
+                                        .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, IumrahDesign.pagePadding)
+                        }
+                    }
                 }
-
-                Button {
-                    UIPasteboard.general.string = gift.code
-                    copiedCode = gift.code
-                    IumrahHaptics.success()
-                } label: {
-                    Label(tr("Copy code", "Копировать код", "Koddan nusxa olish", "Коддан нусха олиш"), systemImage: "doc.on.doc")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                .padding(.top, 14)
+                .padding(.bottom, 30)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showShareSheet = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .accessibilityLabel(tr("Close", "Закрыть", "Yopish", "Ёпиш"))
                 }
-                .buttonStyle(.plain)
-            }
-
-            if gift.isRewardEarned {
-                Label(tr("$100 added to iUmrah Balance", "$100 зачислены в iUmrah Balance", "$100 iUmrah Balance ga qo‘shildi", "$100 iUmrah Balance га қўшилди"), systemImage: "checkmark.seal.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.green)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else if !gift.isAvailable {
-                Label(tr("$100 reward after your friend pays", "$100 будут начислены после оплаты близкого", "Yaqin insoningiz to‘lagach $100 hisoblanadi", "Яқин инсонингиз тўлагач $100 ҳисобланади"), systemImage: "clock.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .iumrahCard()
-    }
-
-    private var rulesCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 18, weight: .semibold))
-                Text(tr("How Gift Cards work", "Как работают Gift Cards", "Gift Card qanday ishlaydi", "Gift Card қандай ишлайди"))
-                    .font(.headline)
-            }
-
-            rule("1", tr("The recipient receives $100 toward their first eligible iumrah booking.", "Получатель получает $100 на первое подходящее бронирование iumrah.", "Qabul qiluvchi birinchi mos iumrah broniga $100 oladi.", "Қабул қилувчи биринчи мос iumrah бронига $100 олади."))
-            rule("2", tr("You receive $100 iUmrah Balance only after their identity is confirmed and the booking is paid.", "Вы получаете $100 в iUmrah Balance только после подтверждения личности получателя и оплаты бронирования.", "Siz $100 iUmrah Balance ni faqat qabul qiluvchining shaxsi tasdiqlanib, bron to‘langandan keyin olasiz.", "Сиз $100 iUmrah Balance ни фақат қабул қилувчининг шахси тасдиқланиб, брон тўлангандан кейин оласиз."))
-            rule("3", tr("Trips up to $2,000 can use up to $100. Above $2,000, up to $200.", "Для поездки до $2,000 применяется максимум $100. Свыше $2,000 — максимум $200.", "$2,000 gacha bo‘lgan safarda limit $100. $2,000 dan yuqori — $200 gacha.", "$2,000 гача бўлган сафарда лимит $100. $2,000 дан юқори — $200 гача."))
-            rule("4", tr("iUmrah Security uses only a manually confirmed passport identity for Gift Card anti-fraud.", "Антифрод Gift Card использует только паспортную личность, вручную подтверждённую через iUmrah Security.", "Gift Card antifraud faqat iUmrah Security orqali qo‘lda tasdiqlangan pasport shaxsidan foydalanadi.", "Gift Card antifraud фақат iUmrah Security орқали қўлда тасдиқланган паспорт шахсидан фойдаланади."))
-            rule("5", tr("If the referred booking is cancelled or refunded, the $100 referral reward is reversed and the Gift Card becomes available again.", "Если бронирование приглашённого отменено или возвращено, реферальные $100 аннулируются, а Gift Card снова становится доступной.", "Taklif qilingan bron bekor qilinsa yoki puli qaytarilsa, $100 referral mukofoti bekor qilinadi va Gift Card yana mavjud bo‘ladi.", "Таклиф қилинган брон бекор қилинса ёки пули қайтарилса, $100 referral мукофоти бекор қилинади ва Gift Card яна мавжуд бўлади."))
-        }
-        .iumrahCard()
-    }
-
-    private func rule(_ number: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 11) {
-            Text(number)
-                .font(.caption.monospaced().weight(.bold))
-                .frame(width: 28, height: 28)
-                .background(Color.iumrahRaisedBackground, in: Circle())
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private var localizedSubtitle: String {
-        tr("Gift cards for someone close", "Подарочные карты для близких", "Yaqinlar uchun sovg‘a kartalari", "Яқинлар учун совға карталари")
+        .presentationDetents([.fraction(0.84), .large])
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(34)
     }
 
     private func shareText(_ gift: IumrahFriendGift) -> String {
         let sender = account.account?.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let name = (sender?.isEmpty == false ? sender! : "iUmrah")
+        let name = (sender?.isEmpty == false ? sender! : "iumrah")
         return tr(
-            "🎁 \(name) sent you an iUmrah Gift Card worth $100 toward your first eligible Umrah booking. Open iumrah and use code \(gift.code). https://iumrah.app",
-            "🎁 \(name) отправил(а) Вам iUmrah Gift Card на $100 для первого подходящего бронирования умры. Откройте iumrah и примените код \(gift.code). https://iumrah.app",
-            "🎁 \(name) Sizga birinchi mos Umrah broniga $100 iUmrah Gift Card yubordi. iumrah ni oching va \(gift.code) kodini kiriting. https://iumrah.app",
-            "🎁 \(name) Сизга биринчи мос Умра бронига $100 iUmrah Gift Card юборди. iumrah ни очинг ва \(gift.code) кодини киритинг. https://iumrah.app"
+            "🎁 \(name) sent you an iumrah Gift Card worth $100 toward your first eligible Umrah booking. Open iumrah and use code \(gift.code). https://iumrah.app",
+            "🎁 \(name) отправил(а) Вам iumrah Gift Card на $100 для первого подходящего бронирования Умры. Откройте iumrah и примените код \(gift.code). https://iumrah.app",
+            "🎁 \(name) Sizga birinchi mos Umrah broniga $100 iumrah Gift Card yubordi. iumrah ni oching va \(gift.code) kodini kiriting. https://iumrah.app",
+            "🎁 \(name) Сизга биринчи мос Умра бронига $100 iumrah Gift Card юборди. iumrah ни очинг ва \(gift.code) кодини киритинг. https://iumrah.app"
         )
     }
 
@@ -322,7 +368,10 @@ struct IumrahGiftCardsView: View {
         defer { isLoading = false }
         do {
             dashboard = try await account.friendsDashboard()
-            selectedGiftID = dashboard?.gifts.first?.id
+            selectedGiftID = dashboard?.gifts.first(where: \.isAvailable)?.id
+            if let firstPosition = dashboard?.gifts.first(where: \.isAvailable)?.position {
+                selectedArtwork = firstPosition
+            }
             errorMessage = nil
         } catch {
             errorMessage = L10n.error(error, settings.language)
@@ -341,6 +390,97 @@ struct IumrahGiftCardsView: View {
     }
 }
 
+private struct GiftWelcomeArtwork: View {
+    let assetName: String
+    let position: Int
+    let language: AppSettingsStore.Language
+
+    var body: some View {
+        ZStack {
+            Image(assetName)
+                .resizable()
+                .scaledToFill()
+
+            LinearGradient(
+                colors: [.clear, .clear, Color.black.opacity(0.58)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text("iumrah")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                    Spacer()
+                    Text("$100")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+
+                Spacer()
+
+                Text(localized("Gift Card", "Gift Card", "Gift Card", "Gift Card"))
+                    .font(.system(size: 25, weight: .bold, design: .rounded))
+                    .tracking(-0.5)
+                Text(localized("For Umrah", "Для Умры", "Umrah uchun", "Умра учун"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .padding(.top, 3)
+            }
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.34), radius: 8, y: 3)
+            .padding(17)
+        }
+        .aspectRatio(0.67, contentMode: .fill)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.28), radius: 22, y: 12)
+    }
+
+    private func localized(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch language {
+        case .english: return en
+        case .russian: return ru
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
+        }
+    }
+}
+
+private struct GiftWelcomeEmptyArtwork: View {
+    let language: AppSettingsStore.Language
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+            VStack(spacing: 12) {
+                IumrahIconBadge(systemName: "checkmark", role: .confirmed, size: 50, symbolSize: 20, cornerRadius: 17)
+                Text(localized("All shared", "Все отправлены", "Hammasi ulashildi", "Ҳаммаси улашилди"))
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text(localized("No Gift Cards available right now", "Сейчас нет доступных Gift Cards", "Hozir mavjud Gift Card yo‘q", "Ҳозир мавжуд Gift Card йўқ"))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.56))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(18)
+        }
+        .aspectRatio(0.67, contentMode: .fill)
+    }
+
+    private func localized(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch language {
+        case .english: return en
+        case .russian: return ru
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
+        }
+    }
+}
+
 private struct GiftCardCarousel: View {
     let gifts: [IumrahFriendGift]
     let language: AppSettingsStore.Language
@@ -348,19 +488,28 @@ private struct GiftCardCarousel: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = max(280, min(proxy.size.width - 54, 360))
+            let cardWidth = min(220.0, proxy.size.width * 0.57)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 14) {
                     ForEach(gifts) { gift in
                         IumrahGiftCardPass(gift: gift, language: language)
                             .frame(width: cardWidth)
+                            .overlay {
+                                if selectedGiftID == gift.id {
+                                    RoundedRectangle(cornerRadius: 27, style: .continuous)
+                                        .strokeBorder(Color.primary.opacity(0.90), lineWidth: 2.2)
+                                }
+                            }
                             .scrollTransition(axis: .horizontal) { content, phase in
                                 content
-                                    .scaleEffect(phase.isIdentity ? 1.0 : 0.94)
-                                    .rotationEffect(.degrees(phase.isIdentity ? 0 : (phase.value < 0 ? -2.2 : 2.2)))
-                                    .opacity(phase.isIdentity ? 1.0 : 0.88)
+                                    .scaleEffect(phase.isIdentity ? 1.0 : 0.91)
+                                    .opacity(phase.isIdentity ? 1.0 : 0.72)
                             }
                             .id(gift.id)
+                            .onTapGesture {
+                                selectedGiftID = gift.id
+                                IumrahHaptics.selection()
+                            }
                     }
                 }
                 .scrollTargetLayout()

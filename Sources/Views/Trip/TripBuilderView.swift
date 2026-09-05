@@ -73,8 +73,7 @@ struct TripBuilderView: View {
 
     private var routeCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(L10n.text("trip_origin_title", settings.language), systemImage: "airplane.departure")
-                .font(.headline)
+            formHeader(L10n.text("trip_origin_title", settings.language), icon: "airplane.departure", role: .travel)
 
             AirportSelectorButton(airport: $journey.trip.originAirport, fallbackCode: $journey.trip.origin)
 
@@ -161,8 +160,7 @@ struct TripBuilderView: View {
 
     private var datesCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(L10n.text("trip_dates_title", settings.language), systemImage: "calendar")
-                .font(.headline)
+            formHeader(L10n.text("trip_dates_title", settings.language), icon: "calendar", role: .calendar)
 
             dateModePicker
 
@@ -481,8 +479,7 @@ struct TripBuilderView: View {
 
     private var travelersCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(L10n.text("trip_travelers_title", settings.language), systemImage: "person.2")
-                .font(.headline)
+            formHeader(L10n.text("trip_travelers_title", settings.language), icon: "person.2", role: .profile)
                 .padding(.bottom, 4)
 
             Text(L10n.text("trip_travelers_body", settings.language))
@@ -521,8 +518,7 @@ struct TripBuilderView: View {
 
     private var hotelClassCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(L10n.text("hotel_level", settings.language), systemImage: "building.2")
-                .font(.headline)
+            formHeader(L10n.text("hotel_level", settings.language), icon: "building.2", role: .hotel)
 
             HStack(spacing: 8) {
                 ForEach(1...5, id: \.self) { stars in
@@ -551,8 +547,7 @@ struct TripBuilderView: View {
 
     private var packageCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(L10n.text("trip_format_title", settings.language), systemImage: "square.grid.2x2")
-                .font(.headline)
+            formHeader(L10n.text("trip_format_title", settings.language), icon: "square.grid.2x2", role: .booking)
 
             ForEach(PackageTier.allCases) { tier in
                 Button {
@@ -595,4 +590,13 @@ struct TripBuilderView: View {
         }
         .iumrahCard()
     }
+    private func formHeader(_ title: String, icon: String, role: IumrahIconRole) -> some View {
+        HStack(spacing: 9) {
+            IumrahInlineIcon(systemName: icon, role: role, size: 16)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+        }
+    }
+
 }
