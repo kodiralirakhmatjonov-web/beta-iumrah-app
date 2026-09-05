@@ -189,30 +189,9 @@ struct BookingDetailView: View {
                 .background(Color.iumrahPageBackground)
             }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    Text(L10n.text("booking_detail_title", settings.language))
-                        .font(.headline)
-                        .lineLimit(1)
-                    if let session {
-                        HStack(spacing: 5) {
-                            Text("Бронь \(session.displayBookingNumber)")
-                            if let pilgrimID = session.displayPilgrimID {
-                                Text("·")
-                                Text("Iumrah ID \(pilgrimID)")
-                            }
-                        }
-                        .font(.caption2.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    }
-                }
-            }
-        }
-        .iumrahInternalNavigation()
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .overlay {
             if let session, showFullscreenBookingCard {
                 fullscreenBookingPass(session)
@@ -409,6 +388,42 @@ struct BookingDetailView: View {
         .ignoresSafeArea()
     }
 
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                IumrahHaptics.soft()
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .bold))
+                    .frame(width: 44, height: 44)
+                    .iumrahGlass(in: Circle(), interactive: true)
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.text("booking_detail_title", settings.language))
+                    .font(.headline)
+                if let session {
+                    HStack(spacing: 7) {
+                        Text("Бронь \(session.displayBookingNumber)")
+                        if let pilgrimID = session.displayPilgrimID {
+                            Text("·")
+                            Text("Iumrah ID \(pilgrimID)")
+                        }
+                    }
+                    .font(.caption2.monospaced().weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, IumrahDesign.pagePadding)
+        .padding(.vertical, 8)
+        .background(Color.iumrahPageBackground)
+    }
 
     private func outboundFallback(_ session: StoredBookingSession) -> String {
         if let trace = session.booking.generatorTrace?.outbound {
@@ -440,7 +455,8 @@ struct BookingDetailView: View {
                 Image(systemName: statusIcon(session.effectiveStatus))
                     .font(.system(size: 24, weight: .semibold))
                     .frame(width: 52, height: 52)
-                    .iumrahGlass(in: Circle())
+                    .background(Color.iumrahRaisedBackground)
+                    .clipShape(Circle())
             }
 
             Text(L10n.text("detail_updates", settings.language))
@@ -487,10 +503,14 @@ struct BookingDetailView: View {
                     PilgrimCheckoutView(bookingID: bookingID)
                 } label: {
                     HStack(spacing: 13) {
-                        Image(systemName: "person.text.rectangle.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: 42, height: 42)
-                            .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.14))
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.14))
+                                .frame(width: 42, height: 42)
+
+                            Image(systemName: "person.text.rectangle.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                        }
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(checkoutCTA)
@@ -535,7 +555,7 @@ struct BookingDetailView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 14)
                     .frame(height: 50)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -579,10 +599,10 @@ struct BookingDetailView: View {
 
     private var securityConfirmationPendingTitle: String {
         switch settings.language {
-        case .russian: return "Ожидает ручной проверки"
-        case .english: return "Waiting for manual review"
-        case .uzbek: return "Qo‘lda tekshirish kutilmoqda"
-        case .uzbekCyrillic: return "Қўлда текшириш кутилмоқда"
+        case .russian: return "Проверка безопасности"
+        case .english: return "Security verification"
+        case .uzbek: return "Xavfsizlik tekshiruvi"
+        case .uzbekCyrillic: return "Хавфсизлик текшируви"
         }
     }
 
@@ -600,10 +620,10 @@ struct BookingDetailView: View {
         if securityConfirmation?.isPendingReview == true { return securityConfirmationPendingTitle }
         if securityConfirmation?.needsResubmission == true {
             switch settings.language {
-            case .russian: return "Исправить данные iumrah Security"
-            case .english: return "Correct iumrah Security details"
-            case .uzbek: return "iumrah Security ma’lumotlarini tuzatish"
-            case .uzbekCyrillic: return "iumrah Security маълумотларини тузатиш"
+            case .russian: return "Исправить данные iUmrah Security"
+            case .english: return "Correct iUmrah Security details"
+            case .uzbek: return "iUmrah Security ma’lumotlarini tuzatish"
+            case .uzbekCyrillic: return "iUmrah Security маълумотларини тузатиш"
             }
         }
         return securityConfirmationTitle
@@ -618,10 +638,10 @@ struct BookingDetailView: View {
 
     private var securityConfirmationSubtitle: String {
         switch settings.language {
-        case .russian: return "iumrah Security · паспортный профиль"
-        case .english: return "iumrah Security · passport profile"
-        case .uzbek: return "iumrah Security · pasport profili"
-        case .uzbekCyrillic: return "iumrah Security · паспорт профили"
+        case .russian: return "iUmrah Security · защищённое бронирование"
+        case .english: return "iUmrah Security · protected booking"
+        case .uzbek: return "iUmrah Security · himoyalangan bron"
+        case .uzbekCyrillic: return "iUmrah Security · ҳимояланган брон"
         }
     }
 
@@ -1011,7 +1031,7 @@ struct BookingDetailView: View {
                         .font(.caption.weight(.bold))
                         .padding(.horizontal, 11)
                         .frame(height: 34)
-                        .iumrahGlass(in: Capsule(), interactive: true)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -1217,7 +1237,8 @@ struct BookingDetailView: View {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .semibold))
                 .frame(width: 44, height: 44)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(Color.iumrahRaisedBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
@@ -1246,7 +1267,7 @@ struct BookingDetailView: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
                 .frame(width: 30, height: 30)
-                .iumrahGlass(in: Circle())
+                .background(Color.iumrahRaisedBackground, in: Circle())
             Text(text)
                 .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
@@ -1406,13 +1427,15 @@ private struct BookingContactEditSheet: View {
                         .autocorrectionDisabled()
                         .padding(.horizontal, 16)
                         .frame(height: 54)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                        .background(Color.iumrahRaisedBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
                     TextField("WhatsApp", text: $whatsapp)
                         .keyboardType(.phonePad)
                         .padding(.horizontal, 16)
                         .frame(height: 54)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                        .background(Color.iumrahRaisedBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
 
                 if let errorMessage {
@@ -1441,7 +1464,11 @@ private struct BookingContactEditSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .frame(width: 36, height: 36)
+                            .background(Color.iumrahRaisedBackground, in: Circle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }

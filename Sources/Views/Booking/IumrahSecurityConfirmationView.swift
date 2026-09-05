@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
@@ -93,26 +94,47 @@ struct IumrahSecurityConfirmationView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.iumrahPageBackground)
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    Text("iumrah Security")
-                        .font(.headline)
-                    Text("Security Confirmation · KYC")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .iumrahInternalNavigation()
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .task { await load() }
+        .task(id: existing?.status) {
+            guard existing?.isPendingReview == true else { return }
+            await pollSecurityStatus()
+        }
         .onChange(of: passportPhotoItem) { _, item in
             guard let item else { return }
             Task { await preparePassportPhoto(item) }
         }
     }
 
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                IumrahHaptics.soft()
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .bold))
+                    .frame(width: 44, height: 44)
+                    .iumrahGlass(in: Circle(), interactive: true)
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("iUmrah Security")
+                    .font(.headline)
+                Text("Security Confirmation · KYC")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, IumrahDesign.pagePadding)
+        .padding(.vertical, 8)
+        // iOS 26 glass belongs to controls, not a hand-built blurred toolbar.
+        .background(Color.iumrahPageBackground)
+    }
 
     private var securityHero: some View {
         ZStack {
@@ -134,7 +156,7 @@ struct IumrahSecurityConfirmationView: View {
 
     private var introCopy: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Label("iumrah Security", systemImage: "lock.shield.fill")
+            Label("iUmrah Security", systemImage: "lock.shield.fill")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
 
@@ -148,10 +170,10 @@ struct IumrahSecurityConfirmationView: View {
             .tracking(-0.5)
 
             Text(tr(
-                "Send the passport profile for manual review by iumrah Business. Gift Card protection is activated only after the document is checked and confirmed.",
-                "Отправьте паспортный профиль на ручную проверку в iumrah Business. Защита Gift Card активируется только после сверки и подтверждения документа.",
-                "Pasport profilini iumrah Business orqali qo‘lda tekshirish uchun yuboring. Gift Card himoyasi hujjat tekshirilgandan va tasdiqlangandan keyingina faollashadi.",
-                "Паспорт профилини iumrah Business орқали қўлда текшириш учун юборинг. Gift Card ҳимояси ҳужжат текширилгандан ва тасдиқлангандан кейингина фаоллашади."
+                "iUmrah Security links the passport profile to this trip and confirms the booking holder. Your information is used only to process and protect this booking.",
+                "iUmrah Security привязывает паспортный профиль к этой поездке и подтверждает владельца бронирования. Данные используются только для оформления и защиты этого бронирования.",
+                "iUmrah Security pasport profilini ushbu safarga bog‘laydi va bron egasini tasdiqlaydi. Ma’lumotlar faqat ushbu bronni rasmiylashtirish va himoya qilish uchun ishlatiladi.",
+                "iUmrah Security паспорт профилини ушбу сафарга боғлайди ва брон эгасини тасдиқлайди. Маълумотлар фақат ушбу бронни расмийлаштириш ва ҳимоя қилиш учун ишлатилади."
             ))
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -167,7 +189,7 @@ struct IumrahSecurityConfirmationView: View {
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(.red)
                 .frame(width: 42, height: 42)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.red.opacity(0.10))
+                .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(tr("Important", "Важно", "Muhim", "Муҳим"))
@@ -199,7 +221,7 @@ struct IumrahSecurityConfirmationView: View {
                 Image(systemName: "person.text.rectangle.fill")
                     .font(.system(size: 17, weight: .semibold))
                     .frame(width: 42, height: 42)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tr("Passport profile", "Паспортный профиль", "Pasport profili", "Паспорт профили"))
                         .font(.headline)
@@ -240,7 +262,11 @@ struct IumrahSecurityConfirmationView: View {
                     .focused($focusedField, equals: .passport)
                     .padding(.horizontal, 15)
                     .frame(height: 56)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(focusedField == .passport ? Color.primary.opacity(0.18) : Color.primary.opacity(0.05), lineWidth: 1)
+                    }
                     .onChange(of: passportNumber) { _, value in
                         let normalized = value.uppercased().filter { $0.isLetter || $0.isNumber }
                         if normalized != value { passportNumber = normalized }
@@ -268,7 +294,11 @@ struct IumrahSecurityConfirmationView: View {
                 .focused($focusedField, equals: field)
                 .padding(.horizontal, 15)
                 .frame(height: 56)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(focusedField == field ? Color.primary.opacity(0.18) : Color.primary.opacity(0.05), lineWidth: 1)
+                }
         }
     }
 
@@ -344,10 +374,10 @@ struct IumrahSecurityConfirmationView: View {
                 Text(tr("I confirm these are my booking-holder details", "Подтверждаю данные владельца бронирования", "Bron egasi ma’lumotlarini tasdiqlayman", "Брон эгаси маълумотларини тасдиқлайман"))
                     .font(.subheadline.weight(.semibold))
                 Text(tr(
-                    "iumrah Business will manually compare the entered data with the attached passport photo.",
-                    "iumrah Business вручную сверит введённые данные с прикреплённой фотографией паспорта.",
-                    "iumrah Business kiritilgan ma’lumotlarni pasport rasmi bilan qo‘lda solishtiradi.",
-                    "iumrah Business киритилган маълумотларни паспорт расми билан қўлда солиштиради."
+                    "The entered details will be checked against the attached passport page before the security confirmation is completed.",
+                    "Перед завершением подтверждения безопасности введённые данные будут сверены с прикреплённой страницей паспорта.",
+                    "Xavfsizlik tasdiqlanishi yakunlanishidan oldin kiritilgan ma’lumotlar biriktirilgan pasport sahifasi bilan tekshiriladi.",
+                    "Хавфсизлик тасдиқланиши якунланишидан олдин киритилган маълумотлар бириктирилган паспорт саҳифаси билан текширилади."
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -363,10 +393,10 @@ struct IumrahSecurityConfirmationView: View {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 17, weight: .semibold))
             Text(tr(
-                "Your submission stays in the protected manual-review queue. Gift Card anti-fraud uses the confirmed passport identity fingerprint only after iumrah Business approves the document.",
-                "Заявка хранится в защищённой очереди ручной проверки. Антифрод Gift Card использует подтверждённый fingerprint паспортной личности только после одобрения документа в iumrah Business.",
-                "Ariza himoyalangan qo‘lda tekshirish navbatida saqlanadi. Gift Card antifraud pasport identity fingerprintidan faqat iumrah Business hujjatni tasdiqlagandan keyin foydalanadi.",
-                "Ариза ҳимояланган қўлда текшириш навбатида сақланади. Gift Card antifraud паспорт identity fingerprintидан фақат iumrah Business ҳужжатни тасдиқлагандан кейин фойдаланади."
+                "Your passport information is transmitted securely and is available only within the protected booking process. iUmrah Security never displays the full passport number on this status screen.",
+                "Паспортные данные передаются по защищённому соединению и доступны только в защищённом процессе этого бронирования. На экране статуса iUmrah Security полный номер паспорта не отображается.",
+                "Pasport ma’lumotlari himoyalangan aloqa orqali uzatiladi va faqat ushbu bronning xavfsiz jarayonida ishlatiladi. iUmrah Security holat ekranida pasportning to‘liq raqami ko‘rsatilmaydi.",
+                "Паспорт маълумотлари ҳимояланган алоқа орқали узатилади ва фақат ушбу броннинг хавфсиз жараёнида ишлатилади. iUmrah Security ҳолат экранида паспортнинг тўлиқ рақами кўрсатилмайди."
             ))
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -384,10 +414,10 @@ struct IumrahSecurityConfirmationView: View {
                 if isSubmitting { ProgressView().controlSize(.small) }
                 else { Image(systemName: "paperplane.fill") }
                 Text(tr(
-                    "Send for manual review",
-                    "Отправить на ручную проверку",
-                    "Qo‘lda tekshirishga yuborish",
-                    "Қўлда текширишга юбориш"
+                    "Start security check",
+                    "Начать проверку безопасности",
+                    "Xavfsizlik tekshiruvini boshlash",
+                    "Хавфсизлик текширувини бошлаш"
                 ))
                 Spacer()
                 Image(systemName: "arrow.right")
@@ -413,34 +443,74 @@ struct IumrahSecurityConfirmationView: View {
     }
 
     private func pendingReviewCard(_ value: IumrahSecurityConfirmation) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 13) {
-                Image(systemName: "hourglass.circle.fill")
-                    .font(.system(size: 23, weight: .semibold))
-                    .foregroundStyle(.blue)
-                    .frame(width: 50, height: 50)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), tint: Color.blue.opacity(0.10))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("Waiting for manual verification", "Ожидает ручной проверки", "Qo‘lda tekshirish kutilmoqda", "Қўлда текшириш кутилмоқда"))
-                        .font(.title3.weight(.bold))
-                    Text(tr(
-                        "Your passport profile and photo have been sent securely to iumrah Business. Gift Card identity protection remains pending until a staff member confirms the document.",
-                        "Паспортный профиль и фотография безопасно отправлены в iumrah Business. Защита личности Gift Card остаётся в ожидании, пока сотрудник вручную не подтвердит документ.",
-                        "Pasport profilingiz va rasmingiz iumrah Business ga xavfsiz yuborildi. Xodim hujjatni qo‘lda tasdiqlamaguncha Gift Card himoyasi kutilmoqda.",
-                        "Паспорт профилингиз ва расмингиз iumrah Business га хавфсиз юборилди. Ходим ҳужжатни қўлда тасдиқламагунича Gift Card ҳимояси кутилмоқда."
-                    ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = securityRemainingSeconds(value, now: context.date)
+            let timedOut = remaining <= 0
 
-            Divider()
-            summaryRow(title: tr("Name", "Имя", "Ism", "Исм"), value: [value.firstName, value.lastName].joined(separator: " "))
-            summaryRow(title: tr("Passport", "Паспорт", "Pasport", "Паспорт"), value: value.passportLast4.isEmpty ? "—" : "•••• \(value.passportLast4)")
-            summaryRow(title: tr("Status", "Статус", "Holat", "Ҳолат"), value: tr("Manual review", "Ручная проверка", "Qo‘lda tekshirish", "Қўлда текшириш"))
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 13) {
+                    Image(systemName: timedOut ? "hourglass.circle.fill" : "lock.shield.fill")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(timedOut ? Color.orange : Color.blue)
+                        .frame(width: 50, height: 50)
+                        .background((timedOut ? Color.orange : Color.blue).opacity(0.10), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(timedOut
+                             ? tr("Additional verification", "Дополнительная проверка", "Qo‘shimcha tekshiruv", "Қўшимча текширув")
+                             : tr("Security check in progress", "Проверка безопасности", "Xavfsizlik tekshiruvi", "Хавфсизлик текшируви"))
+                            .font(.title3.weight(.bold))
+
+                        Text(timedOut
+                             ? tr(
+                                "The system could not complete confirmation automatically within 30 minutes. Your data remains protected and is now waiting for manual verification. We will notify you as soon as the booking holder is confirmed.",
+                                "Система не смогла завершить подтверждение автоматически в течение 30 минут. Ваши данные остаются защищёнными и теперь ожидают ручной проверки. Мы уведомим Вас сразу после подтверждения владельца бронирования.",
+                                "Tizim 30 daqiqa ichida tasdiqlashni avtomatik yakunlay olmadi. Ma’lumotlaringiz himoyalangan va endi qo‘lda tekshirishni kutmoqda. Bron egasi tasdiqlangach, Sizga xabar beramiz.",
+                                "Тизим 30 дақиқа ичида тасдиқлашни автоматик якунлай олмади. Маълумотларингиз ҳимояланган ва энди қўлда текширишни кутмоқда. Брон эгаси тасдиқлангач, Сизга хабар берамиз."
+                             )
+                             : tr(
+                                "Your data has been received and the booking security check is running automatically. This usually takes up to 30 minutes.",
+                                "Ваши данные получены. Проверка безопасности бронирования выполняется автоматически. Обычно это занимает до 30 минут.",
+                                "Ma’lumotlaringiz qabul qilindi. Bron xavfsizligi avtomatik tekshirilmoqda. Odatda bu 30 daqiqagacha davom etadi.",
+                                "Маълумотларингиз қабул қилинди. Брон хавфсизлиги автоматик текширилмоқда. Одатда бу 30 дақиқагача давом этади."
+                             ))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                if !timedOut {
+                    HStack(spacing: 12) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.blue)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tr("Automatic verification", "Автоматическое подтверждение", "Avtomatik tasdiqlash", "Автоматик тасдиқлаш"))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(securityCountdown(remaining))
+                                .font(.system(size: 25, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                        }
+                        Spacer()
+                    }
+                    .padding(14)
+                    .background(Color.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+
+                Divider()
+                summaryRow(title: tr("Name", "Имя", "Ism", "Исм"), value: [value.firstName, value.lastName].joined(separator: " "))
+                summaryRow(title: tr("Passport", "Паспорт", "Pasport", "Паспорт"), value: value.passportLast4.isEmpty ? "—" : "•••• \(value.passportLast4)")
+                summaryRow(
+                    title: tr("Status", "Статус", "Holat", "Ҳолат"),
+                    value: timedOut
+                        ? tr("Manual verification", "Ручная проверка", "Qo‘lda tekshirish", "Қўлда текшириш")
+                        : tr("Protected verification", "Защищённая проверка", "Himoyalangan tekshiruv", "Ҳимояланган текширув")
+                )
+            }
+            .iumrahCard()
         }
-        .iumrahCard()
     }
 
     private func confirmedCard(_ value: IumrahSecurityConfirmation) -> some View {
@@ -450,15 +520,15 @@ struct IumrahSecurityConfirmationView: View {
                     .font(.system(size: 23, weight: .semibold))
                     .foregroundStyle(.green)
                     .frame(width: 50, height: 50)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), tint: Color.green.opacity(0.10))
+                    .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(tr("Identity confirmed", "Личность подтверждена", "Shaxs tasdiqlandi", "Шахс тасдиқланди"))
                         .font(.title3.weight(.bold))
                     Text(tr(
-                        "iumrah Business manually checked the passport profile. This confirmed identity can now protect Gift Card eligibility from duplicate use.",
-                        "iumrah Business вручную сверил паспортный профиль. Теперь подтверждённая личность используется для защиты Gift Card от повторного применения.",
-                        "iumrah Business pasport profilini qo‘lda tekshirdi. Tasdiqlangan shaxs endi Gift Card dan takroriy foydalanishni himoya qiladi.",
-                        "iumrah Business паспорт профилини қўлда текширди. Тасдиқланган шахс энди Gift Card дан такрорий фойдаланишни ҳимоя қилади."
+                        "The booking holder has been confirmed. Your passport profile is securely linked to this trip and the booking is protected by iUmrah Security.",
+                        "Владелец бронирования подтверждён. Паспортный профиль безопасно привязан к этой поездке, а бронирование защищено iUmrah Security.",
+                        "Bron egasi tasdiqlandi. Pasport profilingiz ushbu safarga xavfsiz bog‘landi va bron iUmrah Security bilan himoyalangan.",
+                        "Брон эгаси тасдиқланди. Паспорт профилингиз ушбу сафарга хавфсиз боғланди ва брон iUmrah Security билан ҳимояланган."
                     ))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -495,6 +565,45 @@ struct IumrahSecurityConfirmationView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func securitySubmittedDate(_ value: IumrahSecurityConfirmation) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value.submittedAt) { return date }
+        return ISO8601DateFormatter().date(from: value.submittedAt)
+    }
+
+    private func securityRemainingSeconds(_ value: IumrahSecurityConfirmation, now: Date = .now) -> Int {
+        guard let submitted = securitySubmittedDate(value) else { return 0 }
+        let deadline = submitted.addingTimeInterval(30 * 60)
+        return max(0, Int(deadline.timeIntervalSince(now).rounded(.up)))
+    }
+
+    private func securityCountdown(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        return String(format: "%02d:%02d", minutes, remainder)
+    }
+
+    @MainActor
+    private func pollSecurityStatus() async {
+        guard let session else { return }
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: .seconds(10))
+                guard !Task.isCancelled else { return }
+                let response = try await service.securityConfirmation(id: bookingID, accessToken: session.accessToken)
+                if let confirmation = response.confirmation {
+                    existing = confirmation
+                    if !confirmation.isPendingReview { return }
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                // Background status polling must never replace the protected UI with an error.
+            }
+        }
     }
 
     private func summaryRow(title: String, value: String) -> some View {
