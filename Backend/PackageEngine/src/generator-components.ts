@@ -11,6 +11,8 @@ function json(value: unknown, status = 200) {
 
 /**
  * Resolves the recommended Primary Hotel maintained by iumrah Business.
+ * The Primary Hotel category is an editorial generator category: a hotel can be
+ * assigned to a different category than its factual property star rating.
  *
  * Generator eligibility is coupled to the hotel catalog's server-maintained
  * 48-hour price cache. Beta never scrapes Booking/Expedia directly.
@@ -35,7 +37,6 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
        WHERE LOWER(p.city) = LOWER(?1)
          AND p.star_category = ?2
          AND h.status = 'published'
-         AND h.stars = ?2
          AND hp.status = 'fresh'
          AND hp.nightly_price_usd IS NOT NULL
          AND hp.expires_at > ?3

@@ -46,7 +46,7 @@ test('referrer credit is earned only after a paid booking and reversed on cancel
 
 
 test('new iOS controls use native interactive Liquid Glass without Material emulation', () => {
-  assert.match(betaDesign, /glassEffect\(\.regular\.interactive\(\), in: shape\)/);
+  assert.match(betaDesign, /glassEffect\(\.regular\.interactive\(interactive\)(?:\.tint\(tint\))?, in: shape\)/);
   assert.doesNotMatch(betaDesign, /ultraThinMaterial/);
   assert.doesNotMatch(kycView, /ultraThinMaterial/);
 });
