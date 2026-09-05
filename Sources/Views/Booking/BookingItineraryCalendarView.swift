@@ -62,7 +62,7 @@ struct BookingItineraryCalendarView: View {
                 Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 19, weight: .semibold))
                     .frame(width: 42, height: 42)
-                    .background(Color.iumrahRaisedBackground, in: Circle())
+                    .iumrahGlass(in: Circle())
             }
 
             if !days.isEmpty {
@@ -148,8 +148,11 @@ struct BookingItineraryCalendarView: View {
             }
             .foregroundStyle(selected ? Color.white : Color.primary)
             .frame(width: 58, height: 64)
-            .background(selected ? Color.black : Color.iumrahRaisedBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 19, style: .continuous),
+                interactive: true,
+                tint: selected ? Color.primary.opacity(0.78) : nil
+            )
         }
         .buttonStyle(.plain)
     }
@@ -160,7 +163,7 @@ struct BookingItineraryCalendarView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 40, height: 40)
-                .background(Color.iumrahCareLight.opacity(0.15), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.iumrahCareLight.opacity(0.15))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)

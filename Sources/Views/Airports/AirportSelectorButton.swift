@@ -15,8 +15,7 @@ struct AirportSelectorButton: View {
                 Image(systemName: "airplane.departure")
                     .font(.system(size: 17, weight: .semibold))
                     .frame(width: 38, height: 38)
-                    .background(Color.iumrahRaisedBackground)
-                    .clipShape(Circle())
+                    .iumrahGlass(in: Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.text("airport_title", settings.language))

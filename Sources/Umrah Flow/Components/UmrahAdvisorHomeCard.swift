@@ -71,17 +71,11 @@ struct UmrahAdvisorHomeCard: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.white.opacity(0.09))
-                        Image(systemName: "waveform.badge.mic")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                    .frame(width: 36, height: 36)
-                    .overlay {
-                        Circle().stroke(Color.white.opacity(0.10), lineWidth: 0.7)
-                    }
+                    Image(systemName: "waveform.badge.mic")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.10))
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("iumrah Advisor")

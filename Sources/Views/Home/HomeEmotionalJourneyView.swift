@@ -192,7 +192,7 @@ private struct HomeEmotionalJourneyFullscreen: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .iumrahGlass(in: Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isMuted ? "Unmute" : "Mute")
@@ -205,7 +205,7 @@ private struct HomeEmotionalJourneyFullscreen: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .iumrahGlass(in: Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")

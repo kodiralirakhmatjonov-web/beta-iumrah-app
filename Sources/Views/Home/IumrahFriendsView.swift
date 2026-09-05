@@ -44,9 +44,9 @@ struct IumrahGiftCardsView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("iUmrah Gift Cards")
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .iumrahInternalNavigation()
         .task(id: account.bearerToken) { await loadDashboard() }
         .refreshable { await loadDashboard() }
         .animation(.spring(response: 0.44, dampingFraction: 0.88), value: selectedGiftID)
@@ -58,31 +58,6 @@ struct IumrahGiftCardsView: View {
         return dashboard.gifts.first
     }
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                IumrahHaptics.soft(); dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("iUmrah Gift Cards")
-                    .font(.headline)
-                Text(localizedSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.vertical, 8)
-        .background(Color.iumrahPageBackground)
-    }
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: 14) {

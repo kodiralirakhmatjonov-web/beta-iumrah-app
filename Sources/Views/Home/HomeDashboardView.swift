@@ -133,8 +133,7 @@ struct HomeDashboardView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.iumrahCareDark)
                     .frame(width: 36, height: 36)
-                    .background(Color.iumrahCareLight.opacity(0.18))
-                    .clipShape(Circle())
+                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.18))
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -224,8 +223,7 @@ struct HomeDashboardView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 34, height: 34)
-                .background(Color.iumrahCareLight.opacity(0.15))
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.15))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -570,14 +568,14 @@ struct HomeDashboardView: View {
                             .foregroundStyle(Color.iumrahCareDark)
                     }
                 } else {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color.iumrahCareLight.opacity(0.20))
-                        Image(systemName: "simcard.fill")
-                            .font(.system(size: 27, weight: .semibold))
-                            .foregroundStyle(Color.iumrahCareDark)
-                    }
-                    .frame(width: 82, height: 82)
+                    Image(systemName: "simcard.fill")
+                        .font(.system(size: 27, weight: .semibold))
+                        .foregroundStyle(Color.iumrahCareDark)
+                        .frame(width: 82, height: 82)
+                        .iumrahGlass(
+                            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                            tint: Color.iumrahCareLight.opacity(0.20)
+                        )
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text("iumrah eSIM")
@@ -646,8 +644,7 @@ struct HomeDashboardView: View {
         Image(systemName: name)
             .font(.system(size: 13, weight: .semibold))
             .frame(width: 34, height: 34)
-            .background(Color.iumrahRaisedBackground)
-            .clipShape(Circle())
+            .iumrahGlass(in: Circle())
     }
 
     private var connector: some View {

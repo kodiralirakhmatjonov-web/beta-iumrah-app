@@ -331,13 +331,11 @@ struct FinalPackageView: View {
 
     private func includedRow(_ key: FlowCopy.Key, value: String? = nil, icon: String) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Circle().fill(Color.iumrahCareLight.opacity(0.22))
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Color.iumrahCareDark)
-            }
-            .frame(width: 30, height: 30)
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Color.iumrahCareDark)
+                .frame(width: 30, height: 30)
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.22))
 
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
@@ -359,13 +357,11 @@ struct FinalPackageView: View {
 
     private var esimIncludedRow: some View {
         HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Circle().fill(Color.iumrahCareLight.opacity(0.22))
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Color.iumrahCareDark)
-            }
-            .frame(width: 30, height: 30)
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Color.iumrahCareDark)
+                .frame(width: 30, height: 30)
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.22))
 
             Image("UmrahMobileLogo")
                 .resizable()
@@ -460,7 +456,7 @@ struct FinalPackageView: View {
             Image(systemName: push.isAuthorized ? "bell.badge.fill" : "bell.badge")
                 .font(.title3.weight(.semibold))
                 .frame(width: 42, height: 42)
-                .background(Color.iumrahRaisedBackground, in: Circle())
+                .iumrahGlass(in: Circle())
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.text("notifications_title", settings.language)).font(.headline)
                 Text(push.statusText(language: settings.language))

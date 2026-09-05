@@ -46,14 +46,12 @@ struct IumrahRootPageTitle: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(lightStyle ? Color.white : Color.primary)
                         .frame(width: 46, height: 46)
-                        .background {
-                            Circle()
-                                .fill(lightStyle ? Color.black.opacity(0.24) : Color.iumrahCardBackground)
-                        }
-                        .overlay {
-                            Circle()
-                                .strokeBorder(lightStyle ? Color.white.opacity(0.16) : Color.primary.opacity(0.06), lineWidth: 1)
-                        }
+                        .contentShape(Circle())
+                        .iumrahGlass(
+                            in: Circle(),
+                            interactive: true,
+                            tint: lightStyle ? Color.black.opacity(0.18) : nil
+                        )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Menu")

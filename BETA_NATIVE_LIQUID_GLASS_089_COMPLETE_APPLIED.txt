@@ -1,0 +1,29 @@
+BETA NATIVE LIQUID GLASS 089 — COMPLETE V2
+
+Supersedes the earlier native-liquid-glass v1 patch.
+Reference architecture: AutoSale Umar App / native iOS 26 Liquid Glass.
+
+Scope:
+- canonical iOS 26 glassEffect renderer for glass surfaces
+- native system NavigationStack back button + edge swipe on pushed destinations
+- no fake chevron-left + dismiss navigation on pushed screens
+- system tab bar chrome, no custom Material background
+- unified glass icon tiles, interactive icon controls, search/forms, selectors, hotel/flight/booking/account/care/Umrah Flow surfaces
+- chat glass surfaces routed through the same canonical renderer
+- Umrah Flow grouped glass controls
+- no Material/UIBlurEffect used to imitate Liquid Glass
+- decorative blur remains only for artwork/motion (orb, gradients, globe, wallpaper, transitions)
+
+Preserved:
+- backend/API contracts
+- booking/package/price logic
+- models and data
+- GitHub workflows/signing
+
+QA:
+- 172 Swift files parsed successfully with swiftc -frontend -parse
+- navigationBarBackButtonHidden(true): 0
+- direct SwiftUI Material refs: 0
+- UIBlurEffect/UIVisualEffectView refs: 0
+- hidden navigation bar: root tab container only
+- chevron.left refs: Umrah Flow previous-step controls only

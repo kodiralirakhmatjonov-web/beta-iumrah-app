@@ -22,7 +22,7 @@ struct IumrahPasswordRecoveryView: View {
                         .font(.system(size: 34, weight: .semibold))
                         .foregroundStyle(restoredID.isEmpty ? Color.blue : Color.iumrahCareLight)
                         .frame(width: 64, height: 64)
-                        .background((restoredID.isEmpty ? Color.blue : Color.iumrahCareLight).opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), tint: (restoredID.isEmpty ? Color.blue : Color.iumrahCareLight).opacity(0.10))
 
                     if !restoredID.isEmpty {
                         successContent
@@ -173,7 +173,7 @@ struct IumrahPasswordRecoveryView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
     }
 
     @MainActor

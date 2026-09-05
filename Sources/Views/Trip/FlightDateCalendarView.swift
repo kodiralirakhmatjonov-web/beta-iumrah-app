@@ -45,7 +45,28 @@ struct FlightDateCalendarView: View {
                 }
                 .scrollIndicators(.hidden)
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        IumrahHaptics.selection()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("Close")
+                }
+
+                ToolbarItem(placement: .principal) {
+                    Image("IumrahFlightsCalendarLogo")
+                        .resizable()
+                        .renderingMode(.template)
+                        .scaledToFit()
+                        .foregroundStyle(.primary)
+                        .frame(width: 138, height: 30)
+                        .accessibilityLabel("iumrah Flights")
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
             .task { await loadCalendar() }
         }
@@ -74,46 +95,15 @@ struct FlightDateCalendarView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ZStack {
-                HStack {
-                    glassIconButton(systemName: "xmark") { dismiss() }
-                    Spacer()
-                }
-
-                Image("IumrahFlightsCalendarLogo")
-                    .resizable()
-                    .renderingMode(.template)
-                    .scaledToFit()
-                    .foregroundStyle(.primary)
-                    .frame(width: 178, height: 52)
-                    .accessibilityLabel("iumrah Flights")
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(copy(.title))
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .tracking(-0.5)
-                Text(copy(.subtitle))
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        VStack(alignment: .leading, spacing: 5) {
+            Text(copy(.title))
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .tracking(-0.5)
+            Text(copy(.subtitle))
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    private func glassIconButton(systemName: String, action: @escaping () -> Void) -> some View {
-        Button {
-            IumrahHaptics.selection()
-            action()
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 18, weight: .bold))
-                .frame(width: 50, height: 50)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .iumrahGlass(in: Circle())
     }
 
     private var routeSummary: some View {
@@ -134,7 +124,6 @@ struct FlightDateCalendarView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 64)
-        .background(Color.iumrahCardBackground.opacity(colorScheme == .dark ? 0.38 : 0.62), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
@@ -164,12 +153,11 @@ struct FlightDateCalendarView: View {
                     .font(.caption.weight(.bold))
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .iumrahGlass(in: Capsule())
+                    .iumrahGlass(in: Capsule(), interactive: true)
                     .buttonStyle(.plain)
             }
         }
         .padding(14)
-        .background(Color.iumrahRaisedBackground.opacity(colorScheme == .dark ? 0.34 : 0.56), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
@@ -196,7 +184,6 @@ struct FlightDateCalendarView: View {
             }
         }
         .padding(16)
-        .background(Color.iumrahCardBackground.opacity(colorScheme == .dark ? 0.30 : 0.70), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
@@ -272,8 +259,7 @@ struct FlightDateCalendarView: View {
                             }
                             .padding(.horizontal, 14)
                             .frame(height: 72)
-                            .background(Color.iumrahRaisedBackground.opacity(colorScheme == .dark ? 0.28 : 0.52), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -308,8 +294,7 @@ struct FlightDateCalendarView: View {
                     .frame(width: 116, height: 60)
             }
             .buttonStyle(.plain)
-            .background(Color.iumrahRaisedBackground.opacity(colorScheme == .dark ? 0.24 : 0.50), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
 
             Button {
                 guard let departure, let returnDate, returnDate > departure else { return }
@@ -332,7 +317,6 @@ struct FlightDateCalendarView: View {
                 .background(Color.primary.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
             .buttonStyle(.plain)
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .disabled(!hasValidRange)
             .opacity(hasValidRange ? 1 : 0.42)
         }

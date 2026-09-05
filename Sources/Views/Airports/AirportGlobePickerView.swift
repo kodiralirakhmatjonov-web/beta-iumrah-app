@@ -124,7 +124,7 @@ struct AirportGlobePickerView: View {
         }
         .padding(6)
         .foregroundStyle(.primary)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 25, style: .continuous), interactive: true)
     }
 
     @ViewBuilder
@@ -142,7 +142,7 @@ struct AirportGlobePickerView: View {
                 Image(systemName: "airplane.departure")
                     .font(.system(size: 18, weight: .semibold))
                     .frame(width: 42, height: 42)
-                    .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.text("airport_map_hint_title", settings.language))
@@ -163,10 +163,6 @@ struct AirportGlobePickerView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 13) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(.primary.opacity(0.10))
-                        .frame(width: 50, height: 50)
-
                     if let resolvedAirport {
                         Text(resolvedAirport.iata)
                             .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -177,6 +173,8 @@ struct AirportGlobePickerView: View {
                             .rotationEffect(.degrees(-35))
                     }
                 }
+                .frame(width: 50, height: 50)
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(resolvedAirport?.city ?? feature.title ?? L10n.text("airport_map_airport", settings.language))

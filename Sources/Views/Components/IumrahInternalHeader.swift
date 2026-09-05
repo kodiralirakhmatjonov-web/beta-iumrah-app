@@ -63,11 +63,12 @@ private struct IumrahInternalNavigationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // Keep Apple's own navigation affordance. The progress element belongs to
-            // the scroll content, while the navigation bar stays visually quiet.
+            // Internal destinations use Apple's real navigation bar and real back
+            // affordance. This preserves UINavigationController's edge-swipe pop
+            // gesture instead of recreating a back button with dismiss().
             .toolbar(.visible, for: .navigationBar)
+            .navigationBarBackButtonHidden(false)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .tint(Color.primary)
             .onAppear {
                 guard !registered else { return }

@@ -12,8 +12,7 @@ struct UmrahHomeView: View {
                     Image(systemName: "book.closed.fill")
                         .font(.system(size: 28, weight: .medium))
                         .frame(width: 64, height: 64)
-                        .background(Color.iumrahRaisedBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
 
                     Text(L10n.text("tab_umrah", settings.language))
                         .font(.system(size: 30, weight: .bold, design: .rounded))

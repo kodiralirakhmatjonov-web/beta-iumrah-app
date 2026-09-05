@@ -194,7 +194,7 @@ struct IumrahBackendSystemHomeCard: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white.opacity(0.82))
                         .frame(width: 34, height: 34)
-                        .background(.white.opacity(0.075), in: Circle())
+                        .iumrahGlass(in: Circle(), tint: .white.opacity(0.075))
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
@@ -329,7 +329,7 @@ struct IumrahBackendSystemPresentationView: View {
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .frame(width: 34, height: 34)
-                                    .background(purple.opacity(0.27), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 11, style: .continuous), tint: purple.opacity(0.27))
 
                                 Text(module.title(settings.language))
                                     .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -404,9 +404,9 @@ struct IumrahBackendSystemPresentationView: View {
         )
         .navigationTitle("iumrah Package System")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .tint(.white)
         .iumrahInternalNavigation()
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(.white)
         .onAppear { IumrahHaptics.soft() }
     }
 
@@ -416,7 +416,7 @@ struct IumrahBackendSystemPresentationView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.90))
                 .frame(width: 30, height: 30)
-                .background(purple.opacity(0.26), in: Circle())
+                .iumrahGlass(in: Circle(), tint: purple.opacity(0.26))
 
             Text(value)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -730,17 +730,14 @@ private struct IumrahBackendNodeView: View {
 
     var body: some View {
         VStack(spacing: compact ? 5 : 7) {
-            ZStack {
-                Circle()
-                    .fill(Color(red: 0.045, green: 0.045, blue: 0.060))
-                Circle()
-                    .strokeBorder(.white.opacity(0.10), lineWidth: 0.8)
-                Image(systemName: module.systemImage)
-                    .font(.system(size: compact ? 15 : 17, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.88))
-            }
-            .frame(width: compact ? 43 : 50, height: compact ? 43 : 50)
-            .shadow(color: Color(red: 0.33, green: 0.21, blue: 0.80).opacity(0.16), radius: 10)
+            Image(systemName: module.systemImage)
+                .font(.system(size: compact ? 15 : 17, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.88))
+                .frame(width: compact ? 43 : 50, height: compact ? 43 : 50)
+                .iumrahGlass(
+                    in: Circle(),
+                    tint: Color(red: 0.33, green: 0.21, blue: 0.80).opacity(0.20)
+                )
 
             Text(module.title(language))
                 .font(.system(size: compact ? 8.8 : 10.2, weight: .medium, design: .rounded))

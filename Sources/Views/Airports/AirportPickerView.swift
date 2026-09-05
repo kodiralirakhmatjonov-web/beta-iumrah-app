@@ -59,8 +59,7 @@ struct AirportPickerView: View {
                                 Text(airport.iata)
                                     .font(.headline.monospaced())
                                     .frame(width: 54, height: 42)
-                                    .background(Color.iumrahRaisedBackground)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(airport.city)

@@ -15,7 +15,10 @@ struct FlightSearchFiltersCard: View {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 17, weight: .semibold))
                         .frame(width: 38, height: 38)
-                        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        .iumrahGlass(
+                            in: RoundedRectangle(cornerRadius: 13, style: .continuous),
+                            interactive: true
+                        )
                     VStack(alignment: .leading, spacing: 3) {
                         Text(copy(.title))
                             .font(.headline)
@@ -94,7 +97,7 @@ struct FlightSearchFiltersCard: View {
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 48)
-                        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
                     }
 
                     filterSection(copy(.airlines)) {

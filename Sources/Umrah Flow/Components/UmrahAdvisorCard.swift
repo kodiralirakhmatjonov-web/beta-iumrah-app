@@ -38,10 +38,7 @@ struct UmrahAdvisorCard: View {
 
                     Spacer(minLength: 8)
 
-                    ZStack {
-                        Circle()
-                            .fill(Color.white.opacity(0.10))
-                            .frame(width: 42, height: 42)
+                    Group {
                         if isCurrentLoading {
                             ProgressView()
                                 .tint(.white)
@@ -53,6 +50,8 @@ struct UmrahAdvisorCard: View {
                                 .offset(x: isCurrentPlaying ? 0 : 1)
                         }
                     }
+                    .frame(width: 42, height: 42)
+                    .iumrahGlass(in: Circle(), interactive: true, tint: Color.white.opacity(0.10))
                 }
 
                 HStack {

@@ -148,7 +148,7 @@ struct BookingsHomeView: View {
                     .font(.system(size: 19, weight: .semibold))
                     .foregroundStyle(Color.iumrahCareDark)
                     .frame(width: 48, height: 48)
-                    .background(Color.iumrahCareLight.opacity(0.16), in: Circle())
+                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.16))
             }
 
             if let name = session.travelerName, !name.isEmpty {
@@ -225,14 +225,14 @@ struct BookingsHomeView: View {
             VStack(spacing: 9) {
                 ForEach(Array(stages.enumerated()), id: \.offset) { index, stage in
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(index <= current ? Color.iumrahCareLight.opacity(0.22) : Color.iumrahRaisedBackground)
-                            Image(systemName: index < current ? "checkmark" : (index == current ? "circle.fill" : "circle"))
-                                .font(.system(size: index == current ? 8 : 11, weight: .bold))
-                                .foregroundStyle(index <= current ? Color.iumrahCareDark : Color.secondary)
-                        }
-                        .frame(width: 30, height: 30)
+                        Image(systemName: index < current ? "checkmark" : (index == current ? "circle.fill" : "circle"))
+                            .font(.system(size: index == current ? 8 : 11, weight: .bold))
+                            .foregroundStyle(index <= current ? Color.iumrahCareDark : Color.secondary)
+                            .frame(width: 30, height: 30)
+                            .iumrahGlass(
+                                in: Circle(),
+                                tint: index <= current ? Color.iumrahCareLight.opacity(0.22) : nil
+                            )
 
                         Text(L10n.status(stage, settings.language))
                             .font(.subheadline.weight(index == current ? .bold : .semibold))
@@ -292,7 +292,7 @@ struct BookingsHomeView: View {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .semibold))
                 .frame(width: 42, height: 42)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             Text(title)
                 .font(.headline)
                 .foregroundStyle(.primary)
@@ -304,8 +304,10 @@ struct BookingsHomeView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .padding(16)
-        .background(Color.white.opacity(0.97))
-        .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .iumrahGlass(
+            in: RoundedRectangle(cornerRadius: 25, style: .continuous),
+            interactive: true
+        )
     }
 
     private func otherTrips(excluding bookingID: String) -> some View {
@@ -348,8 +350,7 @@ struct BookingsHomeView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 19, weight: .bold))
                     .frame(width: 44, height: 44)
-                    .background(Color.iumrahRaisedBackground)
-                    .clipShape(Circle())
+                    .iumrahGlass(in: Circle())
             }
 
             Text(L10n.text("booking_hero_body", settings.language))
@@ -414,8 +415,7 @@ struct BookingsHomeView: View {
             Image(systemName: "suitcase")
                 .font(.system(size: 20, weight: .semibold))
                 .frame(width: 46, height: 46)
-                .background(Color.iumrahRaisedBackground)
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle())
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.text("booking_empty_title", settings.language))
                     .font(.headline)
@@ -434,7 +434,7 @@ struct BookingsHomeView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 34, height: 34)
-                .background(Color.iumrahCareLight.opacity(0.14), in: Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.14))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.caption).foregroundStyle(.secondary)
                 Text(value).font(.subheadline.weight(.semibold)).fixedSize(horizontal: false, vertical: true)

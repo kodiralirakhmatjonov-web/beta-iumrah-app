@@ -51,7 +51,7 @@ struct SidebarDrawerView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
                         .frame(width: 38, height: 38)
-                        .iumrahGlass(in: Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -73,13 +73,13 @@ struct SidebarDrawerView: View {
             Button { chrome.presentESIM() } label: {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color.white.opacity(0.13))
-                            Image(systemName: "simcard.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                        }
-                        .frame(width: 52, height: 52)
+                        Image(systemName: "simcard.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .frame(width: 52, height: 52)
+                            .iumrahGlass(
+                                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                                tint: Color.white.opacity(0.13)
+                            )
 
                         Spacer()
                         Image(systemName: "arrow.up.right")

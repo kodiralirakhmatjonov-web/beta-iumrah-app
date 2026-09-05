@@ -504,7 +504,7 @@ struct OnboardingFlowView: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 32, height: 32)
-                .background(Color.iumrahCareLight.opacity(0.18), in: Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.18))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(subtitle)
@@ -898,7 +898,7 @@ private struct OnboardingBuilderMock: View {
                 Image(systemName: "airplane.departure")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 38, height: 38)
-                    .background(Color.iumrahRaisedBackground, in: Circle())
+                    .iumrahGlass(in: Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.text("trip_origin_title", settings.language))
@@ -1086,7 +1086,7 @@ private struct OnboardingPackageMock: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 28, height: 28)
-                .background(Color.iumrahCareLight.opacity(0.20), in: Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.20))
             Image(systemName: icon)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.secondary)
@@ -1119,7 +1119,7 @@ private struct OnboardingJourneyMock: View {
                 Image(systemName: "clock.fill")
                     .foregroundStyle(Color.iumrahCareDark)
                     .frame(width: 36, height: 36)
-                    .background(Color.iumrahCareLight.opacity(0.18), in: Circle())
+                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.18))
             }
             .cinematicReveal(isActive, delay: 0.02, y: 14)
 
@@ -1171,7 +1171,7 @@ private struct OnboardingJourneyMock: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 30, height: 30)
-                .background(Color.iumrahCareLight.opacity(0.17), in: Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.17))
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.caption2)
@@ -1247,7 +1247,7 @@ private struct OnboardingCareMock: View {
             Image(systemName: icon)
                 .font(.caption.weight(.semibold))
                 .frame(width: 30, height: 30)
-                .background(Color.white.opacity(0.12), in: Circle())
+                .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.12))
             Text(title)
                 .font(.system(size: 9, weight: .semibold))
                 .lineLimit(1)

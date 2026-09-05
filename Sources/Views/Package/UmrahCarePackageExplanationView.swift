@@ -51,12 +51,7 @@ struct UmrahCarePackageExplanationView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .frame(width: 38, height: 38)
-                            .contentShape(Circle())
-                            .iumrahGlass(in: Circle(), interactive: true)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -67,7 +62,7 @@ struct UmrahCarePackageExplanationView: View {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .semibold))
                 .frame(width: 44, height: 44)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title).font(.headline)

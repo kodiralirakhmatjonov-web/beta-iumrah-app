@@ -3,7 +3,6 @@ import SwiftUI
 import UIKit
 
 struct BookingChatView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -68,29 +67,6 @@ struct BookingChatView: View {
                     .zIndex(10)
                 }
 
-                if showCareProfile {
-                    CareContactInfoView(
-                        appearance: appearance,
-                        profile: careProfile,
-                        language: settings.language,
-                        bookingNumber: session?.displayBookingNumber,
-                        onCall: openPhone,
-                        onTelegram: openTelegram,
-                        onWhatsApp: openWhatsApp,
-                        onClose: {
-                            withAnimation(.spring(response: 0.42, dampingFraction: 0.92)) {
-                                showCareProfile = false
-                            }
-                        }
-                    )
-                    .zIndex(20)
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .trailing).combined(with: .opacity),
-                            removal: .move(edge: .trailing).combined(with: .opacity)
-                        )
-                    )
-                }
             }
             // The conversation and its wallpaper extend through the physical bottom edge.
             // Only the keyboard safe area remains active, so the composer follows the
@@ -128,11 +104,22 @@ struct BookingChatView: View {
                 }
             }
         }
-        .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: $showCareProfile) {
+            CareContactInfoView(
+                appearance: appearance,
+                profile: careProfile,
+                language: settings.language,
+                bookingNumber: session?.displayBookingNumber,
+                onCall: openPhone,
+                onTelegram: openTelegram,
+                onWhatsApp: openWhatsApp,
+                onClose: { showCareProfile = false }
+            )
+        }
+        .navigationBarBackButtonHidden(false)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(showCareProfile ? .hidden : .visible, for: .navigationBar)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             CareChatFeedback.shared.prepare()
             guard !registeredImmersive else { return }
@@ -384,17 +371,6 @@ struct BookingChatView: View {
 
     @ToolbarContentBuilder
     private var chatToolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button {
-                if appearance.hapticsEnabled { IumrahHaptics.soft() }
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-            }
-            .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
-        }
-
         ToolbarItem(placement: .principal) {
             Button {
                 if appearance.hapticsEnabled { IumrahHaptics.selection() }
@@ -505,10 +481,10 @@ struct BookingChatView: View {
                             }
                             .foregroundStyle(.white)
                             .frame(width: 30, height: 30)
-                            .background(outgoingAccentColor, in: Circle())
                             .contentShape(Circle())
                         }
-                        .buttonStyle(.plain)
+                        .careNativeGlassButton(prominent: true)
+                        .tint(outgoingAccentColor)
                         .disabled(!canSend)
                         .padding(.trailing, 5)
                         .padding(.bottom, 5)

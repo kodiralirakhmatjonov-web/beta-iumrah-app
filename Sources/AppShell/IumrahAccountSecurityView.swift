@@ -57,6 +57,7 @@ struct IumrahAccountSecurityView: View {
         .background(Color.iumrahPageBackground)
         .navigationTitle(tr("Security", "Безопасность", "Xavfsizlik", "Хавфсизлик"))
         .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation()
         .refreshable { await load() }
         .task { await load() }
         .sheet(isPresented: $showingPrimarySheet) { primaryDeviceSheet }
@@ -467,15 +468,14 @@ struct IumrahAccountSecurityView: View {
         let tint: Color = isAndroid ? .green : .blue
         let icon = isAndroid ? "apps.iphone" : (platform.contains("ios") ? "iphone.gen3" : "desktopcomputer")
 
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(tint.gradient)
-            Image(systemName: icon)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
-        }
-        .frame(width: 48, height: 48)
-        .shadow(color: tint.opacity(0.20), radius: 8, y: 4)
+        Image(systemName: icon)
+            .font(.system(size: 22, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 48, height: 48)
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                tint: tint.opacity(0.44)
+            )
     }
 
     private var privacyNote: some View {
@@ -516,7 +516,7 @@ struct IumrahAccountSecurityView: View {
                     .textContentType(.password)
                     .padding(.horizontal, 16)
                     .frame(height: 56)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -556,7 +556,7 @@ struct IumrahAccountSecurityView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 38, height: 38)
-                .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous), tint: tint.opacity(0.10))
             Text(title).font(.headline)
         }
     }
@@ -567,7 +567,7 @@ struct IumrahAccountSecurityView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 42, height: 42)
-                .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous), tint: tint.opacity(0.10))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.subheadline.weight(.bold))
                 Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

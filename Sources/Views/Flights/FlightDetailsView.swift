@@ -177,8 +177,7 @@ struct FlightDetailsView: View {
             Image(systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath")
                 .font(.body.weight(.semibold))
                 .frame(width: 28, height: 28)
-                .background(Color.primary.opacity(0.06))
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(layover.airportChange
@@ -210,8 +209,7 @@ struct FlightDetailsView: View {
             Image(systemName: "arrow.triangle.branch")
                 .font(.body.weight(.semibold))
                 .frame(width: 28, height: 28)
-                .background(Color.primary.opacity(0.06))
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(connectionTitle(resolvedAirport(airport).displayCity))

@@ -95,8 +95,7 @@ struct IumrahAccountView: View {
             Image(systemName: account.isAuthenticated ? "person.crop.circle.badge.checkmark" : "person.crop.circle")
                 .font(.system(size: 25, weight: .semibold))
                 .frame(width: 50, height: 50)
-                .background(Color.iumrahCardBackground, in: Circle())
-                .overlay { Circle().strokeBorder(Color.primary.opacity(0.06), lineWidth: 1) }
+                .iumrahGlass(in: Circle())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -327,14 +326,14 @@ struct IumrahAccountView: View {
         } label: {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.iumrahCareLight.opacity(0.14))
-                        Image(systemName: session.effectiveStatus.uppercased() == "IN_TRIP" ? "location.fill" : "airplane.departure")
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(Color.iumrahCareDark)
-                    }
-                    .frame(width: 48, height: 48)
+                    Image(systemName: session.effectiveStatus.uppercased() == "IN_TRIP" ? "location.fill" : "airplane.departure")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(Color.iumrahCareDark)
+                        .frame(width: 48, height: 48)
+                        .iumrahGlass(
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous),
+                            tint: Color.iumrahCareLight.opacity(0.14)
+                        )
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(tr("Active trip", "Активная поездка", "Faol safar", "Фаол сафар"))
@@ -385,7 +384,7 @@ struct IumrahAccountView: View {
                 Image(systemName: "suitcase.fill")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 38, height: 38)
-                    .background(Color.iumrahRaisedBackground, in: Circle())
+                    .iumrahGlass(in: Circle())
             }
 
             if allTrips.isEmpty {
@@ -393,7 +392,7 @@ struct IumrahAccountView: View {
                     Image(systemName: "suitcase")
                         .font(.system(size: 18, weight: .semibold))
                         .frame(width: 42, height: 42)
-                        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     Text(tr("Your trips will appear here after they are linked to this iumrah ID.", "Все поездки, привязанные к этому iumrah ID, появятся здесь.", "Ushbu iumrah ID ga bog‘langan safarlar shu yerda ko‘rinadi.", "Ушбу iumrah ID га боғланган сафарлар шу ерда кўринади."))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -468,7 +467,7 @@ struct IumrahAccountView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 38, height: 38)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
@@ -624,14 +623,14 @@ struct IumrahAccountView: View {
 
     private var guestCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.iumrahCareLight.opacity(0.14))
-                Image(systemName: "person.crop.circle.badge.key.fill")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundStyle(Color.iumrahCareDark)
-            }
-            .frame(width: 54, height: 54)
+            Image(systemName: "person.crop.circle.badge.key.fill")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(Color.iumrahCareDark)
+                .frame(width: 54, height: 54)
+                .iumrahGlass(
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                    tint: Color.iumrahCareLight.opacity(0.14)
+                )
 
             Text(tr("Your permanent iumrah account", "Ваш постоянный аккаунт iumrah", "Doimiy iumrah akkauntingiz", "Доимий iumrah аккаунтингиз"))
                 .font(.system(size: 27, weight: .bold, design: .rounded))
@@ -662,7 +661,7 @@ struct IumrahAccountView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 56)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
 
             HStack(spacing: 11) {
                 Image(systemName: "lock.fill")
@@ -673,7 +672,7 @@ struct IumrahAccountView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 56)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
 
             if let loginError {
                 Text(loginError)
@@ -735,7 +734,7 @@ struct IumrahAccountView: View {
                 Image(systemName: "person.badge.key.fill")
                     .font(.system(size: 19, weight: .semibold))
                     .frame(width: 46, height: 46)
-                    .background(Color.iumrahCareLight.opacity(0.14), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous), tint: Color.iumrahCareLight.opacity(0.14))
                     .foregroundStyle(Color.iumrahCareDark)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(tr("Activate your iumrah ID", "Активировать iumrah ID", "iumrah ID ni faollashtirish", "iumrah ID ни фаоллаштириш"))
@@ -790,14 +789,11 @@ struct IumrahAccountView: View {
 
     private func tripRow(_ session: StoredBookingSession) -> some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.iumrahRaisedBackground)
-                Image(systemName: tripIcon(session.effectiveStatus))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(statusColor(session.effectiveStatus))
-            }
-            .frame(width: 42, height: 42)
+            Image(systemName: tripIcon(session.effectiveStatus))
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(statusColor(session.effectiveStatus))
+                .frame(width: 42, height: 42)
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
@@ -826,7 +822,7 @@ struct IumrahAccountView: View {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: 40, height: 40)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 if let subtitle {
@@ -854,7 +850,7 @@ struct IumrahAccountView: View {
             .autocorrectionDisabled(keyboard == .emailAddress)
             .padding(.horizontal, 16)
             .frame(height: 54)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
     }
 
     private func settingsRow(icon: String, title: String, value: String, showsChevron: Bool = true) -> some View {
@@ -862,7 +858,7 @@ struct IumrahAccountView: View {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: 40, height: 40)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                 Text(value).font(.caption).foregroundStyle(.secondary).lineLimit(2)

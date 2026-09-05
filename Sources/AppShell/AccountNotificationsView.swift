@@ -29,6 +29,7 @@ struct AccountNotificationsView: View {
         .background(Color.iumrahPageBackground)
         .navigationTitle("iumrah Signal")
         .navigationBarTitleDisplayMode(.inline)
+        .iumrahInternalNavigation()
         .refreshable {
             await clientNotifications.refresh(accountToken: account.bearerToken)
         }
@@ -58,7 +59,7 @@ struct AccountNotificationsView: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(Color.iumrahCareDark)
                     .frame(width: 44, height: 44)
-                    .background(Color.iumrahCareLight.opacity(0.14), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous), tint: Color.iumrahCareLight.opacity(0.14))
             }
 
             HStack(spacing: 10) {

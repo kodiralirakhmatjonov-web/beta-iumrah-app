@@ -60,9 +60,9 @@ struct HotelDetailView: View {
             }
         }
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle(hotel.name)
         .toolbar(.hidden, for: .tabBar)
-        .overlay(alignment: .topLeading) { floatingBackButton }
+        .iumrahInternalNavigation()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if shouldShowSelectionBar, let selectedName = currentSelectionName {
                 selectionBar(selectedName)
@@ -145,22 +145,6 @@ struct HotelDetailView: View {
         }
     }
 
-    private var floatingBackButton: some View {
-        Button {
-            IumrahHaptics.soft()
-            dismiss()
-        } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-                .frame(width: 46, height: 46)
-                .contentShape(Circle())
-                .iumrahGlass(in: Circle(), interactive: true)
-        }
-        .buttonStyle(.plain)
-        .padding(.leading, 18)
-        .padding(.top, 10)
-    }
 
     private var identitySection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -245,7 +229,7 @@ struct HotelDetailView: View {
                             Image(systemName: amenityIcon(amenity))
                                 .font(.system(size: 15, weight: .semibold))
                                 .frame(width: 28, height: 28)
-                                .background(Color.iumrahRaisedBackground, in: Circle())
+                                .iumrahGlass(in: Circle())
                             Text(localizedAmenity(amenity))
                                 .font(.footnote.weight(.semibold))
                                 .lineLimit(2)
@@ -309,14 +293,11 @@ struct HotelDetailView: View {
 
         return VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
-                ZStack {
-                    Circle()
-                        .fill(.white.opacity(0.16))
-                    Image(systemName: categoryIcon(option.category))
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 58, height: 58)
+                Image(systemName: categoryIcon(option.category))
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58)
+                    .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.16))
 
                 Spacer()
 

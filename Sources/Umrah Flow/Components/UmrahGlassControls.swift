@@ -14,23 +14,15 @@ struct UmrahGlassIconButton: View {
     }
 
     var body: some View {
-        Button {
-            IumrahHaptics.selection()
-            action()
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(foreground ?? palette.textPrimary)
-                .frame(width: 46, height: 46)
-                .contentShape(Circle())
-                .iumrahGlass(
-                    in: Circle(),
-                    interactive: true,
-                    tint: accent?.opacity(0.34)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
+        IumrahGlassIconButton(
+            systemName: systemName,
+            size: IumrahDesign.glassIconSize,
+            fontSize: 15,
+            foreground: foreground ?? palette.textPrimary,
+            tint: accent?.opacity(0.34),
+            accessibilityLabel: accessibilityLabel,
+            action: action
+        )
     }
 }
 
@@ -46,12 +38,13 @@ struct UmrahRitualModeBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            modeButton(.listening, title: UmrahFlowCopy.listening(language), icon: "waveform")
-            modeButton(.reading, title: UmrahFlowCopy.reading(language), icon: "text.book.closed")
+        IumrahGlassGroup(spacing: 6) {
+            HStack(spacing: 6) {
+                modeButton(.listening, title: UmrahFlowCopy.listening(language), icon: "waveform")
+                modeButton(.reading, title: UmrahFlowCopy.reading(language), icon: "text.book.closed")
+            }
         }
         .padding(5)
-        .iumrahGlass(in: Capsule())
         .padding(.horizontal, 74)
         .padding(.top, 4)
         .padding(.bottom, 4)
@@ -78,7 +71,11 @@ struct UmrahRitualModeBar: View {
             .foregroundStyle(selected ? Color.white : palette.textSecondary)
             .frame(maxWidth: .infinity)
             .frame(height: 38)
-            .background(selected ? palette.accent.opacity(0.78) : Color.clear, in: Capsule())
+            .iumrahGlass(
+                in: Capsule(),
+                interactive: true,
+                tint: selected ? palette.accent.opacity(0.62) : nil
+            )
             .animation(.smooth(duration: 0.28, extraBounce: 0), value: selected)
         }
         .buttonStyle(.plain)

@@ -189,9 +189,30 @@ struct BookingDetailView: View {
                 .background(Color.iumrahPageBackground)
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(L10n.text("booking_detail_title", settings.language))
+                        .font(.headline)
+                        .lineLimit(1)
+                    if let session {
+                        HStack(spacing: 5) {
+                            Text("Бронь \(session.displayBookingNumber)")
+                            if let pilgrimID = session.displayPilgrimID {
+                                Text("·")
+                                Text("Iumrah ID \(pilgrimID)")
+                            }
+                        }
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    }
+                }
+            }
+        }
+        .iumrahInternalNavigation()
         .overlay {
             if let session, showFullscreenBookingCard {
                 fullscreenBookingPass(session)
@@ -388,42 +409,6 @@ struct BookingDetailView: View {
         .ignoresSafeArea()
     }
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                IumrahHaptics.soft()
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.text("booking_detail_title", settings.language))
-                    .font(.headline)
-                if let session {
-                    HStack(spacing: 7) {
-                        Text("Бронь \(session.displayBookingNumber)")
-                        if let pilgrimID = session.displayPilgrimID {
-                            Text("·")
-                            Text("Iumrah ID \(pilgrimID)")
-                        }
-                    }
-                    .font(.caption2.monospaced().weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-                }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.vertical, 8)
-        .background(Color.iumrahPageBackground)
-    }
 
     private func outboundFallback(_ session: StoredBookingSession) -> String {
         if let trace = session.booking.generatorTrace?.outbound {
@@ -455,8 +440,7 @@ struct BookingDetailView: View {
                 Image(systemName: statusIcon(session.effectiveStatus))
                     .font(.system(size: 24, weight: .semibold))
                     .frame(width: 52, height: 52)
-                    .background(Color.iumrahRaisedBackground)
-                    .clipShape(Circle())
+                    .iumrahGlass(in: Circle())
             }
 
             Text(L10n.text("detail_updates", settings.language))
@@ -503,14 +487,10 @@ struct BookingDetailView: View {
                     PilgrimCheckoutView(bookingID: bookingID)
                 } label: {
                     HStack(spacing: 13) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.14))
-                                .frame(width: 42, height: 42)
-
-                            Image(systemName: "person.text.rectangle.fill")
-                                .font(.system(size: 18, weight: .semibold))
-                        }
+                        Image(systemName: "person.text.rectangle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .frame(width: 42, height: 42)
+                            .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.14))
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(checkoutCTA)
@@ -1237,8 +1217,7 @@ struct BookingDetailView: View {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .semibold))
                 .frame(width: 44, height: 44)
-                .background(Color.iumrahRaisedBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
@@ -1267,7 +1246,7 @@ struct BookingDetailView: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
                 .frame(width: 30, height: 30)
-                .background(Color.iumrahRaisedBackground, in: Circle())
+                .iumrahGlass(in: Circle())
             Text(text)
                 .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
@@ -1427,15 +1406,13 @@ private struct BookingContactEditSheet: View {
                         .autocorrectionDisabled()
                         .padding(.horizontal, 16)
                         .frame(height: 54)
-                        .background(Color.iumrahRaisedBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
                     TextField("WhatsApp", text: $whatsapp)
                         .keyboardType(.phonePad)
                         .padding(.horizontal, 16)
                         .frame(height: 54)
-                        .background(Color.iumrahRaisedBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                 }
 
                 if let errorMessage {
@@ -1464,12 +1441,7 @@ private struct BookingContactEditSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .frame(width: 36, height: 36)
-                            .contentShape(Circle())
-                            .iumrahGlass(in: Circle(), interactive: true)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }

@@ -59,23 +59,6 @@ struct IumrahFlightsView: View {
             }
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    IumrahHaptics.soft()
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 42, height: 42)
-                        .iumrahGlass(in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(IumrahFlightsCopy.text(.back, settings.language))
-            }
-        }
         .iumrahInternalNavigation()
         .alert(
             IumrahFlightsCopy.text(.notificationsDisabledTitle, settings.language),
@@ -353,20 +336,14 @@ struct IumrahFlightsView: View {
 
     private var notificationPreview: some View {
         HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [.blue.opacity(0.95), .indigo.opacity(0.90)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "airplane")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.primary)
-            }
-            .frame(width: 42, height: 42)
+            Image(systemName: "airplane")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .iumrahGlass(
+                    in: RoundedRectangle(cornerRadius: 13, style: .continuous),
+                    tint: Color.blue.opacity(0.48)
+                )
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
@@ -434,11 +411,7 @@ struct IumrahFlightsView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 58)
-            .background(Color.iumrahRaisedBackground.opacity(0.70), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-            }
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
 
             if hasAccess {
                 activeTripFlightResults
@@ -465,14 +438,11 @@ struct IumrahFlightsView: View {
             VStack(spacing: 10) {
                 ForEach(filteredTripFlights.prefix(2)) { offer in
                     HStack(spacing: 13) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                .fill(Color.iumrahRaisedBackground)
-                            Image(systemName: offer.direction == .outbound ? "airplane.departure" : "airplane.arrival")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.blue)
-                        }
-                        .frame(width: 46, height: 46)
+                        Image(systemName: offer.direction == .outbound ? "airplane.departure" : "airplane.arrival")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .frame(width: 46, height: 46)
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(offer.flightNumber)
@@ -522,7 +492,7 @@ struct IumrahFlightsView: View {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
                 .frame(width: 42, height: 42)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold))
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -598,7 +568,7 @@ struct IumrahFlightsView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.blue)
                 .frame(width: 34, height: 34)
-                .background(Color.blue.opacity(0.12), in: Circle())
+                .iumrahGlass(in: Circle(), tint: Color.blue.opacity(0.12))
             Text(title)
                 .font(.subheadline.weight(.semibold))
             Spacer()

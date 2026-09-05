@@ -93,9 +93,19 @@ struct IumrahSecurityConfirmationView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.iumrahPageBackground)
-        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("iumrah Security")
+                        .font(.headline)
+                    Text("Security Confirmation · KYC")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .iumrahInternalNavigation()
         .task { await load() }
         .onChange(of: passportPhotoItem) { _, item in
             guard let item else { return }
@@ -103,33 +113,6 @@ struct IumrahSecurityConfirmationView: View {
         }
     }
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                IumrahHaptics.soft()
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("iumrah Security")
-                    .font(.headline)
-                Text("Security Confirmation · KYC")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.vertical, 8)
-        // iOS 26 glass belongs to controls, not a hand-built blurred toolbar.
-        .background(Color.iumrahPageBackground)
-    }
 
     private var securityHero: some View {
         ZStack {
@@ -184,7 +167,7 @@ struct IumrahSecurityConfirmationView: View {
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(.red)
                 .frame(width: 42, height: 42)
-                .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.red.opacity(0.10))
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(tr("Important", "Важно", "Muhim", "Муҳим"))
@@ -216,7 +199,7 @@ struct IumrahSecurityConfirmationView: View {
                 Image(systemName: "person.text.rectangle.fill")
                     .font(.system(size: 17, weight: .semibold))
                     .frame(width: 42, height: 42)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tr("Passport profile", "Паспортный профиль", "Pasport profili", "Паспорт профили"))
                         .font(.headline)
@@ -257,11 +240,7 @@ struct IumrahSecurityConfirmationView: View {
                     .focused($focusedField, equals: .passport)
                     .padding(.horizontal, 15)
                     .frame(height: 56)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(focusedField == .passport ? Color.primary.opacity(0.18) : Color.primary.opacity(0.05), lineWidth: 1)
-                    }
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                     .onChange(of: passportNumber) { _, value in
                         let normalized = value.uppercased().filter { $0.isLetter || $0.isNumber }
                         if normalized != value { passportNumber = normalized }
@@ -289,11 +268,7 @@ struct IumrahSecurityConfirmationView: View {
                 .focused($focusedField, equals: field)
                 .padding(.horizontal, 15)
                 .frame(height: 56)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(focusedField == field ? Color.primary.opacity(0.18) : Color.primary.opacity(0.05), lineWidth: 1)
-                }
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
         }
     }
 
@@ -444,7 +419,7 @@ struct IumrahSecurityConfirmationView: View {
                     .font(.system(size: 23, weight: .semibold))
                     .foregroundStyle(.blue)
                     .frame(width: 50, height: 50)
-                    .background(Color.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), tint: Color.blue.opacity(0.10))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(tr("Waiting for manual verification", "Ожидает ручной проверки", "Qo‘lda tekshirish kutilmoqda", "Қўлда текшириш кутилмоқда"))
                         .font(.title3.weight(.bold))
@@ -475,7 +450,7 @@ struct IumrahSecurityConfirmationView: View {
                     .font(.system(size: 23, weight: .semibold))
                     .foregroundStyle(.green)
                     .frame(width: 50, height: 50)
-                    .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), tint: Color.green.opacity(0.10))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(tr("Identity confirmed", "Личность подтверждена", "Shaxs tasdiqlandi", "Шахс тасдиқланди"))
                         .font(.title3.weight(.bold))

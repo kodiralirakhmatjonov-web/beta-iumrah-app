@@ -87,7 +87,7 @@ struct ESIMView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle())
+                    .iumrahGlass(in: Circle(), interactive: true)
             }
             .buttonStyle(.plain)
         }
@@ -96,14 +96,14 @@ struct ESIMView: View {
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.white.opacity(0.12))
-                    Image(systemName: "simcard.fill")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 60, height: 60)
+                Image(systemName: "simcard.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 60, height: 60)
+                    .iumrahGlass(
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous),
+                        tint: Color.white.opacity(0.12)
+                    )
                 Spacer()
                 Text(copy(.packageBadge))
                     .font(.caption2.weight(.bold))

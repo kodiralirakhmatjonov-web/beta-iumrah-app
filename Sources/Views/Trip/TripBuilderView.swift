@@ -363,7 +363,7 @@ struct TripBuilderView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.iumrahCareDark)
                     .frame(width: 42, height: 42)
-                    .background(Color.iumrahCareLight.opacity(0.22), in: Circle())
+                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.22))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(L10n.text("weekend_umrah_title", settings.language))
@@ -578,7 +578,13 @@ struct TripBuilderView: View {
                         Spacer()
                     }
                     .contentShape(Rectangle())
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 54)
+                    .iumrahGlass(
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                        interactive: true,
+                        tint: journey.trip.packageTier == tier ? Color.primary.opacity(0.10) : nil
+                    )
                 }
                 .buttonStyle(.plain)
             }

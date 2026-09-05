@@ -19,7 +19,6 @@ struct CareContactInfoView: View {
 
     @State private var section: Section = .info
     @State private var selectedPhoto: PhotosPickerItem?
-    @GestureState private var dismissDragX: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -62,31 +61,19 @@ struct CareContactInfoView: View {
                 .padding(.bottom, 34)
             }
         }
-        .offset(x: max(0, dismissDragX))
-        .shadow(color: .black.opacity(dismissDragX > 0 ? 0.18 : 0), radius: 22, x: -8)
-        .contentShape(Rectangle())
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 12, coordinateSpace: .local)
-                .updating($dismissDragX) { value, state, transaction in
-                    let dx = value.translation.width
-                    let dy = value.translation.height
-                    guard value.startLocation.x <= 32, dx > 0, abs(dx) > abs(dy) * 1.12 else { return }
-                    state = dx
-                    transaction.animation = .interactiveSpring(response: 0.28, dampingFraction: 0.92)
-                }
-                .onEnded { value in
-                    let isEdgeSwipe = value.startLocation.x <= 32
-                    let horizontal = value.translation.width > abs(value.translation.height) * 1.12
-                    let shouldClose = value.translation.width > 95 || value.predictedEndTranslation.width > 170
-                    if isEdgeSwipe && horizontal && shouldClose {
-                        if appearance.hapticsEnabled { IumrahHaptics.soft() }
-                        onClose()
-                    }
-                }
-        )
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("iumrah Care")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(false)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { floatingTopBar }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(tr("Done", "Готово", "Tayyor", "Тайёр")) {
+                    if appearance.hapticsEnabled { IumrahHaptics.selection() }
+                    onClose()
+                }
+            }
+        }
         .onChange(of: selectedPhoto) { _, item in
             guard let item else { return }
             Task {
@@ -102,43 +89,6 @@ struct CareContactInfoView: View {
         }
     }
 
-    private var floatingTopBar: some View {
-        CareNativeGlassContainer(spacing: 14) {
-            HStack {
-                Button {
-                    if appearance.hapticsEnabled { IumrahHaptics.soft() }
-                    onClose()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 30, height: 30)
-                        .contentShape(Circle())
-                }
-                .foregroundStyle(primaryText)
-                .controlSize(.small)
-                .careNativeGlassButton()
-                .accessibilityLabel(tr("Back", "Назад", "Orqaga", "Орқага"))
-
-                Spacer()
-
-                Button {
-                    if appearance.hapticsEnabled { IumrahHaptics.selection() }
-                    onClose()
-                } label: {
-                    Text(tr("Done", "Готово", "Tayyor", "Тайёр"))
-                        .font(.system(size: 15.5, weight: .semibold))
-                        .padding(.horizontal, 10)
-                        .frame(height: 30)
-                }
-                .foregroundStyle(primaryText)
-                .controlSize(.small)
-                .careNativeGlassButton()
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 2)
-        .padding(.bottom, 1)
-    }
 
     private var profileHero: some View {
         VStack(spacing: 12) {
@@ -511,9 +461,7 @@ struct CareContactInfoView: View {
             .font(.system(size: 12.5, weight: .bold))
             .foregroundStyle(.black)
             .frame(width: 25, height: 25)
-            .background(Color.white, in: Circle())
-            .overlay { Circle().stroke(Color.black.opacity(0.06), lineWidth: 0.7) }
-            .shadow(color: .black.opacity(0.10), radius: 4, y: 2)
+            .iumrahGlass(in: Circle(), tint: Color.white)
     }
 
     @ViewBuilder

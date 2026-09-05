@@ -56,7 +56,7 @@ struct FlightCandidatePreviewCard: View {
                 Image(systemName: "function")
                     .font(.caption.weight(.bold))
                     .frame(width: 28, height: 28)
-                    .background(Color.iumrahRaisedBackground, in: Circle())
+                    .iumrahGlass(in: Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pricingTitle)
@@ -157,7 +157,7 @@ struct FlightSearchProgressCard: View {
                 Image(systemName: isSearching ? "magnifyingglass" : "arrow.clockwise")
                     .font(.system(size: 18, weight: .semibold))
                     .frame(width: 44, height: 44)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Chat-local Liquid Glass bridge.
 /// On iOS 26 this uses Apple's native Liquid Glass APIs and glass button styles.
-/// Earlier OS versions keep a restrained Material fallback without changing chat logic.
+/// Earlier OS versions keep a restrained opaque fallback; Liquid Glass is never imitated with blur.
 struct CareNativeGlassContainer<Content: View>: View {
     let spacing: CGFloat?
     let content: () -> Content
@@ -46,20 +46,10 @@ private struct CareNativeGlassSurfaceModifier<S: Shape>: ViewModifier {
     let interactive: Bool
     let tint: Color?
 
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            let glass = Glass.regular
-                .interactive(interactive)
-                .tint(tint)
-            content.glassEffect(glass, in: shape)
-        } else {
-            content
-                .background(Color.iumrahCardBackground, in: shape)
-                .overlay {
-                    shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.65)
-                }
-        }
+        // The chat now shares the same canonical Liquid Glass renderer as the
+        // rest of iumrah. Only the button-style bridge below is chat-specific.
+        content.iumrahGlass(in: shape, interactive: interactive, tint: tint)
     }
 }
 

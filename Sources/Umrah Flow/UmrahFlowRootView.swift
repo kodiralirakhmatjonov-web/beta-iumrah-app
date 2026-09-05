@@ -64,7 +64,10 @@ struct UmrahFlowRootView: View {
         // AdvisorVoiceGradient independently extend under the bottom inset, so the
         // aura still reaches the physical screen edge without dragging controls under
         // the Home indicator.
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle(UmrahFlowCopy.advisorTitle(guideLanguage))
+        .toolbar(.visible, for: .navigationBar)
+        .navigationBarBackButtonHidden(false)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .task(id: guideLanguage.rawValue) {
             await store.load(language: guideLanguage)

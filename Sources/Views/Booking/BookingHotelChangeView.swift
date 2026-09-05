@@ -72,10 +72,6 @@ struct BookingHotelChangeView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .frame(width: 36, height: 36)
-                            .background(Color.iumrahRaisedBackground)
-                            .clipShape(Circle())
                     }
                 }
             }

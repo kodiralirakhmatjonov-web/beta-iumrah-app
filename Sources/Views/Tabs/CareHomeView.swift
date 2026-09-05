@@ -146,8 +146,7 @@ struct CareHomeView: View {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: 30, height: 30)
-                .background(Color.white.opacity(0.13))
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.13))
             Text(text)
                 .font(.caption2.weight(.semibold))
                 .lineLimit(2)
@@ -205,8 +204,7 @@ struct CareHomeView: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Color.iumrahCareDark.opacity(0.56))
                 .frame(width: 34, height: 34)
-                .background(Color.iumrahCareLight.opacity(0.13))
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.13))
         }
         .padding(17)
         .background(Color.iumrahCardBackground)
@@ -233,8 +231,7 @@ struct CareHomeView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color.iumrahCareDark)
                 .frame(width: 40, height: 40)
-                .background(Color.iumrahCareLight.opacity(0.17))
-                .clipShape(Circle())
+                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.17))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(L10n.text("care_locked_title", settings.language))

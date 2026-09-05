@@ -21,7 +21,7 @@ struct IumrahEmailVerificationView: View {
                         .font(.system(size: 34, weight: .semibold))
                         .foregroundStyle(.blue)
                         .frame(width: 64, height: 64)
-                        .background(Color.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), tint: Color.blue.opacity(0.10))
 
                     Text(challengeID.isEmpty
                          ? tr("Sign-in email", "Почта для входа", "Kirish emaili", "Кириш emailи")
@@ -129,7 +129,7 @@ struct IumrahEmailVerificationView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
     }
 
     @MainActor

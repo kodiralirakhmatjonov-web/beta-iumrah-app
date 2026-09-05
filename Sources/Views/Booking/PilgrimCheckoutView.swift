@@ -73,9 +73,23 @@ struct PilgrimCheckoutView: View {
             .padding(.bottom, 48)
         }
         .background(Color.iumrahPageBackground)
-        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(tr("Pilgrim details & payment", "Данные и оплата", "Ma’lumotlar va to‘lov", "Маълумотлар ва тўлов"))
+                        .font(.headline)
+                        .lineLimit(1)
+                    if let id = checkout?.iumrahID ?? session?.displayPilgrimID {
+                        Text("iumrah ID \(normalizedID(id))")
+                            .font(.caption2.monospaced().weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+        }
+        .iumrahInternalNavigation()
         .task { await loadCheckout() }
         .onAppear {
             if account.isAuthenticated { Task { await loadFriendsSummary() } }
@@ -108,33 +122,6 @@ struct PilgrimCheckoutView: View {
         }
     }
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                IumrahHaptics.soft(); dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tr("Pilgrim details & payment", "Данные и оплата", "Ma’lumotlar va to‘lov", "Маълумотлар ва тўлов"))
-                    .font(.headline)
-                if let id = checkout?.iumrahID ?? session?.displayPilgrimID {
-                    Text("iumrah ID \(normalizedID(id))")
-                        .font(.caption2.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.vertical, 8)
-        .background(Color.iumrahPageBackground)
-    }
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -157,7 +144,7 @@ struct PilgrimCheckoutView: View {
                 Image(systemName: "person.text.rectangle.fill")
                     .font(.system(size: 22, weight: .semibold))
                     .frame(width: 50, height: 50)
-                    .background(Color.iumrahCareLight.opacity(0.16), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), tint: Color.iumrahCareLight.opacity(0.16))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -289,14 +276,14 @@ struct PilgrimCheckoutView: View {
                     if isPaymentPending { travelerEditor = traveler }
                 } label: {
                     HStack(spacing: 13) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                .fill(traveler.completed ? Color.green.opacity(0.11) : Color.iumrahRaisedBackground)
-                            Image(systemName: traveler.completed ? "checkmark" : travelerIcon(traveler.travelerType))
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundStyle(traveler.completed ? .green : .primary)
-                        }
-                        .frame(width: 46, height: 46)
+                        Image(systemName: traveler.completed ? "checkmark" : travelerIcon(traveler.travelerType))
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(traveler.completed ? .green : .primary)
+                            .frame(width: 46, height: 46)
+                            .iumrahGlass(
+                                in: RoundedRectangle(cornerRadius: 15, style: .continuous),
+                                tint: traveler.completed ? Color.green.opacity(0.11) : nil
+                            )
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(travelerName(traveler))
@@ -310,7 +297,7 @@ struct PilgrimCheckoutView: View {
                             .font(.caption.weight(.bold)).foregroundStyle(.tertiary)
                     }
                     .padding(13)
-                    .background(Color.iumrahRaisedBackground.opacity(0.62), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -339,7 +326,11 @@ struct PilgrimCheckoutView: View {
                                 .foregroundStyle(paymentMethod == method ? Color.white : Color.primary)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 40)
-                                .background(paymentMethod == method ? Color.black : Color.iumrahRaisedBackground, in: Capsule())
+                                .iumrahGlass(
+                                    in: Capsule(),
+                                    interactive: true,
+                                    tint: paymentMethod == method ? Color.primary.opacity(0.78) : nil
+                                )
                         }
                         .buttonStyle(.plain)
                     }
@@ -364,7 +355,7 @@ struct PilgrimCheckoutView: View {
                         Image(systemName: "doc.text.image.fill")
                             .font(.system(size: 18, weight: .semibold))
                             .frame(width: 42, height: 42)
-                            .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.green.opacity(0.10))
                             .foregroundStyle(.green)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tr("Receipt attached", "Чек прикреплён", "Chek biriktirildi", "Чек бириктирилди"))
@@ -460,7 +451,7 @@ struct PilgrimCheckoutView: View {
                                         .font(.system(size: 15, weight: .semibold, design: .monospaced))
                                         .padding(.horizontal, 13)
                                         .frame(height: 50)
-                                        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
 
                                     Button {
                                         Task { await redeemFriendGift() }
@@ -698,7 +689,7 @@ struct PilgrimCheckoutView: View {
                         Image(systemName: document.contentType == "application/pdf" ? "doc.richtext.fill" : "photo.fill")
                             .font(.system(size: 18, weight: .semibold))
                             .frame(width: 44, height: 44)
-                            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                             Text(document.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                             Text(documentKind(document.documentKind)).font(.caption).foregroundStyle(.secondary)
@@ -707,7 +698,7 @@ struct PilgrimCheckoutView: View {
                         if isLoadingDocument { ProgressView() } else { Image(systemName: "arrow.up.right").foregroundStyle(.tertiary) }
                     }
                     .padding(12)
-                    .background(Color.iumrahRaisedBackground.opacity(0.58), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -760,7 +751,8 @@ struct PilgrimCheckoutView: View {
                 } label: {
                     Image(systemName: "doc.on.doc")
                         .frame(width: 42, height: 42)
-                        .background(Color.iumrahRaisedBackground, in: Circle())
+                        .contentShape(Circle())
+                        .iumrahGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -771,11 +763,10 @@ struct PilgrimCheckoutView: View {
 
     private func stageHeader(number: String, icon: String, title: String) -> some View {
         HStack(spacing: 11) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.iumrahRaisedBackground)
-                Image(systemName: icon).font(.system(size: 15, weight: .semibold))
-            }
-            .frame(width: 38, height: 38)
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 38, height: 38)
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(number).font(.caption2.monospaced().weight(.bold)).foregroundStyle(.secondary)
                 Text(title).font(.headline)
@@ -791,7 +782,7 @@ struct PilgrimCheckoutView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 52)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
     }
 
     private func readinessChip(_ title: String, ready: Bool) -> some View {
@@ -1001,14 +992,14 @@ private struct TravelerFormEditorSheet: View {
 
                         PhotosPicker(selection: $passportPhoto, matching: .images) {
                             HStack(spacing: 12) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                        .fill((passportPhoto != nil || form.hasPassport) ? Color.green.opacity(0.12) : Color.iumrahCardBackground)
-                                    Image(systemName: (passportPhoto != nil || form.hasPassport) ? "checkmark.circle.fill" : "camera.fill")
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .foregroundStyle((passportPhoto != nil || form.hasPassport) ? .green : .primary)
-                                }
-                                .frame(width: 40, height: 40)
+                                Image(systemName: (passportPhoto != nil || form.hasPassport) ? "checkmark.circle.fill" : "camera.fill")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle((passportPhoto != nil || form.hasPassport) ? .green : .primary)
+                                    .frame(width: 40, height: 40)
+                                    .iumrahGlass(
+                                        in: RoundedRectangle(cornerRadius: 13, style: .continuous),
+                                        tint: (passportPhoto != nil || form.hasPassport) ? Color.green.opacity(0.12) : nil
+                                    )
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text((passportPhoto != nil || form.hasPassport) ? tr("Passport photo attached", "Фото паспорта прикреплено", "Pasport rasmi biriktirildi", "Паспорт расми бириктирилди") : tr("Attach passport photo", "Прикрепить фото паспорта", "Pasport rasmini biriktirish", "Паспорт расмини бириктириш"))
@@ -1025,7 +1016,7 @@ private struct TravelerFormEditorSheet: View {
                             }
                             .padding(.horizontal, 14)
                             .frame(minHeight: 66)
-                            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -1091,7 +1082,7 @@ private struct TravelerFormEditorSheet: View {
             Image(systemName: "wand.and.stars")
                 .font(.system(size: 17, weight: .semibold))
                 .frame(width: 42, height: 42)
-                .background(Color.iumrahCareLight.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.iumrahCareLight.opacity(0.14))
                 .foregroundStyle(Color.iumrahCareDark)
             Text(tr(
                 "Dates format automatically while you type. Countries can be selected from the searchable list.",
@@ -1137,7 +1128,7 @@ private struct TravelerFormEditorSheet: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 56)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
         }
     }
 
@@ -1161,7 +1152,7 @@ private struct TravelerFormEditorSheet: View {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 38, height: 38)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                 Text(title).font(.headline)
             }
             content()
@@ -1184,7 +1175,7 @@ private struct TravelerFormEditorSheet: View {
             .autocorrectionDisabled(keyboard == .emailAddress || keyboard == .asciiCapable)
             .padding(.horizontal, 16)
             .frame(height: 56)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
     }
 
     private func smartDateField(_ title: String, text: Binding<String>) -> some View {
@@ -1208,7 +1199,7 @@ private struct TravelerFormEditorSheet: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
     }
 
     private func countryRow(target: CountryTarget, title: String, value: String) -> some View {
@@ -1237,7 +1228,7 @@ private struct TravelerFormEditorSheet: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 60)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
         }
         .buttonStyle(.plain)
     }
