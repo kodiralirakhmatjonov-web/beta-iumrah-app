@@ -574,7 +574,8 @@ struct TripBuilderView: View {
                 }
             }
             .padding(15)
-            .frame(width: 286, minHeight: 168, alignment: .leading)
+            .frame(width: 286, alignment: .leading)
+            .frame(minHeight: 168, alignment: .leading)
             .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 21, style: .continuous)
