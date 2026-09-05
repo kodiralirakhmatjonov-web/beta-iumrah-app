@@ -45,12 +45,21 @@ struct HotelCard: View {
 
                 HStack(spacing: 10) {
                     if let stars = hotel.stars {
-                        Label("\(stars)★", systemImage: "star.fill")
+                        HStack(spacing: 4) {
+                            IumrahInlineIcon(systemName: "star.fill", role: .rating, size: 11)
+                            Text("\(stars)★")
+                        }
                     }
                     if let rating = hotel.rating {
-                        Label(String(format: "%.1f", rating), systemImage: "heart.fill")
+                        HStack(spacing: 4) {
+                            IumrahInlineIcon(systemName: "heart.fill", role: .care, size: 11)
+                            Text(String(format: "%.1f", rating))
+                        }
                     }
-                    Text(L10n.city(hotel.city, settings.language))
+                    HStack(spacing: 4) {
+                        IumrahInlineIcon(systemName: "mappin", role: .location, size: 10)
+                        Text(L10n.city(hotel.city, settings.language))
+                    }
                 }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -63,9 +72,7 @@ struct HotelCard: View {
     private var placeholder: some View {
         ZStack {
             Rectangle().fill(.quaternary)
-            Image(systemName: "building.2")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
+            IumrahIconBadge(systemName: "building.2", role: .hotel, size: 56, symbolSize: 25, cornerRadius: 18)
         }
     }
 }

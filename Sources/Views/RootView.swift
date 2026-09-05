@@ -239,7 +239,9 @@ struct RootView: View {
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
                 .tag(AppTab.account)
         }
-        .tint(.primary)
+        // Navigation chrome uses one restrained app accent; content icons carry
+        // the richer semantic palette. This keeps the native tab bar adult and legible.
+        .tint(IumrahIconRole.umrah.color)
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
         .fullScreenCover(isPresented: $chrome.isESIMPresented) {
             ESIMView()

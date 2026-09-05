@@ -17,11 +17,13 @@ struct IumrahEmailVerificationView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Image(systemName: "envelope.badge.shield.half.filled")
-                        .font(.system(size: 34, weight: .semibold))
-                        .foregroundStyle(.blue)
-                        .frame(width: 64, height: 64)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), tint: Color.blue.opacity(0.10))
+                    IumrahIconBadge(
+                        systemName: "envelope.badge.shield.half.filled",
+                        role: .security,
+                        size: 64,
+                        symbolSize: 28,
+                        cornerRadius: 20
+                    )
 
                     Text(challengeID.isEmpty
                          ? tr("Sign-in email", "Почта для входа", "Kirish emaili", "Кириш emailи")

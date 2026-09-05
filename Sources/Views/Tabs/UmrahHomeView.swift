@@ -9,10 +9,7 @@ struct UmrahHomeView: View {
                 IumrahRootPageTitle(title: L10n.text("tab_umrah", settings.language))
 
                 VStack(alignment: .leading, spacing: 18) {
-                    Image(systemName: "book.closed.fill")
-                        .font(.system(size: 28, weight: .medium))
-                        .frame(width: 64, height: 64)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    IumrahIconBadge(systemName: "book.closed.fill", role: .umrah, size: 64, symbolSize: 28, cornerRadius: 22)
 
                     Text(L10n.text("tab_umrah", settings.language))
                         .font(.system(size: 30, weight: .bold, design: .rounded))

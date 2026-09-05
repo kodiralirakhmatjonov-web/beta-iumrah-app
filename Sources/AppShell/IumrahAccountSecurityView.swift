@@ -468,14 +468,14 @@ struct IumrahAccountSecurityView: View {
         let tint: Color = isAndroid ? .green : .blue
         let icon = isAndroid ? "apps.iphone" : (platform.contains("ios") ? "iphone.gen3" : "desktopcomputer")
 
-        Image(systemName: icon)
-            .font(.system(size: 22, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 48, height: 48)
-            .iumrahGlass(
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
-                tint: tint.opacity(0.44)
-            )
+        IumrahIconBadge(
+            systemName: icon,
+            role: .device,
+            tint: tint,
+            size: 48,
+            symbolSize: 21,
+            cornerRadius: 14
+        )
     }
 
     private var privacyNote: some View {
@@ -552,22 +552,26 @@ struct IumrahAccountSecurityView: View {
 
     private func sectionTitle(icon: String, title: String, tint: Color) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 38, height: 38)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous), tint: tint.opacity(0.10))
+            IumrahIconBadge(
+                systemName: icon,
+                tint: tint,
+                size: 38,
+                symbolSize: 15,
+                cornerRadius: 12
+            )
             Text(title).font(.headline)
         }
     }
 
     private func statusRow(icon: String, title: String, detail: String, tint: Color) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 42, height: 42)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous), tint: tint.opacity(0.10))
+            IumrahIconBadge(
+                systemName: icon,
+                tint: tint,
+                size: 42,
+                symbolSize: 17,
+                cornerRadius: 13
+            )
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.subheadline.weight(.bold))
                 Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

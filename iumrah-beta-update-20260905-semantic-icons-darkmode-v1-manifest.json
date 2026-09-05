@@ -1,0 +1,203 @@
+{
+  "update": "iumrah Beta semantic icons + dark mode v1 / marker 091",
+  "created_date": "2026-09-05",
+  "source_of_truth": {
+    "filename": "beta-iumrah-app-main 11.zip",
+    "sha256": "7a142a4fdf4c32edf141ec3f3641b6c2d801817eadb59501238c6545439cec8d"
+  },
+  "scope": [
+    "UI/presentation only: central semantic icon palette and adaptive content surfaces.",
+    "Native iOS 26 Liquid Glass retained for interactive controls and explicit floating chrome only.",
+    "Static content cards/icons no longer receive Liquid Glass through the canonical helper.",
+    "Dark-mode booking/photo-card contrast corrected; semantic accents replace low-contrast fixed dark-green foregrounds.",
+    "Account, booking, itinerary, checkout, hotels, flights, Care, eSIM, onboarding and supporting UI iconography aligned."
+  ],
+  "protected_scope_unchanged": [
+    "Backend/",
+    "Sources/Services/",
+    "Sources/State/",
+    "Sources/Models/",
+    ".github/workflows/",
+    "Signing/"
+  ],
+  "qa": {
+    "swift_parse": "PASS: 173/173 Swift files",
+    "source_of_truth_overlay": "PASS: patch generated against exact beta-iumrah-app-main 11.zip",
+    "backend_business_logic_diff": "PASS: no changed protected paths",
+    "bookings_fixed_white_content_surface_scan": "PASS",
+    "static_glass_policy": "PASS: only explicit floating chrome opts into allowsStaticGlass=true"
+  },
+  "changed_file_count_excluding_manifest": 34,
+  "changed_files": [
+    {
+      "path": "BETA_UI_SEMANTIC_ICONS_DARKMODE_091_APPLIED.txt",
+      "sha256": "875a3ff538683753c71da05cf09a0a39b1e75673cc699808f920e2dd4658bb2e",
+      "bytes": 749
+    },
+    {
+      "path": "IUMRAH_IOS_DESIGN_RULES.md",
+      "sha256": "fa47d434eb854b77f9d3246e835496451bb699bde0df33bd7b5d3a05887ae7f9",
+      "bytes": 34411
+    },
+    {
+      "path": "Sources/AppShell/AccountNotificationsView.swift",
+      "sha256": "966ae2dbe38a9c9de801a911019bf7505d51ec428bdbc33d7f48e19c8a0b1be0",
+      "bytes": 11898
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
+      "sha256": "9e7d59af354852bfd05961b844b587b836e6b1ab38ec2ea1cf44c2d98bf9bc8b",
+      "bytes": 46052
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "sha256": "c0c12f15a80b7462f8c3bd993c58363c1be7fd28292853be4f6aab7ccf66788e",
+      "bytes": 52739
+    },
+    {
+      "path": "Sources/AppShell/IumrahEmailVerificationView.swift",
+      "sha256": "216f86dbe7eb380409bccdf4a5ef1749d2b3d9d5d5f532942a7f235b2707b920",
+      "bytes": 8693
+    },
+    {
+      "path": "Sources/AppShell/IumrahPasswordRecoveryView.swift",
+      "sha256": "1fe6e3b88911c940e5314f791c009237e70272d53aff8a93f6a788808fb9f6f3",
+      "bytes": 10618
+    },
+    {
+      "path": "Sources/AppShell/SidebarDrawerView.swift",
+      "sha256": "f6a230808d338c4452515600beb5f71d56e9e4c328f84c9fb657d94653fb44d9",
+      "bytes": 8424
+    },
+    {
+      "path": "Sources/Core/DesignSystem.swift",
+      "sha256": "6184212c72beaea14145f427a57ead1bba937d41f3ec90b52018164922951a7d",
+      "bytes": 18614
+    },
+    {
+      "path": "Sources/Views/Airports/AirportGlobePickerView.swift",
+      "sha256": "d7e23f06f4a8ddf089c42d7599dce84b86e21914a0924f793f405613bc9bd730",
+      "bytes": 14876
+    },
+    {
+      "path": "Sources/Views/Airports/AirportSelectorButton.swift",
+      "sha256": "0a7947021f239bff41f65296bb42acadc2bf92e8a855650f4096fa1a4c1c331d",
+      "bytes": 1971
+    },
+    {
+      "path": "Sources/Views/Booking/BookingItineraryCalendarView.swift",
+      "sha256": "b28b347ec7f0f554faa90dcfffc4faf012d8329bae781587f708b953ddf60d10",
+      "bytes": 11039
+    },
+    {
+      "path": "Sources/Views/Booking/PilgrimCheckoutView.swift",
+      "sha256": "8da804abf1d67b74c71dac5e53b0b005df9c46573eef7bed0552da82bde5189a",
+      "bytes": 78002
+    },
+    {
+      "path": "Sources/Views/Chat/CareContactInfoView.swift",
+      "sha256": "a259ffd03c7344ebd902cb815cbe15618a6e2517a7f91bd73dd0624d2b141d62",
+      "bytes": 21920
+    },
+    {
+      "path": "Sources/Views/Components/ConnectivityStatusPill.swift",
+      "sha256": "994b6c1ed8c95878aace756455591cc3c18f1fdd5c5aac43cd64f738e38de8cb",
+      "bytes": 2510
+    },
+    {
+      "path": "Sources/Views/Components/FlightCard.swift",
+      "sha256": "57c1b86093caa05de63c9291ba1612fab119711e8109108420fc5fc208ac770a",
+      "bytes": 12823
+    },
+    {
+      "path": "Sources/Views/Components/HotelCard.swift",
+      "sha256": "3593f7dc624c5412ee91a219acf97f28177cc7fe902a098d12ed53f6926edbc9",
+      "bytes": 2833
+    },
+    {
+      "path": "Sources/Views/ESIM/ESIMView.swift",
+      "sha256": "f4b058d1bfc2c09889dcbe97b233ddfefaca8a26553695df21a73cb5ad3c11be",
+      "bytes": 34487
+    },
+    {
+      "path": "Sources/Views/Flights/FlightDetailsView.swift",
+      "sha256": "fca6ef59fac77e91dad2bd8c57409cb7401a6edbf56659bcfb613ca9fa1612da",
+      "bytes": 18420
+    },
+    {
+      "path": "Sources/Views/Flights/FlightSearchProgressComponents.swift",
+      "sha256": "4eb17c8327b415118a82ea0e2b505cdfd0efd9fe4ceb8a9e3b8967f1aaef1a92",
+      "bytes": 12698
+    },
+    {
+      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
+      "sha256": "e5c2c72c61a677e1fcf6e248c760d6dd25bb075794a3f7a1043bb54ba58acfda",
+      "bytes": 53482
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "b7dc178d6df9059d57e79dc45fefa756b64fce7cddae13fccf1bd751cb1cdc55",
+      "bytes": 30510
+    },
+    {
+      "path": "Sources/Views/Home/IumrahFriendsView.swift",
+      "sha256": "03565b3ed2eb10b5d2248936f9858a985e67f07fb92dd6e07415f18aca0bcdf8",
+      "bytes": 19900
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "sha256": "acf8e9a791d966c2d964dc48d488732992d1834566a282ff0fc7145358036bff",
+      "bytes": 46534
+    },
+    {
+      "path": "Sources/Views/Onboarding/OnboardingFlowView.swift",
+      "sha256": "108e1f290079807821fe9216e77e59b5aaa8a013164074cfbd0fec441aa8eaab",
+      "bytes": 53649
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "sha256": "8124dc6d17e7f4f2667c6138bbb1a618c80d414169e150e79c5a1b6b230c5266",
+      "bytes": 27985
+    },
+    {
+      "path": "Sources/Views/Package/UmrahCarePackageExplanationView.swift",
+      "sha256": "279d9e402a76bfdcd6a5aeeda5d29af0a602ca04b68e142aa6d6eb3a5964b226",
+      "bytes": 11884
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "sha256": "75d75017903fda90b1d5e12173d5742b8c56c473476a5ce90f8a8218012ecf92",
+      "bytes": 10854
+    },
+    {
+      "path": "Sources/Views/Tabs/BookingsHomeView.swift",
+      "sha256": "b7095b6c952fd08430b0857218d0286a2e500230249b052d710949da0de053eb",
+      "bytes": 22724
+    },
+    {
+      "path": "Sources/Views/Tabs/CareHomeView.swift",
+      "sha256": "5df61721ee045ebcfb5d5caf7d576ff02b4946e65fa99ea84d28e9c6f651997a",
+      "bytes": 11072
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "sha256": "73fd36511b85248993e17fb4bda0c48b84c8c31d5bfdd8882816f29907e66357",
+      "bytes": 5720
+    },
+    {
+      "path": "Sources/Views/Tabs/UmrahHomeView.swift",
+      "sha256": "f279d1c5b6b7cc44d2c710fb5f254d5c7a937487c61a652bde79ecf39ad07a91",
+      "bytes": 1288
+    },
+    {
+      "path": "Sources/Views/Trip/FlightDateCalendarView.swift",
+      "sha256": "425bd8f4bf0ffddd04cbebee4874438b98d7f8ec44d60acb8397898ccfc410c8",
+      "bytes": 26073
+    },
+    {
+      "path": "Sources/Views/Trip/TripBuilderView.swift",
+      "sha256": "ddf01a24a2371046b43c4cbad8e288160b008901daac4c0c3a859ad70701156d",
+      "bytes": 24617
+    }
+  ]
+}

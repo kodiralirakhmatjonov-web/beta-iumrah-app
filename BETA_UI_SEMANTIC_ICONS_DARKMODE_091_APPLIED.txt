@@ -1,0 +1,11 @@
+iumrah Beta UI semantic icons + dark mode / marker 091
+Date: 2026-09-05
+Scope: presentation layer only
+
+- Semantic SF Symbol color language added centrally.
+- Static content icon badges are adaptive solid surfaces, not Liquid Glass.
+- Native Liquid Glass remains for interactive controls and explicit floating chrome.
+- Booking/photo cards use adaptive light/dark surfaces to prevent white-on-white contrast failures.
+- Dark-mode low-contrast Care-dark accents in customer content were replaced by semantic adaptive accents.
+- Account, booking, itinerary, checkout, hotels, flights, Care, eSIM and onboarding iconography aligned.
+- No Backend, Services business contracts, data models, API routes, authentication contracts or pricing logic changed.

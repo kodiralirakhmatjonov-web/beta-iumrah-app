@@ -40,7 +40,8 @@ struct ConnectivityStatusPill: View {
         .frame(width: 88, height: 34)
         .iumrahGlass(
             in: Capsule(),
-            tint: accentColor.opacity(lightStyle ? 0.18 : 0.28)
+            tint: accentColor.opacity(lightStyle ? 0.18 : 0.28),
+            allowsStaticGlass: true
         )
         .animation(.spring(response: 0.42, dampingFraction: 0.84), value: connectivity.status)
     }

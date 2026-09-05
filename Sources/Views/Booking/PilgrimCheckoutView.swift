@@ -141,10 +141,13 @@ struct PilgrimCheckoutView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 12)
-                Image(systemName: "person.text.rectangle.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .frame(width: 50, height: 50)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), tint: Color.iumrahCareLight.opacity(0.16))
+                IumrahIconBadge(
+                    systemName: "person.text.rectangle.fill",
+                    role: .profile,
+                    size: 50,
+                    symbolSize: 21,
+                    cornerRadius: 17
+                )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -276,14 +279,13 @@ struct PilgrimCheckoutView: View {
                     if isPaymentPending { travelerEditor = traveler }
                 } label: {
                     HStack(spacing: 13) {
-                        Image(systemName: traveler.completed ? "checkmark" : travelerIcon(traveler.travelerType))
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundStyle(traveler.completed ? .green : .primary)
-                            .frame(width: 46, height: 46)
-                            .iumrahGlass(
-                                in: RoundedRectangle(cornerRadius: 15, style: .continuous),
-                                tint: traveler.completed ? Color.green.opacity(0.11) : nil
-                            )
+                        IumrahIconBadge(
+                            systemName: traveler.completed ? "checkmark" : travelerIcon(traveler.travelerType),
+                            role: traveler.completed ? .success : .profile,
+                            size: 46,
+                            symbolSize: 17,
+                            cornerRadius: 15
+                        )
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(travelerName(traveler))
@@ -352,11 +354,13 @@ struct PilgrimCheckoutView: View {
 
                 if let receipt = value.receipts.first {
                     HStack(spacing: 12) {
-                        Image(systemName: "doc.text.image.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: 42, height: 42)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.green.opacity(0.10))
-                            .foregroundStyle(.green)
+                        IumrahIconBadge(
+                            systemName: "doc.text.image.fill",
+                            role: .success,
+                            size: 42,
+                            symbolSize: 18,
+                            cornerRadius: 14
+                        )
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tr("Receipt attached", "Чек прикреплён", "Chek biriktirildi", "Чек бириктирилди"))
                                 .font(.subheadline.weight(.semibold))
@@ -389,10 +393,13 @@ struct PilgrimCheckoutView: View {
         if account.isAuthenticated {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "gift.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 42, height: 42)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    IumrahIconBadge(
+                        systemName: "gift.fill",
+                        role: .gift,
+                        size: 42,
+                        symbolSize: 17,
+                        cornerRadius: 15
+                    )
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("iUmrah Gift Cards")
@@ -686,10 +693,13 @@ struct PilgrimCheckoutView: View {
             ForEach(value.documents) { document in
                 Button { Task { await openDocument(document) } } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: document.contentType == "application/pdf" ? "doc.richtext.fill" : "photo.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: 44, height: 44)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        IumrahIconBadge(
+                            systemName: document.contentType == "application/pdf" ? "doc.richtext.fill" : "photo.fill",
+                            role: .document,
+                            size: 44,
+                            symbolSize: 18,
+                            cornerRadius: 14
+                        )
                         VStack(alignment: .leading, spacing: 3) {
                             Text(document.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                             Text(documentKind(document.documentKind)).font(.caption).foregroundStyle(.secondary)
@@ -763,10 +773,12 @@ struct PilgrimCheckoutView: View {
 
     private func stageHeader(number: String, icon: String, title: String) -> some View {
         HStack(spacing: 11) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 38, height: 38)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            IumrahIconBadge(
+                systemName: icon,
+                size: 38,
+                symbolSize: 15,
+                cornerRadius: 12
+            )
             VStack(alignment: .leading, spacing: 1) {
                 Text(number).font(.caption2.monospaced().weight(.bold)).foregroundStyle(.secondary)
                 Text(title).font(.headline)
@@ -992,14 +1004,13 @@ private struct TravelerFormEditorSheet: View {
 
                         PhotosPicker(selection: $passportPhoto, matching: .images) {
                             HStack(spacing: 12) {
-                                Image(systemName: (passportPhoto != nil || form.hasPassport) ? "checkmark.circle.fill" : "camera.fill")
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundStyle((passportPhoto != nil || form.hasPassport) ? .green : .primary)
-                                    .frame(width: 40, height: 40)
-                                    .iumrahGlass(
-                                        in: RoundedRectangle(cornerRadius: 13, style: .continuous),
-                                        tint: (passportPhoto != nil || form.hasPassport) ? Color.green.opacity(0.12) : nil
-                                    )
+                                IumrahIconBadge(
+                                    systemName: (passportPhoto != nil || form.hasPassport) ? "checkmark.circle.fill" : "camera.fill",
+                                    role: (passportPhoto != nil || form.hasPassport) ? .success : .document,
+                                    size: 40,
+                                    symbolSize: 17,
+                                    cornerRadius: 13
+                                )
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text((passportPhoto != nil || form.hasPassport) ? tr("Passport photo attached", "Фото паспорта прикреплено", "Pasport rasmi biriktirildi", "Паспорт расми бириктирилди") : tr("Attach passport photo", "Прикрепить фото паспорта", "Pasport rasmini biriktirish", "Паспорт расмини бириктириш"))
@@ -1079,11 +1090,13 @@ private struct TravelerFormEditorSheet: View {
 
     private var introCard: some View {
         HStack(spacing: 12) {
-            Image(systemName: "wand.and.stars")
-                .font(.system(size: 17, weight: .semibold))
-                .frame(width: 42, height: 42)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.iumrahCareLight.opacity(0.14))
-                .foregroundStyle(Color.iumrahCareDark)
+            IumrahIconBadge(
+                systemName: "wand.and.stars",
+                role: .umrah,
+                size: 42,
+                symbolSize: 17,
+                cornerRadius: 14
+            )
             Text(tr(
                 "Dates format automatically while you type. Countries can be selected from the searchable list.",
                 "Даты форматируются автоматически. Страны можно выбрать из списка с поиском.",
@@ -1149,10 +1162,12 @@ private struct TravelerFormEditorSheet: View {
     private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 38, height: 38)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                IumrahIconBadge(
+                    systemName: icon,
+                    size: 38,
+                    symbolSize: 16,
+                    cornerRadius: 13
+                )
                 Text(title).font(.headline)
             }
             content()

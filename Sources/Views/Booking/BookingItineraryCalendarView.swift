@@ -59,10 +59,13 @@ struct BookingItineraryCalendarView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 19, weight: .semibold))
-                    .frame(width: 42, height: 42)
-                    .iumrahGlass(in: Circle())
+                IumrahIconBadge(
+                    systemName: "calendar.badge.clock",
+                    role: .calendar,
+                    size: 42,
+                    symbolSize: 18,
+                    shape: .circle
+                )
             }
 
             if !days.isEmpty {
@@ -159,11 +162,12 @@ struct BookingItineraryCalendarView: View {
 
     private func eventRow(_ item: BookingItineraryItem) -> some View {
         HStack(alignment: .top, spacing: 13) {
-            Image(systemName: safeIcon(item.icon))
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 40, height: 40)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: Color.iumrahCareLight.opacity(0.15))
+            IumrahIconBadge(
+                systemName: safeIcon(item.icon),
+                size: 40,
+                symbolSize: 16,
+                cornerRadius: 14
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
@@ -176,9 +180,12 @@ struct BookingItineraryCalendarView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !item.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Label(item.location, systemImage: "mappin")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 5) {
+                        IumrahInlineIcon(systemName: "mappin", role: .location, size: 10)
+                        Text(item.location)
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 0)

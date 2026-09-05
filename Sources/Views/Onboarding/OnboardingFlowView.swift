@@ -500,11 +500,12 @@ struct OnboardingFlowView: View {
 
     private func floatingSummaryCard(title: String, subtitle: String, icon: String) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 32, height: 32)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.18))
+            IumrahIconBadge(
+                systemName: icon,
+                size: 32,
+                symbolSize: 12,
+                shape: .circle
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(subtitle)
@@ -960,8 +961,7 @@ private struct OnboardingBuilderMock: View {
             .cinematicReveal(isActive, delay: 0.14, y: 16)
 
             HStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.iumrahCareDark)
+                IumrahInlineIcon(systemName: "checkmark.circle.fill", role: .success, size: 15)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(L10n.text("tier_standard", settings.language))
                         .font(.subheadline.weight(.bold))
@@ -1082,14 +1082,14 @@ private struct OnboardingPackageMock: View {
 
     private func includedRow(icon: String, title: String) -> some View {
         HStack(spacing: 11) {
-            Image(systemName: "checkmark")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 28, height: 28)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.20))
-            Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.secondary)
+            IumrahIconBadge(
+                systemName: "checkmark",
+                role: .success,
+                size: 28,
+                symbolSize: 11,
+                shape: .circle
+            )
+            IumrahInlineIcon(systemName: icon, size: 12)
                 .frame(width: 20)
             Text(title)
                 .font(.caption.weight(.semibold))
@@ -1116,10 +1116,13 @@ private struct OnboardingJourneyMock: View {
                         .lineLimit(2)
                 }
                 Spacer()
-                Image(systemName: "clock.fill")
-                    .foregroundStyle(Color.iumrahCareDark)
-                    .frame(width: 36, height: 36)
-                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.18))
+                IumrahIconBadge(
+                    systemName: "clock.fill",
+                    role: .warning,
+                    size: 36,
+                    symbolSize: 15,
+                    shape: .circle
+                )
             }
             .cinematicReveal(isActive, delay: 0.02, y: 14)
 
@@ -1167,11 +1170,12 @@ private struct OnboardingJourneyMock: View {
 
     private func mockJourneyRow(icon: String, title: String, value: String) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 30, height: 30)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.17))
+            IumrahIconBadge(
+                systemName: icon,
+                size: 30,
+                symbolSize: 12,
+                shape: .circle
+            )
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.caption2)

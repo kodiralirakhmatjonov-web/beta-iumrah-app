@@ -136,10 +136,13 @@ struct FlightDateCalendarView: View {
 
     private var fareLegend: some View {
         HStack(spacing: 10) {
-            Image(systemName: "chart.line.downtrend.xyaxis")
-                .font(.system(size: 16, weight: .semibold))
-                .frame(width: 40, height: 40)
-                .iumrahGlass(in: Circle())
+            IumrahIconBadge(
+                systemName: "chart.line.downtrend.xyaxis",
+                role: .payment,
+                size: 40,
+                symbolSize: 16,
+                shape: .circle
+            )
             VStack(alignment: .leading, spacing: 2) {
                 Text(copy(.priceCalendar))
                     .font(.subheadline.weight(.bold))

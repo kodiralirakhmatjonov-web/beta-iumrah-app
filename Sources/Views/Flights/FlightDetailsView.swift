@@ -174,10 +174,13 @@ struct FlightDetailsView: View {
 
     private func layoverSection(_ layover: FlightLayover) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath")
-                .font(.body.weight(.semibold))
-                .frame(width: 28, height: 28)
-                .iumrahGlass(in: Circle())
+            IumrahIconBadge(
+                systemName: layover.airportChange ? "arrow.triangle.swap" : "clock.arrow.circlepath",
+                role: layover.airportChange ? .warning : .calendar,
+                size: 28,
+                symbolSize: 13,
+                shape: .circle
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(layover.airportChange
@@ -206,10 +209,13 @@ struct FlightDetailsView: View {
 
     private func connectionSection(_ airport: FlightAirportSnapshot) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "arrow.triangle.branch")
-                .font(.body.weight(.semibold))
-                .frame(width: 28, height: 28)
-                .iumrahGlass(in: Circle())
+            IumrahIconBadge(
+                systemName: "arrow.triangle.branch",
+                role: .travel,
+                size: 28,
+                symbolSize: 13,
+                shape: .circle
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(connectionTitle(resolvedAirport(airport).displayCity))

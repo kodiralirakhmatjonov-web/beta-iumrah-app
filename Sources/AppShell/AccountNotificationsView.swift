@@ -55,11 +55,13 @@ struct AccountNotificationsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 12)
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Color.iumrahCareDark)
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous), tint: Color.iumrahCareLight.opacity(0.14))
+                IumrahIconBadge(
+                    systemName: "bell.badge.fill",
+                    role: .notification,
+                    size: 44,
+                    symbolSize: 19,
+                    cornerRadius: 15
+                )
             }
 
             HStack(spacing: 10) {

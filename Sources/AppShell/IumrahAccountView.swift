@@ -92,10 +92,13 @@ struct IumrahAccountView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 10)
-            Image(systemName: account.isAuthenticated ? "person.crop.circle.badge.checkmark" : "person.crop.circle")
-                .font(.system(size: 25, weight: .semibold))
-                .frame(width: 50, height: 50)
-                .iumrahGlass(in: Circle())
+            IumrahIconBadge(
+                systemName: account.isAuthenticated ? "person.crop.circle.badge.checkmark" : "person.crop.circle",
+                role: account.isAuthenticated ? .success : .profile,
+                size: 50,
+                symbolSize: 24,
+                shape: .circle
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -326,14 +329,13 @@ struct IumrahAccountView: View {
         } label: {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: session.effectiveStatus.uppercased() == "IN_TRIP" ? "location.fill" : "airplane.departure")
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(Color.iumrahCareDark)
-                        .frame(width: 48, height: 48)
-                        .iumrahGlass(
-                            in: RoundedRectangle(cornerRadius: 16, style: .continuous),
-                            tint: Color.iumrahCareLight.opacity(0.14)
-                        )
+                    IumrahIconBadge(
+                        systemName: session.effectiveStatus.uppercased() == "IN_TRIP" ? "location.fill" : "airplane.departure",
+                        role: session.effectiveStatus.uppercased() == "IN_TRIP" ? .location : .travel,
+                        size: 48,
+                        symbolSize: 19,
+                        cornerRadius: 16
+                    )
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(tr("Active trip", "Активная поездка", "Faol safar", "Фаол сафар"))
@@ -381,18 +383,12 @@ struct IumrahAccountView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: "suitcase.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 38, height: 38)
-                    .iumrahGlass(in: Circle())
+                IumrahIconBadge(systemName: "suitcase.fill", role: .booking, size: 38, symbolSize: 16, shape: .circle)
             }
 
             if allTrips.isEmpty {
                 HStack(spacing: 12) {
-                    Image(systemName: "suitcase")
-                        .font(.system(size: 18, weight: .semibold))
-                        .frame(width: 42, height: 42)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    IumrahIconBadge(systemName: "suitcase", role: .booking, size: 42, symbolSize: 18, cornerRadius: 14)
                     Text(tr("Your trips will appear here after they are linked to this iumrah ID.", "Все поездки, привязанные к этому iumrah ID, появятся здесь.", "Ushbu iumrah ID ga bog‘langan safarlar shu yerda ko‘rinadi.", "Ушбу iumrah ID га боғланган сафарлар шу ерда кўринади."))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -463,11 +459,7 @@ struct IumrahAccountView: View {
 
     private func accountSummaryRow(icon: String, title: String, value: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 38, height: 38)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            IumrahIconBadge(systemName: icon, size: 38, symbolSize: 14, cornerRadius: 12)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
@@ -623,14 +615,7 @@ struct IumrahAccountView: View {
 
     private var guestCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Image(systemName: "person.crop.circle.badge.key.fill")
-                .font(.system(size: 25, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 54, height: 54)
-                .iumrahGlass(
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                    tint: Color.iumrahCareLight.opacity(0.14)
-                )
+            IumrahIconBadge(systemName: "person.crop.circle.badge.key.fill", role: .security, size: 54, symbolSize: 25, cornerRadius: 18)
 
             Text(tr("Your permanent iumrah account", "Ваш постоянный аккаунт iumrah", "Doimiy iumrah akkauntingiz", "Доимий iumrah аккаунтингиз"))
                 .font(.system(size: 27, weight: .bold, design: .rounded))
@@ -731,11 +716,7 @@ struct IumrahAccountView: View {
             PilgrimCheckoutView(bookingID: session.id)
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "person.badge.key.fill")
-                    .font(.system(size: 19, weight: .semibold))
-                    .frame(width: 46, height: 46)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous), tint: Color.iumrahCareLight.opacity(0.14))
-                    .foregroundStyle(Color.iumrahCareDark)
+                IumrahIconBadge(systemName: "person.badge.key.fill", role: .security, size: 46, symbolSize: 19, cornerRadius: 15)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(tr("Activate your iumrah ID", "Активировать iumrah ID", "iumrah ID ni faollashtirish", "iumrah ID ни фаоллаштириш"))
                         .font(.subheadline.weight(.bold))
@@ -789,11 +770,13 @@ struct IumrahAccountView: View {
 
     private func tripRow(_ session: StoredBookingSession) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: tripIcon(session.effectiveStatus))
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(statusColor(session.effectiveStatus))
-                .frame(width: 42, height: 42)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            IumrahIconBadge(
+                systemName: tripIcon(session.effectiveStatus),
+                role: tripRole(session.effectiveStatus),
+                size: 42,
+                symbolSize: 16,
+                cornerRadius: 14
+            )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
@@ -819,10 +802,7 @@ struct IumrahAccountView: View {
 
     private func sectionHeader(icon: String, title: String, subtitle: String?) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .frame(width: 40, height: 40)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            IumrahIconBadge(systemName: icon, size: 40, symbolSize: 16, cornerRadius: 13)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 if let subtitle {
@@ -855,10 +835,7 @@ struct IumrahAccountView: View {
 
     private func settingsRow(icon: String, title: String, value: String, showsChevron: Bool = true) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .frame(width: 40, height: 40)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            IumrahIconBadge(systemName: icon, size: 40, symbolSize: 16, cornerRadius: 13)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                 Text(value).font(.caption).foregroundStyle(.secondary).lineLimit(2)
@@ -873,6 +850,16 @@ struct IumrahAccountView: View {
         .padding(.horizontal, 4)
         .frame(minHeight: 58)
         .contentShape(Rectangle())
+    }
+
+    private func tripRole(_ status: String) -> IumrahIconRole {
+        switch status.uppercased() {
+        case "COMPLETED", "BOOKING_CONFIRMED", "READY_TO_TRAVEL": return .success
+        case "IN_TRIP": return .location
+        case "CANCELLED": return .destructive
+        case "PAYMENT_PENDING", "AVAILABILITY_CHECK": return .warning
+        default: return .booking
+        }
     }
 
     private func statusChip(_ status: String) -> some View {

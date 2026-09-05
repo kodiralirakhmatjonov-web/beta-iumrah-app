@@ -53,10 +53,13 @@ struct FlightCandidatePreviewCard: View {
             Divider()
 
             HStack(spacing: 10) {
-                Image(systemName: "function")
-                    .font(.caption.weight(.bold))
-                    .frame(width: 28, height: 28)
-                    .iumrahGlass(in: Circle())
+                IumrahIconBadge(
+                    systemName: "function",
+                    role: .payment,
+                    size: 28,
+                    symbolSize: 12,
+                    shape: .circle
+                )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pricingTitle)
@@ -154,10 +157,13 @@ struct FlightSearchProgressCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 13) {
-                Image(systemName: isSearching ? "magnifyingglass" : "arrow.clockwise")
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                IumrahIconBadge(
+                    systemName: isSearching ? "magnifyingglass" : "arrow.clockwise",
+                    role: isSearching ? .search : .travel,
+                    size: 44,
+                    symbolSize: 18,
+                    cornerRadius: 15
+                )
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)

@@ -82,8 +82,7 @@ struct FlightCard: View {
             VStack(spacing: 6) {
                 HStack(spacing: 4) {
                     Rectangle().frame(height: 1.5)
-                    Image(systemName: "airplane")
-                        .font(.caption.weight(.semibold))
+                    IumrahInlineIcon(systemName: "airplane", role: .travel, size: 12)
                         .rotationEffect(.degrees(0))
                     Rectangle().frame(height: 1.5)
                 }
@@ -148,8 +147,7 @@ struct FlightCard: View {
                 }
 
                 if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.bold))
+                    IumrahInlineIcon(systemName: "checkmark.circle.fill", role: .success, size: 15)
                 }
             }
 
@@ -169,12 +167,21 @@ struct FlightCard: View {
 
     private var bottomMeta: some View {
         HStack(spacing: 10) {
-            Label(cabinLabel, systemImage: "seatbelt")
+            HStack(spacing: 4) {
+                IumrahInlineIcon(systemName: "seatbelt", role: .travel, size: 11)
+                Text(cabinLabel)
+            }
             if let carry = offer.baggage?.carryOn, carry > 0 {
-                Label("×\(carry)", systemImage: "bag")
+                HStack(spacing: 4) {
+                    IumrahInlineIcon(systemName: "bag", role: .booking, size: 11)
+                    Text("×\(carry)")
+                }
             }
             if let checked = offer.baggage?.checked, checked > 0 {
-                Label("×\(checked)", systemImage: "suitcase")
+                HStack(spacing: 4) {
+                    IumrahInlineIcon(systemName: "suitcase", role: .booking, size: 11)
+                    Text("×\(checked)")
+                }
             }
             Spacer(minLength: 0)
         }

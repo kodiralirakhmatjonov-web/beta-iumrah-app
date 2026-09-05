@@ -129,11 +129,7 @@ struct HomeDashboardView: View {
 
                 Spacer()
 
-                Image(systemName: statusIcon(session.effectiveStatus))
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.iumrahCareDark)
-                    .frame(width: 36, height: 36)
-                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.18))
+                IumrahIconBadge(systemName: statusIcon(session.effectiveStatus), size: 36, symbolSize: 15, shape: .circle)
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -219,11 +215,7 @@ struct HomeDashboardView: View {
 
     private func journeySummaryRow(icon: String, title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 34, height: 34)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.15))
+            IumrahIconBadge(systemName: icon, size: 34, symbolSize: 14, shape: .circle)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -415,10 +407,7 @@ struct HomeDashboardView: View {
             IumrahGiftCardsView()
         } label: {
             HStack(spacing: 16) {
-                Image(systemName: "gift.fill")
-                    .font(.system(size: 25, weight: .semibold))
-                    .frame(width: 82, height: 82)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                IumrahIconBadge(systemName: "gift.fill", role: .care, size: 82, symbolSize: 25, cornerRadius: 22)
                 .overlay(alignment: .topTrailing) {
                     Text("3")
                         .font(.caption2.monospaced().weight(.bold))
@@ -565,17 +554,10 @@ struct HomeDashboardView: View {
                             .lineLimit(2)
                         Text(profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open))
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(Color.iumrahCareDark)
+                            .foregroundStyle(IumrahIconRole.connectivity.color)
                     }
                 } else {
-                    Image(systemName: "simcard.fill")
-                        .font(.system(size: 27, weight: .semibold))
-                        .foregroundStyle(Color.iumrahCareDark)
-                        .frame(width: 82, height: 82)
-                        .iumrahGlass(
-                            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-                            tint: Color.iumrahCareLight.opacity(0.20)
-                        )
+                    IumrahIconBadge(systemName: "simcard.fill", role: .message, size: 82, symbolSize: 27, cornerRadius: 22)
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text("iumrah eSIM")
@@ -586,7 +568,7 @@ struct HomeDashboardView: View {
                             .lineLimit(3)
                         Text(homeESIMCopy(.details))
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(Color.iumrahCareDark)
+                            .foregroundStyle(IumrahIconRole.connectivity.color)
                     }
                 }
                 Spacer(minLength: 4)
@@ -641,10 +623,7 @@ struct HomeDashboardView: View {
     }
 
     private func journeyIcon(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 13, weight: .semibold))
-            .frame(width: 34, height: 34)
-            .iumrahGlass(in: Circle())
+        IumrahIconBadge(systemName: name, size: 34, symbolSize: 13, shape: .circle)
     }
 
     private var connector: some View {
@@ -692,7 +671,7 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(LinearGradient(colors: [Color.iumrahCareLight.opacity(0.35), Color.iumrahRaisedBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 88, height: 88)
-                    .overlay(Image(systemName: "building.2").font(.system(size: 28, weight: .medium)).foregroundStyle(Color.iumrahCareDark))
+                    .overlay(IumrahIconBadge(systemName: "building.2", role: .hotel, size: 58, symbolSize: 25, cornerRadius: 18))
                 VStack(alignment: .leading, spacing: 7) {
                     Text(L10n.text("hotels_title", settings.language))
                         .font(.headline)

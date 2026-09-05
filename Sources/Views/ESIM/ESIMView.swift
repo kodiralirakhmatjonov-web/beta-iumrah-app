@@ -197,8 +197,11 @@ struct ESIMView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(Color.iumrahCareDark)
+                IumrahInlineIcon(
+                    systemName: "antenna.radiowaves.left.and.right",
+                    role: .connectivity,
+                    size: 16
+                )
             }
 
             planRow("5 GB", validity: "30", recommended: false)
@@ -240,9 +243,13 @@ struct ESIMView: View {
 
     private var privacyCard: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "lock.shield.fill")
-                .font(.title3)
-                .foregroundStyle(Color.iumrahCareDark)
+            IumrahIconBadge(
+                systemName: "lock.shield.fill",
+                role: .security,
+                size: 40,
+                symbolSize: 18,
+                cornerRadius: 13
+            )
             VStack(alignment: .leading, spacing: 4) {
                 Text(copy(.privacyTitle)).font(.subheadline.weight(.semibold))
                 Text(copy(.privacyBody))
@@ -406,10 +413,10 @@ private struct ESIMProfileCard: View {
     private var statusBadge: some View {
         Text(statusText)
             .font(.caption.weight(.bold))
-            .foregroundStyle(Color.iumrahCareDark)
+            .foregroundStyle(IumrahIconRole.success.color)
             .padding(.horizontal, 10)
             .frame(height: 29)
-            .background(Color.iumrahCareLight.opacity(0.22), in: Capsule())
+            .background(IumrahIconRole.success.color.opacity(0.14), in: Capsule())
     }
 
     private func metric(title: String, value: String) -> some View {

@@ -81,7 +81,7 @@ struct HotelsHomeView: View {
                     image.resizable().scaledToFill()
                 default:
                     LinearGradient(colors: [Color.iumrahRaisedBackground, Color.iumrahCardBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        .overlay(Image(systemName: "building.2").font(.title3).foregroundStyle(.secondary))
+                        .overlay(IumrahIconBadge(systemName: "building.2", role: .hotel, size: 44, symbolSize: 19, cornerRadius: 15))
                 }
             }
             .frame(width: 94, height: 94)
@@ -93,17 +93,26 @@ struct HotelsHomeView: View {
                     .lineLimit(2)
                 HStack(spacing: 10) {
                     if let stars = hotel.stars {
-                        Label("\(stars)★", systemImage: "star.fill")
+                        HStack(spacing: 4) {
+                            IumrahInlineIcon(systemName: "star.fill", role: .rating, size: 11)
+                            Text("\(stars)★")
+                        }
                     }
                     if let rating = hotel.rating {
-                        Label(String(format: "%.1f", rating), systemImage: "sparkles")
+                        HStack(spacing: 4) {
+                            IumrahInlineIcon(systemName: "sparkles", role: .umrah, size: 11)
+                            Text(String(format: "%.1f", rating))
+                        }
                     }
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                Text(L10n.city(hotel.city, settings.language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    IumrahInlineIcon(systemName: "mappin", role: .location, size: 10)
+                    Text(L10n.city(hotel.city, settings.language))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right")

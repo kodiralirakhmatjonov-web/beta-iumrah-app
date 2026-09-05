@@ -191,9 +191,11 @@ struct TripBuilderView: View {
                 .buttonStyle(.plain)
 
                 HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "chart.line.downtrend.xyaxis")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.iumrahCareDark)
+                    IumrahInlineIcon(
+                        systemName: "chart.line.downtrend.xyaxis",
+                        role: .payment,
+                        size: 12
+                    )
                     Text(dateCalendarHint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -359,11 +361,13 @@ struct TripBuilderView: View {
             }
 
             HStack(alignment: .top, spacing: 13) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.iumrahCareDark)
-                    .frame(width: 42, height: 42)
-                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.22))
+                IumrahIconBadge(
+                    systemName: "moon.stars.fill",
+                    role: .umrah,
+                    size: 42,
+                    symbolSize: 18,
+                    shape: .circle
+                )
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(L10n.text("weekend_umrah_title", settings.language))

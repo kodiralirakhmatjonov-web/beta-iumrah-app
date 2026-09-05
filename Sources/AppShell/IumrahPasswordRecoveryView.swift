@@ -18,11 +18,13 @@ struct IumrahPasswordRecoveryView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Image(systemName: restoredID.isEmpty ? "key.viewfinder" : "checkmark.shield.fill")
-                        .font(.system(size: 34, weight: .semibold))
-                        .foregroundStyle(restoredID.isEmpty ? Color.blue : Color.iumrahCareLight)
-                        .frame(width: 64, height: 64)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), tint: (restoredID.isEmpty ? Color.blue : Color.iumrahCareLight).opacity(0.10))
+                    IumrahIconBadge(
+                        systemName: restoredID.isEmpty ? "key.viewfinder" : "checkmark.shield.fill",
+                        role: restoredID.isEmpty ? .security : .success,
+                        size: 64,
+                        symbolSize: 28,
+                        cornerRadius: 20
+                    )
 
                     if !restoredID.isEmpty {
                         successContent

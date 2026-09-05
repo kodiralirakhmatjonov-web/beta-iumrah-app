@@ -226,10 +226,12 @@ struct HotelDetailView: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(detail.amenities, id: \.self) { amenity in
                         HStack(spacing: 10) {
-                            Image(systemName: amenityIcon(amenity))
-                                .font(.system(size: 15, weight: .semibold))
-                                .frame(width: 28, height: 28)
-                                .iumrahGlass(in: Circle())
+                            IumrahIconBadge(
+                                systemName: amenityIcon(amenity),
+                                size: 28,
+                                symbolSize: 13,
+                                shape: .circle
+                            )
                             Text(localizedAmenity(amenity))
                                 .font(.footnote.weight(.semibold))
                                 .lineLimit(2)

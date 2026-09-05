@@ -143,10 +143,7 @@ struct CareHomeView: View {
 
     private func careMetric(icon: String, text: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 30, height: 30)
-                .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.13))
+            IumrahIconBadge(systemName: icon, size: 30, symbolSize: 14, cornerRadius: 15, shape: .circle)
             Text(text)
                 .font(.caption2.weight(.semibold))
                 .lineLimit(2)
@@ -202,9 +199,8 @@ struct CareHomeView: View {
 
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Color.iumrahCareDark.opacity(0.56))
+                .foregroundStyle(.tertiary)
                 .frame(width: 34, height: 34)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.13))
         }
         .padding(17)
         .background(Color.iumrahCardBackground)
@@ -227,11 +223,7 @@ struct CareHomeView: View {
 
     private var lockedChatCard: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 40, height: 40)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.17))
+            IumrahIconBadge(systemName: "lock.fill", role: .security, size: 40, symbolSize: 15, shape: .circle)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(L10n.text("care_locked_title", settings.language))
@@ -249,9 +241,7 @@ struct CareHomeView: View {
     private var supportPromise: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Image(systemName: "heart.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color.iumrahCareDark)
+                IumrahInlineIcon(systemName: "heart.circle.fill", role: .care, size: 23)
                 Spacer()
                 Text("iumrah Care")
                     .font(.caption.weight(.bold))

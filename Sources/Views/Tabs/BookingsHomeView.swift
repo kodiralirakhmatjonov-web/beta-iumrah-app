@@ -144,11 +144,13 @@ struct BookingsHomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 10)
-                Image(systemName: statusIcon(session.effectiveStatus))
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(Color.iumrahCareDark)
-                    .frame(width: 48, height: 48)
-                    .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.16))
+                IumrahIconBadge(
+                    systemName: statusIcon(session.effectiveStatus),
+                    role: statusRole(session.effectiveStatus),
+                    size: 48,
+                    symbolSize: 19,
+                    shape: .circle
+                )
             }
 
             if let name = session.travelerName, !name.isEmpty {
@@ -200,18 +202,22 @@ struct BookingsHomeView: View {
                     Image(systemName: "arrow.up.right")
                 }
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
                 .padding(.horizontal, 18)
                 .frame(height: 54)
-                .background(Color.black)
+                .background(Color.iumrahPrimaryButtonBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
             }
             .buttonStyle(.plain)
         }
         .padding(20)
-        .background(Color.white.opacity(0.97))
+        .background(Color.iumrahPhotoCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 28, y: 14)
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
     }
 
     private func statusProgressCard(_ session: StoredBookingSession) -> some View {
@@ -225,14 +231,14 @@ struct BookingsHomeView: View {
             VStack(spacing: 9) {
                 ForEach(Array(stages.enumerated()), id: \.offset) { index, stage in
                     HStack(spacing: 12) {
-                        Image(systemName: index < current ? "checkmark" : (index == current ? "circle.fill" : "circle"))
-                            .font(.system(size: index == current ? 8 : 11, weight: .bold))
-                            .foregroundStyle(index <= current ? Color.iumrahCareDark : Color.secondary)
-                            .frame(width: 30, height: 30)
-                            .iumrahGlass(
-                                in: Circle(),
-                                tint: index <= current ? Color.iumrahCareLight.opacity(0.22) : nil
-                            )
+                        IumrahIconBadge(
+                            systemName: index < current ? "checkmark" : (index == current ? "circle.fill" : "circle"),
+                            role: index < current ? .success : (index == current ? .warning : .neutral),
+                            size: 30,
+                            symbolSize: index == current ? 8 : 11,
+                            cornerRadius: 15,
+                            shape: .circle
+                        )
 
                         Text(L10n.status(stage, settings.language))
                             .font(.subheadline.weight(index == current ? .bold : .semibold))
@@ -244,9 +250,13 @@ struct BookingsHomeView: View {
             }
         }
         .padding(19)
-        .background(Color.white.opacity(0.97))
+        .background(Color.iumrahPhotoCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 22, y: 10)
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 20, y: 9)
     }
 
     private func tripActions(_ session: StoredBookingSession) -> some View {
@@ -289,10 +299,7 @@ struct BookingsHomeView: View {
 
     private func actionCard(icon: String, title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 19, weight: .semibold))
-                .frame(width: 42, height: 42)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            IumrahIconBadge(systemName: icon, size: 42, symbolSize: 19, cornerRadius: 14)
             Text(title)
                 .font(.headline)
                 .foregroundStyle(.primary)
@@ -304,10 +311,12 @@ struct BookingsHomeView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .padding(16)
-        .iumrahGlass(
-            in: RoundedRectangle(cornerRadius: 25, style: .continuous),
-            interactive: true
-        )
+        .background(Color.iumrahPhotoCardBackground, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
     }
 
     private func otherTrips(excluding bookingID: String) -> some View {
@@ -347,10 +356,7 @@ struct BookingsHomeView: View {
                         .tracking(-0.6)
                 }
                 Spacer()
-                Image(systemName: "plus")
-                    .font(.system(size: 19, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle())
+                IumrahIconBadge(systemName: "plus", role: .accent, size: 44, symbolSize: 19, shape: .circle)
             }
 
             Text(L10n.text("booking_hero_body", settings.language))
@@ -375,15 +381,19 @@ struct BookingsHomeView: View {
                         .font(.headline)
                     Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
                         .font(.caption.monospaced().weight(.bold))
-                        .foregroundStyle(Color.iumrahCareDark)
+                        .foregroundStyle(IumrahIconRole.booking.color)
                     Text(L10n.status(session.effectiveStatus, settings.language))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: statusIcon(session.effectiveStatus))
-                    .font(.title3)
-                    .foregroundStyle(Color.iumrahCareDark)
+                IumrahIconBadge(
+                    systemName: statusIcon(session.effectiveStatus),
+                    role: statusRole(session.effectiveStatus),
+                    size: 38,
+                    symbolSize: 16,
+                    shape: .circle
+                )
             }
 
             Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
@@ -394,8 +404,11 @@ struct BookingsHomeView: View {
                 .clipShape(Capsule())
 
             if !session.booking.hotelNames.makkah.isEmpty {
-                Label(session.booking.hotelNames.makkah, systemImage: "building.2")
-                    .font(.subheadline)
+                HStack(spacing: 7) {
+                    IumrahInlineIcon(systemName: "building.2", role: .hotel, size: 13)
+                    Text(session.booking.hotelNames.makkah)
+                }
+                .font(.subheadline)
             }
 
             HStack {
@@ -412,10 +425,7 @@ struct BookingsHomeView: View {
 
     private var noBookingsCard: some View {
         HStack(spacing: 14) {
-            Image(systemName: "suitcase")
-                .font(.system(size: 20, weight: .semibold))
-                .frame(width: 46, height: 46)
-                .iumrahGlass(in: Circle())
+            IumrahIconBadge(systemName: "suitcase", role: .booking, size: 46, symbolSize: 20, shape: .circle)
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.text("booking_empty_title", settings.language))
                     .font(.headline)
@@ -430,16 +440,22 @@ struct BookingsHomeView: View {
 
     private func overviewRow(icon: String, title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 34, height: 34)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.14))
+            IumrahIconBadge(systemName: icon, size: 34, symbolSize: 14, cornerRadius: 17, shape: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.caption).foregroundStyle(.secondary)
                 Text(value).font(.subheadline.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    private func statusRole(_ status: String) -> IumrahIconRole {
+        switch status.uppercased() {
+        case "BOOKING_CONFIRMED", "READY_TO_TRAVEL", "COMPLETED": return .success
+        case "PAYMENT_PENDING", "AVAILABILITY_CHECK": return .warning
+        case "IN_TRIP": return .location
+        case "CANCELLED": return .destructive
+        default: return .booking
         }
     }
 

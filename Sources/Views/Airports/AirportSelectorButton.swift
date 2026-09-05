@@ -12,10 +12,13 @@ struct AirportSelectorButton: View {
             IumrahHaptics.soft()
         } label: {
             HStack(spacing: 13) {
-                Image(systemName: "airplane.departure")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(width: 38, height: 38)
-                    .iumrahGlass(in: Circle())
+                IumrahIconBadge(
+                    systemName: "airplane.departure",
+                    role: .travel,
+                    size: 38,
+                    symbolSize: 17,
+                    shape: .circle
+                )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.text("airport_title", settings.language))

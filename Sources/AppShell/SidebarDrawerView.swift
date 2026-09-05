@@ -73,13 +73,14 @@ struct SidebarDrawerView: View {
             Button { chrome.presentESIM() } label: {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Image(systemName: "simcard.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .frame(width: 52, height: 52)
-                            .iumrahGlass(
-                                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                                tint: Color.white.opacity(0.13)
-                            )
+                        IumrahIconBadge(
+                            systemName: "simcard.fill",
+                            role: .connectivity,
+                            tint: .white,
+                            size: 52,
+                            symbolSize: 22,
+                            cornerRadius: 18
+                        )
 
                         Spacer()
                         Image(systemName: "arrow.up.right")

@@ -336,14 +336,13 @@ struct IumrahFlightsView: View {
 
     private var notificationPreview: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "airplane")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 42, height: 42)
-                .iumrahGlass(
-                    in: RoundedRectangle(cornerRadius: 13, style: .continuous),
-                    tint: Color.blue.opacity(0.48)
-                )
+            IumrahIconBadge(
+                systemName: "airplane",
+                role: .travel,
+                size: 42,
+                symbolSize: 18,
+                cornerRadius: 13
+            )
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
@@ -438,11 +437,13 @@ struct IumrahFlightsView: View {
             VStack(spacing: 10) {
                 ForEach(filteredTripFlights.prefix(2)) { offer in
                     HStack(spacing: 13) {
-                        Image(systemName: offer.direction == .outbound ? "airplane.departure" : "airplane.arrival")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.blue)
-                            .frame(width: 46, height: 46)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        IumrahIconBadge(
+                            systemName: offer.direction == .outbound ? "airplane.departure" : "airplane.arrival",
+                            role: .travel,
+                            size: 46,
+                            symbolSize: 18,
+                            cornerRadius: 15
+                        )
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(offer.flightNumber)
@@ -489,10 +490,12 @@ struct IumrahFlightsView: View {
 
     private func lockedRow(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 13) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .frame(width: 42, height: 42)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            IumrahIconBadge(
+                systemName: icon,
+                size: 42,
+                symbolSize: 17,
+                cornerRadius: 14
+            )
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold))
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -564,11 +567,13 @@ struct IumrahFlightsView: View {
 
     private func friendStatus(icon: String, title: String, value: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.blue)
-                .frame(width: 34, height: 34)
-                .iumrahGlass(in: Circle(), tint: Color.blue.opacity(0.12))
+            IumrahIconBadge(
+                systemName: icon,
+                role: .travel,
+                size: 34,
+                symbolSize: 15,
+                shape: .circle
+            )
             Text(title)
                 .font(.subheadline.weight(.semibold))
             Spacer()
@@ -590,11 +595,13 @@ struct IumrahFlightsView: View {
 
     private var accessPrincipleCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.primary)
-                .frame(width: 58, height: 58)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            IumrahIconBadge(
+                systemName: "checkmark.shield.fill",
+                role: .security,
+                size: 58,
+                symbolSize: 27,
+                cornerRadius: 20
+            )
 
             Text(IumrahFlightsCopy.text(.principleTitle, settings.language))
                 .font(.system(size: 30, weight: .bold, design: .rounded))

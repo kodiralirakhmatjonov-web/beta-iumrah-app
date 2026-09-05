@@ -102,10 +102,13 @@ struct IumrahGiftCardsView: View {
 
     private var lockedCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "person.badge.key.fill")
-                .font(.system(size: 22, weight: .semibold))
-                .frame(width: 50, height: 50)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            IumrahIconBadge(
+                systemName: "person.badge.key.fill",
+                role: .security,
+                size: 50,
+                symbolSize: 21,
+                cornerRadius: 17
+            )
 
             Text(tr("Unlock your 3 Gift Cards", "Откройте 3 Gift Cards", "3 ta Gift Card ni oching", "3 та Gift Card ни очинг"))
                 .font(.title3.bold())
@@ -148,10 +151,13 @@ struct IumrahGiftCardsView: View {
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                 }
                 Spacer()
-                Image(systemName: "wallet.bifold.fill")
-                    .font(.system(size: 19, weight: .semibold))
-                    .frame(width: 46, height: 46)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                IumrahIconBadge(
+                    systemName: "wallet.bifold.fill",
+                    role: .payment,
+                    size: 46,
+                    symbolSize: 19,
+                    cornerRadius: 16
+                )
             }
 
             HStack(spacing: 10) {
@@ -164,9 +170,7 @@ struct IumrahGiftCardsView: View {
 
     private func metric(title: String, value: String, icon: String) -> some View {
         HStack(spacing: 9) {
-            Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            IumrahInlineIcon(systemName: icon, size: 12)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.caption2).foregroundStyle(.secondary)
                 Text(value).font(.subheadline.weight(.bold))

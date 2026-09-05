@@ -457,11 +457,13 @@ struct CareContactInfoView: View {
     }
 
     private var selectionBadge: some View {
-        Image(systemName: "checkmark")
-            .font(.system(size: 12.5, weight: .bold))
-            .foregroundStyle(.black)
-            .frame(width: 25, height: 25)
-            .iumrahGlass(in: Circle(), tint: Color.white)
+        IumrahIconBadge(
+            systemName: "checkmark",
+            role: .success,
+            size: 25,
+            symbolSize: 11,
+            shape: .circle
+        )
     }
 
     @ViewBuilder

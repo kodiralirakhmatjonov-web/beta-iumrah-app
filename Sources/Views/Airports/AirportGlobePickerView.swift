@@ -139,10 +139,13 @@ struct AirportGlobePickerView: View {
     private var instructionPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Image(systemName: "airplane.departure")
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 42, height: 42)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                IumrahIconBadge(
+                    systemName: "airplane.departure",
+                    role: .travel,
+                    size: 42,
+                    symbolSize: 18,
+                    cornerRadius: 13
+                )
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.text("airport_map_hint_title", settings.language))

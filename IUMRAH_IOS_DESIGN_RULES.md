@@ -233,6 +233,13 @@ Liquid Glass is primarily for:
 
 Regular content cards should usually remain calm solid/adaptive surfaces. This preserves hierarchy and prevents visual noise.
 
+Implementation rule for the shared helper:
+
+- `iumrahGlass(..., interactive: true)` is for actual controls;
+- `allowsStaticGlass: true` is reserved for intentionally floating chrome/status surfaces;
+- ordinary static content must not opt into `allowsStaticGlass`; it resolves to an adaptive solid content surface instead;
+- never set `allowsStaticGlass: true` simply to make a card look more expensive.
+
 ---
 
 # 6. Navigation — absolute rule
@@ -383,6 +390,38 @@ Recommended action icon size:
 ```
 
 Touch targets must be at least approximately 44×44 pt.
+
+## Semantic icon color
+
+Content icons MUST use the shared semantic icon language from `DesignSystem.swift`; do not choose arbitrary colors screen by screen. Color is an information cue, not decoration.
+
+Canonical families:
+
+```text
+travel / flights       system blue
+hotels                 system indigo
+booking                system orange
+Umrah / guidance       system teal
+Care                    system pink
+profile / people       system cyan
+phone / security       system green
+mail / language        system blue
+location / alerts      system red
+appearance             system purple
+documents              system cyan
+payment / success      system green
+warning                 system orange
+destructive             system red
+```
+
+Rules:
+
+- use `IumrahIconBadge` for informational icon containers inside cards, settings rows, headers and data rows;
+- use `IumrahInlineIcon` for small metadata glyphs where color improves scanning;
+- structural glyphs such as chevrons, disclosure arrows and close/back navigation remain neutral unless state requires otherwise;
+- never make every icon a different arbitrary color merely for decoration;
+- the same semantic meaning must keep the same color family throughout the app;
+- informational icon badges are solid/adaptive content, **not Liquid Glass**.
 
 ---
 
@@ -1009,6 +1048,18 @@ Required checks:
 - navigation chrome.
 
 No hard-coded white card that becomes unreadable in dark mode unless it is a deliberate branded surface.
+
+A fixed white or black content surface is allowed only when it is intentionally branded **and** every text/icon color inside it is explicitly paired for that surface. Normal content over photography must use the shared adaptive photo-card surfaces so `.primary` / `.secondary` remain readable in both appearances.
+
+Dark-mode acceptance rule:
+
+```text
+semantic text + adaptive surface = preferred
+fixed surface + semantic text     = forbidden when contrast can invert
+fixed branded surface + explicit paired text = allowed
+```
+
+The booking home/status area, itinerary cards, account/settings rows, checkout cards and other reusable content must be visually checked in both appearances before release.
 
 ---
 

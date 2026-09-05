@@ -59,10 +59,12 @@ struct UmrahCarePackageExplanationView: View {
 
     private func explanationRow(icon: String, title: String, body: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 19, weight: .semibold))
-                .frame(width: 44, height: 44)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            IumrahIconBadge(
+                systemName: icon,
+                size: 44,
+                symbolSize: 19,
+                cornerRadius: 15
+            )
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title).font(.headline)

@@ -331,16 +331,16 @@ struct FinalPackageView: View {
 
     private func includedRow(_ key: FlowCopy.Key, value: String? = nil, icon: String) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 30, height: 30)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.22))
+            IumrahIconBadge(
+                systemName: "checkmark",
+                role: .success,
+                size: 30,
+                symbolSize: 12,
+                shape: .circle
+            )
 
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
+            IumrahInlineIcon(systemName: icon, size: 15)
                 .frame(width: 22)
-                .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(FlowCopy.text(key, settings.language))
@@ -357,11 +357,13 @@ struct FinalPackageView: View {
 
     private var esimIncludedRow: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color.iumrahCareDark)
-                .frame(width: 30, height: 30)
-                .iumrahGlass(in: Circle(), tint: Color.iumrahCareLight.opacity(0.22))
+            IumrahIconBadge(
+                systemName: "checkmark",
+                role: .success,
+                size: 30,
+                symbolSize: 12,
+                shape: .circle
+            )
 
             Image("UmrahMobileLogo")
                 .resizable()
@@ -389,9 +391,12 @@ struct FinalPackageView: View {
                 .background(Color.black)
 
             VStack(alignment: .leading, spacing: 12) {
-                Label("iumrah Care", systemImage: "heart.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.iumrahCareDark)
+                HStack(spacing: 5) {
+                    IumrahInlineIcon(systemName: "heart.fill", role: .care, size: 11)
+                    Text("iumrah Care")
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(IumrahIconRole.care.color)
 
                 Text(careCardTitle)
                     .font(.system(size: 23, weight: .bold, design: .rounded))
@@ -453,10 +458,13 @@ struct FinalPackageView: View {
 
     private var notificationCard: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: push.isAuthorized ? "bell.badge.fill" : "bell.badge")
-                .font(.title3.weight(.semibold))
-                .frame(width: 42, height: 42)
-                .iumrahGlass(in: Circle())
+            IumrahIconBadge(
+                systemName: push.isAuthorized ? "bell.badge.fill" : "bell.badge",
+                role: .notification,
+                size: 42,
+                symbolSize: 18,
+                shape: .circle
+            )
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.text("notifications_title", settings.language)).font(.headline)
                 Text(push.statusText(language: settings.language))
