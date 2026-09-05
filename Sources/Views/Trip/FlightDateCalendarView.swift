@@ -197,7 +197,6 @@ struct FlightDateCalendarView: View {
         let isReturn = returnDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false
         let inRange = isInsideSelectedRange(day)
         let entry = priceEntry(for: day)
-        let cheap = entry.map(isCheap) ?? false
 
         return Button {
             guard !disabled else { return }
@@ -206,15 +205,13 @@ struct FlightDateCalendarView: View {
             VStack(spacing: 3) {
                 Text(String(calendar.component(.day, from: day)))
                     .font(.system(size: 17, weight: isDeparture || isReturn ? .bold : .medium, design: .rounded))
-                if let entry {
-                    Text(compactPrice(entry))
-                        .font(.system(size: 10, weight: cheap ? .bold : .medium, design: .rounded))
-                        .foregroundStyle(isDeparture || isReturn ? Color.iumrahCardBackground : (cheap ? Color.green : Color.secondary))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                if entry != nil {
+                    Circle()
+                        .fill(isDeparture || isReturn ? Color.iumrahCardBackground.opacity(0.82) : Color.green)
+                        .frame(width: 5, height: 5)
+                        .accessibilityHidden(true)
                 } else {
-                    Text(" ")
-                        .font(.system(size: 10))
+                    Color.clear.frame(width: 5, height: 5)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -256,7 +253,7 @@ struct FlightDateCalendarView: View {
                             VStack(alignment: .leading, spacing: 7) {
                                 Text(suggestionDates(entry))
                                     .font(.subheadline.weight(.bold))
-                                Text("\(copy(.from)) \(compactPrice(entry)) \(copy(.perPerson))")
+                                Text(copy(.fareAvailable))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(Color.green)
                             }
@@ -308,11 +305,6 @@ struct FlightDateCalendarView: View {
                 VStack(spacing: 2) {
                     Text(copy(.chooseDates))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                    if let selectedFare {
-                        Text("\(copy(.from)) \(compactPrice(selectedFare)) \(copy(.perPerson))")
-                            .font(.caption.weight(.semibold))
-                            .opacity(0.78)
-                    }
                 }
                 .foregroundStyle(Color.iumrahCardBackground)
                 .frame(maxWidth: .infinity)
@@ -335,13 +327,6 @@ struct FlightDateCalendarView: View {
         return returnDate > departure
     }
 
-    private var selectedFare: FlightFareCalendarEntry? {
-        guard let departure, let returnDate else { return nil }
-        let out = FlightFareCalendarService.day.string(from: departure)
-        let inbound = FlightFareCalendarService.day.string(from: returnDate)
-        return suggestions.first { $0.outboundDate == out && $0.inboundDate == inbound }
-            ?? returnPrices[inbound]
-    }
 
     private func select(_ date: Date) {
         if departure == nil || (departure != nil && returnDate != nil) {
@@ -371,24 +356,6 @@ struct FlightDateCalendarView: View {
         return outboundPrices[key]
     }
 
-    private func isCheap(_ entry: FlightFareCalendarEntry) -> Bool {
-        let values = (departure != nil && returnDate == nil && !returnPrices.isEmpty ? Array(returnPrices.values) : Array(outboundPrices.values))
-            .filter { $0.currency == entry.currency }
-            .map(\.minPerTravelerFare)
-            .sorted()
-        guard !values.isEmpty else { return false }
-        let index = max(0, min(values.count - 1, Int(Double(values.count - 1) * 0.35)))
-        return entry.minPerTravelerFare <= values[index]
-    }
-
-    private func compactPrice(_ entry: FlightFareCalendarEntry) -> String {
-        let rounded = Int(entry.minPerTravelerFare.rounded())
-        switch entry.currency.uppercased() {
-        case "USD": return "$\(rounded)"
-        case "SAR": return "SAR \(rounded)"
-        default: return "\(entry.currency.uppercased()) \(rounded)"
-        }
-    }
 
     private func suggestionDates(_ entry: FlightFareCalendarEntry) -> String {
         guard let out = FlightFareCalendarService.date(entry.outboundDate) else { return entry.outboundDate }
@@ -495,64 +462,60 @@ struct FlightDateCalendarView: View {
         }
     }
 
-    private enum CopyKey { case title, subtitle, priceCalendar, loading, priceHint, retry, bestDates, bestDatesHint, cacheNote, reset, chooseDates, from, perPerson }
+    private enum CopyKey { case title, subtitle, priceCalendar, loading, priceHint, retry, bestDates, bestDatesHint, cacheNote, reset, chooseDates, fareAvailable }
     private func copy(_ key: CopyKey) -> String {
         switch (settings.language, key) {
         case (.russian, .title): return "Когда лететь"
-        case (.russian, .subtitle): return "Выберите даты и сравните накопленные цены"
-        case (.russian, .priceCalendar): return "Календарь выгодных дат"
+        case (.russian, .subtitle): return "Выберите даты по актуальным данным рейсов"
+        case (.russian, .priceCalendar): return "Календарь актуальных дат"
         case (.russian, .loading): return "Загружаем накопленные результаты…"
-        case (.russian, .priceHint): return "Зелёным отмечены самые выгодные найденные даты"
+        case (.russian, .priceHint): return "Зелёная отметка означает, что для даты есть актуальный тариф"
         case (.russian, .retry): return "Обновить"
-        case (.russian, .bestDates): return "Самые выгодные даты"
-        case (.russian, .bestDatesHint): return "Готовые пары дат из уже выполненных поисков"
+        case (.russian, .bestDates): return "Рекомендуемые даты"
+        case (.russian, .bestDatesHint): return "Подходящие пары дат из актуальных поисков"
         case (.russian, .cacheNote): return "Календарь пополняется реальными поисками паломников. Повторный одинаковый поиск сначала использует свежий серверный кэш, поэтому результаты открываются быстрее и не создают лишний запрос к авиасистеме. Прошедшие даты автоматически удаляются."
         case (.russian, .reset): return "Сбросить"
         case (.russian, .chooseDates): return "Выбрать даты"
-        case (.russian, .from): return "от"
-        case (.russian, .perPerson): return "/ чел."
+        case (.russian, .fareAvailable): return "Актуальный тариф найден"
 
         case (.english, .title): return "When to fly"
-        case (.english, .subtitle): return "Choose dates and compare accumulated fares"
-        case (.english, .priceCalendar): return "Best-date calendar"
+        case (.english, .subtitle): return "Choose dates using current flight data"
+        case (.english, .priceCalendar): return "Current-date calendar"
         case (.english, .loading): return "Loading accumulated results…"
-        case (.english, .priceHint): return "Green marks the best fares found so far"
+        case (.english, .priceHint): return "A green mark means a current fare is available for that date"
         case (.english, .retry): return "Refresh"
-        case (.english, .bestDates): return "Best date pairs"
-        case (.english, .bestDatesHint): return "Ready date combinations from previous searches"
+        case (.english, .bestDates): return "Recommended dates"
+        case (.english, .bestDatesHint): return "Suitable date combinations from current searches"
         case (.english, .cacheNote): return "The calendar grows from real pilgrim searches. An identical search uses fresh server cache first, so results open faster without spending another flight-system request. Past dates are removed automatically."
         case (.english, .reset): return "Reset"
         case (.english, .chooseDates): return "Choose dates"
-        case (.english, .from): return "from"
-        case (.english, .perPerson): return "/ person"
+        case (.english, .fareAvailable): return "Current fare available"
 
         case (.uzbek, .title): return "Qachon uchasiz"
-        case (.uzbek, .subtitle): return "Sanalarni tanlang va yig‘ilgan narxlarni solishtiring"
-        case (.uzbek, .priceCalendar): return "Qulay sanalar kalendari"
+        case (.uzbek, .subtitle): return "Dolzarb reys ma’lumotlari asosida sanalarni tanlang"
+        case (.uzbek, .priceCalendar): return "Dolzarb sanalar kalendari"
         case (.uzbek, .loading): return "Yig‘ilgan natijalar yuklanmoqda…"
-        case (.uzbek, .priceHint): return "Yashil rang eng qulay topilgan sanalarni ko‘rsatadi"
+        case (.uzbek, .priceHint): return "Yashil belgi shu sana uchun dolzarb tarif borligini bildiradi"
         case (.uzbek, .retry): return "Yangilash"
-        case (.uzbek, .bestDates): return "Eng qulay sanalar"
-        case (.uzbek, .bestDatesHint): return "Oldingi qidiruvlardan tayyor sana juftliklari"
+        case (.uzbek, .bestDates): return "Tavsiya etilgan sanalar"
+        case (.uzbek, .bestDatesHint): return "Dolzarb qidiruvlardan mos sana juftliklari"
         case (.uzbek, .cacheNote): return "Kalendar ziyoratchilarning haqiqiy qidiruvlari bilan to‘lib boradi. Bir xil qidiruv avval yangi server keshidan olinadi — natija tezroq ochiladi va aviatsiya tizimiga ortiqcha so‘rov yuborilmaydi. O‘tgan sanalar avtomatik o‘chiriladi."
         case (.uzbek, .reset): return "Tozalash"
         case (.uzbek, .chooseDates): return "Sanalarni tanlash"
-        case (.uzbek, .from): return "dan"
-        case (.uzbek, .perPerson): return "/ kishi"
+        case (.uzbek, .fareAvailable): return "Dolzarb tarif topildi"
 
         case (.uzbekCyrillic, .title): return "Қачон учасиз"
-        case (.uzbekCyrillic, .subtitle): return "Саналарни танланг ва йиғилган нархларни солиштиринг"
-        case (.uzbekCyrillic, .priceCalendar): return "Қулай саналар календари"
+        case (.uzbekCyrillic, .subtitle): return "Долзарб рейс маълумотлари асосида саналарни танланг"
+        case (.uzbekCyrillic, .priceCalendar): return "Долзарб саналар календари"
         case (.uzbekCyrillic, .loading): return "Йиғилган натижалар юкланмоқда…"
-        case (.uzbekCyrillic, .priceHint): return "Яшил ранг энг қулай топилган саналарни кўрсатади"
+        case (.uzbekCyrillic, .priceHint): return "Яшил белги шу сана учун долзарб тариф борлигини билдиради"
         case (.uzbekCyrillic, .retry): return "Янгилаш"
-        case (.uzbekCyrillic, .bestDates): return "Энг қулай саналар"
-        case (.uzbekCyrillic, .bestDatesHint): return "Олдинги қидирувлардан тайёр сана жуфтликлари"
+        case (.uzbekCyrillic, .bestDates): return "Тавсия этилган саналар"
+        case (.uzbekCyrillic, .bestDatesHint): return "Долзарб қидирувлардан мос сана жуфтликлари"
         case (.uzbekCyrillic, .cacheNote): return "Календар зиёратчиларнинг ҳақиқий қидирувлари билан тўлиб боради. Бир хил қидирув аввал янги сервер кешидан олинади — натижа тезроқ очилади ва авиация тизимига ортиқча сўров юборилмайди. Ўтган саналар автоматик ўчирилади."
         case (.uzbekCyrillic, .reset): return "Тозалаш"
         case (.uzbekCyrillic, .chooseDates): return "Саналарни танлаш"
-        case (.uzbekCyrillic, .from): return "дан"
-        case (.uzbekCyrillic, .perPerson): return "/ киши"
+        case (.uzbekCyrillic, .fareAvailable): return "Долзарб тариф топилди"
         }
     }
 }

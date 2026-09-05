@@ -1,6 +1,8 @@
 type StaffUser = {
   id?: string;
   email?: string;
+  login?: string;
+  displayName?: string;
   role?: string;
 };
 

@@ -4,6 +4,8 @@ struct TripBuilderView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
     @State private var showsDateCalendar = false
+    @State private var curatedFlights: [CuratedFlightRecommendation] = []
+    @State private var isLoadingCuratedFlights = false
 
     var body: some View {
         ScrollView {
@@ -12,6 +14,7 @@ struct TripBuilderView: View {
                 intro
                 routeCard
                 datesCard
+                curatedFlightsSection
                 travelersCard
                 FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
                 hotelClassCard
@@ -32,6 +35,9 @@ struct TripBuilderView: View {
         }
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .trip)
+        .task(id: curatedFlightsQueryKey) {
+            await loadCuratedFlights()
+        }
         .onAppear {
             // Production flow is always a complete Umrah journey: the pilgrim
             // chooses the outbound first and the compatible return afterwards.
@@ -73,7 +79,8 @@ struct TripBuilderView: View {
 
     private var routeCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            formHeader(L10n.text("trip_origin_title", settings.language), icon: "airplane.departure", role: .travel)
+            Label(L10n.text("trip_origin_title", settings.language), systemImage: "airplane.departure")
+                .font(.headline)
 
             AirportSelectorButton(airport: $journey.trip.originAirport, fallbackCode: $journey.trip.origin)
 
@@ -160,7 +167,8 @@ struct TripBuilderView: View {
 
     private var datesCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            formHeader(L10n.text("trip_dates_title", settings.language), icon: "calendar", role: .calendar)
+            Label(L10n.text("trip_dates_title", settings.language), systemImage: "calendar")
+                .font(.headline)
 
             dateModePicker
 
@@ -317,10 +325,10 @@ struct TripBuilderView: View {
 
     private var dateCalendarHint: String {
         switch settings.language {
-        case .russian: return "Откройте календарь цен: он постепенно заполняется реальными поисками и помогает увидеть более выгодные даты до запуска нового поиска."
-        case .english: return "Open the fare calendar: it grows from real searches and helps reveal better dates before a new flight search is started."
-        case .uzbek: return "Narxlar kalendarini oching: u haqiqiy qidiruvlar bilan to‘lib boradi va yangi qidiruvdan oldin qulayroq sanalarni ko‘rsatadi."
-        case .uzbekCyrillic: return "Нархлар календарини очинг: у ҳақиқий қидирувлар билан тўлиб боради ва янги қидирувдан олдин қулайроқ саналарни кўрсатади."
+        case .russian: return "Откройте календарь актуальных дат: он заполняется реальными поисками и помогает выбрать подходящее окно поездки до запуска нового поиска."
+        case .english: return "Open the current-date calendar: it grows from real searches and helps choose a suitable travel window before a new flight search starts."
+        case .uzbek: return "Dolzarb sanalar kalendarini oching: u haqiqiy qidiruvlar bilan to‘lib boradi va yangi qidiruvdan oldin mos safar oynasini tanlashga yordam beradi."
+        case .uzbekCyrillic: return "Долзарб саналар календарини очинг: у ҳақиқий қидирувлар билан тўлиб боради ва янги қидирувдан олдин мос сафар оралиғини танлашга ёрдам беради."
         }
     }
 
@@ -477,9 +485,205 @@ struct TripBuilderView: View {
         }
     }
 
+    @ViewBuilder
+    private var curatedFlightsSection: some View {
+        if !curatedFlights.isEmpty {
+            VStack(alignment: .leading, spacing: 13) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(curatedFlightsTitle)
+                            .font(.headline)
+                        Text(curatedFlightsSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "airplane.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 11) {
+                        ForEach(curatedFlights) { recommendation in
+                            curatedFlightCard(recommendation)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .contentMargins(.horizontal, 1, for: .scrollContent)
+            }
+            .iumrahCard()
+        }
+    }
+
+    private func curatedFlightCard(_ recommendation: CuratedFlightRecommendation) -> some View {
+        Button {
+            selectCuratedFlight(recommendation)
+        } label: {
+            VStack(alignment: .leading, spacing: 13) {
+                HStack(spacing: 10) {
+                    AirlineLogoView(airlineCode: recommendation.primaryAirlineCode, size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(recommendation.primaryAirlineName)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(recommendation.flightNumbers.joined(separator: " · "))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Text(curatedDirectLabel)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 8)
+                        .frame(height: 25)
+                        .background(Color.green.opacity(0.09), in: Capsule())
+                }
+
+                HStack(spacing: 8) {
+                    curatedRouteCode(recommendation.outbound.origin)
+                    Image(systemName: "arrow.right")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+                    curatedRouteCode(recommendation.outbound.destination)
+                    if let inbound = recommendation.inbound {
+                        Image(systemName: "arrow.right")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.secondary)
+                        curatedRouteCode(inbound.destination)
+                    }
+                }
+
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(curatedDatesLabel)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(curatedDateRange(recommendation))
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
+                    Spacer()
+                    Image(systemName: curatedFlightIsSelected(recommendation) ? "checkmark.circle.fill" : "arrow.up.right.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(curatedFlightIsSelected(recommendation) ? Color.green : Color.primary)
+                }
+            }
+            .padding(15)
+            .frame(width: 286, minHeight: 168, alignment: .leading)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .strokeBorder(curatedFlightIsSelected(recommendation) ? Color.green.opacity(0.26) : Color.primary.opacity(0.05), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func curatedRouteCode(_ code: String) -> some View {
+        Text(code)
+            .font(.caption.weight(.bold))
+            .monospaced()
+            .foregroundStyle(.primary)
+    }
+
+    private func curatedDateRange(_ recommendation: CuratedFlightRecommendation) -> String {
+        let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate)
+        let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate)
+        let outboundText = outbound.map { shortCuratedDate($0) } ?? recommendation.outboundDate
+        let inboundText = inbound.map { shortCuratedDate($0) } ?? recommendation.inboundDate ?? ""
+        return inboundText.isEmpty ? outboundText : "\(outboundText) — \(inboundText)"
+    }
+
+    private func shortCuratedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate("dMMM")
+        return formatter.string(from: date)
+    }
+
+    private func curatedFlightIsSelected(_ recommendation: CuratedFlightRecommendation) -> Bool {
+        guard let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate),
+              let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate) else { return false }
+        return Calendar.current.isDate(outbound, inSameDayAs: journey.trip.departureDate)
+            && Calendar.current.isDate(inbound, inSameDayAs: journey.trip.returnDate)
+    }
+
+    private func selectCuratedFlight(_ recommendation: CuratedFlightRecommendation) {
+        guard let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate),
+              let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate),
+              inbound >= outbound else { return }
+        journey.resetAfterTripChange()
+        journey.trip.flexibility = .exact
+        journey.trip.flightTripType = .roundTrip
+        journey.trip.departureDate = outbound
+        journey.trip.returnDate = inbound
+        IumrahHaptics.selection()
+    }
+
+    @MainActor
+    private func loadCuratedFlights() async {
+        isLoadingCuratedFlights = true
+        defer { isLoadingCuratedFlights = false }
+        do {
+            curatedFlights = try await CuratedFlightRecommendationService.shared.load(trip: journey.trip)
+        } catch {
+            // Recommendations are an enhancement. The normal date picker and live
+            // flight search remain fully functional when this cache is unavailable.
+            curatedFlights = []
+        }
+    }
+
+    private var curatedFlightsQueryKey: String {
+        [journey.trip.originCode, journey.trip.outboundDestinationCode, journey.trip.returnOriginCode, journey.trip.originCode]
+            .map { $0.uppercased() }
+            .joined(separator: "|")
+    }
+
+    private var curatedFlightsTitle: String {
+        switch settings.language {
+        case .russian: return "Актуальные прямые рейсы"
+        case .english: return "Current direct flights"
+        case .uzbek: return "Dolzarb to‘g‘ridan-to‘g‘ri reyslar"
+        case .uzbekCyrillic: return "Долзарб тўғридан-тўғри рейслар"
+        }
+    }
+
+    private var curatedFlightsSubtitle: String {
+        switch settings.language {
+        case .russian: return "Без пересадок · iumrah рекомендует"
+        case .english: return "Nonstop · recommended by iumrah"
+        case .uzbek: return "To‘xtovsiz · iumrah tavsiya qiladi"
+        case .uzbekCyrillic: return "Тўхтовсиз · iumrah тавсия қилади"
+        }
+    }
+
+    private var curatedDirectLabel: String {
+        switch settings.language {
+        case .russian: return "ПРЯМОЙ"
+        case .english: return "DIRECT"
+        case .uzbek: return "TO‘G‘RI"
+        case .uzbekCyrillic: return "ТЎҒРИ"
+        }
+    }
+
+    private var curatedDatesLabel: String {
+        switch settings.language {
+        case .russian: return "Даты рейса"
+        case .english: return "Flight dates"
+        case .uzbek: return "Reys sanalari"
+        case .uzbekCyrillic: return "Рейс саналари"
+        }
+    }
+
     private var travelersCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            formHeader(L10n.text("trip_travelers_title", settings.language), icon: "person.2", role: .profile)
+            Label(L10n.text("trip_travelers_title", settings.language), systemImage: "person.2")
+                .font(.headline)
                 .padding(.bottom, 4)
 
             Text(L10n.text("trip_travelers_body", settings.language))
@@ -518,7 +722,8 @@ struct TripBuilderView: View {
 
     private var hotelClassCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            formHeader(L10n.text("hotel_level", settings.language), icon: "building.2", role: .hotel)
+            Label(L10n.text("hotel_level", settings.language), systemImage: "building.2")
+                .font(.headline)
 
             HStack(spacing: 8) {
                 ForEach(1...5, id: \.self) { stars in
@@ -547,7 +752,8 @@ struct TripBuilderView: View {
 
     private var packageCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            formHeader(L10n.text("trip_format_title", settings.language), icon: "square.grid.2x2", role: .booking)
+            Label(L10n.text("trip_format_title", settings.language), systemImage: "square.grid.2x2")
+                .font(.headline)
 
             ForEach(PackageTier.allCases) { tier in
                 Button {
@@ -590,13 +796,4 @@ struct TripBuilderView: View {
         }
         .iumrahCard()
     }
-    private func formHeader(_ title: String, icon: String, role: IumrahIconRole) -> some View {
-        HStack(spacing: 9) {
-            IumrahInlineIcon(systemName: icon, role: role, size: 16)
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.primary)
-        }
-    }
-
 }

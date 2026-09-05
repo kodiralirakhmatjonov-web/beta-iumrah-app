@@ -177,6 +177,28 @@ function validateSearchBody(raw: SearchBody) {
   };
 }
 
+function validateCurationSearchBody(raw: SearchBody) {
+  // Reuse the production validation contract, but keep the provider filters that
+  // the customer search intentionally strips. This endpoint is staff-only and is
+  // used to curate a small set of nonstop/date recommendations, so narrowing the
+  // provider request is desirable and cannot poison the general customer cache.
+  const base = validateSearchBody(raw);
+  const legs = (raw.legs ?? []).map(normalizeRequestLeg);
+  const include = normalizeAirlines(raw.airlines_include);
+  const exclude = normalizeAirlines(raw.airlines_exclude);
+  return {
+    ...base,
+    legs,
+    min_carry_on_bags: raw.min_carry_on_bags == null ? undefined : finiteInt(raw.min_carry_on_bags, 0, 9),
+    min_checked_bags: raw.min_checked_bags == null ? undefined : finiteInt(raw.min_checked_bags, 0, 9),
+    max_price: raw.max_price == null ? undefined : finiteInt(raw.max_price, 1, 1_000_000),
+    airlines_include: include,
+    airlines_exclude: exclude,
+    allow_self_transfer: raw.allow_self_transfer ?? false,
+    market: "US",
+  };
+}
+
 async function fetchIgnav(apiKey: string, body: Record<string, unknown>) {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -350,7 +372,12 @@ function normalizeResponseLeg(leg: IgnavLeg | undefined, expected: ReturnType<ty
   };
 }
 
-function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeof validateSearchBody>, observedAt: string, index: number) {
+function normalizeItinerary(
+  itinerary: IgnavItinerary,
+  request: { legs: ReturnType<typeof normalizeRequestLeg>[]; cabin_class: string },
+  observedAt: string,
+  index: number,
+) {
   const price = itinerary.price;
   if (!price || typeof price.amount !== "number" || !Number.isFinite(price.amount) || price.amount <= 0) return null;
   // Ignav documents unverified prices as discovery hints. Package pricing may only
@@ -365,6 +392,7 @@ function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeo
 
   const legs = itinerary.legs.map((leg, index) => normalizeResponseLeg(leg, request.legs[index], typeof itinerary.cabin_class === "string" ? itinerary.cabin_class : request.cabin_class));
   if (legs.some((leg) => leg === null)) return null;
+  const safeLegs = legs as NonNullable<(typeof legs)[number]>[];
 
   const bags = itinerary.bags && typeof itinerary.bags === "object" ? {
     carry_on: Number.isInteger(itinerary.bags.carry_on) && Number(itinerary.bags.carry_on) >= 0 ? Number(itinerary.bags.carry_on) : null,
@@ -381,7 +409,7 @@ function normalizeItinerary(itinerary: IgnavItinerary, request: ReturnType<typeo
     // round-trip/open-jaw fare; the client must charge it exactly once.
     fare_scope: "total_party",
     price: { amount: price.amount, currency, status: String(price.status || "unverified") },
-    legs,
+    legs: safeLegs,
     cabin_class: typeof itinerary.cabin_class === "string" ? itinerary.cabin_class : request.cabin_class,
     bags,
     requires_self_transfer: itinerary.requires_self_transfer ?? null,
@@ -468,5 +496,45 @@ export async function searchIgnavFlights(request: Request, env: Env): Promise<Re
     return json({ ok: false, error: "FLIGHT_SEARCH_UPSTREAM_FAILED", retryable, upstream_status: status || null }, retryable ? 503 : 502);
   } finally {
     if (ownsLock && env.HOTELS_DB) await releaseFlightSearchLock(env.HOTELS_DB, cacheBody).catch(() => undefined);
+  }
+}
+
+
+export async function searchIgnavFlightsForCuration(request: Request, env: Env): Promise<Response> {
+  if (!env.IGNAV_API_KEY) return json({ ok: false, error: "FLIGHT_PROVIDER_NOT_CONFIGURED" }, 503);
+  let raw: SearchBody;
+  try { raw = (await request.json()) as SearchBody; }
+  catch { return json({ ok: false, error: "INVALID_JSON" }, 400); }
+
+  let body: ReturnType<typeof validateCurationSearchBody>;
+  try { body = validateCurationSearchBody(raw); }
+  catch (error) { return json({ ok: false, error: error instanceof Error ? error.message : "INVALID_REQUEST" }, 400); }
+
+  try {
+    const observedAt = new Date().toISOString();
+    const upstream = await fetchIgnav(env.IGNAV_API_KEY, body as unknown as Record<string, unknown>);
+    await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
+    const itineraries = (upstream.itineraries ?? [])
+      .map((itinerary, index) => normalizeItinerary(itinerary, body, observedAt, index))
+      .filter((value): value is NonNullable<typeof value> => value !== null)
+      .filter((itinerary) => itinerary.legs.every((leg) => leg.stops === 0))
+      .sort((a, b) => a.price.amount - b.price.amount);
+
+    return json({
+      ok: true,
+      source: "ignav",
+      observed_at: observedAt,
+      legs: body.legs,
+      itineraries,
+      filters: {
+        nonstop: body.legs.every((leg) => leg.max_stops === 0),
+        airlines_include: body.airlines_include ?? [],
+        allow_self_transfer: body.allow_self_transfer,
+      },
+    });
+  } catch (error) {
+    const status = Number((error as any)?.status ?? 0);
+    const retryable = status === 424 || status === 503 || status === 0;
+    return json({ ok: false, error: "FLIGHT_SEARCH_UPSTREAM_FAILED", retryable, upstream_status: status || null }, retryable ? 503 : 502);
   }
 }

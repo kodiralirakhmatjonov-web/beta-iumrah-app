@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Temporary production-safe carrier mark. Remote logo CDNs are deliberately
-/// disabled until the curated airline assets are shipped inside the app bundle.
-/// This prevents an incorrect third-party logo from ever being shown next to a
-/// verified flight number.
+/// Airline mark used by verified flight results and curated direct-flight cards.
+/// Google Flights' public carrier image endpoint is also used by iumrah Business;
+/// a strict two-character IATA check and local code fallback keep the card usable
+/// when a logo is unavailable.
 struct AirlineLogoView: View {
     let airlineCode: String?
     var size: CGFloat = 38
@@ -11,17 +11,21 @@ struct AirlineLogoView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .fill(Color.iumrahRaisedBackground)
+                .fill(Color.white)
 
-            if let code = verifiedCode {
-                Text(code)
-                    .font(.system(size: size * 0.28, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .minimumScaleFactor(0.7)
+            if let logoURL {
+                AsyncImage(url: logoURL) { phase in
+                    if case .success(let image) = phase {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .padding(size * 0.14)
+                    } else {
+                        fallback
+                    }
+                }
             } else {
-                Image(systemName: "airplane")
-                    .font(.system(size: size * 0.30, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                fallback
             }
         }
         .frame(width: size, height: size)
@@ -37,5 +41,25 @@ struct AirlineLogoView: View {
         let code = airlineCode.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return nil }
         return code
+    }
+
+    private var logoURL: URL? {
+        guard let verifiedCode else { return nil }
+        return URL(string: "https://www.gstatic.com/flights/airline_logos/70px/\(verifiedCode).png")
+    }
+
+    private var fallback: some View {
+        Group {
+            if let verifiedCode {
+                Text(verifiedCode)
+                    .font(.system(size: size * 0.28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Image(systemName: "airplane")
+                    .font(.system(size: size * 0.30, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }

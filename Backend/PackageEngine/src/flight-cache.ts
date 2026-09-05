@@ -1,4 +1,5 @@
 import type { D1Like } from "./d1";
+import { curatedCalendarRows } from "./curated-flights";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const SEARCH_CACHE_TTL_SECONDS = 12 * 60 * 60;
@@ -314,7 +315,23 @@ export async function flightCalendarResponse(url: URL, db: D1Like | undefined): 
       signature, cabin, from, to, selectedOutbound, selectedOutbound,
     ).all<CalendarRow>();
 
-  const values = rows.results ?? [];
+  const curatedRows = await curatedCalendarRows(db, {
+    outboundOrigin,
+    outboundDestination,
+    inboundOrigin: inboundOriginRaw,
+    inboundDestination: inboundDestinationRaw,
+    cabinClass: cabin,
+    travelerCount: adults + children + infantsInSeat + infantsOnLap,
+    from,
+    to,
+    selectedOutbound,
+  }).catch(() => []);
+
+  // Automatic observations continue to reflect the latest live customer search.
+  // Staff-curated offers are merged only for calendar ranking so an approved,
+  // lower verified fare can win for a date pair without contaminating the normal
+  // provider search cache. The client UI may choose not to render the amount.
+  const values: CalendarRow[] = [...(rows.results ?? []), ...curatedRows];
   const bestByOutbound = new Map<string, CalendarRow>();
   for (const row of values) {
     const existing = bestByOutbound.get(row.outbound_date);

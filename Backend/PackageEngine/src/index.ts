@@ -3,10 +3,11 @@ import { applyPilgrimFriendCredit, deleteAdminBooking, deletePilgrimBooking, get
 import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRoomCategories, listHotelRoomCategories } from "./room-categories";
 import type { Env } from "./env";
 import { curatedPrimaryHotel } from "./generator-components";
-import { searchIgnavFlights } from "./ignav-flights";
+import { searchIgnavFlights, searchIgnavFlightsForCuration } from "./ignav-flights";
 import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
 import { cleanupExpiredFlightCache, flightCalendarResponse } from "./flight-cache";
+import { deleteCuratedFlightAdmin, listCuratedFlightsAdmin, publicCuratedFlightRecommendations, saveCuratedFlightAdmin } from "./curated-flights";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -97,6 +98,23 @@ export default {
       const auth = await requirePackageAdmin(request);
       if (!auth.ok) return auth.response;
 
+      if (url.pathname === "/api/admin/package/flights/curation-search") {
+        if (request.method === "POST") return searchIgnavFlightsForCuration(request, env);
+        return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+
+      if (url.pathname === "/api/admin/package/flights/curated") {
+        if (request.method === "GET") return listCuratedFlightsAdmin(env.HOTELS_DB);
+        if (request.method === "POST") return saveCuratedFlightAdmin(request, env.HOTELS_DB, auth.user.login ?? auth.user.email ?? auth.user.id ?? "staff");
+        return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+
+      const curatedFlightMatch = url.pathname.match(/^\/api\/admin\/package\/flights\/curated\/([^/]+)$/);
+      if (curatedFlightMatch) {
+        if (request.method === "DELETE") return deleteCuratedFlightAdmin(decodeURIComponent(curatedFlightMatch[1]), env.HOTELS_DB);
+        return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+
       const adminBookingMatch = url.pathname.match(/^\/api\/admin\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})$/);
       if (adminBookingMatch) {
         if (request.method === "DELETE") return deleteAdminBooking(adminBookingMatch[1], env);
@@ -153,6 +171,10 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/api/package/flights/calendar") {
       return flightCalendarResponse(url, env.HOTELS_DB);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/package/flights/recommendations") {
+      return publicCuratedFlightRecommendations(url, env.HOTELS_DB);
     }
 
     const hotelPricingSourcesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/pricing-sources$/);
