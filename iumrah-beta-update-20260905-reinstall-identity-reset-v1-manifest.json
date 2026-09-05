@@ -1,0 +1,22 @@
+{
+  "update": "iumrah-beta-update-20260905-reinstall-identity-reset-v1",
+  "scope": "local installation lifecycle / Keychain reinstall reset",
+  "backend_changed": false,
+  "files": [
+    {
+      "path": "Sources/App/IumrahBetaApp.swift",
+      "sha256": "b17b32da4a2d9865fb99a5bdacbcc50b801e2060d86766feb19eea5954357d7b",
+      "bytes": 572
+    },
+    {
+      "path": "Sources/Core/AppInstallationLifecycle.swift",
+      "sha256": "5b211acf905c10aade78078c96172e6ff3ae89f2dc77f8eccc2afdf326491af6",
+      "bytes": 7652
+    },
+    {
+      "path": "BETA_INSTALLATION_LIFECYCLE_090_APPLIED.txt",
+      "sha256": "323eabb0e0995841d899ce8e007c8b15e3bb143c3b9003a98cc029eb8d3c52aa",
+      "bytes": 1183
+    }
+  ]
+}

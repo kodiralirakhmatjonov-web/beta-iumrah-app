@@ -1,0 +1,21 @@
+BETA_INSTALLATION_LIFECYCLE_090_APPLIED
+
+Scope: iOS client local installation identity only. No backend, pricing, booking,
+UI, navigation, API contract, or server database changes.
+
+Behavior:
+- Normal relaunch: account session and device installation identity are preserved.
+- App update over an existing installation: account session is preserved.
+- Delete + reinstall: stale Keychain account session is discarded.
+- Delete + reinstall: stale Keychain booking sessions are discarded.
+- Delete + reinstall: stale device installation ID + device secret are discarded.
+- The next authenticated use creates a fresh installation ID and secret.
+
+Implementation:
+- Adds an installation marker stored both in the app container and Keychain.
+- The app-container marker is excluded from backup.
+- A missing/mismatched container marker proves the surviving Keychain state came
+  from a previous installation and resets only iumrah-owned protected items.
+- Startup check runs before RootView creates BookingStore/IumrahAccountStore.
+- Includes a one-time migration guard so users updating an already-installed app
+  are not signed out merely because this lifecycle marker did not exist before.
