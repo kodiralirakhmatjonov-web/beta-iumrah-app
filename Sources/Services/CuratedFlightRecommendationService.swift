@@ -7,23 +7,27 @@ final class CuratedFlightRecommendationService {
 
     private init() {}
 
+    /// Loads every staff-published direct Umrah option for the departure airport.
+    /// The carousel is deliberately broader than the currently selected JED/MED
+    /// itinerary order so the pilgrim can discover a better flight/date first.
     func load(trip: TripDraft, from: Date = Date(), days: Int = 365) async throws -> [CuratedFlightRecommendation] {
         let calendar = Calendar(identifier: .gregorian)
         let start = calendar.startOfDay(for: from)
         let end = calendar.date(byAdding: .day, value: max(1, min(days, 365)), to: start) ?? start
+
         let response: CuratedFlightRecommendationsResponse = try await api.get(
             "/api/package/flights/recommendations",
             query: [
-                URLQueryItem(name: "outbound_origin", value: trip.originCode),
-                URLQueryItem(name: "outbound_destination", value: trip.outboundDestinationCode),
-                URLQueryItem(name: "inbound_origin", value: trip.returnOriginCode),
-                URLQueryItem(name: "inbound_destination", value: trip.originCode),
+                URLQueryItem(name: "umrah_origin", value: trip.originCode.uppercased()),
                 URLQueryItem(name: "from", value: Self.day.string(from: start)),
                 URLQueryItem(name: "to", value: Self.day.string(from: end))
             ],
             timeoutInterval: 10
         )
+
         guard response.ok else { return [] }
+        // Keep the server order: staff priority first, then the lowest hidden
+        // supplier fare. The customer sees no fare, only the best-ranked cards.
         return response.recommendations.filter { $0.nonstop }
     }
 

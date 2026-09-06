@@ -41,6 +41,18 @@ test('curated public recommendations deliberately omit supplier fare fields', ()
   assert.doesNotMatch(publicBlock, /min_per_traveler_fare/);
 });
 
+
+test('public recommendations support origin-wide JED/MED discovery and bypass stale CDN cache', () => {
+  const publicBlock = curated.slice(
+    curated.indexOf('export async function publicCuratedFlightRecommendations'),
+    curated.indexOf('export async function curatedCalendarRows')
+  );
+  assert.match(publicBlock, /umrah_origin/);
+  assert.match(publicBlock, /outbound_destination IN \('JED', 'MED'\)/);
+  assert.match(publicBlock, /inbound_origin IN \('JED', 'MED'\)/);
+  assert.match(publicBlock, /"no-store"/);
+});
+
 test('calendar merges curated rows then chooses the lowest per-traveler fare for each date', () => {
   assert.match(calendar, /curatedCalendarRows/);
   assert.match(calendar, /const values: CalendarRow\[\] = \[\.\.\.\(rows\.results \?\? \[\]\), \.\.\.curatedRows\]/);

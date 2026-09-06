@@ -6,6 +6,7 @@ struct TripBuilderView: View {
     @State private var showsDateCalendar = false
     @State private var curatedFlights: [CuratedFlightRecommendation] = []
     @State private var isLoadingCuratedFlights = false
+    @State private var selectedCuratedFlightID: String? = nil
 
     var body: some View {
         ScrollView {
@@ -485,26 +486,64 @@ struct TripBuilderView: View {
         }
     }
 
-    @ViewBuilder
     private var curatedFlightsSection: some View {
-        if !curatedFlights.isEmpty {
-            VStack(alignment: .leading, spacing: 13) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(curatedFlightsTitle)
-                            .font(.headline)
-                        Text(curatedFlightsSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "airplane.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 46, height: 46)
+                    Image(systemName: "airplane.departure")
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(.white)
                 }
 
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(curatedFlightsTitle)
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(curatedFlightsSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 6)
+
+                Text("iumrah")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.orange)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+            }
+
+            if isLoadingCuratedFlights && curatedFlights.isEmpty {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(curatedLoadingLabel)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+                .padding(.horizontal, 4)
+            } else if curatedFlights.isEmpty {
+                HStack(spacing: 11) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.title3)
+                        .foregroundStyle(Color.orange)
+                    Text(curatedEmptyLabel)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.iumrahRaisedBackground.opacity(0.82), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 11) {
+                    LazyHStack(spacing: 12) {
                         ForEach(curatedFlights) { recommendation in
                             curatedFlightCard(recommendation)
                         }
@@ -514,20 +553,31 @@ struct TripBuilderView: View {
                 .scrollTargetBehavior(.viewAligned)
                 .contentMargins(.horizontal, 1, for: .scrollContent)
             }
-            .iumrahCard()
+        }
+        .padding(17)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color.orange.opacity(0.085))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.orange.opacity(0.18), lineWidth: 1)
         }
     }
 
     private func curatedFlightCard(_ recommendation: CuratedFlightRecommendation) -> some View {
-        Button {
+        let isSelected = curatedFlightIsSelected(recommendation)
+
+        return Button {
             selectCuratedFlight(recommendation)
         } label: {
-            VStack(alignment: .leading, spacing: 13) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
-                    AirlineLogoView(airlineCode: recommendation.primaryAirlineCode, size: 40)
+                    AirlineLogoView(airlineCode: recommendation.primaryAirlineCode, size: 44)
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(recommendation.primaryAirlineName)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                         Text(recommendation.flightNumbers.joined(separator: " · "))
@@ -535,72 +585,94 @@ struct TripBuilderView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
-                    Spacer(minLength: 8)
-                    Text(curatedDirectLabel)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.green)
-                        .padding(.horizontal, 8)
-                        .frame(height: 25)
-                        .background(Color.green.opacity(0.09), in: Capsule())
+
+                    Spacer(minLength: 6)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(curatedDirectLabel)
+                            .font(.caption2.weight(.bold))
+                    }
+                    .foregroundStyle(Color.orange)
+                    .padding(.horizontal, 8)
+                    .frame(height: 25)
+                    .background(Color.orange.opacity(0.10), in: Capsule())
                 }
 
-                HStack(spacing: 8) {
-                    curatedRouteCode(recommendation.outbound.origin)
-                    Image(systemName: "arrow.right")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.secondary)
-                    curatedRouteCode(recommendation.outbound.destination)
-                    if let inbound = recommendation.inbound {
-                        Image(systemName: "arrow.right")
-                            .font(.caption2.bold())
-                            .foregroundStyle(.secondary)
-                        curatedRouteCode(inbound.destination)
+                VStack(spacing: 9) {
+                    curatedLegRow(
+                        origin: recommendation.outbound.origin,
+                        destination: recommendation.outbound.destination,
+                        date: recommendation.outboundDate,
+                        systemImage: "airplane.departure"
+                    )
+
+                    if let inbound = recommendation.inbound,
+                       let inboundDate = recommendation.inboundDate {
+                        curatedLegRow(
+                            origin: inbound.origin,
+                            destination: inbound.destination,
+                            date: inboundDate,
+                            systemImage: "airplane.arrival"
+                        )
                     }
                 }
 
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(curatedDatesLabel)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(curatedDateRange(recommendation))
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    }
+                Divider()
+                    .opacity(0.55)
+
+                HStack {
+                    Text(curatedSelectDatesLabel)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(isSelected ? Color.orange : Color.primary)
                     Spacer()
-                    Image(systemName: curatedFlightIsSelected(recommendation) ? "checkmark.circle.fill" : "arrow.up.right.circle.fill")
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "arrow.right.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(curatedFlightIsSelected(recommendation) ? Color.green : Color.primary)
+                        .foregroundStyle(isSelected ? Color.orange : Color.primary)
                 }
             }
             .padding(15)
-            .frame(width: 286, alignment: .leading)
-            .frame(minHeight: 168, alignment: .leading)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+            .frame(width: 292, minHeight: 204, alignment: .leading)
+            .background(
+                isSelected ? Color.orange.opacity(0.075) : Color.iumrahRaisedBackground,
+                in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 21, style: .continuous)
-                    .strokeBorder(curatedFlightIsSelected(recommendation) ? Color.green.opacity(0.26) : Color.primary.opacity(0.05), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(isSelected ? Color.orange.opacity(0.35) : Color.primary.opacity(0.055), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
     }
 
-    private func curatedRouteCode(_ code: String) -> some View {
-        Text(code)
-            .font(.caption.weight(.bold))
-            .monospaced()
-            .foregroundStyle(.primary)
+    private func curatedLegRow(origin: String, destination: String, date: String, systemImage: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Color.orange)
+                .frame(width: 18)
+
+            Text(origin)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .monospaced()
+            Image(systemName: "arrow.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+            Text(destination)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .monospaced()
+
+            Spacer(minLength: 8)
+
+            Text(curatedShortDate(date))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
     }
 
-    private func curatedDateRange(_ recommendation: CuratedFlightRecommendation) -> String {
-        let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate)
-        let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate)
-        let outboundText = outbound.map { shortCuratedDate($0) } ?? recommendation.outboundDate
-        let inboundText = inbound.map { shortCuratedDate($0) } ?? recommendation.inboundDate ?? ""
-        return inboundText.isEmpty ? outboundText : "\(outboundText) — \(inboundText)"
-    }
-
-    private func shortCuratedDate(_ date: Date) -> String {
+    private func curatedShortDate(_ value: String) -> String {
+        guard let date = CuratedFlightRecommendationService.date(value) else { return value }
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.setLocalizedDateFormatFromTemplate("dMMM")
@@ -608,6 +680,7 @@ struct TripBuilderView: View {
     }
 
     private func curatedFlightIsSelected(_ recommendation: CuratedFlightRecommendation) -> Bool {
+        if let selectedCuratedFlightID { return selectedCuratedFlightID == recommendation.id }
         guard let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate),
               let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate) else { return false }
         return Calendar.current.isDate(outbound, inSameDayAs: journey.trip.departureDate)
@@ -623,6 +696,7 @@ struct TripBuilderView: View {
         journey.trip.flightTripType = .roundTrip
         journey.trip.departureDate = outbound
         journey.trip.returnDate = inbound
+        selectedCuratedFlightID = recommendation.id
         IumrahHaptics.selection()
     }
 
@@ -633,16 +707,12 @@ struct TripBuilderView: View {
         do {
             curatedFlights = try await CuratedFlightRecommendationService.shared.load(trip: journey.trip)
         } catch {
-            // Recommendations are an enhancement. The normal date picker and live
-            // flight search remain fully functional when this cache is unavailable.
             curatedFlights = []
         }
     }
 
     private var curatedFlightsQueryKey: String {
-        [journey.trip.originCode, journey.trip.outboundDestinationCode, journey.trip.returnOriginCode, journey.trip.originCode]
-            .map { $0.uppercased() }
-            .joined(separator: "|")
+        journey.trip.originCode.uppercased()
     }
 
     private var curatedFlightsTitle: String {
@@ -656,10 +726,10 @@ struct TripBuilderView: View {
 
     private var curatedFlightsSubtitle: String {
         switch settings.language {
-        case .russian: return "Без пересадок · iumrah рекомендует"
-        case .english: return "Nonstop · recommended by iumrah"
-        case .uzbek: return "To‘xtovsiz · iumrah tavsiya qiladi"
-        case .uzbekCyrillic: return "Тўхтовсиз · iumrah тавсия қилади"
+        case .russian: return "Прямые рейсы, отобранные iumrah"
+        case .english: return "Nonstop flights selected by iumrah"
+        case .uzbek: return "iumrah tanlagan to‘xtovsiz reyslar"
+        case .uzbekCyrillic: return "iumrah танлаган тўхтовсиз рейслар"
         }
     }
 
@@ -672,12 +742,30 @@ struct TripBuilderView: View {
         }
     }
 
-    private var curatedDatesLabel: String {
+    private var curatedSelectDatesLabel: String {
         switch settings.language {
-        case .russian: return "Даты рейса"
-        case .english: return "Flight dates"
-        case .uzbek: return "Reys sanalari"
-        case .uzbekCyrillic: return "Рейс саналари"
+        case .russian: return "Выбрать эти даты"
+        case .english: return "Choose these dates"
+        case .uzbek: return "Shu sanalarni tanlash"
+        case .uzbekCyrillic: return "Шу саналарни танлаш"
+        }
+    }
+
+    private var curatedLoadingLabel: String {
+        switch settings.language {
+        case .russian: return "Загружаем опубликованные рейсы…"
+        case .english: return "Loading published flights…"
+        case .uzbek: return "E’lon qilingan reyslar yuklanmoqda…"
+        case .uzbekCyrillic: return "Эълон қилинган рейслар юкланмоқда…"
+        }
+    }
+
+    private var curatedEmptyLabel: String {
+        switch settings.language {
+        case .russian: return "Новые прямые рейсы появятся здесь после публикации iumrah."
+        case .english: return "New direct flights will appear here after iumrah publishes them."
+        case .uzbek: return "Yangi to‘g‘ridan-to‘g‘ri reyslar iumrah e’lon qilgach shu yerda ko‘rinadi."
+        case .uzbekCyrillic: return "Янги тўғридан-тўғри рейслар iumrah эълон қилгач шу ерда кўринади."
         }
     }
 

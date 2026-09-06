@@ -314,29 +314,56 @@ function validAirportParam(url: URL, key: string, required = true): string | nul
 export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | undefined): Promise<Response> {
   if (!db) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
   await ensureCuratedFlightSchema(db);
-  const outboundOrigin = validAirportParam(url, "outbound_origin");
-  const outboundDestination = validAirportParam(url, "outbound_destination");
-  const inboundOrigin = validAirportParam(url, "inbound_origin", false);
-  const inboundDestination = validAirportParam(url, "inbound_destination", false);
-  if (!outboundOrigin || !outboundDestination || outboundOrigin === outboundDestination ||
-      (url.searchParams.has("inbound_origin") && !inboundOrigin) ||
-      (url.searchParams.has("inbound_destination") && !inboundDestination)) {
-    return json({ ok: false, error: "INVALID_CURATED_ROUTE" }, 400);
-  }
+
   const from = safeText(url.searchParams.get("from"), 10) || new Date().toISOString().slice(0, 10);
   const to = safeText(url.searchParams.get("to"), 10) || "9999-12-31";
-  if (!DATE.test(from) || !DATE.test(to) || from > to) return json({ ok: false, error: "INVALID_CURATED_RANGE" }, 400);
+  if (!DATE.test(from) || !DATE.test(to) || from > to) {
+    return json({ ok: false, error: "INVALID_CURATED_RANGE" }, 400);
+  }
 
-  const result = await db.prepare(`SELECT * FROM curated_flight_offers
-    WHERE published = 1
-      AND outbound_origin = ? AND outbound_destination = ?
-      AND COALESCE(inbound_origin,'') = COALESCE(?, '')
-      AND COALESCE(inbound_destination,'') = COALESCE(?, '')
-      AND outbound_date BETWEEN ? AND ?
-    ORDER BY priority ASC, per_traveler_fare ASC, outbound_date ASC
-    LIMIT 24`)
-    .bind(outboundOrigin, outboundDestination, inboundOrigin, inboundDestination, from, to)
-    .all<CuratedRow>();
+  const umrahOrigin = validAirportParam(url, "umrah_origin", false);
+  let result: { results?: CuratedRow[] };
+
+  if (url.searchParams.has("umrah_origin")) {
+    if (!umrahOrigin) return json({ ok: false, error: "INVALID_CURATED_ROUTE" }, 400);
+
+    // Customer discovery intentionally ignores the currently selected JED/MED
+    // itinerary order. Staff may publish any useful direct Umrah pair and the
+    // pilgrim should see it before choosing dates. The actual supplier fare is
+    // still never exposed by this endpoint.
+    result = await db.prepare(`SELECT * FROM curated_flight_offers
+      WHERE published = 1
+        AND outbound_origin = ?
+        AND inbound_destination = ?
+        AND outbound_destination IN ('JED', 'MED')
+        AND inbound_origin IN ('JED', 'MED')
+        AND outbound_date BETWEEN ? AND ?
+      ORDER BY priority ASC, per_traveler_fare ASC, outbound_date ASC
+      LIMIT 24`)
+      .bind(umrahOrigin, umrahOrigin, from, to)
+      .all<CuratedRow>();
+  } else {
+    const outboundOrigin = validAirportParam(url, "outbound_origin");
+    const outboundDestination = validAirportParam(url, "outbound_destination");
+    const inboundOrigin = validAirportParam(url, "inbound_origin", false);
+    const inboundDestination = validAirportParam(url, "inbound_destination", false);
+    if (!outboundOrigin || !outboundDestination || outboundOrigin === outboundDestination ||
+        (url.searchParams.has("inbound_origin") && !inboundOrigin) ||
+        (url.searchParams.has("inbound_destination") && !inboundDestination)) {
+      return json({ ok: false, error: "INVALID_CURATED_ROUTE" }, 400);
+    }
+
+    result = await db.prepare(`SELECT * FROM curated_flight_offers
+      WHERE published = 1
+        AND outbound_origin = ? AND outbound_destination = ?
+        AND COALESCE(inbound_origin,'') = COALESCE(?, '')
+        AND COALESCE(inbound_destination,'') = COALESCE(?, '')
+        AND outbound_date BETWEEN ? AND ?
+      ORDER BY priority ASC, per_traveler_fare ASC, outbound_date ASC
+      LIMIT 24`)
+      .bind(outboundOrigin, outboundDestination, inboundOrigin, inboundDestination, from, to)
+      .all<CuratedRow>();
+  }
 
   const recommendations = (result.results ?? []).map((row) => {
     const itinerary = parseJSON<CuratedItinerary | null>(row.itinerary_json, null);
@@ -357,7 +384,9 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
     };
   }).filter((value): value is NonNullable<typeof value> => value !== null);
 
-  return json({ ok: true, recommendations, generatedAt: new Date().toISOString() }, 200, "public, max-age=60, s-maxage=300");
+  // Publishing in iumrah Business must become visible immediately. Do not keep
+  // an earlier empty recommendation response in a CDN cache for several minutes.
+  return json({ ok: true, recommendations, generatedAt: new Date().toISOString() }, 200, "no-store");
 }
 
 export async function curatedCalendarRows(
