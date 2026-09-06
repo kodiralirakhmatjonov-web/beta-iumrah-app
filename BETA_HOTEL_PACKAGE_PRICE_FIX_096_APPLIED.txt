@@ -1,0 +1,24 @@
+iumrah Beta — Hotel package price + public share-link fix 096
+Date: 2026-09-06
+Source state: beta-iumrah-app-main 13.zip + Hotel Storefront v1 + buildfix v2 + runtime fix v3
+
+Focused fixes only — no hotel-detail cosmetic redesign in this patch:
+- Storefront package pricing no longer re-rejects a positive hotel nightly price because of client-side freshness metadata. The 48h refresh lifecycle remains owned by the hotel-price backend.
+- The app first uses the dedicated staff-published storefront flight baseline. If an older Package Engine deployment has no usable baseline, the client falls back to the existing D1 flight-calendar cache for TAS→MED + JED→TAS and performs only local arithmetic. It does NOT trigger a new Ignav search.
+- Standard and Luxury quotes are rebuilt immediately from: flight fare per traveler + concrete hotel nightly rate/stay + existing LocalPackagePricingEngine services/markup/payment rules.
+- A transient baseline refresh no longer clears already calculated package quotes restored from disk.
+- Shared hotel URLs no longer expose internal supplier IDs such as IUM-HOTEL-EXPEDIA-.... New links use https://iumrah.app/h/<opaque-token>.
+- Universal-link handling supports /h/<token> and retains /hotel/<raw-id> only for backward compatibility with links already shared by older beta builds.
+- Web fallback never prints the internal hotel ID or supplier name.
+- Package Engine route config includes iumrah.app/h/*.
+
+Validation performed:
+- Swift parser passed for HotelStorefrontService.swift, HotelStorefrontStore.swift and RootView.swift.
+- Package Engine TypeScript typecheck passed.
+- Package Engine contract tests: 29/29 passed.
+- Package Engine runtime tests: 13/13 passed.
+
+Deployment:
+- Upload this ZIP to the repository root for the existing auto-extract workflow.
+- Run Deploy iumrah Package Engine once after extraction so the new /h/* public fallback/AASA route is live.
+- Then run the normal iOS/TestFlight build.

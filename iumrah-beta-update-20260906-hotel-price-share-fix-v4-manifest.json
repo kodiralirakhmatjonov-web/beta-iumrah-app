@@ -1,0 +1,51 @@
+{
+  "update": "iumrah-beta-update-20260906-hotel-price-share-fix-v4",
+  "date": "2026-09-06",
+  "source_state": "beta-iumrah-app-main 13.zip + hotel-storefront-v1 + buildfix-v2 + hotels-runtime-fix-v3",
+  "purpose": "Fix Hotel storefront package calculation and remove supplier IDs from public share URLs",
+  "backend_source_changes": true,
+  "package_engine_deploy_required": true,
+  "testflight_build_required": true,
+  "files": [
+    {
+      "path": "BETA_HOTEL_PACKAGE_PRICE_FIX_096_APPLIED.txt",
+      "bytes": 1966,
+      "sha256": "8eaa84b852582ea710e3d2f329a60a6de92f93984baf3073a0c8091156ed4619"
+    },
+    {
+      "path": "Backend/PackageEngine/src/index.ts",
+      "bytes": 10647,
+      "sha256": "c694876f7532dc072fc373733bb5f3944bd5aa7c644b1710b2c3615b6671b385"
+    },
+    {
+      "path": "Backend/PackageEngine/src/storefront.ts",
+      "bytes": 9017,
+      "sha256": "c2d0e2ce056a38546a7968b45083eb22ea065dedb475ad88950b55637684469f"
+    },
+    {
+      "path": "Backend/PackageEngine/test/storefront-flight-board-contract.test.mjs",
+      "bytes": 1328,
+      "sha256": "7505b553f2399c5d4912f64cae63b47e4ce017991227f670854d61dea0beca14"
+    },
+    {
+      "path": "Backend/PackageEngine/wrangler.template.jsonc",
+      "bytes": 1450,
+      "sha256": "85471ccd9f67fd9f6b9fc8e5f73bbab0d9c4be4629c7af90f2f7a8affe22e829"
+    },
+    {
+      "path": "Sources/Services/HotelStorefrontService.swift",
+      "bytes": 8889,
+      "sha256": "321522278ea8f910a4962ce8f8fc2119f7026ea945303e092d0208905f9bf641"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 10859,
+      "sha256": "f93e861500a642712d0423f487e7d49e88b570f14e11abd3e2bc76cbc1884763"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 12289,
+      "sha256": "4c50816769442176a352b4112c8a983316df826e3a403654699b07998269dd25"
+    }
+  ]
+}

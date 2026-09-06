@@ -95,7 +95,7 @@ export default {
       return appleAppSiteAssociation();
     }
 
-    if (request.method === "GET" && /^\/hotel\/[^/]+$/.test(url.pathname)) {
+    if (request.method === "GET" && (/^\/hotel\/[^/]+$/.test(url.pathname) || /^\/h\/[^/]+$/.test(url.pathname))) {
       return hotelWebFallback(url);
     }
 

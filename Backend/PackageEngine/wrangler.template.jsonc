@@ -23,6 +23,10 @@
     {
       "pattern": "iumrah.app/hotel/*",
       "zone_id": "__ZONE_ID__"
+    },
+    {
+      "pattern": "iumrah.app/h/*",
+      "zone_id": "__ZONE_ID__"
     }
   ],
   "d1_databases": [

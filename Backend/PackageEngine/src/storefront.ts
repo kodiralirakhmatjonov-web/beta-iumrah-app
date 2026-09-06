@@ -201,7 +201,10 @@ export function appleAppSiteAssociation(): Response {
     applinks: {
       details: [{
         appIDs: ["2DQ678JTNG.com.iumrah.beta"],
-        components: [{ "/": "/hotel/*", comment: "Open public iumrah hotel detail links in the iOS app." }],
+        components: [
+          { "/": "/h/*", comment: "Open public iumrah hotel links in the iOS app without exposing supplier identifiers." },
+          { "/": "/hotel/*", comment: "Backward compatibility for hotel links shared by older beta builds." },
+        ],
       }],
     },
   };
@@ -214,22 +217,17 @@ export function appleAppSiteAssociation(): Response {
   });
 }
 
-function escapeHTML(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[character] ?? character));
-}
-
-export function hotelWebFallback(url: URL): Response {
-  const hotelID = decodeURIComponent(url.pathname.replace(/^\/hotel\//, "")).trim().slice(0, 180);
-  const safeID = escapeHTML(hotelID);
+export function hotelWebFallback(_url: URL): Response {
+  // Public share pages never render the internal hotel identifier. Supplier names
+  // such as Expedia/Booking may exist inside the private D1 ID, but they must not
+  // appear in the customer-facing URL preview or fallback page.
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>iumrah Hotels</title><style>
+<title>iumrah Hotels</title><meta name="description" content="Open this hotel in iumrah to see the stay and complete Umrah package price."><style>
 body{margin:0;background:#f7f7f8;color:#111;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;display:grid;min-height:100vh;place-items:center}
 main{width:min(560px,calc(100% - 40px));background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:30px;padding:34px;box-sizing:border-box;box-shadow:0 16px 50px rgba(0,0,0,.06)}
-h1{font-size:34px;margin:0 0 10px;letter-spacing:-1px}p{color:#666;line-height:1.5;margin:0 0 20px}.id{font-size:13px;color:#888;word-break:break-all}
-</style></head><body><main><h1>iumrah Hotels</h1><p>Open this hotel in the iumrah app to see its curated stay details and current Umrah package price.</p><div class="id">Hotel: ${safeID}</div></main></body></html>`;
+h1{font-size:34px;margin:0 0 10px;letter-spacing:-1px}p{color:#666;line-height:1.5;margin:0}
+</style></head><body><main><h1>iumrah Hotels</h1><p>Open this hotel in the iumrah app to see its curated stay details and current Umrah package price.</p></main></body></html>`;
   return new Response(html, {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" },

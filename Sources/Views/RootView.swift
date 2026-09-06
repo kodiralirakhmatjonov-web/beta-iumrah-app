@@ -116,9 +116,20 @@ struct RootView: View {
         guard url.scheme?.lowercased() == "https",
               url.host?.lowercased() == "iumrah.app" else { return }
         let components = url.pathComponents.filter { $0 != "/" }
-        guard components.count == 2, components[0] == "hotel" else { return }
-        let hotelID = components[1].removingPercentEncoding ?? components[1]
-        guard !hotelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard components.count == 2 else { return }
+
+        let rawValue = components[1].removingPercentEncoding ?? components[1]
+        let hotelID: String?
+        switch components[0] {
+        case "h":
+            hotelID = HotelStorefrontService.decodePublicHotelToken(rawValue)
+        case "hotel":
+            // Backward compatibility for links shared by older beta builds.
+            hotelID = rawValue
+        default:
+            hotelID = nil
+        }
+        guard let hotelID, !hotelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         chrome.openHotel(id: hotelID)
     }
 

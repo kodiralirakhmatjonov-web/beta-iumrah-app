@@ -21,4 +21,7 @@ test("public storefront and universal-link routes are wired", () => {
   assert.match(index, /hotelWebFallback/);
   assert.match(wrangler, /apple-app-site-association/);
   assert.match(wrangler, /iumrah\.app\/hotel\/\*/);
+  assert.match(wrangler, /iumrah\.app\/h\/\*/);
+  assert.match(storefront, /supplier identifiers/);
+  assert.doesNotMatch(storefront, /<div class="id">Hotel:/);
 });

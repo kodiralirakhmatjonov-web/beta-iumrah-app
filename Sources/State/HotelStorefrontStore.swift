@@ -87,7 +87,7 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     func shareURL(for hotel: HotelSummary) -> URL {
-        AppConfig.apiBaseURL.appendingPathComponent("hotel").appendingPathComponent(hotel.id)
+        AppConfig.apiBaseURL.appendingPathComponent("h").appendingPathComponent(HotelStorefrontService.publicHotelToken(hotel.id))
     }
 
     /// The catalogue and the package baseline are intentionally loaded independently.
@@ -160,7 +160,7 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     private func flightBoardResult() async -> Result<StorefrontFlightBoardResponse, Error> {
-        do { return .success(try await storefront.flightBoard(origin: "TAS")) }
+        do { return .success(try await storefront.resilientFlightBoard(origin: "TAS")) }
         catch { return .failure(error) }
     }
 
@@ -181,8 +181,9 @@ final class HotelStorefrontStore: ObservableObject {
 
     private func rebuildQuotes() {
         guard let baseline else {
-            standardQuotes = [:]
-            luxuryQuotes = [:]
+            // Keep the last valid local quotes from the disk snapshot while the
+            // flight baseline refreshes. A transient network failure must never
+            // turn already calculated hotel cards back into endless spinners.
             return
         }
 
