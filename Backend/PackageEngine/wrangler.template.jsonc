@@ -15,6 +15,14 @@
     {
       "pattern": "iumrah.app/api/admin/package*",
       "zone_id": "__ZONE_ID__"
+    },
+    {
+      "pattern": "iumrah.app/.well-known/apple-app-site-association",
+      "zone_id": "__ZONE_ID__"
+    },
+    {
+      "pattern": "iumrah.app/hotel/*",
+      "zone_id": "__ZONE_ID__"
     }
   ],
   "d1_databases": [

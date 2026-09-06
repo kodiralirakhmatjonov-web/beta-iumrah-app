@@ -172,6 +172,113 @@ enum LocalPackagePricingEngine {
         )
     }
 
+    /// Storefront preview used by the Hotels tab before a pilgrim starts the dated trip builder.
+    /// It intentionally reuses the same package constants, markup, payment fee and public rounding
+    /// as the main pricing engine. The storefront adds one current staff-published TAS→MED +
+    /// JED→TAS airfare baseline, the concrete hotel being viewed, and the standard Umrah services.
+    /// Luxury is an explicit user upgrade; a five-star property does not silently change the tier.
+    static func calculateStorefrontPreview(
+        tier: PackageTier,
+        flightFarePerTravelerUsd: Decimal,
+        hotelNightlyUsd: Decimal,
+        hotelNights: Int,
+        rooms: Int = 1,
+        travelers: Int = 2
+    ) throws -> PackageQuote {
+        let travelers = max(1, travelers)
+        let rooms = max(1, rooms)
+        let nights = max(1, hotelNights)
+        guard flightFarePerTravelerUsd > 0, hotelNightlyUsd > 0 else {
+            throw LocalPricingError.invalidComponents
+        }
+
+        let vehicles = max(1, Int(ceil(Double(travelers) / Double(sedanCapacity))))
+        let flights = flightFarePerTravelerUsd * Decimal(travelers)
+        let hotel = hotelNightlyUsd * Decimal(rooms) * Decimal(nights)
+        let visa = visaPerTravellerUsd * Decimal(travelers)
+        let meals = mealRate(tier) * Decimal(nights + 1) * Decimal(travelers)
+        let usesTrain = tier == .comfort || tier == .luxury
+        let transfer = (usesTrain ? localWithTrainPerSedanUsd : roadWithMadinahPerSedanUsd) * Decimal(vehicles)
+        let intercity = usesTrain ? (haramainSarPerTraveller / sarPerUsd) * Decimal(travelers) : 0
+        let guide = accompanimentWithMadinahPerGroupUsd
+        let ziyarat = makkahZiyaratPerGroupUsd + madinahZiyaratPerGroupUsd
+
+        let totalCost = flights + hotel + visa + meals + transfer + intercity + guide + ziyarat
+        guard totalCost > 0 else { throw LocalPricingError.invalidComponents }
+
+        let baseSelling = totalCost + totalCost * packageMarkupRate
+        let calculatedSelling = baseSelling / (1 - paymentFeeRate)
+        let perPerson = roundPublic(calculatedSelling / Decimal(travelers))
+        let total = perPerson * Decimal(travelers)
+        let quoteID = "storefront-\(UUID().uuidString.lowercased())"
+        let markupAmount = totalCost * packageMarkupRate
+        let paymentFeeAmount = calculatedSelling - baseSelling
+        let roundingDifference = total - calculatedSelling
+        let estimatedProfit = total - totalCost - paymentFeeAmount
+
+        var components: [GeneratorPricingComponent] = [
+            .init(code: "flight_open_jaw", label: "Авиаперелёт Ташкент — Медина / Джидда — Ташкент", supplierCostUsd: flights),
+            .init(code: "hotel", label: "Отель", supplierCostUsd: hotel),
+            .init(code: "visa", label: "Визы", supplierCostUsd: visa),
+            .init(code: "meals", label: "Питание", supplierCostUsd: meals),
+            .init(code: "transfers", label: "Трансферы", supplierCostUsd: transfer),
+        ]
+        if intercity > 0 {
+            components.append(.init(code: "haramain_train", label: "Поезд Haramain", supplierCostUsd: intercity))
+        }
+        components.append(.init(code: "accompaniment", label: "Сопровождение", supplierCostUsd: guide))
+        components.append(.init(code: "ziyarat_makkah", label: "Зиярат в Мекке", supplierCostUsd: makkahZiyaratPerGroupUsd))
+        components.append(.init(code: "ziyarat_madinah", label: "Зиярат в Медине", supplierCostUsd: madinahZiyaratPerGroupUsd))
+        components.append(.init(code: "care", label: "iumrah Care", supplierCostUsd: 0))
+
+        let hotelInput = GeneratorPricingHotelInput(
+            amountUsd: hotelNightlyUsd,
+            unit: "perRoomNight",
+            nights: nights,
+            hotelId: nil,
+            roomId: nil,
+            pricingMode: "storefront-catalog"
+        )
+        let snapshot = GeneratorPricingSnapshot(
+            quoteId: quoteID,
+            pricingVersion: "local-storefront-package-v1",
+            currency: "USD",
+            context: .init(
+                tier: tier.rawValue,
+                tripType: "openJaw",
+                includeMadinah: true,
+                totalDays: nights + 1,
+                travelers: .init(adults: travelers, children: 0, infants: 0, rooms: rooms),
+                roomCount: rooms,
+                vehicleCount: vehicles
+            ),
+            selectedPricingInputs: .init(journeyFare: nil, outbound: nil, inbound: nil, makkahHotel: hotelInput, madinahHotel: nil),
+            components: components,
+            totals: .init(
+                supplierCostUsd: totalCost,
+                markupRate: packageMarkupRate,
+                markupAmountUsd: markupAmount,
+                subtotalAfterMarkupUsd: baseSelling,
+                paymentFeeRate: paymentFeeRate,
+                paymentFeeAmountUsd: paymentFeeAmount,
+                calculatedSellingPriceUsd: calculatedSelling,
+                publicPricePerPilgrimUsd: perPerson,
+                publicTotalUsd: total,
+                roundingDifferenceUsd: roundingDifference,
+                estimatedProfitUsd: estimatedProfit
+            )
+        )
+
+        return PackageQuote(
+            totalPackagePrice: total,
+            pricePerPerson: perPerson,
+            currency: "USD",
+            isEstimated: true,
+            quoteId: quoteID,
+            pricingSnapshot: snapshot
+        )
+    }
+
     private static func groupFare(_ amount: Decimal, scope: FlightFareScope, travelers: Int) throws -> Decimal {
         guard amount > 0 else { throw LocalPricingError.invalidFlightFare }
         switch scope {

@@ -8,6 +8,7 @@ struct RootView: View {
     @StateObject private var journey = JourneyStore()
     @StateObject private var bookings = BookingStore()
     @StateObject private var account = IumrahAccountStore()
+    @StateObject private var hotelStorefront = HotelStorefrontStore()
     @ObservedObject private var push = PushNotificationManager.shared
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @State private var hasBootstrappedAfterOnboarding = false
@@ -20,12 +21,17 @@ struct RootView: View {
             .environmentObject(journey)
             .environmentObject(bookings)
             .environmentObject(account)
+            .environmentObject(hotelStorefront)
             .onChange(of: chrome.requestedTab) { _, newValue in
                 guard let newValue else { return }
                 chrome.currentTab = newValue
                 chrome.requestedTab = nil
             }
             .task {
+                // Start hotel catalogue, published-flight baseline, package-price preparation
+                // and photo prefetch as soon as the application launches. The Hotels tab
+                // should consume prepared data instead of triggering this work on entry.
+                Task(priority: .userInitiated) { await hotelStorefront.prepareIfNeeded() }
                 guard hasCompletedOnboarding else { return }
                 await bootstrapAfterOnboardingIfNeeded()
                 await push.ensureAuthorizationForClientNotifications()
@@ -93,6 +99,9 @@ struct RootView: View {
                 guard hasCompletedOnboarding else { return }
                 handleOpenedPushIfNeeded()
             }
+            .onOpenURL { url in
+                handleDeepLink(url)
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, hasCompletedOnboarding else { return }
                 Task {
@@ -100,6 +109,17 @@ struct RootView: View {
                     await syncClientNotifications()
                 }
             }
+    }
+
+    @MainActor
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme?.lowercased() == "https",
+              url.host?.lowercased() == "iumrah.app" else { return }
+        let components = url.pathComponents.filter { $0 != "/" }
+        guard components.count == 2, components[0] == "hotel" else { return }
+        let hotelID = components[1].removingPercentEncoding ?? components[1]
+        guard !hotelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        chrome.openHotel(id: hotelID)
     }
 
     @MainActor

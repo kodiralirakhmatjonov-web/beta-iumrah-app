@@ -8,6 +8,7 @@ import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
 import { cleanupExpiredFlightCache, flightCalendarResponse } from "./flight-cache";
 import { deleteCuratedFlightAdmin, listCuratedFlightsAdmin, publicCuratedFlightRecommendations, saveCuratedFlightAdmin } from "./curated-flights";
+import { appleAppSiteAssociation, hotelWebFallback, publicStorefrontFlightBoard } from "./storefront";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -89,6 +90,14 @@ async function publicHealth(env: Env) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.method === "GET" && url.pathname === "/.well-known/apple-app-site-association") {
+      return appleAppSiteAssociation();
+    }
+
+    if (request.method === "GET" && /^\/hotel\/[^/]+$/.test(url.pathname)) {
+      return hotelWebFallback(url);
+    }
 
     if (url.pathname.startsWith("/api/package/client/account/")) {
       return handleClientAccountSecurity(request, env, url);
@@ -175,6 +184,10 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/api/package/flights/recommendations") {
       return publicCuratedFlightRecommendations(url, env.HOTELS_DB);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/package/storefront/flights") {
+      return publicStorefrontFlightBoard(url, env.HOTELS_DB);
     }
 
     const hotelPricingSourcesMatch = url.pathname.match(/^\/api\/package\/hotel\/([^/]+)\/pricing-sources$/);

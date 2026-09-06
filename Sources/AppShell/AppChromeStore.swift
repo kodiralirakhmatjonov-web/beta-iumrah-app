@@ -13,6 +13,7 @@ final class AppChromeStore: ObservableObject {
     @Published var currentTab: AppTab = .home
     @Published var shouldStartTripBuilder = false
     @Published var requestedBookingID: String?
+    @Published var requestedHotelID: String?
     @Published var isImmersiveMode = false
     @Published var isSidebarOpen = false
     @Published var isESIMPresented = false
@@ -28,6 +29,13 @@ final class AppChromeStore: ObservableObject {
         requestedBookingID = id
         currentTab = .booking
         requestedTab = .booking
+        IumrahHaptics.selection()
+    }
+
+    func openHotel(id: String) {
+        requestedHotelID = id
+        currentTab = .hotels
+        requestedTab = .hotels
         IumrahHaptics.selection()
     }
 

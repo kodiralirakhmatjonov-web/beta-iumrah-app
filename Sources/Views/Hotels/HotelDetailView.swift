@@ -5,6 +5,7 @@ struct HotelDetailView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var bookings: BookingStore
+    @EnvironmentObject private var storefront: HotelStorefrontStore
     @Environment(\.dismiss) private var dismiss
 
     let hotel: HotelSummary
@@ -26,6 +27,8 @@ struct HotelDetailView: View {
     @State private var isSavingSelection = false
     @State private var roomImageIndices: [String: Int] = [:]
     @State private var selectionError: String?
+    @State private var storefrontTier: PackageTier = .standard
+    @State private var carePresented = false
 
     private let service = HotelCatalogService()
     private let packageEngine = RemotePackageEngineClient()
@@ -38,8 +41,14 @@ struct HotelDetailView: View {
                 VStack(alignment: .leading, spacing: 30) {
                     identitySection
 
+                    if !selectionFlow && bookingID == nil {
+                        storefrontPackageSection
+                    }
+
                     if let detail {
                         qualitySection(detail)
+                        receptionClocksSection
+                        photoOverviewSection(detail)
                         amenitiesSection(detail)
                         primaryRoomSection(detail)
                         actualRoomsSection(detail)
@@ -48,6 +57,7 @@ struct HotelDetailView: View {
                         }
                         mapSection(detail)
                         practicalSection(detail)
+                        HotelCareShowcaseCard(language: settings.language) { carePresented = true }
                     } else if isLoading {
                         loadingSection
                     } else if let errorMessage {
@@ -62,6 +72,20 @@ struct HotelDetailView: View {
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         .navigationTitle(hotel.name)
         .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                ShareLink(item: storefront.shareURL(for: hotel)) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel(settings.language == .russian ? "Поделиться отелем" : "Share hotel")
+                Button { storefront.toggleFavorite(hotel) } label: {
+                    Image(systemName: storefront.isFavorite(hotel) ? "heart.fill" : "heart")
+                }
+                .accessibilityLabel(settings.language == .russian
+                                    ? (storefront.isFavorite(hotel) ? "Убрать из избранного" : "Добавить в избранное")
+                                    : (storefront.isFavorite(hotel) ? "Remove from favorites" : "Add to favorites"))
+            }
+        }
         .iumrahInternalNavigation()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if shouldShowSelectionBar, let selectedName = currentSelectionName {
@@ -69,11 +93,16 @@ struct HotelDetailView: View {
             }
         }
         .task {
+            await storefront.prepareIfNeeded()
             await load()
             await loadRoomCategories()
         }
         .fullScreenCover(isPresented: $isGalleryPresented) {
             HotelGalleryView(hotelName: hotel.name, images: detail?.images ?? [])
+                .environmentObject(settings)
+        }
+        .sheet(isPresented: $carePresented) {
+            HotelCareContactSheet()
                 .environmentObject(settings)
         }
     }
@@ -178,6 +207,163 @@ struct HotelDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Storefront package
+
+    private var storefrontPackageSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(settings.language == .russian ? "Ваша Умра с этим отелем" : "Your Umrah with this hotel")
+                        .font(.system(size: 25, weight: .bold, design: .rounded))
+                    Text(settings.language == .russian ? "Готовая цена до выбора дат" : "Ready price before choosing dates")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Text("IUMRAH")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Picker("Package", selection: $storefrontTier) {
+                Text(PackageTier.standard.title(settings.language)).tag(PackageTier.standard)
+                Text(PackageTier.luxury.title(settings.language)).tag(PackageTier.luxury)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: storefrontTier) { _, _ in IumrahHaptics.selection() }
+
+            if let quote = storefront.quote(for: hotel, tier: storefrontTier) {
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(money(quote.packageQuote.pricePerPerson))
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .tracking(-0.8)
+                        Text(settings.language == .russian ? "на паломника" : "per pilgrim")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(money(quote.packageQuote.totalPackagePrice))
+                            .font(.headline)
+                        Text(settings.language == .russian ? "за пакет на \(quote.travelers)" : "package total for \(quote.travelers)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    packageFact(icon: "airplane", text: "TAS → MED · JED → TAS")
+                    packageFact(
+                        icon: "building.2.fill",
+                        text: settings.language == .russian
+                            ? "\(hotel.name) · \(quote.hotelNights) ноч."
+                            : "\(hotel.name) · \(quote.hotelNights) nights"
+                    )
+                    packageFact(icon: "fork.knife", text: settings.language == .russian ? "Питание · трансферы · виза" : "Meals · transfers · visa")
+                    packageFact(icon: "heart.fill", text: "iumrah Care")
+                }
+
+                if storefrontTier == .standard {
+                    Button {
+                        storefrontTier = .luxury
+                        IumrahHaptics.selection()
+                    } label: {
+                        Label(settings.language == .russian ? "Перейти на Luxury" : "Upgrade to Luxury", systemImage: "sparkles")
+                    }
+                    .buttonStyle(IumrahSecondaryButtonStyle())
+                }
+            } else {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(settings.language == .russian ? "Подготавливаем актуальную цену…" : "Preparing current price…")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            }
+
+            Text(settings.language == .russian
+                 ? "Standard используется по умолчанию для всех отелей, включая 5★. Luxury включается только по вашему выбору."
+                 : "Standard is the default for every hotel, including 5★. Luxury is applied only when you choose it.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .iumrahCard()
+    }
+
+    private func packageFact(icon: String, text: String) -> some View {
+        HStack(spacing: 9) {
+            IumrahInlineIcon(systemName: icon, size: 14)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+    }
+
+    private var receptionClocksSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle(settings.language == .russian ? "Время в пути" : "Hotel time")
+            Text(settings.language == .russian
+                 ? "Как на стойке ресепшена — время дома и в городах вашей Умры."
+                 : "Reception-style clocks for home and your Umrah cities.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                ReceptionClock(city: "TASHKENT", timeZoneID: "Asia/Tashkent")
+                ReceptionClock(city: "MAKKAH", timeZoneID: "Asia/Riyadh")
+                ReceptionClock(city: "MADINAH", timeZoneID: "Asia/Riyadh")
+                ReceptionClock(city: "MOSCOW", timeZoneID: "Europe/Moscow")
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private func photoOverviewSection(_ detail: HotelDetail) -> some View {
+        let photos = detail.images.sorted(by: imageSort)
+        if !photos.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    sectionTitle(settings.language == .russian ? "Фотографии" : "Photos")
+                    Spacer()
+                    Button {
+                        isGalleryPresented = true
+                    } label: {
+                        Text(settings.language == .russian ? "Посмотреть все \(photos.count)" : "View all \(photos.count)")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                HStack(spacing: 4) {
+                    HotelCachedImage(rawURL: photos[0].url)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                    VStack(spacing: 4) {
+                        HotelCachedImage(rawURL: photos[safe: 1]?.url ?? photos[0].url)
+                            .clipped()
+                        HotelCachedImage(rawURL: photos[safe: 2]?.url ?? photos[0].url)
+                            .clipped()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(height: 220)
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .onTapGesture { isGalleryPresented = true }
+            }
+        }
+    }
+
+    private func money(_ value: Decimal) -> String {
+        String(format: "$%.0f", NSDecimalNumber(decimal: value).doubleValue)
     }
 
     // MARK: - Hotel facts
@@ -899,21 +1085,9 @@ struct HotelDetailView: View {
     }
 
     private func hotelImage(_ rawURL: String?) -> some View {
-        AsyncImage(url: AppConfig.absoluteURL(rawURL)) { phase in
-            switch phase {
-            case .success(let image): image.resizable().scaledToFill()
-            case .empty: ZStack { Color.iumrahRaisedBackground; ProgressView() }
-            default:
-                ZStack {
-                    Color.iumrahRaisedBackground
-                    Image(systemName: "photo")
-                        .font(.system(size: 38, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
+        HotelCachedImage(rawURL: rawURL)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
     }
 
     private func tone(for category: IumrahRoomCategory) -> [Color] {
@@ -1007,12 +1181,201 @@ private struct RoomSelectButtonStyle: ButtonStyle {
     }
 }
 
+private struct ReceptionClock: View {
+    let city: String
+    let timeZoneID: String
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            VStack(spacing: 7) {
+                clockFace(date: context.date)
+                    .frame(width: 66, height: 66)
+                Text(city)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(timeText(context.date))
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func clockFace(date: Date) -> some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let radius = min(size.width, size.height) / 2 - 2
+
+            let circle = Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+            context.fill(circle, with: .color(Color.iumrahCardBackground))
+            context.stroke(circle, with: .color(Color.primary.opacity(0.13)), lineWidth: 0.8)
+
+            for tick in 0..<12 {
+                let angle = Double(tick) * .pi / 6 - .pi / 2
+                let outer = CGPoint(x: center.x + cos(angle) * (radius - 6), y: center.y + sin(angle) * (radius - 6))
+                let inner = CGPoint(x: center.x + cos(angle) * (radius - (tick % 3 == 0 ? 12 : 9)), y: center.y + sin(angle) * (radius - (tick % 3 == 0 ? 12 : 9)))
+                var path = Path()
+                path.move(to: inner)
+                path.addLine(to: outer)
+                context.stroke(path, with: .color(Color.primary.opacity(tick % 3 == 0 ? 0.72 : 0.36)), lineWidth: tick % 3 == 0 ? 1.4 : 0.8)
+            }
+
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: timeZoneID) ?? .current
+            let components = calendar.dateComponents([.hour, .minute], from: date)
+            let hour = Double(components.hour ?? 0) + Double(components.minute ?? 0) / 60
+            let minute = Double(components.minute ?? 0)
+            drawHand(context: &context, center: center, radius: radius * 0.48, angle: hour / 12 * 2 * .pi - .pi / 2, width: 2.5)
+            drawHand(context: &context, center: center, radius: radius * 0.68, angle: minute / 60 * 2 * .pi - .pi / 2, width: 1.5)
+            context.fill(Path(ellipseIn: CGRect(x: center.x - 2.5, y: center.y - 2.5, width: 5, height: 5)), with: .color(.primary))
+        }
+    }
+
+    private func drawHand(context: inout GraphicsContext, center: CGPoint, radius: CGFloat, angle: Double, width: CGFloat) {
+        let point = CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
+        var path = Path()
+        path.move(to: center)
+        path.addLine(to: point)
+        context.stroke(path, with: .color(.primary), style: StrokeStyle(lineWidth: width, lineCap: .round))
+    }
+
+    private func timeText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneID)
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+}
+
 struct HotelGalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettingsStore
     let hotelName: String
     let images: [HotelImage]
-    @State private var index = 0
+
+    @State private var selectedCategory = "all"
+    @State private var viewerImage: HotelImage?
+
+    private var sortedImages: [HotelImage] { images.sorted(by: imageSort) }
+
+    private var categories: [String] {
+        var values = ["all"]
+        for image in sortedImages {
+            let category = image.category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !category.isEmpty && !values.contains(category) { values.append(category) }
+        }
+        return values
+    }
+
+    private var filteredImages: [HotelImage] {
+        guard selectedCategory != "all" else { return sortedImages }
+        return sortedImages.filter { $0.category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == selectedCategory }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(categories, id: \.self) { category in
+                                Button {
+                                    selectedCategory = category
+                                    IumrahHaptics.selection()
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(categoryTitle(category))
+                                            .font(.subheadline.weight(.semibold))
+                                        Text("\(count(for: category))")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.horizontal, 15)
+                                    .frame(height: 56)
+                                    .background(
+                                        selectedCategory == category ? Color.iumrahRaisedBackground : Color.iumrahCardBackground,
+                                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    )
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                            .strokeBorder(selectedCategory == category ? Color.primary.opacity(0.38) : Color.primary.opacity(0.07), lineWidth: selectedCategory == category ? 1.2 : 0.7)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, IumrahDesign.pagePadding)
+                    }
+                    .padding(.horizontal, -IumrahDesign.pagePadding)
+
+                    Text(selectedCategory == "all"
+                         ? (settings.language == .russian ? "Все фото (\(filteredImages.count))" : "All photos (\(filteredImages.count))")
+                         : "\(categoryTitle(selectedCategory)) (\(filteredImages.count))")
+                        .font(.system(size: 27, weight: .bold, design: .rounded))
+
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 3), spacing: 5) {
+                        ForEach(filteredImages) { image in
+                            Button {
+                                viewerImage = image
+                            } label: {
+                                HotelCachedImage(rawURL: image.url)
+                                    .aspectRatio(1, contentMode: .fill)
+                                    .frame(maxWidth: .infinity)
+                                    .clipped()
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.bottom, 34)
+            }
+            .background(Color.iumrahPageBackground.ignoresSafeArea())
+            .navigationTitle(hotelName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(settings.language == .russian ? "Готово" : "Done") { dismiss() }
+                }
+            }
+        }
+        .fullScreenCover(item: $viewerImage) { image in
+            HotelImageViewer(images: filteredImages, initialImageID: image.id)
+        }
+    }
+
+    private func count(for category: String) -> Int {
+        category == "all" ? sortedImages.count : sortedImages.filter { $0.category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == category }.count
+    }
+
+    private func categoryTitle(_ category: String) -> String {
+        guard category != "all" else { return settings.language == .russian ? "Все фото" : "All photos" }
+        let normalized = category.lowercased()
+        if normalized.contains("room") { return settings.language == .russian ? "Номера" : "Rooms" }
+        if normalized.contains("bath") { return settings.language == .russian ? "Ванная" : "Bathroom" }
+        if normalized.contains("restaurant") || normalized.contains("food") { return settings.language == .russian ? "Ресторан" : "Restaurant" }
+        if normalized.contains("lobby") || normalized.contains("reception") { return settings.language == .russian ? "Лобби" : "Lobby" }
+        if normalized.contains("view") || normalized.contains("exterior") { return settings.language == .russian ? "Вид" : "View" }
+        return category.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    private func imageSort(_ lhs: HotelImage, _ rhs: HotelImage) -> Bool {
+        if lhs.isCover != rhs.isCover { return lhs.isCover && !rhs.isCover }
+        return lhs.position < rhs.position
+    }
+}
+
+private struct HotelImageViewer: View {
+    @Environment(\.dismiss) private var dismiss
+    let images: [HotelImage]
+    @State private var index: Int
+
+    init(images: [HotelImage], initialImageID: String) {
+        self.images = images
+        _index = State(initialValue: images.firstIndex(where: { $0.id == initialImageID }) ?? 0)
+    }
 
     var body: some View {
         ZStack {
@@ -1023,18 +1386,12 @@ struct HotelGalleryView: View {
                     .foregroundStyle(.white.opacity(0.45))
             } else {
                 TabView(selection: $index) {
-                    ForEach(Array(images.sorted(by: imageSort).enumerated()), id: \.element.id) { offset, image in
-                        AsyncImage(url: AppConfig.absoluteURL(image.url)) { phase in
-                            switch phase {
-                            case .success(let loaded): loaded.resizable().scaledToFit()
-                            case .empty: ProgressView().tint(.white)
-                            default: Image(systemName: "photo").foregroundStyle(.white.opacity(0.5))
-                            }
-                        }
-                        .tag(offset)
+                    ForEach(Array(images.enumerated()), id: \.element.id) { offset, image in
+                        ZoomableHotelImage(rawURL: image.url)
+                            .tag(offset)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
         }
         .overlay(alignment: .topLeading) {
@@ -1044,26 +1401,57 @@ struct HotelGalleryView: View {
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
                     .contentShape(Circle())
-                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18), chrome: true)
+                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.22), chrome: true)
             }
             .buttonStyle(.plain)
             .padding(18)
         }
         .overlay(alignment: .topTrailing) {
             if !images.isEmpty {
-                Text("\(index + 1)/\(images.count)")
+                Text("\(min(index + 1, images.count))/\(images.count)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .iumrahGlass(in: Capsule(), tint: .black.opacity(0.18), allowsStaticGlass: true, chrome: true)
+                    .iumrahGlass(in: Capsule(), tint: .black.opacity(0.22), allowsStaticGlass: true, chrome: true)
                     .padding(22)
             }
         }
     }
+}
 
-    private func imageSort(_ lhs: HotelImage, _ rhs: HotelImage) -> Bool {
-        if lhs.isCover != rhs.isCover { return lhs.isCover && !rhs.isCover }
-        return lhs.position < rhs.position
+private struct ZoomableHotelImage: View {
+    let rawURL: String
+    @State private var scale: CGFloat = 1
+    @State private var previousScale: CGFloat = 1
+
+    var body: some View {
+        HotelCachedImage(rawURL: rawURL, contentMode: .fit, placeholderSystemName: "photo")
+            .scaleEffect(scale)
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        scale = min(4, max(1, previousScale * value))
+                    }
+                    .onEnded { _ in
+                        previousScale = scale
+                        if scale < 1.05 {
+                            scale = 1
+                            previousScale = 1
+                        }
+                    }
+            )
+            .onTapGesture(count: 2) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    scale = scale > 1 ? 1 : 2
+                    previousScale = scale
+                }
+            }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

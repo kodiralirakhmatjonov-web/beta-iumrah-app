@@ -1,0 +1,14 @@
+iumrah Beta — Hotel Storefront 093
+Date: 2026-09-06
+
+Implemented:
+- Hotels / Flights / Weekend storefront board with supplied branded hero artwork.
+- Persistent RAM + disk hotel-photo cache and launch-time storefront/image prefetch.
+- Ready Standard package price on hotel cards using published direct TAS→MED + JED→TAS fares, catalog hotel price, and the existing local package pricing policy.
+- Manual Standard → Luxury upgrade on hotel detail; 5-star hotels do not auto-switch to Luxury.
+- Wider three-photo hotel cards, favorites, Share, and direct hotel Universal Links.
+- Hotel detail reception clocks (Tashkent, Makkah, Madinah, Moscow), photo collage, full gallery/categories/viewer.
+- iumrah Care pre-booking contact card: Telegram @saudiclub966 and +998508898845.
+- Sunday Umrah Club hero prepared without placeholder weekend packages.
+
+Backend deploy is required once after applying this patch for the new storefront flight endpoint and Universal Link routes/AASA.
