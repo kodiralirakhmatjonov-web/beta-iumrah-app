@@ -633,7 +633,7 @@ struct TripBuilderView: View {
                 }
             }
             .padding(15)
-            .frame(width: 292, minHeight: 204, alignment: .leading)
+            .frame(minWidth: 292, maxWidth: 292, minHeight: 204, alignment: .leading)
             .background(
                 isSelected ? Color.orange.opacity(0.075) : Color.iumrahRaisedBackground,
                 in: RoundedRectangle(cornerRadius: 22, style: .continuous)
