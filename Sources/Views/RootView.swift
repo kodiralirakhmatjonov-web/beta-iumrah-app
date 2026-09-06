@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -102,6 +103,10 @@ struct RootView: View {
             .onOpenURL { url in
                 handleDeepLink(url)
             }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                guard let url = activity.webpageURL else { return }
+                handleDeepLink(url)
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, hasCompletedOnboarding else { return }
                 Task {
@@ -113,23 +118,32 @@ struct RootView: View {
 
     @MainActor
     private func handleDeepLink(_ url: URL) {
-        guard url.scheme?.lowercased() == "https",
-              url.host?.lowercased() == "iumrah.app" else { return }
-        let components = url.pathComponents.filter { $0 != "/" }
-        guard components.count == 2 else { return }
-
-        let rawValue = components[1].removingPercentEncoding ?? components[1]
         let hotelID: String?
-        switch components[0] {
-        case "h":
+
+        if url.scheme?.lowercased() == "https",
+           url.host?.lowercased() == "iumrah.app" {
+            let components = url.pathComponents.filter { $0 != "/" }
+            guard components.count == 2 else { return }
+            let rawValue = components[1].removingPercentEncoding ?? components[1]
+            switch components[0] {
+            case "h":
+                hotelID = HotelStorefrontService.decodePublicHotelToken(rawValue)
+            case "hotel":
+                hotelID = rawValue
+            default:
+                hotelID = nil
+            }
+        } else if url.scheme?.lowercased() == "iumrahapp",
+                  url.host?.lowercased() == "hotel" {
+            let token = url.pathComponents.filter { $0 != "/" }.first ?? ""
+            let rawValue = token.removingPercentEncoding ?? token
             hotelID = HotelStorefrontService.decodePublicHotelToken(rawValue)
-        case "hotel":
-            // Backward compatibility for links shared by older beta builds.
-            hotelID = rawValue
-        default:
+        } else {
             hotelID = nil
         }
-        guard let hotelID, !hotelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        guard let hotelID,
+              !hotelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         chrome.openHotel(id: hotelID)
     }
 

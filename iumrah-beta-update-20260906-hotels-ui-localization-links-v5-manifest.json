@@ -1,0 +1,67 @@
+{
+  "update": "iumrah-beta-update-20260906-hotels-ui-localization-links-v5",
+  "date": "2026-09-06",
+  "source_state": "beta-iumrah-app-main 13.zip + hotel-storefront-v1 + buildfix-v2 + hotels-runtime-fix-v3 + hotel-price-share-fix-v4",
+  "purpose": "Finish Hotels UI cosmetics, restore en/ru/uz/uz-cyrl localization, and harden hotel app links without changing package pricing math",
+  "pricing_math_changed": false,
+  "backend_source_changes": true,
+  "package_engine_deploy_required": true,
+  "testflight_build_required": true,
+  "files": [
+    {
+      "path": ".github/workflows/testflight.yml",
+      "bytes": 19709,
+      "sha256": "3140294b2835bbab4d73c9abf7322b30b97f663ceec060ce1002f15998e1a14d"
+    },
+    {
+      "path": "BETA_HOTELS_UI_LOCALIZATION_LINKS_097_APPLIED.txt",
+      "bytes": 2260,
+      "sha256": "b766c9e0de509a58910460f1a3ddf401ccaf6fb5d0aad9434c3107e999f8402e"
+    },
+    {
+      "path": "Backend/PackageEngine/src/storefront.ts",
+      "bytes": 11307,
+      "sha256": "f4c621cf9b4250786eb6a71bb91cca0b160626a9a98d2ed0bfacb26f4ca48f2b"
+    },
+    {
+      "path": "Backend/PackageEngine/test/storefront-flight-board-contract.test.mjs",
+      "bytes": 1485,
+      "sha256": "f3674c63694c6353aeeac56ce0c0e7c76f81148e00c50604946ef3034c458c6d"
+    },
+    {
+      "path": "Backend/PackageEngine/wrangler.template.jsonc",
+      "bytes": 1450,
+      "sha256": "85471ccd9f67fd9f6b9fc8e5f73bbab0d9c4be4629c7af90f2f7a8affe22e829"
+    },
+    {
+      "path": "Resources/Info.plist",
+      "bytes": 1718,
+      "sha256": "dfeaed274ba19bd38807c91c25ab3dd03d03121a9a62e63a3c4ad1190b260504"
+    },
+    {
+      "path": "Resources/iumrahBeta.entitlements",
+      "bytes": 444,
+      "sha256": "39de080a2f3bfe66fc67ffb6de6d076175f59e773d830ed337f29e38e90e017e"
+    },
+    {
+      "path": "Sources/Core/AppLocalization.swift",
+      "bytes": 181086,
+      "sha256": "6b257ec50e2e864e95faa1f20607bd0c541abf05ebf33ee05d6661d25a820424"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "bytes": 69389,
+      "sha256": "82b2c5ffde7de879d384b28f72be0b9bfc76aa7505b1ce79c4e56bb896491066"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 12854,
+      "sha256": "25e7e5ec8d164eb215e2333bdc8fa7ab575e11bb72d20d397814f0d3ec242370"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 25440,
+      "sha256": "d9e01ac07d9a42cbfc9ca3dae6e684f346bb25b02ca57efa3adbc9ad17318aba"
+    }
+  ]
+}

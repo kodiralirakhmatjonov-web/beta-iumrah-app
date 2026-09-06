@@ -14,10 +14,10 @@ struct HotelsHomeView: View {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: pageTitle)
 
-                Picker(copy("Раздел", "Section"), selection: $board) {
-                    Text(copy("Отели", "Hotels")).tag(HotelsShowcaseBoard.hotels)
-                    Text(copy("Авиабилеты", "Flights")).tag(HotelsShowcaseBoard.flights)
-                    Text("Weekend").tag(HotelsShowcaseBoard.sundayClub)
+                Picker(L10n.text("hotel_storefront_section", settings.language), selection: $board) {
+                    Text(L10n.text("tab_hotels", settings.language)).tag(HotelsShowcaseBoard.hotels)
+                    Text(L10n.text("hotel_storefront_flights", settings.language)).tag(HotelsShowcaseBoard.flights)
+                    Text(L10n.text("hotel_storefront_weekend", settings.language)).tag(HotelsShowcaseBoard.sundayClub)
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: board) { _, _ in IumrahHaptics.selection() }
@@ -31,9 +31,6 @@ struct HotelsHomeView: View {
                     sundayClubBoard
                 }
 
-                HotelCareShowcaseCard(language: settings.language) {
-                    carePresented = true
-                }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -59,8 +56,8 @@ struct HotelsHomeView: View {
 
     private var pageTitle: String {
         switch board {
-        case .hotels: return copy("Отели", "Hotels")
-        case .flights: return copy("Авиабилеты", "Flights")
+        case .hotels: return L10n.text("tab_hotels", settings.language)
+        case .flights: return L10n.text("hotel_storefront_flights", settings.language)
         case .sundayClub: return "Sunday Umrah Club"
         }
     }
@@ -72,14 +69,8 @@ struct HotelsHomeView: View {
             ShowcaseHero(
                 asset: "IumrahHotelsShowcaseHero",
                 title: "iumrah Hotel Space",
-                description: copy(
-                    "Отели, которые iumrah отбирает для более спокойной Умры: удобная локация, проверенный сервис и готовая стоимость поездки.",
-                    "Hotels curated by iumrah for a calmer Umrah: convenient location, trusted service and a ready trip price."
-                ),
-                note: copy(
-                    "В каждой карточке уже рассчитан Standard пакет: опубликованный прямой перелёт Ташкент → Медина + Джидда → Ташкент, этот отель и сервисы iumrah.",
-                    "Every card already includes a Standard package: published direct Tashkent → Madinah + Jeddah → Tashkent flights, this hotel and iumrah services."
-                )
+                description: L10n.text("hotel_storefront_hero_body", settings.language),
+                note: L10n.text("hotel_storefront_hero_note", settings.language)
             )
 
             hotelCitySection(
@@ -94,7 +85,7 @@ struct HotelsHomeView: View {
             if storefront.isLoading && storefront.allHotels.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text(copy("Загружаем отели и готовим цены пакетов…", "Loading hotels and preparing package prices…"))
+                    Text(L10n.text("hotel_storefront_loading", settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -106,6 +97,10 @@ struct HotelsHomeView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .iumrahCard()
+            }
+
+            HotelCareShowcaseCard(language: settings.language) {
+                carePresented = true
             }
         }
     }
@@ -137,23 +132,17 @@ struct HotelsHomeView: View {
             ShowcaseHero(
                 asset: "IumrahFlightsShowcaseHero",
                 title: "iumrah Flights",
-                description: copy(
-                    "Актуальные прямые рейсы, опубликованные iumrah Business для более лёгкого пути на Умру — без лишних пересадок и сложных маршрутов.",
-                    "Current direct flights published by iumrah Business for an easier Umrah journey — without unnecessary connections or complicated routing."
-                ),
-                note: copy(
-                    "Для готовой цены пакета iumrah использует пару Ташкент → Медина и Джидда → Ташкент.",
-                    "For the ready package price, iumrah uses Tashkent → Madinah and Jeddah → Tashkent."
-                )
+                description: L10n.text("hotel_storefront_flights_hero_body", settings.language),
+                note: L10n.text("hotel_storefront_flights_hero_note", settings.language)
             )
 
             if let baseline = storefront.baseline {
-                SectionHeader(copy("Рейс для расчёта пакета", "Package flight baseline"), eyebrow: "IUMRAH RECOMMENDS", subtitle: nil)
+                SectionHeader(L10n.text("hotel_storefront_package_baseline", settings.language), eyebrow: L10n.text("hotel_storefront_recommends", settings.language), subtitle: nil)
                 StorefrontBaselineFlightCard(baseline: baseline, language: settings.language)
             }
 
             if let options = storefront.flightBoard?.options, !options.isEmpty {
-                SectionHeader(copy("Опубликованные рейсы", "Published flights"), eyebrow: copy("АКТУАЛЬНО", "CURRENT"), subtitle: nil)
+                SectionHeader(L10n.text("hotel_storefront_published_flights", settings.language), eyebrow: L10n.text("hotel_storefront_current", settings.language), subtitle: nil)
                 VStack(spacing: 12) {
                     ForEach(Array(options.prefix(12))) { option in
                         StorefrontFlightOptionCard(option: option, language: settings.language)
@@ -173,14 +162,8 @@ struct HotelsHomeView: View {
             ShowcaseHero(
                 asset: "SundayUmrahClubShowcaseHero",
                 title: "Sunday Umrah Club",
-                description: copy(
-                    "Умра, которая помещается в ваши выходные. Отдельная подборка коротких поездок для тех, кто хочет улететь на Умру без длинного отпуска.",
-                    "Umrah that fits into your weekend. A separate collection of short journeys for pilgrims who want to travel without a long holiday."
-                ),
-                note: copy(
-                    "Weekend-пакеты появятся здесь отдельными готовыми вылетами. Сейчас раздел подготовлен без тестовых или вымышленных предложений.",
-                    "Weekend packages will appear here as ready departures. The section is prepared without placeholder or fictional offers."
-                ),
+                description: L10n.text("hotel_storefront_weekend_body", settings.language),
+                note: L10n.text("hotel_storefront_weekend_note", settings.language),
                 imageBackground: .white
             )
         }
@@ -192,9 +175,6 @@ struct HotelsHomeView: View {
         chrome.requestedHotelID = nil
     }
 
-    private func copy(_ russian: String, _ english: String) -> String {
-        settings.language == .russian ? russian : english
-    }
 }
 
 // MARK: - Storefront components
@@ -259,49 +239,57 @@ private struct HotelStorefrontCard: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            HotelStorefrontCollage(images: images, fallback: hotel.coverImageURL)
-                .frame(width: 138, height: 246)
+            ZStack(alignment: .topLeading) {
+                HotelStorefrontCollage(images: images, fallback: hotel.coverImageURL)
+                    .frame(width: 142, height: 236)
 
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(alignment: .top, spacing: 5) {
-                    Text(hotel.name)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Spacer(minLength: 2)
-
-                    HStack(spacing: 8) {
-                        Button(action: onFavorite) {
-                            Image(systemName: isFavorite ? "heart.fill" : "heart")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(isFavorite ? Color.iumrahCareLight : Color.primary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(language == .russian
-                                            ? (isFavorite ? "Убрать из избранного" : "Добавить в избранное")
-                                            : (isFavorite ? "Remove from favorites" : "Add to favorites"))
-
-                        ShareLink(item: shareURL) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(.primary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(language == .russian ? "Поделиться отелем" : "Share hotel")
+                HStack(spacing: 8) {
+                    Button(action: onFavorite) {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(isFavorite ? Color.iumrahCareLight : Color.white)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Circle())
+                            .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.20), chrome: true)
                     }
-                }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.text(isFavorite ? "hotel_storefront_favorite_remove" : "hotel_storefront_favorite_add", language))
 
-                if let stars = hotel.stars {
-                    HStack(spacing: 5) {
+                    ShareLink(
+                        item: shareURL,
+                        subject: Text(hotel.name),
+                        message: Text(L10n.text("hotel_storefront_share", language))
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Circle())
+                            .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.20), chrome: true)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.text("hotel_storefront_share", language))
+                }
+                .padding(10)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(hotel.name)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .tracking(-0.15)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 6) {
+                    if let stars = hotel.stars {
                         Text(String(repeating: "★", count: max(1, min(5, stars))))
                             .font(.caption.weight(.bold))
                             .foregroundStyle(IumrahIconRole.warning.color)
-                        if let rating = hotel.rating {
-                            Text(String(format: "%.1f", rating))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
+                    }
+                    if let rating = hotel.rating {
+                        Text(String(format: "%.1f", rating))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -309,55 +297,61 @@ private struct HotelStorefrontCard: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
 
-                Spacer(minLength: 0)
+                Spacer(minLength: 6)
 
                 if let quote {
-                    Text("Standard")
+                    Text(PackageTier.standard.title(language).uppercased())
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
+                        .tracking(0.5)
+
                     Text(money(quote.packageQuote.pricePerPerson))
-                        .font(.system(size: 29, weight: .bold, design: .rounded))
-                        .tracking(-0.6)
-                    Text(language == .russian ? "на паломника" : "per pilgrim")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .tracking(-0.7)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text(L10n.text("hotel_storefront_per_pilgrim", language))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(language == .russian
-                         ? "\(money(quote.packageQuote.totalPackagePrice)) за пакет"
-                         : "\(money(quote.packageQuote.totalPackagePrice)) package total")
+
+                    Text(L10n.format("hotel_storefront_package_total_fmt", language, money(quote.packageQuote.totalPackagePrice)))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 } else {
                     HStack(spacing: 7) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(language == .russian ? "Считаем пакет…" : "Calculating package…")
+                        ProgressView().controlSize(.small)
+                        Text(L10n.text("hotel_storefront_calculating", language))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
-                    .frame(minHeight: 44, alignment: .leading)
+                    .frame(minHeight: 50, alignment: .leading)
                 }
 
                 HStack(spacing: 5) {
-                    Text(language == .russian ? "Перелёт + отель + iumrah" : "Flight + stay + iumrah")
+                    Text(L10n.text("hotel_storefront_includes", language))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Spacer(minLength: 4)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Spacer(minLength: 2)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.tertiary)
                 }
             }
-            .padding(15)
-            .frame(maxHeight: .infinity, alignment: .topLeading)
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, minHeight: 236, maxHeight: 236)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
         }
-        .shadow(color: .black.opacity(0.045), radius: 16, y: 7)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
             IumrahHaptics.selection()
@@ -385,7 +379,7 @@ private struct HotelStorefrontCollage: View {
     var body: some View {
         VStack(spacing: 3) {
             HotelCachedImage(rawURL: resolved[0])
-                .frame(height: 153)
+                .frame(height: 146)
                 .clipped()
             HStack(spacing: 3) {
                 HotelCachedImage(rawURL: resolved[1])
@@ -404,20 +398,20 @@ private struct StorefrontBaselineFlightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            routeRow(leg: baseline.outbound, direction: language == .russian ? "Туда" : "Outbound")
+            routeRow(leg: baseline.outbound, direction: L10n.text("hotel_storefront_outbound", language))
             Divider()
-            routeRow(leg: baseline.inbound, direction: language == .russian ? "Обратно" : "Return")
+            routeRow(leg: baseline.inbound, direction: L10n.text("hotel_storefront_return", language))
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(language == .russian ? "Для расчёта пакета" : "Package baseline")
+                    Text(L10n.text("hotel_storefront_package_baseline", language))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(String(format: "$%.0f", baseline.perTravelerFareUsd))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                 }
                 Spacer()
-                Text(language == .russian ? "на паломника\nтуда-обратно" : "per pilgrim\nround trip")
+                Text(L10n.text("hotel_storefront_round_trip", language))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
@@ -446,7 +440,7 @@ private struct StorefrontBaselineFlightCard: View {
                 Text(day(leg.departureAt))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(language == .russian ? "Прямой" : "Direct")
+                Text(L10n.text("hotel_storefront_direct", language))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(IumrahIconRole.success.color)
             }
@@ -472,7 +466,7 @@ private struct StorefrontFlightOptionCard: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(String(format: "$%.0f", option.perTravelerFare))
                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text(language == .russian ? "на паломника" : "per pilgrim")
+                    Text(L10n.text("hotel_storefront_per_pilgrim", language))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -486,7 +480,7 @@ private struct StorefrontFlightOptionCard: View {
                 }
             }
 
-            Label(language == .russian ? "Опубликован iumrah Business · прямой" : "Published by iumrah Business · direct", systemImage: "checkmark.seal.fill")
+            Label(L10n.text("hotel_storefront_published_direct", language), systemImage: "checkmark.seal.fill")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
@@ -533,13 +527,11 @@ struct HotelCareShowcaseCard: View {
             VStack(alignment: .leading, spacing: 11) {
                 Text("iumrah Care")
                     .font(.system(size: 27, weight: .bold, design: .rounded))
-                Text(language == .russian
-                     ? "Остались вопросы об отеле или его расположении? Получите совет команды iumrah до бронирования."
-                     : "Questions about a hotel or its location? Ask the iumrah team before booking.")
+                Text(L10n.text("hotel_care_card_body", language))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Button(language == .russian ? "Связаться с iumrah Care" : "Contact iumrah Care", action: onOpen)
+                Button(L10n.text("hotel_care_contact", language), action: onOpen)
                     .buttonStyle(IumrahPrimaryButtonStyle())
             }
             .padding(20)
@@ -564,9 +556,7 @@ struct HotelCareContactSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("iumrah Care")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
-                    Text(settings.language == .russian
-                         ? "Для вопросов до бронирования напишите нам в Telegram или позвоните. Внутренний чат iumrah Care становится доступен для забронированных поездок."
-                         : "For questions before booking, contact us on Telegram or call. The in-app iumrah Care chat becomes available for booked trips.")
+                    Text(L10n.text("hotel_care_prebook_body", settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -578,7 +568,7 @@ struct HotelCareContactSheet: View {
                 .buttonStyle(.plain)
 
                 Link(destination: URL(string: "tel:+998508898845")!) {
-                    contactRow(icon: "phone.fill", title: settings.language == .russian ? "Позвонить" : "Call", value: "+998 50 889 88 45")
+                    contactRow(icon: "phone.fill", title: L10n.text("hotel_care_call", settings.language), value: "+998 50 889 88 45")
                 }
                 .buttonStyle(.plain)
 
@@ -588,7 +578,7 @@ struct HotelCareContactSheet: View {
             .background(Color.iumrahPageBackground.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(settings.language == .russian ? "Готово" : "Done") { dismiss() }
+                    Button(L10n.text("settings_done", settings.language)) { dismiss() }
                 }
             }
         }

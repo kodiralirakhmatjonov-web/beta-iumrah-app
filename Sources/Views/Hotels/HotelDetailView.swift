@@ -64,6 +64,7 @@ struct HotelDetailView: View {
                         errorSection(errorMessage)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 24)
                 .padding(.bottom, shouldShowSelectionBar ? 128 : 48)
@@ -74,16 +75,18 @@ struct HotelDetailView: View {
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                ShareLink(item: storefront.shareURL(for: hotel)) {
+                ShareLink(
+                    item: storefront.shareURL(for: hotel),
+                    subject: Text(hotel.name),
+                    message: Text(L10n.text("hotel_storefront_share", settings.language))
+                ) {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .accessibilityLabel(settings.language == .russian ? "Поделиться отелем" : "Share hotel")
+                .accessibilityLabel(L10n.text("hotel_storefront_share", settings.language))
                 Button { storefront.toggleFavorite(hotel) } label: {
                     Image(systemName: storefront.isFavorite(hotel) ? "heart.fill" : "heart")
                 }
-                .accessibilityLabel(settings.language == .russian
-                                    ? (storefront.isFavorite(hotel) ? "Убрать из избранного" : "Добавить в избранное")
-                                    : (storefront.isFavorite(hotel) ? "Remove from favorites" : "Add to favorites"))
+                .accessibilityLabel(L10n.text(storefront.isFavorite(hotel) ? "hotel_storefront_favorite_remove" : "hotel_storefront_favorite_add", settings.language))
             }
         }
         .iumrahInternalNavigation()
@@ -111,16 +114,16 @@ struct HotelDetailView: View {
     private var shouldShowSelectionBar: Bool { bookingID == nil && selectionFlow && currentSelectionName != nil }
 
     private var currentSelectionName: String? {
-        if let selectedRoomCategory { return selectedRoomCategory.displayName }
+        if let selectedRoomCategory { return localizedRoomCategoryName(selectedRoomCategory.category) }
         if let selectedRoomID, let room = detail?.rooms.first(where: { $0.id == selectedRoomID }) { return room.name }
 
         switch selectionRole {
         case .makkah:
             guard journey.selectedHotel?.id == hotel.id else { return nil }
-            return journey.selectedRoom?.name ?? journey.selectedRoomCategory?.displayName
+            return journey.selectedRoom.map { localizedRoomName($0.name) } ?? journey.selectedRoomCategory.map { localizedRoomCategoryName($0.category) }
         case .madinah:
             guard journey.selectedMadinahHotel?.id == hotel.id else { return nil }
-            return journey.selectedMadinahRoom?.name ?? journey.selectedMadinahRoomCategory?.displayName
+            return journey.selectedMadinahRoom.map { localizedRoomName($0.name) } ?? journey.selectedMadinahRoomCategory.map { localizedRoomCategoryName($0.category) }
         }
     }
 
@@ -150,7 +153,7 @@ struct HotelDetailView: View {
                     .tabViewStyle(.page(indexDisplayMode: .automatic))
                 }
             }
-            .frame(height: 380)
+            .frame(height: 340)
             .clipped()
 
             if !sortedImages.isEmpty {
@@ -184,7 +187,7 @@ struct HotelDetailView: View {
             }
 
             Text(hotel.name)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .font(.system(size: 31, weight: .bold, design: .rounded))
                 .tracking(-0.9)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -213,21 +216,18 @@ struct HotelDetailView: View {
 
     private var storefrontPackageSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(settings.language == .russian ? "Ваша Умра с этим отелем" : "Your Umrah with this hotel")
-                        .font(.system(size: 25, weight: .bold, design: .rounded))
-                    Text(settings.language == .russian ? "Готовая цена до выбора дат" : "Ready price before choosing dates")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                Text("IUMRAH")
-                    .font(.caption2.weight(.bold))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.text("hotel_detail_package_title", settings.language))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .tracking(-0.35)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(L10n.text("hotel_detail_package_subtitle", settings.language))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Picker("Package", selection: $storefrontTier) {
+            Picker(L10n.text("hotel_storefront_section", settings.language), selection: $storefrontTier) {
                 Text(PackageTier.standard.title(settings.language)).tag(PackageTier.standard)
                 Text(PackageTier.luxury.title(settings.language)).tag(PackageTier.luxury)
             }
@@ -235,36 +235,39 @@ struct HotelDetailView: View {
             .onChange(of: storefrontTier) { _, _ in IumrahHaptics.selection() }
 
             if let quote = storefront.quote(for: hotel, tier: storefrontTier) {
-                HStack(alignment: .bottom) {
+                HStack(alignment: .lastTextBaseline, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(money(quote.packageQuote.pricePerPerson))
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .tracking(-0.8)
-                        Text(settings.language == .russian ? "на паломника" : "per pilgrim")
+                            .font(.system(size: 38, weight: .bold, design: .rounded))
+                            .tracking(-1)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Text(L10n.text("hotel_storefront_per_pilgrim", settings.language))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(money(quote.packageQuote.totalPackagePrice))
-                            .font(.headline)
-                        Text(settings.language == .russian ? "за пакет на \(quote.travelers)" : "package total for \(quote.travelers)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Spacer(minLength: 8)
+                    Text(L10n.format(
+                        "hotel_detail_package_total_for_fmt",
+                        settings.language,
+                        money(quote.packageQuote.totalPackagePrice),
+                        quote.travelers
+                    ))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Divider()
 
-                VStack(alignment: .leading, spacing: 10) {
-                    packageFact(icon: "airplane", text: "TAS → MED · JED → TAS")
+                VStack(alignment: .leading, spacing: 12) {
+                    packageFact(icon: "airplane", text: "TAS → MED   ·   JED → TAS")
                     packageFact(
                         icon: "building.2.fill",
-                        text: settings.language == .russian
-                            ? "\(hotel.name) · \(quote.hotelNights) ноч."
-                            : "\(hotel.name) · \(quote.hotelNights) nights"
+                        text: L10n.format("hotel_detail_nights_fmt", settings.language, hotel.name, quote.hotelNights)
                     )
-                    packageFact(icon: "fork.knife", text: settings.language == .russian ? "Питание · трансферы · виза" : "Meals · transfers · visa")
+                    packageFact(icon: "fork.knife", text: L10n.text("hotel_detail_services", settings.language))
                     packageFact(icon: "heart.fill", text: "iumrah Care")
                 }
 
@@ -273,28 +276,32 @@ struct HotelDetailView: View {
                         storefrontTier = .luxury
                         IumrahHaptics.selection()
                     } label: {
-                        Label(settings.language == .russian ? "Перейти на Luxury" : "Upgrade to Luxury", systemImage: "sparkles")
+                        Label(L10n.text("hotel_detail_upgrade_luxury", settings.language), systemImage: "sparkles")
                     }
                     .buttonStyle(IumrahSecondaryButtonStyle())
                 }
             } else {
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text(settings.language == .russian ? "Подготавливаем актуальную цену…" : "Preparing current price…")
+                    Text(L10n.text("hotel_detail_preparing_price", settings.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
             }
 
-            Text(settings.language == .russian
-                 ? "Standard используется по умолчанию для всех отелей, включая 5★. Luxury включается только по вашему выбору."
-                 : "Standard is the default for every hotel, including 5★. Luxury is applied only when you choose it.")
+            Text(L10n.text("hotel_detail_standard_note", settings.language))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .iumrahCard()
+        .padding(18)
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
+        }
     }
 
     private func packageFact(icon: String, text: String) -> some View {
@@ -309,19 +316,21 @@ struct HotelDetailView: View {
 
     private var receptionClocksSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionTitle(settings.language == .russian ? "Время в пути" : "Hotel time")
-            Text(settings.language == .russian
-                 ? "Как на стойке ресепшена — время дома и в городах вашей Умры."
-                 : "Reception-style clocks for home and your Umrah cities.")
+            sectionTitle(L10n.text("hotel_time_title", settings.language))
+            Text(L10n.text("hotel_time_body", settings.language))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            HStack(spacing: 10) {
-                ReceptionClock(city: "TASHKENT", timeZoneID: "Asia/Tashkent")
-                ReceptionClock(city: "MAKKAH", timeZoneID: "Asia/Riyadh")
-                ReceptionClock(city: "MADINAH", timeZoneID: "Asia/Riyadh")
-                ReceptionClock(city: "MOSCOW", timeZoneID: "Europe/Moscow")
+                .fixedSize(horizontal: false, vertical: true)
+
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                spacing: 10
+            ) {
+                ReceptionClock(city: L10n.text("hotel_time_tashkent", settings.language), timeZoneID: "Asia/Tashkent")
+                ReceptionClock(city: L10n.text("hotel_time_makkah", settings.language), timeZoneID: "Asia/Riyadh")
+                ReceptionClock(city: L10n.text("hotel_time_madinah", settings.language), timeZoneID: "Asia/Riyadh")
+                ReceptionClock(city: L10n.text("hotel_time_moscow", settings.language), timeZoneID: "Europe/Moscow")
             }
-            .frame(maxWidth: .infinity)
         }
     }
 
@@ -331,12 +340,12 @@ struct HotelDetailView: View {
         if !photos.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .firstTextBaseline) {
-                    sectionTitle(settings.language == .russian ? "Фотографии" : "Photos")
+                    sectionTitle(L10n.text("hotel_photos", settings.language))
                     Spacer()
                     Button {
                         isGalleryPresented = true
                     } label: {
-                        Text(settings.language == .russian ? "Посмотреть все \(photos.count)" : "View all \(photos.count)")
+                        Text(L10n.format("hotel_view_all_photos_fmt", settings.language, photos.count))
                             .font(.subheadline.weight(.semibold))
                     }
                     .buttonStyle(.plain)
@@ -412,21 +421,20 @@ struct HotelDetailView: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(detail.amenities, id: \.self) { amenity in
                         HStack(spacing: 10) {
-                            IumrahIconBadge(
-                                systemName: amenityIcon(amenity),
-                                size: 28,
-                                symbolSize: 13,
-                                shape: .circle
-                            )
+                            Image(systemName: amenityIcon(amenity))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 32, height: 32)
+                                .background(Color.iumrahRaisedBackground, in: Circle())
                             Text(localizedAmenity(amenity))
                                 .font(.footnote.weight(.semibold))
                                 .lineLimit(2)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(.horizontal, 11)
-                        .frame(minHeight: 50)
+                        .padding(12)
+                        .frame(minHeight: 56)
                         .background(Color.iumrahCardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
                 }
             }
@@ -469,7 +477,6 @@ struct HotelDetailView: View {
                     .padding(.horizontal, IumrahDesign.pagePadding)
                     .scrollTargetLayout()
                 }
-                .padding(.horizontal, -IumrahDesign.pagePadding)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
             }
@@ -479,40 +486,36 @@ struct HotelDetailView: View {
     private func primaryRoomCard(_ option: IumrahRoomCategoryOption) -> some View {
         let selected = isCategorySelected(option)
 
-        return VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
                 Image(systemName: categoryIcon(option.category))
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 58, height: 58)
-                    .iumrahGlass(in: Circle(), tint: Color.white.opacity(0.16))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 46, height: 46)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-                Spacer()
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(localizedRoomCategoryName(option.category))
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .lineLimit(2)
+                    Text(roomCategoryBody(option.category))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
 
                 if selected {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 27, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(Color.iumrahCareLight)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(option.displayName)
-                    .font(.system(size: 27, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(roomCategoryBody(option.category))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: 10) {
-                roomFactPill(icon: "person.2.fill", text: "\(option.maxGuests)")
-                roomFactPill(icon: "bed.double.fill", text: option.bedConfiguration)
+            HStack(spacing: 8) {
+                compactFact(icon: "person.2.fill", text: "\(option.maxGuests)")
+                compactFact(icon: "bed.double.fill", text: localizedRoomCategoryBeds(option.category))
             }
 
             if canSelectRooms {
@@ -522,35 +525,21 @@ struct HotelDetailView: View {
                         Spacer()
                         Image(systemName: selected ? "checkmark" : "arrow.right")
                     }
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 16)
-                    .frame(height: 50)
-                    .iumrahGlass(
-                        in: RoundedRectangle(cornerRadius: 17, style: .continuous),
-                        interactive: true,
-                        tint: selected ? Color.white.opacity(0.24) : nil
-                    )
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(RoomSelectButtonStyle(selected: selected))
                 .disabled(isSavingSelection)
             }
         }
-        .padding(24)
-        .frame(minHeight: canSelectRooms ? 326 : 266, alignment: .topLeading)
-        .background(
-            LinearGradient(
-                colors: tone(for: option.category),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .padding(18)
+        .frame(minHeight: canSelectRooms ? 214 : 168, alignment: .topLeading)
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(.white.opacity(selected ? 0.56 : 0.12), lineWidth: selected ? 1.5 : 0.6)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(selected ? Color.iumrahCareLight.opacity(0.55) : Color.primary.opacity(0.055), lineWidth: selected ? 1.2 : 0.6)
         }
-        .shadow(color: .black.opacity(0.09), radius: 18, y: 9)
     }
 
     private func actualRoomsSection(_ detail: HotelDetail) -> some View {
@@ -580,7 +569,6 @@ struct HotelDetailView: View {
                     .padding(.horizontal, IumrahDesign.pagePadding)
                     .scrollTargetLayout()
                 }
-                .padding(.horizontal, -IumrahDesign.pagePadding)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
             }
@@ -657,7 +645,7 @@ struct HotelDetailView: View {
 
             VStack(alignment: .leading, spacing: 11) {
                 HStack(alignment: .top, spacing: 10) {
-                    Text(room.name)
+                    Text(localizedRoomName(room.name))
                         .font(.system(size: 21, weight: .bold, design: .rounded))
                         .tracking(-0.25)
                         .lineLimit(2)
@@ -758,6 +746,51 @@ struct HotelDetailView: View {
             get: { roomImageIndices[roomID] ?? 0 },
             set: { roomImageIndices[roomID] = $0 }
         )
+    }
+
+    private func localizedRoomCategoryName(_ category: IumrahRoomCategory) -> String {
+        switch category {
+        case .double: return L10n.text("room_type_double", settings.language)
+        case .triple: return L10n.text("room_type_triple", settings.language)
+        case .quadruple: return L10n.text("room_type_quad", settings.language)
+        }
+    }
+
+    private func localizedRoomCategoryBeds(_ category: IumrahRoomCategory) -> String {
+        switch category {
+        case .double: return L10n.text("room_beds_double", settings.language)
+        case .triple: return L10n.text("room_beds_triple", settings.language)
+        case .quadruple: return L10n.text("room_beds_quad", settings.language)
+        }
+    }
+
+    private func localizedRoomName(_ raw: String) -> String {
+        let normalized = normalize(raw)
+        if normalized.contains("twin") && normalized.contains("city view") {
+            switch settings.language {
+            case .english: return "Twin Room · City View"
+            case .russian: return "Twin · Вид на город"
+            case .uzbek: return "Twin xona · Shahar manzarasi"
+            case .uzbekCyrillic: return "Twin хона · Шаҳар манзараси"
+            }
+        }
+        if normalized.contains("king") && normalized.contains("city view") {
+            switch settings.language {
+            case .english: return "King Room · City View"
+            case .russian: return "King · Вид на город"
+            case .uzbek: return "King xona · Shahar manzarasi"
+            case .uzbekCyrillic: return "King хона · Шаҳар манзараси"
+            }
+        }
+        if normalized.contains("double") && normalized.contains("city view") {
+            switch settings.language {
+            case .english: return "Double Room · City View"
+            case .russian: return "Двухместный · Вид на город"
+            case .uzbek: return "Ikki kishilik xona · Shahar manzarasi"
+            case .uzbekCyrillic: return "Икки кишилик хона · Шаҳар манзараси"
+            }
+        }
+        return raw
     }
 
     private func categoryIcon(_ category: IumrahRoomCategory) -> String {
@@ -1090,14 +1123,6 @@ struct HotelDetailView: View {
             .clipped()
     }
 
-    private func tone(for category: IumrahRoomCategory) -> [Color] {
-        switch category {
-        case .double: return [Color(red: 0.77, green: 0.39, blue: 0.12), Color(red: 0.42, green: 0.20, blue: 0.07)]
-        case .triple: return [Color(red: 0.48, green: 0.27, blue: 0.74), Color(red: 0.24, green: 0.13, blue: 0.38)]
-        case .quadruple: return [Color(red: 0.18, green: 0.43, blue: 0.76), Color(red: 0.08, green: 0.20, blue: 0.38)]
-        }
-    }
-
     private func ratingTitle(_ rating: Double) -> String {
         if rating >= 9 { return L10n.text("hotel_rating_exceptional", settings.language) }
         if rating >= 8 { return L10n.text("hotel_rating_very_good", settings.language) }
@@ -1117,6 +1142,14 @@ struct HotelDetailView: View {
         if normalized.contains("24") || normalized.contains("reception") { return L10n.text("amenity_reception", settings.language) }
         if normalized.contains("lift") || normalized.contains("elevator") { return L10n.text("amenity_elevator", settings.language) }
         if normalized.contains("laundry") { return L10n.text("amenity_laundry", settings.language) }
+        if normalized.contains("coffee") || normalized.contains("cafe") { return L10n.text("amenity_coffee_shop", settings.language) }
+        if normalized.contains("concierge") { return L10n.text("amenity_concierge", settings.language) }
+        if normalized.contains("spa") { return L10n.text("amenity_spa", settings.language) }
+        if normalized.contains("dry clean") { return L10n.text("amenity_dry_cleaning", settings.language) }
+        if normalized.contains("luggage") || normalized.contains("baggage") { return L10n.text("amenity_luggage_storage", settings.language) }
+        if normalized.contains("fitness") || normalized.contains("gym") { return L10n.text("amenity_fitness_center", settings.language) }
+        if normalized.contains("room service") { return L10n.text("amenity_room_service", settings.language) }
+        if normalized.contains("non-smoking") || normalized.contains("non smoking") { return L10n.text("amenity_non_smoking", settings.language) }
         return raw
     }
 
@@ -1130,8 +1163,15 @@ struct HotelDetailView: View {
         if normalized.contains("family") { return "person.2.fill" }
         if normalized.contains("24") || normalized.contains("reception") { return "bell.fill" }
         if normalized.contains("lift") || normalized.contains("elevator") { return "arrow.up.arrow.down" }
-        if normalized.contains("laundry") { return "tshirt.fill" }
-        return "checkmark.circle.fill"
+        if normalized.contains("laundry") || normalized.contains("dry clean") { return "tshirt.fill" }
+        if normalized.contains("coffee") || normalized.contains("cafe") { return "cup.and.saucer.fill" }
+        if normalized.contains("concierge") { return "bell.fill" }
+        if normalized.contains("spa") { return "leaf.fill" }
+        if normalized.contains("luggage") || normalized.contains("baggage") { return "suitcase.fill" }
+        if normalized.contains("fitness") || normalized.contains("gym") { return "figure.run" }
+        if normalized.contains("room service") { return "fork.knife" }
+        if normalized.contains("non-smoking") || normalized.contains("non smoking") { return "nosign" }
+        return "checkmark"
     }
 
     @MainActor
@@ -1189,38 +1229,66 @@ private struct ReceptionClock: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            VStack(spacing: 7) {
+            HStack(spacing: 12) {
                 clockFace(date: context.date)
-                    .frame(width: 66, height: 66)
-                Text(city)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(timeText(context.date))
-                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .frame(width: 54, height: 54)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(city)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text(timeText(context.date))
+                        .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 78)
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
+            }
         }
     }
 
     private func clockFace(date: Date) -> some View {
         Canvas { context, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let radius = min(size.width, size.height) / 2 - 2
+            let radius = min(size.width, size.height) / 2 - 1
 
-            let circle = Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
-            context.fill(circle, with: .color(Color.iumrahCardBackground))
-            context.stroke(circle, with: .color(Color.primary.opacity(0.13)), lineWidth: 0.8)
+            let circle = Path(ellipseIn: CGRect(
+                x: center.x - radius,
+                y: center.y - radius,
+                width: radius * 2,
+                height: radius * 2
+            ))
+            context.fill(circle, with: .color(Color.iumrahRaisedBackground))
+            context.stroke(circle, with: .color(Color.primary.opacity(0.10)), lineWidth: 0.7)
 
             for tick in 0..<12 {
                 let angle = Double(tick) * .pi / 6 - .pi / 2
-                let outer = CGPoint(x: center.x + cos(angle) * (radius - 6), y: center.y + sin(angle) * (radius - 6))
-                let inner = CGPoint(x: center.x + cos(angle) * (radius - (tick % 3 == 0 ? 12 : 9)), y: center.y + sin(angle) * (radius - (tick % 3 == 0 ? 12 : 9)))
-                var path = Path()
-                path.move(to: inner)
-                path.addLine(to: outer)
-                context.stroke(path, with: .color(Color.primary.opacity(tick % 3 == 0 ? 0.72 : 0.36)), lineWidth: tick % 3 == 0 ? 1.4 : 0.8)
+                let outer = CGPoint(
+                    x: center.x + cos(angle) * (radius - 5),
+                    y: center.y + sin(angle) * (radius - 5)
+                )
+                let innerRadius = radius - (tick % 3 == 0 ? 10 : 8)
+                let inner = CGPoint(
+                    x: center.x + cos(angle) * innerRadius,
+                    y: center.y + sin(angle) * innerRadius
+                )
+                var tickPath = Path()
+                tickPath.move(to: inner)
+                tickPath.addLine(to: outer)
+                context.stroke(
+                    tickPath,
+                    with: .color(Color.primary.opacity(tick % 3 == 0 ? 0.56 : 0.24)),
+                    lineWidth: tick % 3 == 0 ? 1.2 : 0.7
+                )
             }
 
             var calendar = Calendar(identifier: .gregorian)
@@ -1228,9 +1296,9 @@ private struct ReceptionClock: View {
             let components = calendar.dateComponents([.hour, .minute], from: date)
             let hour = Double(components.hour ?? 0) + Double(components.minute ?? 0) / 60
             let minute = Double(components.minute ?? 0)
-            drawHand(context: &context, center: center, radius: radius * 0.48, angle: hour / 12 * 2 * .pi - .pi / 2, width: 2.5)
-            drawHand(context: &context, center: center, radius: radius * 0.68, angle: minute / 60 * 2 * .pi - .pi / 2, width: 1.5)
-            context.fill(Path(ellipseIn: CGRect(x: center.x - 2.5, y: center.y - 2.5, width: 5, height: 5)), with: .color(.primary))
+            drawHand(context: &context, center: center, radius: radius * 0.47, angle: hour / 12 * 2 * .pi - .pi / 2, width: 2.4)
+            drawHand(context: &context, center: center, radius: radius * 0.67, angle: minute / 60 * 2 * .pi - .pi / 2, width: 1.4)
+            context.fill(Path(ellipseIn: CGRect(x: center.x - 2.1, y: center.y - 2.1, width: 4.2, height: 4.2)), with: .color(.primary))
         }
     }
 
@@ -1310,10 +1378,10 @@ struct HotelGalleryView: View {
                         }
                         .padding(.horizontal, IumrahDesign.pagePadding)
                     }
-                    .padding(.horizontal, -IumrahDesign.pagePadding)
+
 
                     Text(selectedCategory == "all"
-                         ? (settings.language == .russian ? "Все фото (\(filteredImages.count))" : "All photos (\(filteredImages.count))")
+                         ? "\(L10n.text("hotel_gallery_all", settings.language)) (\(filteredImages.count))"
                          : "\(categoryTitle(selectedCategory)) (\(filteredImages.count))")
                         .font(.system(size: 27, weight: .bold, design: .rounded))
 
@@ -1339,7 +1407,7 @@ struct HotelGalleryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(settings.language == .russian ? "Готово" : "Done") { dismiss() }
+                    Button(L10n.text("settings_done", settings.language)) { dismiss() }
                 }
             }
         }
@@ -1353,13 +1421,14 @@ struct HotelGalleryView: View {
     }
 
     private func categoryTitle(_ category: String) -> String {
-        guard category != "all" else { return settings.language == .russian ? "Все фото" : "All photos" }
+        guard category != "all" else { return L10n.text("hotel_gallery_all", settings.language) }
         let normalized = category.lowercased()
-        if normalized.contains("room") { return settings.language == .russian ? "Номера" : "Rooms" }
-        if normalized.contains("bath") { return settings.language == .russian ? "Ванная" : "Bathroom" }
-        if normalized.contains("restaurant") || normalized.contains("food") { return settings.language == .russian ? "Ресторан" : "Restaurant" }
-        if normalized.contains("lobby") || normalized.contains("reception") { return settings.language == .russian ? "Лобби" : "Lobby" }
-        if normalized.contains("view") || normalized.contains("exterior") { return settings.language == .russian ? "Вид" : "View" }
+        if normalized.contains("room") { return L10n.text("hotel_gallery_rooms", settings.language) }
+        if normalized.contains("bath") { return L10n.text("hotel_gallery_bathroom", settings.language) }
+        if normalized.contains("restaurant") || normalized.contains("food") { return L10n.text("hotel_gallery_restaurant", settings.language) }
+        if normalized.contains("lobby") || normalized.contains("reception") { return L10n.text("hotel_gallery_lobby", settings.language) }
+        if normalized.contains("view") || normalized.contains("exterior") { return L10n.text("hotel_gallery_view", settings.language) }
+        if normalized.contains("facility") || normalized.contains("amenit") { return L10n.text("hotel_gallery_facility", settings.language) }
         return category.replacingOccurrences(of: "_", with: " ").capitalized
     }
 

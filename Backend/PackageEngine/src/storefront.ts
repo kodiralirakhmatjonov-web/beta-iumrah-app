@@ -200,7 +200,7 @@ export function appleAppSiteAssociation(): Response {
   const body = {
     applinks: {
       details: [{
-        appIDs: ["2DQ678JTNG.com.iumrah.beta"],
+        appIDs: ["2DQ678JTNG.com.iumrah.beta", "2DQ678JTNG.com.iumrah.app"],
         components: [
           { "/": "/h/*", comment: "Open public iumrah hotel links in the iOS app without exposing supplier identifiers." },
           { "/": "/hotel/*", comment: "Backward compatibility for hotel links shared by older beta builds." },
@@ -212,24 +212,40 @@ export function appleAppSiteAssociation(): Response {
     status: 200,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=3600",
+      "cache-control": "public, max-age=300",
     },
   });
 }
 
-export function hotelWebFallback(_url: URL): Response {
-  // Public share pages never render the internal hotel identifier. Supplier names
-  // such as Expedia/Booking may exist inside the private D1 ID, but they must not
-  // appear in the customer-facing URL preview or fallback page.
+export function hotelWebFallback(url: URL): Response {
+  // Universal Links are the primary path. The custom URL scheme button is a
+  // deterministic fallback for Safari, same-domain navigation and devices that
+  // still have an older AASA snapshot cached by Apple's CDN.
+  const match = url.pathname.match(/^\/h\/([^/]+)$/);
+  const publicToken = match ? decodeURIComponent(match[1]) : "";
+  const appURL = publicToken ? `iumrahapp://hotel/${encodeURIComponent(publicToken)}` : "";
+  const button = appURL
+    ? `<a class="open" href="${appURL}">Open in iumrah</a>`
+    : "";
+
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>iumrah Hotels</title><meta name="description" content="Open this hotel in iumrah to see the stay and complete Umrah package price."><style>
-body{margin:0;background:#f7f7f8;color:#111;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;display:grid;min-height:100vh;place-items:center}
-main{width:min(560px,calc(100% - 40px));background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:30px;padding:34px;box-sizing:border-box;box-shadow:0 16px 50px rgba(0,0,0,.06)}
-h1{font-size:34px;margin:0 0 10px;letter-spacing:-1px}p{color:#666;line-height:1.5;margin:0}
-</style></head><body><main><h1>iumrah Hotels</h1><p>Open this hotel in the iumrah app to see its curated stay details and current Umrah package price.</p></main></body></html>`;
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>iumrah Hotels</title>
+<meta name="description" content="Open this hotel in iumrah to see its curated stay details and current Umrah package price.">
+<style>
+:root{color-scheme:light dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f5f5f7;color:#111;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;display:grid;place-items:center;padding:24px}
+main{width:min(520px,100%);background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:32px;padding:30px;box-shadow:0 18px 56px rgba(0,0,0,.07)}
+h1{font-size:34px;line-height:1.05;letter-spacing:-1.2px;margin:0 0 12px}p{font-size:17px;line-height:1.45;color:#6e6e73;margin:0 0 24px}.open{display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:18px;background:#111;color:#fff;text-decoration:none;font-size:17px;font-weight:650}.hint{font-size:13px;margin:14px 2px 0;color:#8e8e93}
+@media(prefers-color-scheme:dark){body{background:#000;color:#f5f5f7}main{background:#1c1c1e;border-color:rgba(255,255,255,.08)}p,.hint{color:#98989d}.open{background:#fff;color:#111}}
+</style></head><body><main><h1>iumrah Hotels</h1><p id="copy">Open this hotel in the iumrah app to see its stay details and current Umrah package price.</p>${button}<p class="hint" id="hint">If the app did not open automatically, tap the button above.</p></main>
+<script>
+(function(){var l=(navigator.language||'en').toLowerCase(),copy=document.getElementById('copy'),hint=document.getElementById('hint'),open=document.querySelector('.open');
+var t=l.indexOf('uz-cyrl')===0||l.indexOf('uz-cyrl')>=0?['Бу меҳмонхонани iumrah иловасида очиб, тафсилотлар ва амалдаги Умра пакети нархини кўринг.','iumrah иловасида очиш','Илова автоматик очилмаса, юқоридаги тугмани босинг.']:l.indexOf('uz')===0?['Bu mehmonxonani iumrah ilovasida ochib, tafsilotlar va amaldagi Umra paketi narxini ko‘ring.','iumrah ilovasida ochish','Ilova avtomatik ochilmasa, yuqoridagi tugmani bosing.']:l.indexOf('ru')===0?['Откройте этот отель в приложении iumrah, чтобы увидеть детали и актуальную цену пакета Умры.','Открыть в iumrah','Если приложение не открылось автоматически, нажмите кнопку выше.']:['Open this hotel in the iumrah app to see its stay details and current Umrah package price.','Open in iumrah','If the app did not open automatically, tap the button above.'];
+copy.textContent=t[0];hint.textContent=t[2];if(open)open.textContent=t[1];})();
+</script></body></html>`;
   return new Response(html, {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" },
   });
 }
+

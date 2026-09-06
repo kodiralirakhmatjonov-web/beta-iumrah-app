@@ -1,0 +1,40 @@
+BETA HOTELS UI / LOCALIZATION / LINKS 097
+Date: 2026-09-06
+
+Scope
+- Cosmetic cleanup of Hotels storefront cards and Hotel detail page.
+- Fix four-language coverage for new Hotel storefront/detail UI: en, ru, uz, uz-cyrl.
+- Remove the horizontal-width regression that could clip Hotel detail content off-screen.
+- Keep Standard/Luxury package pricing math unchanged from the already-fixed v4 state.
+- Make public hotel links route through Universal Links and add an installed-app fallback scheme.
+- Verify Associated Domains are present in source entitlements, archived app, and final IPA.
+
+UI
+- Full-width Expedia-inspired hotel cards with a stable three-photo collage and compact native Favorite/Share chrome.
+- Price hierarchy is contained inside the card and no longer collides with the hotel name/photos.
+- Hotel detail uses one viewport-width content column; room carousels no longer apply negative horizontal padding.
+- Package, quality, amenities, room, photo and practical sections use semantic iumrah surfaces and shared radii.
+- Hotel reception clocks are a calm 2x2 board with analog face + digital time rather than tiny loose dials.
+- Gallery categories and controls are localized.
+
+Localization
+- Added/verified Hotel storefront, package, clocks, gallery, Care, amenities and room labels for all four app languages.
+- Primary room category names and bed labels are localized instead of displaying backend English labels.
+
+Links
+- HTTPS public link stays supplier-safe: https://iumrah.app/h/<public-token>
+- App handles Universal Links with NSUserActivityTypeBrowsingWeb.
+- Safari fallback exposes an “Open in iumrah” action using iumrahapp://hotel/<public-token> after the new build is installed.
+- AASA includes the beta app identifier and /h/* component.
+
+Deploy
+1. Let the repository ZIP bot extract this patch.
+2. Run “Deploy iumrah Package Engine” once (AASA + web fallback changed).
+3. Run the normal TestFlight build.
+4. Install/update that TestFlight build before retesting shared hotel links.
+
+Pricing safety
+The following pricing/runtime files are intentionally unchanged by this patch:
+- Sources/Services/HotelStorefrontService.swift
+- Sources/State/HotelStorefrontStore.swift
+- Sources/Services/LocalPackagePricingEngine.swift
