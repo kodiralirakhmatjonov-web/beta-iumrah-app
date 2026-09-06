@@ -36,6 +36,18 @@ struct CuratedFlightRecommendation: Decodable, Identifiable, Hashable {
     let inbound: Leg?
     let nonstop: Bool
     let recommendationLabel: String
+    let offerType: String?
+    let journeyRole: String?
+
+    var effectiveOfferType: String {
+        if let offerType, !offerType.isEmpty { return offerType }
+        return inbound == nil ? "one_way" : "paired_one_way"
+    }
+
+    var effectiveJourneyRole: String {
+        if let journeyRole, !journeyRole.isEmpty { return journeyRole }
+        return effectiveOfferType == "one_way" ? "outbound" : "complete"
+    }
 
     var primaryAirlineCode: String? {
         let value = outbound.airlineCode.trimmingCharacters(in: .whitespacesAndNewlines)

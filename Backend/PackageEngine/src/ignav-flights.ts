@@ -36,6 +36,7 @@ type SearchBody = {
   airlines_include?: string[] | null;
   airlines_exclude?: string[] | null;
   allow_self_transfer?: boolean;
+  curation_mode?: "outbound_one_way" | "return_one_way" | "round_trip";
 };
 
 type IgnavPrice = { amount?: number; currency?: string; status?: string };
@@ -188,6 +189,10 @@ function validateCurationSearchBody(raw: SearchBody) {
   const legs = (raw.legs ?? []).map(normalizeRequestLeg);
   const include = normalizeAirlines(raw.airlines_include);
   const exclude = normalizeAirlines(raw.airlines_exclude);
+  const curationMode = raw.curation_mode ?? (legs.length === 1 ? "outbound_one_way" : "round_trip");
+  if (!["outbound_one_way", "return_one_way", "round_trip"].includes(curationMode)) throw new Error("INVALID_CURATION_MODE");
+  if (curationMode === "round_trip" && legs.length !== 2) throw new Error("INVALID_CURATION_LEGS");
+  if (curationMode !== "round_trip" && legs.length !== 1) throw new Error("INVALID_CURATION_LEGS");
   return {
     ...base,
     legs,
@@ -198,6 +203,7 @@ function validateCurationSearchBody(raw: SearchBody) {
     airlines_exclude: exclude,
     allow_self_transfer: raw.allow_self_transfer ?? false,
     market: "US",
+    curation_mode: curationMode as "outbound_one_way" | "return_one_way" | "round_trip",
   };
 }
 
@@ -428,6 +434,12 @@ function dedicatedOneWayItinerary(itinerary: IgnavItinerary): IgnavItinerary {
   return { ...itinerary, legs: [itinerary.outbound] };
 }
 
+function dedicatedRoundTripItinerary(itinerary: IgnavItinerary): IgnavItinerary {
+  if (Array.isArray(itinerary.legs) && itinerary.legs.length > 0) return itinerary;
+  if (!itinerary.outbound || !itinerary.inbound) return itinerary;
+  return { ...itinerary, legs: [itinerary.outbound, itinerary.inbound] };
+}
+
 function curationOneWayBody(
   leg: ReturnType<typeof normalizeRequestLeg>,
   body: ReturnType<typeof validateCurationSearchBody>,
@@ -452,6 +464,46 @@ function curationOneWayBody(
     allow_self_transfer: body.allow_self_transfer,
     market: body.market,
   };
+}
+
+function curationRoundTripBody(
+  outbound: ReturnType<typeof normalizeRequestLeg>,
+  inbound: ReturnType<typeof normalizeRequestLeg>,
+  body: ReturnType<typeof validateCurationSearchBody>,
+  includeAirlines: boolean,
+): Record<string, unknown> {
+  return {
+    origin: outbound.origin,
+    destination: outbound.destination,
+    departure_date: outbound.departure_date,
+    return_date: inbound.departure_date,
+    adults: body.adults,
+    children: body.children,
+    infants_in_seat: body.infants_in_seat,
+    infants_on_lap: body.infants_on_lap,
+    cabin_class: body.cabin_class,
+    max_stops: outbound.max_stops,
+    departure_time_range: outbound.departure_time_range,
+    return_time_range: inbound.departure_time_range,
+    min_carry_on_bags: body.min_carry_on_bags,
+    min_checked_bags: body.min_checked_bags,
+    max_price: body.max_price,
+    airlines_include: includeAirlines ? body.airlines_include : undefined,
+    airlines_exclude: body.airlines_exclude,
+    allow_self_transfer: body.allow_self_transfer,
+    market: body.market,
+  };
+}
+
+type CurationOfferType = "one_way" | "round_trip" | "paired_one_way";
+type CurationJourneyRole = "outbound" | "return" | "complete";
+
+function annotateCurationItinerary<T extends Record<string, unknown>>(
+  itinerary: T,
+  offerType: CurationOfferType,
+  journeyRole: CurationJourneyRole,
+): T & { offer_type: CurationOfferType; journey_role: CurationJourneyRole } {
+  return { ...itinerary, offer_type: offerType, journey_role: journeyRole };
 }
 
 function selectedAirlineMatch(
@@ -515,6 +567,55 @@ async function curationOneWayCandidates(
   };
 }
 
+async function curationRoundTripCandidates(
+  env: Env,
+  outbound: ReturnType<typeof normalizeRequestLeg>,
+  inbound: ReturnType<typeof normalizeRequestLeg>,
+  body: ReturnType<typeof validateCurationSearchBody>,
+  observedAt: string,
+) {
+  const requestShape = { legs: [outbound, inbound], cabin_class: body.cabin_class };
+  let successfulProviderRequests = 0;
+
+  const search = async (includeAirlines: boolean) => {
+    const upstream = await fetchIgnav(
+      env.IGNAV_API_KEY!,
+      curationRoundTripBody(outbound, inbound, body, includeAirlines),
+      "/fares/round-trip",
+    );
+    successfulProviderRequests += 1;
+    const raw = upstream.itineraries ?? [];
+    const normalized = raw
+      .map((itinerary, index) => normalizeItinerary(
+        dedicatedRoundTripItinerary(itinerary),
+        requestShape,
+        observedAt,
+        20_000 + index,
+        false,
+      ))
+      .filter((value): value is NonNullable<typeof value> => value !== null)
+      .filter((itinerary) => itinerary.legs.every((item) => item.stops === 0))
+      .filter((itinerary) => selectedAirlineMatch(itinerary, body.airlines_include))
+      .map((itinerary) => annotateCurationItinerary(itinerary, "round_trip", "complete"))
+      .sort((a, b) => a.price.amount - b.price.amount);
+    return { rawCount: raw.length, normalized };
+  };
+
+  let result = await search(true);
+  let usedBroadFallback = false;
+  if (body.airlines_include?.length && result.normalized.length === 0) {
+    result = await search(false);
+    usedBroadFallback = true;
+  }
+
+  return {
+    candidates: result.normalized,
+    rawCount: result.rawCount,
+    usedBroadFallback,
+    successfulProviderRequests,
+  };
+}
+
 function pairCuratedLegs(
   outbound: NonNullable<ReturnType<typeof normalizeItinerary>>[],
   inbound: NonNullable<ReturnType<typeof normalizeItinerary>>[],
@@ -547,6 +648,8 @@ function pairCuratedLegs(
         bags: null,
         requires_self_transfer: false,
         ignav_id: pairID,
+        offer_type: "paired_one_way" as const,
+        journey_role: "complete" as const,
       });
     }
   }
@@ -652,23 +755,66 @@ export async function searchIgnavFlightsForCuration(request: Request, env: Env):
   try {
     const observedAt = new Date().toISOString();
 
-    // Staff curation intentionally searches each requested leg independently with
-    // Ignav's dedicated one-way endpoint. This is materially more reliable for
-    // Umrah open-jaw routes (for example TAS→JED + MED→TAS) than asking the
-    // provider to price the two unrelated legs as one multi-city itinerary.
-    const legResults = [];
-    for (let index = 0; index < body.legs.length; index += 1) {
-      legResults.push(await curationOneWayCandidates(env, body.legs[index], body, observedAt, index));
+    if (body.curation_mode !== "round_trip") {
+      const legResult = await curationOneWayCandidates(env, body.legs[0], body, observedAt, 0);
+      for (let index = 0; index < legResult.successfulProviderRequests; index += 1) {
+        await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
+      }
+      const journeyRole: CurationJourneyRole = body.curation_mode === "return_one_way" ? "return" : "outbound";
+      const itineraries = legResult.candidates
+        .slice(0, 40)
+        .map((itinerary) => annotateCurationItinerary(itinerary, "one_way", journeyRole));
+
+      return json({
+        ok: true,
+        source: "ignav",
+        observed_at: observedAt,
+        legs: body.legs,
+        itineraries,
+        filters: {
+          nonstop: body.legs.every((leg) => leg.max_stops === 0),
+          airlines_include: body.airlines_include ?? [],
+          allow_self_transfer: body.allow_self_transfer,
+        },
+        diagnostics: {
+          mode: body.curation_mode,
+          provider_requests: legResult.successfulProviderRequests,
+          raw_itineraries_by_leg: [legResult.rawCount],
+          usable_itineraries_by_leg: [legResult.candidates.length],
+          broad_airline_fallback_by_leg: [legResult.usedBroadFallback],
+          dedicated_round_trip_count: 0,
+          paired_one_way_count: 0,
+        },
+      });
     }
 
-    const providerRequestCount = legResults.reduce((sum, item) => sum + item.successfulProviderRequests, 0);
+    // Complete-trip curation always computes the independent one-way alternative.
+    // When the return route is an exact reverse (TAS→JED + JED→TAS), we ALSO ask
+    // Ignav's dedicated /fares/round-trip endpoint. Business can then compare the
+    // provider's true return fare against our own one-way + return-way sum. For an
+    // open-jaw route (TAS→JED + MED→TAS), a true round-trip fare does not exist,
+    // so the system returns only the clearly-labelled paired one-way alternative.
+    const outboundResult = await curationOneWayCandidates(env, body.legs[0], body, observedAt, 0);
+    const inboundResult = await curationOneWayCandidates(env, body.legs[1], body, observedAt, 1);
+    const paired = pairCuratedLegs(outboundResult.candidates, inboundResult.candidates, observedAt);
+
+    const isExactReverse = body.legs[1].origin === body.legs[0].destination
+      && body.legs[1].destination === body.legs[0].origin;
+    const roundTripResult = isExactReverse
+      ? await curationRoundTripCandidates(env, body.legs[0], body.legs[1], body, observedAt)
+      : null;
+
+    const providerRequestCount = outboundResult.successfulProviderRequests
+      + inboundResult.successfulProviderRequests
+      + (roundTripResult?.successfulProviderRequests ?? 0);
     for (let index = 0; index < providerRequestCount; index += 1) {
       await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
     }
 
-    const itineraries = body.legs.length === 1
-      ? legResults[0].candidates.slice(0, 40)
-      : pairCuratedLegs(legResults[0].candidates, legResults[1].candidates, observedAt);
+    const dedicatedRoundTrips = roundTripResult?.candidates ?? [];
+    const itineraries = [...dedicatedRoundTrips, ...paired]
+      .sort((a, b) => a.price.amount - b.price.amount)
+      .slice(0, 50);
 
     return json({
       ok: true,
@@ -682,11 +828,16 @@ export async function searchIgnavFlightsForCuration(request: Request, env: Env):
         allow_self_transfer: body.allow_self_transfer,
       },
       diagnostics: {
-        mode: body.legs.length === 2 ? "independent_one_way_pairing" : "dedicated_one_way",
+        mode: isExactReverse ? "round_trip_compare" : "open_jaw_one_way_pairing",
         provider_requests: providerRequestCount,
-        raw_itineraries_by_leg: legResults.map((item) => item.rawCount),
-        usable_itineraries_by_leg: legResults.map((item) => item.candidates.length),
-        broad_airline_fallback_by_leg: legResults.map((item) => item.usedBroadFallback),
+        raw_itineraries_by_leg: [outboundResult.rawCount, inboundResult.rawCount],
+        usable_itineraries_by_leg: [outboundResult.candidates.length, inboundResult.candidates.length],
+        broad_airline_fallback_by_leg: [outboundResult.usedBroadFallback, inboundResult.usedBroadFallback],
+        round_trip_available: isExactReverse,
+        dedicated_round_trip_raw: roundTripResult?.rawCount ?? 0,
+        dedicated_round_trip_count: dedicatedRoundTrips.length,
+        round_trip_broad_airline_fallback: roundTripResult?.usedBroadFallback ?? false,
+        paired_one_way_count: paired.length,
       },
     });
   } catch (error) {

@@ -39,8 +39,12 @@ const clientProvider = fs.readFileSync(new URL('../../../Sources/Services/IgnavF
 assert.match(ignav, /endpoint = "\/fares\/search"/);
 assert.match(ignav, /raw\.legs\.length < 1 \|\| raw\.legs\.length > 2/);
 assert.match(ignav, /itinerary\.legs\.length !== request\.legs\.length/);
-assert.match(ignav, /"\/fares\/one-way"/, 'staff curation may use Ignav dedicated one-way search for each open-jaw leg');
-assert.match(ignav, /independent_one_way_pairing/, 'staff curation must pair independently discovered Umrah legs after provider search');
+assert.match(ignav, /"\/fares\/one-way"/, 'staff curation uses Ignav dedicated one-way search for independent Umrah legs');
+assert.match(ignav, /"\/fares\/round-trip"/, 'staff curation can compare a true Ignav return fare on exact reverse routes');
+assert.match(ignav, /round_trip_compare/, 'exact reverse routes must compare provider round-trip against our one-way pairing');
+assert.match(ignav, /open_jaw_one_way_pairing/, 'open-jaw routes must keep the independent one-way pairing path');
+assert.match(ignav, /offer_type: "paired_one_way"/, 'system-built pairs must be explicitly typed');
+assert.match(ignav, /annotateCurationItinerary\(itinerary, "round_trip", "complete"\)/, 'provider return fares must be explicitly typed');
 assert.match(ignav, /String\(price\.status \|\| "unverified"\)/, 'current search-price hints must remain usable without final-price confirmation');
 assert.match(ignav, /recordSuccessfulIgnavRequest/);
 assert.match(ignav, /successful_requests = successful_requests \+ 1/);

@@ -17,10 +17,14 @@ test('Business curation search keeps provider nonstop and airline filters behind
 });
 
 
-test('Business curation searches Umrah open-jaw legs independently and pairs them after normalization', () => {
+test('Business curation distinguishes true round-trip fares from system-paired one-way fares', () => {
   assert.match(ignav, /"\/fares\/one-way"/);
-  assert.match(ignav, /independent_one_way_pairing/);
+  assert.match(ignav, /"\/fares\/round-trip"/);
+  assert.match(ignav, /round_trip_compare/);
+  assert.match(ignav, /open_jaw_one_way_pairing/);
   assert.match(ignav, /pairCuratedLegs/);
+  assert.match(ignav, /offer_type: "paired_one_way"/);
+  assert.match(ignav, /annotateCurationItinerary\(itinerary, "round_trip", "complete"\)/);
   assert.match(ignav, /broad_airline_fallback_by_leg/);
 });
 
@@ -48,9 +52,25 @@ test('public recommendations support origin-wide JED/MED discovery and bypass st
     curated.indexOf('export async function curatedCalendarRows')
   );
   assert.match(publicBlock, /umrah_origin/);
+  assert.match(publicBlock, /journey_role = 'outbound'/);
   assert.match(publicBlock, /outbound_destination IN \('JED', 'MED'\)/);
-  assert.match(publicBlock, /inbound_origin IN \('JED', 'MED'\)/);
+  assert.match(publicBlock, /journey_role = 'return'/);
+  assert.match(publicBlock, /outbound_origin IN \('JED', 'MED'\)/);
+  assert.match(publicBlock, /journey_role = 'complete'/);
   assert.match(publicBlock, /"no-store"/);
+});
+
+
+test('publishing uses structural fingerprints so repeat searches update instead of duplicate', () => {
+  assert.match(curated, /function curatedFingerprint/);
+  assert.match(curated, /WHERE fingerprint = \?/);
+  assert.match(curated, /ORDER BY CASE WHEN fingerprint = \? THEN 0 ELSE 1 END/);
+  assert.match(curated, /fingerprint=excluded\.fingerprint/);
+});
+
+test('calendar only consumes complete curated fares, never a single one-way leg', () => {
+  const calendarBlock = curated.slice(curated.indexOf('export async function curatedCalendarRows'));
+  assert.match(calendarBlock, /journey_role = 'complete'/);
 });
 
 test('calendar merges curated rows then chooses the lowest per-traveler fare for each date', () => {

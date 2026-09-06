@@ -3,10 +3,24 @@ import SwiftUI
 struct TripBuilderView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    private enum CuratedDisplayMode: String, CaseIterable, Identifiable {
+        case separate
+        case roundTrip
+        var id: String { rawValue }
+    }
+
+    private enum CuratedLegSelection {
+        case outbound
+        case inbound
+    }
+
     @State private var showsDateCalendar = false
     @State private var curatedFlights: [CuratedFlightRecommendation] = []
     @State private var isLoadingCuratedFlights = false
-    @State private var selectedCuratedFlightID: String? = nil
+    @State private var curatedDisplayMode: CuratedDisplayMode = .separate
+    @State private var selectedCuratedOutboundID: String? = nil
+    @State private var selectedCuratedReturnID: String? = nil
+    @State private var selectedCuratedRoundTripID: String? = nil
 
     var body: some View {
         ScrollView {
@@ -487,7 +501,7 @@ struct TripBuilderView: View {
     }
 
     private var curatedFlightsSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
@@ -518,6 +532,12 @@ struct TripBuilderView: View {
                     .background(Color.orange.opacity(0.12), in: Capsule())
             }
 
+            Picker(curatedModePickerLabel, selection: $curatedDisplayMode) {
+                Text(curatedSeparateModeLabel).tag(CuratedDisplayMode.separate)
+                Text(curatedRoundTripModeLabel).tag(CuratedDisplayMode.roundTrip)
+            }
+            .pickerStyle(.segmented)
+
             if isLoadingCuratedFlights && curatedFlights.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -528,30 +548,27 @@ struct TripBuilderView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
                 .padding(.horizontal, 4)
-            } else if curatedFlights.isEmpty {
-                HStack(spacing: 11) {
-                    Image(systemName: "calendar.badge.clock")
-                        .font(.title3)
-                        .foregroundStyle(Color.orange)
-                    Text(curatedEmptyLabel)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            } else if curatedDisplayMode == .separate {
+                VStack(alignment: .leading, spacing: 17) {
+                    curatedOneWayRow(
+                        title: curatedOutboundRowTitle,
+                        subtitle: "\(journey.trip.originCode) → \(journey.trip.outboundDestinationCode)",
+                        recommendations: curatedOutboundFlights,
+                        selection: .outbound
+                    )
+
+                    Divider()
+                        .opacity(0.45)
+
+                    curatedOneWayRow(
+                        title: curatedReturnRowTitle,
+                        subtitle: "\(journey.trip.returnOriginCode) → \(journey.trip.originCode)",
+                        recommendations: curatedReturnFlights,
+                        selection: .inbound
+                    )
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.iumrahRaisedBackground.opacity(0.82), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 12) {
-                        ForEach(curatedFlights) { recommendation in
-                            curatedFlightCard(recommendation)
-                        }
-                    }
-                    .scrollTargetLayout()
-                }
-                .scrollTargetBehavior(.viewAligned)
-                .contentMargins(.horizontal, 1, for: .scrollContent)
+                curatedRoundTripRow
             }
         }
         .padding(17)
@@ -565,11 +582,176 @@ struct TripBuilderView: View {
         }
     }
 
-    private func curatedFlightCard(_ recommendation: CuratedFlightRecommendation) -> some View {
-        let isSelected = curatedFlightIsSelected(recommendation)
+    @ViewBuilder
+    private func curatedOneWayRow(
+        title: String,
+        subtitle: String,
+        recommendations: [CuratedFlightRecommendation],
+        selection: CuratedLegSelection
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.bold))
+                    Text(subtitle)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(recommendations.count)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+
+            if recommendations.isEmpty {
+                HStack(spacing: 10) {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundStyle(Color.orange)
+                    Text(curatedEmptyRowLabel)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.iumrahRaisedBackground.opacity(0.82), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 11) {
+                        ForEach(recommendations) { recommendation in
+                            if let leg = curatedLeg(for: recommendation, selection: selection),
+                               let date = curatedLegDate(for: recommendation, selection: selection) {
+                                curatedOneWayCard(
+                                    recommendation,
+                                    leg: leg,
+                                    date: date,
+                                    selection: selection
+                                )
+                            }
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .contentMargins(.horizontal, 1, for: .scrollContent)
+            }
+        }
+    }
+
+    private var curatedRoundTripRow: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(curatedRoundTripRowTitle)
+                        .font(.subheadline.weight(.bold))
+                    Text("\(journey.trip.originCode) → \(journey.trip.outboundDestinationCode) → \(journey.trip.originCode)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(curatedRoundTripFlights.count)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+
+            if curatedRoundTripFlights.isEmpty {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "arrow.left.arrow.right.circle")
+                        .foregroundStyle(Color.orange)
+                    Text(curatedRoundTripEmptyLabel)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.iumrahRaisedBackground.opacity(0.82), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(curatedRoundTripFlights) { recommendation in
+                            curatedRoundTripCard(recommendation)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .contentMargins(.horizontal, 1, for: .scrollContent)
+            }
+        }
+    }
+
+    private func curatedOneWayCard(
+        _ recommendation: CuratedFlightRecommendation,
+        leg: CuratedFlightRecommendation.Leg,
+        date: String,
+        selection: CuratedLegSelection
+    ) -> some View {
+        let isSelected = selectedCuratedID(for: selection) == recommendation.id
 
         return Button {
-            selectCuratedFlight(recommendation)
+            selectCuratedOneWay(recommendation, date: date, selection: selection)
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    AirlineLogoView(airlineCode: leg.airlineCode.isEmpty ? nil : leg.airlineCode, size: 42)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(leg.airline.isEmpty ? curatedAirlineFallback : leg.airline)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(leg.flightNumber)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 5)
+
+                    Text(curatedDirectLabel)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.orange)
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(Color.orange.opacity(0.10), in: Capsule())
+                }
+
+                curatedLegRow(
+                    origin: leg.origin,
+                    destination: leg.destination,
+                    date: date,
+                    systemImage: selection == .outbound ? "airplane.departure" : "airplane.arrival"
+                )
+
+                HStack {
+                    Text(curatedChooseFlightLabel)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(isSelected ? Color.orange : Color.primary)
+                    Spacer()
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "arrow.right.circle.fill")
+                        .foregroundStyle(isSelected ? Color.orange : Color.primary)
+                }
+            }
+            .padding(14)
+            .frame(minWidth: 274, maxWidth: 274, minHeight: 154, alignment: .leading)
+            .background(
+                isSelected ? Color.orange.opacity(0.075) : Color.iumrahRaisedBackground,
+                in: RoundedRectangle(cornerRadius: 21, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .strokeBorder(isSelected ? Color.orange.opacity(0.35) : Color.primary.opacity(0.055), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func curatedRoundTripCard(_ recommendation: CuratedFlightRecommendation) -> some View {
+        let isSelected = selectedCuratedRoundTripID == recommendation.id
+
+        return Button {
+            selectCuratedRoundTrip(recommendation)
         } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
@@ -588,16 +770,12 @@ struct TripBuilderView: View {
 
                     Spacer(minLength: 6)
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 9, weight: .bold))
-                        Text(curatedDirectLabel)
-                            .font(.caption2.weight(.bold))
-                    }
-                    .foregroundStyle(Color.orange)
-                    .padding(.horizontal, 8)
-                    .frame(height: 25)
-                    .background(Color.orange.opacity(0.10), in: Capsule())
+                    Text(curatedRoundTripBadgeLabel)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.orange)
+                        .padding(.horizontal, 8)
+                        .frame(height: 25)
+                        .background(Color.orange.opacity(0.10), in: Capsule())
                 }
 
                 VStack(spacing: 9) {
@@ -679,15 +857,119 @@ struct TripBuilderView: View {
         return formatter.string(from: date)
     }
 
-    private func curatedFlightIsSelected(_ recommendation: CuratedFlightRecommendation) -> Bool {
-        if let selectedCuratedFlightID { return selectedCuratedFlightID == recommendation.id }
-        guard let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate),
-              let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate) else { return false }
-        return Calendar.current.isDate(outbound, inSameDayAs: journey.trip.departureDate)
-            && Calendar.current.isDate(inbound, inSameDayAs: journey.trip.returnDate)
+    private var curatedOutboundFlights: [CuratedFlightRecommendation] {
+        curatedFlights.filter { recommendation in
+            if recommendation.effectiveOfferType == "one_way" && recommendation.effectiveJourneyRole == "outbound" {
+                return recommendation.outbound.origin == journey.trip.originCode
+                    && recommendation.outbound.destination == journey.trip.outboundDestinationCode
+            }
+            if recommendation.effectiveOfferType == "paired_one_way" {
+                return recommendation.outbound.origin == journey.trip.originCode
+                    && recommendation.outbound.destination == journey.trip.outboundDestinationCode
+            }
+            return false
+        }
     }
 
-    private func selectCuratedFlight(_ recommendation: CuratedFlightRecommendation) {
+    private var curatedReturnFlights: [CuratedFlightRecommendation] {
+        curatedFlights.filter { recommendation in
+            if recommendation.effectiveOfferType == "one_way" && recommendation.effectiveJourneyRole == "return" {
+                return recommendation.outbound.origin == journey.trip.returnOriginCode
+                    && recommendation.outbound.destination == journey.trip.originCode
+            }
+            if recommendation.effectiveOfferType == "paired_one_way", let inbound = recommendation.inbound {
+                return inbound.origin == journey.trip.returnOriginCode
+                    && inbound.destination == journey.trip.originCode
+            }
+            return false
+        }
+        .filter { recommendation in
+            guard let dateString = curatedLegDate(for: recommendation, selection: .inbound),
+                  let date = CuratedFlightRecommendationService.date(dateString) else { return false }
+            return Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: journey.trip.departureDate)
+        }
+    }
+
+    private var curatedRoundTripFlights: [CuratedFlightRecommendation] {
+        curatedFlights.filter { recommendation in
+            guard recommendation.effectiveOfferType == "round_trip",
+                  recommendation.effectiveJourneyRole == "complete",
+                  let inbound = recommendation.inbound else { return false }
+            return recommendation.outbound.origin == journey.trip.originCode
+                && recommendation.outbound.destination == journey.trip.outboundDestinationCode
+                && inbound.origin == journey.trip.returnOriginCode
+                && inbound.destination == journey.trip.originCode
+        }
+    }
+
+    private func curatedLeg(
+        for recommendation: CuratedFlightRecommendation,
+        selection: CuratedLegSelection
+    ) -> CuratedFlightRecommendation.Leg? {
+        switch selection {
+        case .outbound:
+            return recommendation.outbound
+        case .inbound:
+            if recommendation.effectiveOfferType == "one_way" { return recommendation.outbound }
+            return recommendation.inbound
+        }
+    }
+
+    private func curatedLegDate(
+        for recommendation: CuratedFlightRecommendation,
+        selection: CuratedLegSelection
+    ) -> String? {
+        switch selection {
+        case .outbound:
+            return recommendation.outboundDate
+        case .inbound:
+            if recommendation.effectiveOfferType == "one_way" { return recommendation.outboundDate }
+            return recommendation.inboundDate
+        }
+    }
+
+    private func selectedCuratedID(for selection: CuratedLegSelection) -> String? {
+        switch selection {
+        case .outbound: return selectedCuratedOutboundID
+        case .inbound: return selectedCuratedReturnID
+        }
+    }
+
+    private func selectCuratedOneWay(
+        _ recommendation: CuratedFlightRecommendation,
+        date value: String,
+        selection: CuratedLegSelection
+    ) {
+        guard let date = CuratedFlightRecommendationService.date(value) else { return }
+        if selection == .inbound, date < journey.trip.departureDate { return }
+
+        let calendar = Calendar.current
+        let oldDuration = max(1, calendar.dateComponents([.day], from: journey.trip.departureDate, to: journey.trip.returnDate).day ?? 7)
+
+        journey.resetAfterTripChange()
+        journey.trip.flexibility = .exact
+        journey.trip.flightTripType = .roundTrip
+
+        switch selection {
+        case .outbound:
+            journey.trip.departureDate = date
+            if journey.trip.returnDate < date {
+                journey.trip.returnDate = calendar.date(byAdding: .day, value: oldDuration, to: date) ?? date
+                // The previously selected return card no longer represents the
+                // adjusted date, so do not leave a false checkmark in the UI.
+                selectedCuratedReturnID = nil
+            }
+            selectedCuratedOutboundID = recommendation.id
+        case .inbound:
+            journey.trip.returnDate = date
+            selectedCuratedReturnID = recommendation.id
+        }
+
+        selectedCuratedRoundTripID = nil
+        IumrahHaptics.selection()
+    }
+
+    private func selectCuratedRoundTrip(_ recommendation: CuratedFlightRecommendation) {
         guard let outbound = CuratedFlightRecommendationService.date(recommendation.outboundDate),
               let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate),
               inbound >= outbound else { return }
@@ -696,7 +978,9 @@ struct TripBuilderView: View {
         journey.trip.flightTripType = .roundTrip
         journey.trip.departureDate = outbound
         journey.trip.returnDate = inbound
-        selectedCuratedFlightID = recommendation.id
+        selectedCuratedRoundTripID = recommendation.id
+        selectedCuratedOutboundID = nil
+        selectedCuratedReturnID = nil
         IumrahHaptics.selection()
     }
 
@@ -726,10 +1010,64 @@ struct TripBuilderView: View {
 
     private var curatedFlightsSubtitle: String {
         switch settings.language {
-        case .russian: return "Прямые рейсы, отобранные iumrah"
-        case .english: return "Nonstop flights selected by iumrah"
-        case .uzbek: return "iumrah tanlagan to‘xtovsiz reyslar"
-        case .uzbekCyrillic: return "iumrah танлаган тўхтовсиз рейслар"
+        case .russian: return "Выберите удобные даты по опубликованным рейсам"
+        case .english: return "Choose convenient dates from published flights"
+        case .uzbek: return "E’lon qilingan reyslardan qulay sanalarni tanlang"
+        case .uzbekCyrillic: return "Эълон қилинган рейслардан қулай саналарни танланг"
+        }
+    }
+
+    private var curatedModePickerLabel: String {
+        switch settings.language {
+        case .russian: return "Тип билета"
+        case .english: return "Ticket type"
+        case .uzbek: return "Chipta turi"
+        case .uzbekCyrillic: return "Чипта тури"
+        }
+    }
+
+    private var curatedSeparateModeLabel: String {
+        switch settings.language {
+        case .russian: return "В одну сторону"
+        case .english: return "One way"
+        case .uzbek: return "Bir tomonlama"
+        case .uzbekCyrillic: return "Бир томонлама"
+        }
+    }
+
+    private var curatedRoundTripModeLabel: String {
+        switch settings.language {
+        case .russian: return "Туда-обратно"
+        case .english: return "Round trip"
+        case .uzbek: return "Borib-kelish"
+        case .uzbekCyrillic: return "Бориб-келиш"
+        }
+    }
+
+    private var curatedOutboundRowTitle: String {
+        switch settings.language {
+        case .russian: return "Туда"
+        case .english: return "Outbound"
+        case .uzbek: return "Borish"
+        case .uzbekCyrillic: return "Бориш"
+        }
+    }
+
+    private var curatedReturnRowTitle: String {
+        switch settings.language {
+        case .russian: return "Обратно"
+        case .english: return "Return"
+        case .uzbek: return "Qaytish"
+        case .uzbekCyrillic: return "Қайтиш"
+        }
+    }
+
+    private var curatedRoundTripRowTitle: String {
+        switch settings.language {
+        case .russian: return "Билеты туда-обратно"
+        case .english: return "Round-trip tickets"
+        case .uzbek: return "Borib-kelish chiptalari"
+        case .uzbekCyrillic: return "Бориб-келиш чипталари"
         }
     }
 
@@ -739,6 +1077,24 @@ struct TripBuilderView: View {
         case .english: return "DIRECT"
         case .uzbek: return "TO‘G‘RI"
         case .uzbekCyrillic: return "ТЎҒРИ"
+        }
+    }
+
+    private var curatedRoundTripBadgeLabel: String {
+        switch settings.language {
+        case .russian: return "ТУДА-ОБРАТНО"
+        case .english: return "ROUND TRIP"
+        case .uzbek: return "BORIB-KELISH"
+        case .uzbekCyrillic: return "БОРИБ-КЕЛИШ"
+        }
+    }
+
+    private var curatedChooseFlightLabel: String {
+        switch settings.language {
+        case .russian: return "Выбрать рейс"
+        case .english: return "Choose flight"
+        case .uzbek: return "Reysni tanlash"
+        case .uzbekCyrillic: return "Рейсни танлаш"
         }
     }
 
@@ -760,12 +1116,43 @@ struct TripBuilderView: View {
         }
     }
 
-    private var curatedEmptyLabel: String {
+    private var curatedEmptyRowLabel: String {
         switch settings.language {
-        case .russian: return "Новые прямые рейсы появятся здесь после публикации iumrah."
-        case .english: return "New direct flights will appear here after iumrah publishes them."
-        case .uzbek: return "Yangi to‘g‘ridan-to‘g‘ri reyslar iumrah e’lon qilgach shu yerda ko‘rinadi."
-        case .uzbekCyrillic: return "Янги тўғридан-тўғри рейслар iumrah эълон қилгач шу ерда кўринади."
+        case .russian: return "Пока нет опубликованных рейсов для этого направления."
+        case .english: return "No published flights for this direction yet."
+        case .uzbek: return "Bu yo‘nalish uchun hozircha e’lon qilingan reys yo‘q."
+        case .uzbekCyrillic: return "Бу йўналиш учун ҳозирча эълон қилинган рейс йўқ."
+        }
+    }
+
+    private var curatedRoundTripEmptyLabel: String {
+        switch settings.language {
+        case .russian:
+            if journey.trip.returnOriginCode != journey.trip.outboundDestinationCode {
+                return "Для текущего open-jaw маршрута аэропорт прилёта и аэропорт обратного вылета разные. Используйте вкладку «В одну сторону» — там можно выбрать рейс туда и обратно отдельно."
+            }
+            return "Пока нет опубликованного единого тарифа туда-обратно для этого маршрута."
+        case .english:
+            return journey.trip.returnOriginCode != journey.trip.outboundDestinationCode
+                ? "This is an open-jaw route. Use One way to choose outbound and return flights separately."
+                : "No published round-trip fare for this route yet."
+        case .uzbek:
+            return journey.trip.returnOriginCode != journey.trip.outboundDestinationCode
+                ? "Bu open-jaw yo‘nalish. Borish va qaytish reyslarini alohida tanlash uchun Bir tomonlama bo‘limidan foydalaning."
+                : "Bu yo‘nalish uchun hozircha borib-kelish tarifi e’lon qilinmagan."
+        case .uzbekCyrillic:
+            return journey.trip.returnOriginCode != journey.trip.outboundDestinationCode
+                ? "Бу open-jaw йўналиш. Бориш ва қайтиш рейсларини алоҳида танлаш учун Бир томонлама бўлимидан фойдаланинг."
+                : "Бу йўналиш учун ҳозирча бориб-келиш тарифи эълон қилинмаган."
+        }
+    }
+
+    private var curatedAirlineFallback: String {
+        switch settings.language {
+        case .russian: return "Авиакомпания"
+        case .english: return "Airline"
+        case .uzbek: return "Aviakompaniya"
+        case .uzbekCyrillic: return "Авиакомпания"
         }
     }
 

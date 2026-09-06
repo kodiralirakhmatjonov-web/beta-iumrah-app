@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../.runtime-dist/index.js';
 import { curatedPrimaryHotel } from '../.runtime-dist/generator-components.js';
+import { searchIgnavFlightsForCuration } from '../.runtime-dist/ignav-flights.js';
+import { saveCuratedFlightAdmin } from '../.runtime-dist/curated-flights.js';
 
 function statementFor(handler) {
   return {
@@ -478,4 +480,246 @@ test('flight fare calendar reads accumulated D1 observations without calling ups
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+function curationRequest({ mode = 'round_trip', inboundOrigin = 'JED', inboundDestination = 'TAS' } = {}) {
+  const legs = mode === 'outbound_one_way'
+    ? [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03', max_stops: 0 }]
+    : mode === 'return_one_way'
+      ? [{ origin: inboundOrigin, destination: inboundDestination, departure_date: '2026-10-10', max_stops: 0 }]
+      : [
+          { origin: 'TAS', destination: 'JED', departure_date: '2026-10-03', max_stops: 0 },
+          { origin: inboundOrigin, destination: inboundDestination, departure_date: '2026-10-10', max_stops: 0 },
+        ];
+  return new Request('https://iumrah.app/api/admin/package/flights/curation-search', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      legs,
+      adults: 1,
+      children: 0,
+      infants_in_seat: 0,
+      infants_on_lap: 0,
+      cabin_class: 'economy',
+      airlines_include: ['HY'],
+      allow_self_transfer: false,
+      curation_mode: mode,
+    }),
+  });
+}
+
+function curationProviderLeg({ origin, destination, date, number }) {
+  const departure = `${date}T08:00:00Z`;
+  const arrival = `${date}T12:00:00Z`;
+  return {
+    carrier: 'Uzbekistan Airways',
+    duration_minutes: 240,
+    segments: [segment({
+      carrier: 'HY', number, origin, destination,
+      departureLocal: `${date}T13:00:00`, departureZone: 'Asia/Tashkent', departureUTC: departure,
+      arrivalLocal: `${date}T15:00:00`, arrivalZone: 'Asia/Riyadh', arrivalUTC: arrival,
+      duration: 240,
+    })],
+  };
+}
+
+function curationOneWayProviderResponse({ origin, destination, date, amount, number, id }) {
+  return {
+    itineraries: [{
+      price: { amount, currency: 'USD', status: 'verified' },
+      outbound: curationProviderLeg({ origin, destination, date, number }),
+      cabin_class: 'economy',
+      bags: { carry_on: 1, checked: 1 },
+      requires_self_transfer: false,
+      ignav_id: id,
+    }],
+  };
+}
+
+function curationRoundTripProviderResponse({ amount = 430, id = 'rt-provider-1' } = {}) {
+  return {
+    itineraries: [{
+      price: { amount, currency: 'USD', status: 'verified' },
+      outbound: curationProviderLeg({ origin: 'TAS', destination: 'JED', date: '2026-10-03', number: '337' }),
+      inbound: curationProviderLeg({ origin: 'JED', destination: 'TAS', date: '2026-10-10', number: '338' }),
+      cabin_class: 'economy',
+      bags: { carry_on: 1, checked: 1 },
+      requires_self_transfer: false,
+      ignav_id: id,
+    }],
+  };
+}
+
+test('Business curation exact-return mode compares true Ignav round-trip against our summed one-way pair', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    const endpoint = new URL(String(url)).pathname;
+    const body = JSON.parse(init.body);
+    calls.push({ endpoint, body });
+    if (endpoint.endsWith('/fares/round-trip')) {
+      return new Response(JSON.stringify(curationRoundTripProviderResponse({ amount: 430 })), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    if (body.origin === 'TAS') {
+      return new Response(JSON.stringify(curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2026-10-03', amount: 260, number: '337', id: 'ow-out-1' })), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(JSON.stringify(curationOneWayProviderResponse({ origin: 'JED', destination: 'TAS', date: '2026-10-10', amount: 250, number: '338', id: 'ow-ret-1' })), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const response = await searchIgnavFlightsForCuration(curationRequest(), { IGNAV_API_KEY: 'test-secret' });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.diagnostics.mode, 'round_trip_compare');
+    assert.equal(payload.diagnostics.dedicated_round_trip_count, 1);
+    assert.equal(payload.diagnostics.paired_one_way_count, 1);
+    assert.deepEqual(calls.map((x) => x.endpoint), ['/api/fares/one-way', '/api/fares/one-way', '/api/fares/round-trip']);
+    const trueReturn = payload.itineraries.find((x) => x.offer_type === 'round_trip');
+    const paired = payload.itineraries.find((x) => x.offer_type === 'paired_one_way');
+    assert.equal(trueReturn.price.amount, 430);
+    assert.equal(trueReturn.journey_role, 'complete');
+    assert.equal(paired.price.amount, 510, 'paired fare must be exact outbound + return one-way sum');
+    assert.equal(paired.journey_role, 'complete');
+    assert.equal(payload.itineraries[0].offer_type, 'round_trip', 'cheapest complete product should sort first');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Business curation open-jaw mode never mislabels a system pair as a true round-trip', async () => {
+  const originalFetch = globalThis.fetch;
+  const endpoints = [];
+  globalThis.fetch = async (url, init) => {
+    const endpoint = new URL(String(url)).pathname;
+    const body = JSON.parse(init.body);
+    endpoints.push(endpoint);
+    if (endpoint.endsWith('/fares/round-trip')) throw new Error('round-trip endpoint must not be called for open-jaw');
+    const isOutbound = body.origin === 'TAS';
+    const data = isOutbound
+      ? curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2026-10-03', amount: 260, number: '337', id: 'open-out' })
+      : curationOneWayProviderResponse({ origin: 'MED', destination: 'TAS', date: '2026-10-10', amount: 270, number: '501', id: 'open-ret' });
+    return new Response(JSON.stringify(data), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const response = await searchIgnavFlightsForCuration(curationRequest({ inboundOrigin: 'MED' }), { IGNAV_API_KEY: 'test-secret' });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.diagnostics.mode, 'open_jaw_one_way_pairing');
+    assert.equal(payload.diagnostics.round_trip_available, false);
+    assert.deepEqual(endpoints, ['/api/fares/one-way', '/api/fares/one-way']);
+    assert.equal(payload.itineraries.length, 1);
+    assert.equal(payload.itineraries[0].offer_type, 'paired_one_way');
+    assert.equal(payload.itineraries[0].price.amount, 530);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Business curation one-way modes return a single typed outbound or return product', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    const isOutbound = body.origin === 'TAS';
+    const data = isOutbound
+      ? curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2026-10-03', amount: 260, number: '337', id: 'typed-out' })
+      : curationOneWayProviderResponse({ origin: 'JED', destination: 'TAS', date: '2026-10-10', amount: 250, number: '338', id: 'typed-ret' });
+    return new Response(JSON.stringify(data), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const outboundResponse = await searchIgnavFlightsForCuration(curationRequest({ mode: 'outbound_one_way' }), { IGNAV_API_KEY: 'test-secret' });
+    const outbound = await outboundResponse.json();
+    assert.equal(outbound.itineraries[0].offer_type, 'one_way');
+    assert.equal(outbound.itineraries[0].journey_role, 'outbound');
+
+    const returnResponse = await searchIgnavFlightsForCuration(curationRequest({ mode: 'return_one_way' }), { IGNAV_API_KEY: 'test-secret' });
+    const back = await returnResponse.json();
+    assert.equal(back.itineraries[0].offer_type, 'one_way');
+    assert.equal(back.itineraries[0].journey_role, 'return');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+function curatedSaveDb() {
+  let row = null;
+  return {
+    get row() { return row; },
+    prepare(sql) {
+      const normalized = sql.replace(/\s+/g, ' ').trim();
+      return {
+        values: [],
+        bind(...values) { this.values = values; return this; },
+        async all() {
+          if (normalized.includes('FROM curated_flight_offers WHERE fingerprint IS NULL')) return { results: [] };
+          throw new Error(`Unexpected curated all SQL: ${normalized}`);
+        },
+        async first() {
+          if (normalized.startsWith('SELECT id, created_at FROM curated_flight_offers')) {
+            return row && (this.values[0] === row.fingerprint || (this.values[1] === row.source_candidate_id && this.values[2] === row.outbound_date))
+              ? { id: row.id, created_at: row.created_at }
+              : null;
+          }
+          if (normalized.startsWith('SELECT * FROM curated_flight_offers WHERE id=')) return row && this.values[0] === row.id ? row : null;
+          throw new Error(`Unexpected curated first SQL: ${normalized}`);
+        },
+        async run() {
+          if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('ALTER TABLE') || normalized.startsWith('CREATE INDEX')) return { success: true };
+          if (normalized.startsWith('INSERT INTO curated_flight_offers')) {
+            const v = this.values;
+            row = {
+              id: v[0], source_candidate_id: v[1], source_provider: v[2],
+              outbound_origin: v[3], outbound_destination: v[4], inbound_origin: v[5], inbound_destination: v[6],
+              outbound_date: v[7], inbound_date: v[8], cabin_class: v[9], airline_codes_json: v[10], airline_names_json: v[11],
+              flight_numbers_json: v[12], itinerary_json: v[13], total_fare: v[14], per_traveler_fare: v[15], currency: v[16],
+              traveler_count: v[17], observed_at: v[18], published: v[19], priority: v[20], created_by: v[21], created_at: v[22], updated_at: v[23],
+              offer_type: v[24], journey_role: v[25], fingerprint: v[26],
+            };
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (normalized.startsWith('UPDATE curated_flight_offers SET offer_type=')) return { success: true };
+          throw new Error(`Unexpected curated run SQL: ${normalized}`);
+        },
+      };
+    },
+  };
+}
+
+function curatedSaveItinerary(id) {
+  return {
+    id,
+    source: 'ignav',
+    source_name: 'Ignav',
+    observed_at: '2026-09-06T08:00:00Z',
+    fare_scope: 'total_party',
+    price: { amount: 430, currency: 'USD', status: 'verified' },
+    cabin_class: 'economy',
+    bags: null,
+    requires_self_transfer: false,
+    offer_type: 'round_trip',
+    journey_role: 'complete',
+    legs: [
+      { airline: 'Uzbekistan Airways', flight_number: 'HY 337', airline_code: 'HY', origin: 'TAS', destination: 'JED', departure_at: '2026-10-03T08:00:00Z', arrival_at: '2026-10-03T12:00:00Z', duration_minutes: 240, stops: 0, cabin_class: 'economy' },
+      { airline: 'Uzbekistan Airways', flight_number: 'HY 338', airline_code: 'HY', origin: 'JED', destination: 'TAS', departure_at: '2026-10-10T08:00:00Z', arrival_at: '2026-10-10T12:00:00Z', duration_minutes: 240, stops: 0, cabin_class: 'economy' },
+    ],
+  };
+}
+
+test('publishing the same physical curated fare twice with a new Ignav candidate id updates one row instead of duplicating', async () => {
+  const db = curatedSaveDb();
+  const makeRequest = (id) => new Request('https://iumrah.app/api/admin/package/flights/curated', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ itinerary: curatedSaveItinerary(id), travelerCount: 1, published: true, priority: 100 }),
+  });
+
+  const first = await saveCuratedFlightAdmin(makeRequest('provider-candidate-A'), db, 'test-admin');
+  assert.equal(first.status, 200);
+  const firstBody = await first.json();
+  const firstID = firstBody.offer.id;
+  assert.ok(firstID.startsWith('curated-'));
+
+  const second = await saveCuratedFlightAdmin(makeRequest('provider-candidate-B'), db, 'test-admin');
+  assert.equal(second.status, 200);
+  const secondBody = await second.json();
+  assert.equal(secondBody.offer.id, firstID, 'structurally identical fare must retain the existing curated row id');
+  assert.equal(db.row.source_candidate_id, 'provider-candidate-B', 'latest provider candidate metadata updates the same row');
 });

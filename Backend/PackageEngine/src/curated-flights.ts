@@ -19,6 +19,9 @@ type CuratedLeg = {
   segments?: unknown[];
 };
 
+type CuratedOfferType = "one_way" | "round_trip" | "paired_one_way";
+type CuratedJourneyRole = "outbound" | "return" | "complete";
+
 type CuratedItinerary = {
   id: string;
   source?: string;
@@ -31,6 +34,8 @@ type CuratedItinerary = {
   bags?: { carry_on?: number | null; checked?: number | null } | null;
   requires_self_transfer?: boolean | null;
   ignav_id?: string;
+  offer_type?: CuratedOfferType;
+  journey_role?: CuratedJourneyRole;
 };
 
 type CuratedRow = {
@@ -58,6 +63,9 @@ type CuratedRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  offer_type: CuratedOfferType;
+  journey_role: CuratedJourneyRole;
+  fingerprint: string | null;
 };
 
 function json(value: unknown, status = 200, cacheControl = "no-store") {
@@ -116,6 +124,32 @@ function normalizeLeg(raw: unknown): CuratedLeg | null {
   };
 }
 
+function normalizeOfferType(value: unknown, legCount: number): CuratedOfferType {
+  const raw = safeText(value, 40).toLowerCase();
+  if (raw === "round_trip" || raw === "paired_one_way" || raw === "one_way") return raw;
+  return legCount === 1 ? "one_way" : "paired_one_way";
+}
+
+function normalizeJourneyRole(value: unknown, offerType: CuratedOfferType): CuratedJourneyRole {
+  const raw = safeText(value, 40).toLowerCase();
+  if (raw === "outbound" || raw === "return" || raw === "complete") return raw;
+  return offerType === "one_way" ? "outbound" : "complete";
+}
+
+function curatedFingerprint(itinerary: CuratedItinerary): string {
+  const offerType = normalizeOfferType(itinerary.offer_type, itinerary.legs.length);
+  const journeyRole = normalizeJourneyRole(itinerary.journey_role, offerType);
+  const legs = itinerary.legs.map((leg) => [
+    leg.airline_code.toUpperCase(),
+    leg.flight_number.toUpperCase().replace(/\s+/g, ""),
+    leg.origin.toUpperCase(),
+    leg.destination.toUpperCase(),
+    leg.departure_at,
+    leg.arrival_at,
+  ].join(":"));
+  return [offerType, journeyRole, ...legs].join("|").slice(0, 1800);
+}
+
 function normalizeItinerary(raw: unknown): CuratedItinerary | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -147,6 +181,8 @@ function normalizeItinerary(raw: unknown): CuratedItinerary | null {
     bags: value.bags && typeof value.bags === "object" ? value.bags as CuratedItinerary["bags"] : null,
     requires_self_transfer: typeof value.requires_self_transfer === "boolean" ? value.requires_self_transfer : null,
     ignav_id: safeText(value.ignav_id, 180) || id,
+    offer_type: normalizeOfferType(value.offer_type, safeLegs.length),
+    journey_role: normalizeJourneyRole(value.journey_role, normalizeOfferType(value.offer_type, safeLegs.length)),
   };
 }
 
@@ -175,8 +211,34 @@ export async function ensureCuratedFlightSchema(db: D1Like): Promise<void> {
     priority INTEGER NOT NULL DEFAULT 100,
     created_by TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    offer_type TEXT NOT NULL DEFAULT 'paired_one_way',
+    journey_role TEXT NOT NULL DEFAULT 'complete',
+    fingerprint TEXT
   )`).run();
+  // Existing installations predate offer typing and structural de-duplication.
+  // D1 does not support ADD COLUMN IF NOT EXISTS, so the compatibility ALTERs
+  // intentionally ignore the duplicate-column error after the first successful run.
+  for (const statement of [
+    `ALTER TABLE curated_flight_offers ADD COLUMN offer_type TEXT NOT NULL DEFAULT 'paired_one_way'`,
+    `ALTER TABLE curated_flight_offers ADD COLUMN journey_role TEXT NOT NULL DEFAULT 'complete'`,
+    `ALTER TABLE curated_flight_offers ADD COLUMN fingerprint TEXT`,
+  ]) {
+    try { await db.prepare(statement).run(); } catch { /* already present */ }
+  }
+
+  const backfill = await db.prepare(`SELECT id, itinerary_json, offer_type, journey_role
+    FROM curated_flight_offers WHERE fingerprint IS NULL OR fingerprint = '' LIMIT 300`)
+    .all<{ id: string; itinerary_json: string; offer_type: CuratedOfferType; journey_role: CuratedJourneyRole }>();
+  for (const row of backfill.results ?? []) {
+    const itinerary = normalizeItinerary(parseJSON<unknown>(row.itinerary_json, null));
+    if (!itinerary) continue;
+    itinerary.offer_type = normalizeOfferType(row.offer_type ?? itinerary.offer_type, itinerary.legs.length);
+    itinerary.journey_role = normalizeJourneyRole(row.journey_role ?? itinerary.journey_role, itinerary.offer_type);
+    await db.prepare(`UPDATE curated_flight_offers SET offer_type=?, journey_role=?, fingerprint=? WHERE id=?`)
+      .bind(itinerary.offer_type, itinerary.journey_role, curatedFingerprint(itinerary), row.id).run();
+  }
+
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_curated_flight_route_dates
     ON curated_flight_offers(outbound_origin, outbound_destination, inbound_origin, inbound_destination, outbound_date, inbound_date, published)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_curated_flight_public_rank
@@ -209,6 +271,9 @@ function mapAdminRow(row: CuratedRow) {
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    offerType: row.offer_type,
+    journeyRole: row.journey_role,
+    fingerprint: row.fingerprint,
   };
 }
 
@@ -230,6 +295,11 @@ export async function saveCuratedFlightAdmin(request: Request, db: D1Like | unde
   if (!payload) return json({ ok: false, error: "INVALID_JSON" }, 400);
   const itinerary = normalizeItinerary(payload.itinerary);
   if (!itinerary) return json({ ok: false, error: "INVALID_CURATED_ITINERARY" }, 400);
+  const offerType = normalizeOfferType(itinerary.offer_type, itinerary.legs.length);
+  const journeyRole = normalizeJourneyRole(itinerary.journey_role, offerType);
+  itinerary.offer_type = offerType;
+  itinerary.journey_role = journeyRole;
+  const fingerprint = curatedFingerprint(itinerary);
   const travelerCount = Number(payload.travelerCount);
   if (!Number.isInteger(travelerCount) || travelerCount < 1 || travelerCount > 9) return json({ ok: false, error: "INVALID_TRAVELER_COUNT" }, 400);
   const published = payload.published === undefined ? true : payload.published === true;
@@ -246,9 +316,15 @@ export async function saveCuratedFlightAdmin(request: Request, db: D1Like | unde
   const perTravelerFare = itinerary.price.amount / travelerCount;
   const now = new Date().toISOString();
 
+  // Do not trust Ignav candidate IDs as the sole duplicate key: the provider may
+  // return a fresh ID for the same physical flights on a later search. Structural
+  // identity keeps one published row per product type + exact flight/date pair.
   const existing = await db.prepare(`SELECT id, created_at FROM curated_flight_offers
-    WHERE source_candidate_id = ? AND outbound_date = ? AND COALESCE(inbound_date,'') = COALESCE(?, '')
-    LIMIT 1`).bind(itinerary.id, outboundDate, inboundDate).first<{ id: string; created_at: string }>();
+    WHERE fingerprint = ?
+       OR (source_candidate_id = ? AND outbound_date = ? AND COALESCE(inbound_date,'') = COALESCE(?, ''))
+    ORDER BY CASE WHEN fingerprint = ? THEN 0 ELSE 1 END
+    LIMIT 1`).bind(fingerprint, itinerary.id, outboundDate, inboundDate, fingerprint)
+    .first<{ id: string; created_at: string }>();
   const id = existing?.id ?? `curated-${crypto.randomUUID()}`;
   const createdAt = existing?.created_at ?? now;
 
@@ -258,8 +334,9 @@ export async function saveCuratedFlightAdmin(request: Request, db: D1Like | unde
     outbound_date, inbound_date, cabin_class,
     airline_codes_json, airline_names_json, flight_numbers_json, itinerary_json,
     total_fare, per_traveler_fare, currency, traveler_count, observed_at,
-    published, priority, created_by, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    published, priority, created_by, created_at, updated_at,
+    offer_type, journey_role, fingerprint
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     source_candidate_id=excluded.source_candidate_id,
     source_provider=excluded.source_provider,
@@ -282,7 +359,10 @@ export async function saveCuratedFlightAdmin(request: Request, db: D1Like | unde
     published=excluded.published,
     priority=excluded.priority,
     created_by=excluded.created_by,
-    updated_at=excluded.updated_at`)
+    updated_at=excluded.updated_at,
+    offer_type=excluded.offer_type,
+    journey_role=excluded.journey_role,
+    fingerprint=excluded.fingerprint`)
     .bind(
       id, itinerary.id, itinerary.source ?? "ignav",
       outbound.origin, outbound.destination, inbound?.origin ?? null, inbound?.destination ?? null,
@@ -290,6 +370,7 @@ export async function saveCuratedFlightAdmin(request: Request, db: D1Like | unde
       JSON.stringify(airlineCodes), JSON.stringify(airlineNames), JSON.stringify(flightNumbers), JSON.stringify(itinerary),
       itinerary.price.amount, perTravelerFare, itinerary.price.currency, travelerCount, itinerary.observed_at,
       published ? 1 : 0, priority, safeText(createdBy, 180) || null, createdAt, now,
+      offerType, journeyRole, fingerprint,
     ).run();
 
   const row = await db.prepare(`SELECT * FROM curated_flight_offers WHERE id=? LIMIT 1`).bind(id).first<CuratedRow>();
@@ -327,20 +408,21 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
   if (url.searchParams.has("umrah_origin")) {
     if (!umrahOrigin) return json({ ok: false, error: "INVALID_CURATED_ROUTE" }, 400);
 
-    // Customer discovery intentionally ignores the currently selected JED/MED
-    // itinerary order. Staff may publish any useful direct Umrah pair and the
-    // pilgrim should see it before choosing dates. The actual supplier fare is
-    // still never exposed by this endpoint.
+    // Load every staff-published Umrah option connected to this departure city:
+    // outbound one-ways, return one-ways, true provider round-trips and legacy
+    // paired one-way offers. The app separates these products in its own UI.
+    // Supplier prices remain server-only.
     result = await db.prepare(`SELECT * FROM curated_flight_offers
       WHERE published = 1
-        AND outbound_origin = ?
-        AND inbound_destination = ?
-        AND outbound_destination IN ('JED', 'MED')
-        AND inbound_origin IN ('JED', 'MED')
         AND outbound_date BETWEEN ? AND ?
+        AND (
+          (journey_role = 'outbound' AND outbound_origin = ? AND outbound_destination IN ('JED', 'MED'))
+          OR (journey_role = 'return' AND outbound_origin IN ('JED', 'MED') AND outbound_destination = ?)
+          OR (journey_role = 'complete' AND outbound_origin = ? AND inbound_destination = ?)
+        )
       ORDER BY priority ASC, per_traveler_fare ASC, outbound_date ASC
-      LIMIT 24`)
-      .bind(umrahOrigin, umrahOrigin, from, to)
+      LIMIT 80`)
+      .bind(from, to, umrahOrigin, umrahOrigin, umrahOrigin, umrahOrigin)
       .all<CuratedRow>();
   } else {
     const outboundOrigin = validAirportParam(url, "outbound_origin");
@@ -381,6 +463,8 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
       inbound: itinerary.legs[1] ?? null,
       nonstop: itinerary.legs.every((leg) => leg.stops === 0),
       recommendationLabel: "iumrah recommends",
+      offerType: row.offer_type,
+      journeyRole: row.journey_role,
     };
   }).filter((value): value is NonNullable<typeof value> => value !== null);
 
@@ -416,6 +500,7 @@ export async function curatedCalendarRows(
       currency, observed_at
     FROM curated_flight_offers
     WHERE published = 1
+      AND journey_role = 'complete'
       AND outbound_origin = ? AND outbound_destination = ?
       AND COALESCE(inbound_origin,'') = COALESCE(?, '')
       AND COALESCE(inbound_destination,'') = COALESCE(?, '')
