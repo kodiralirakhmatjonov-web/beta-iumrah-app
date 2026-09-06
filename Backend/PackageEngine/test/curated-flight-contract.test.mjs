@@ -13,7 +13,21 @@ test('Business curation search keeps provider nonstop and airline filters behind
   assert.match(ignav, /function validateCurationSearchBody/);
   assert.match(ignav, /airlines_include: include/);
   assert.match(ignav, /allow_self_transfer: raw\.allow_self_transfer \?\? false/);
-  assert.match(ignav, /itinerary\.legs\.every\(\(leg\) => leg\.stops === 0\)/);
+  assert.match(ignav, /itinerary\.legs\.every\(\(item\) => item\.stops === 0\)/);
+});
+
+
+test('Business curation searches Umrah open-jaw legs independently and pairs them after normalization', () => {
+  assert.match(ignav, /"\/fares\/one-way"/);
+  assert.match(ignav, /independent_one_way_pairing/);
+  assert.match(ignav, /pairCuratedLegs/);
+  assert.match(ignav, /broad_airline_fallback_by_leg/);
+});
+
+test('staff curation can retain Ignav unverified discovery hints without exposing fares publicly', () => {
+  assert.match(ignav, /requireVerified = true/);
+  assert.match(ignav, /false,\n\s*\)\)/);
+  assert.match(curated, /\["verified", "unverified"\]/);
 });
 
 test('curated public recommendations deliberately omit supplier fare fields', () => {

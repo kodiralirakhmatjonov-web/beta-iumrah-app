@@ -125,7 +125,7 @@ function normalizeItinerary(raw: unknown): CuratedItinerary | null {
   const status = safeText(rawPrice?.status, 40).toLowerCase();
   const legs = Array.isArray(value.legs) ? value.legs.map(normalizeLeg) : [];
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) return null;
-  if (!CURRENCY.test(currency) || (status && status !== "verified")) return null;
+  if (!CURRENCY.test(currency) || (status && !["verified", "unverified"].includes(status))) return null;
   if (legs.length < 1 || legs.length > 2 || legs.some((item) => item === null)) return null;
   const safeLegs = legs as CuratedLeg[];
   if (safeLegs.some((leg) => leg.stops !== 0)) return null;
@@ -139,7 +139,9 @@ function normalizeItinerary(raw: unknown): CuratedItinerary | null {
     source_name: safeText(value.source_name, 80) || "Ignav",
     observed_at: observedAt,
     fare_scope: safeText(value.fare_scope, 40) || "total_party",
-    price: { amount, currency, status: status || "verified" },
+    // A staff-published unverified Ignav hint is allowed only in this admin-curated layer.
+    // The public recommendation endpoint still never exposes the amount.
+    price: { amount, currency, status: status || "unverified" },
     legs: safeLegs,
     cabin_class: safeText(value.cabin_class, 40) || safeLegs[0].cabin_class || "economy",
     bags: value.bags && typeof value.bags === "object" ? value.bags as CuratedItinerary["bags"] : null,

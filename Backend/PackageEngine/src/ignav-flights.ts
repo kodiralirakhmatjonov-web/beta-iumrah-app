@@ -59,6 +59,8 @@ type IgnavLeg = { carrier?: string | null; duration_minutes?: number | null; seg
 type IgnavItinerary = {
   price?: IgnavPrice;
   legs?: IgnavLeg[];
+  outbound?: IgnavLeg;
+  inbound?: IgnavLeg;
   cabin_class?: string | null;
   bags?: IgnavBag | null;
   requires_self_transfer?: boolean | null;
@@ -199,13 +201,13 @@ function validateCurationSearchBody(raw: SearchBody) {
   };
 }
 
-async function fetchIgnav(apiKey: string, body: Record<string, unknown>) {
+async function fetchIgnav(apiKey: string, body: Record<string, unknown>, endpoint = "/fares/search") {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     try {
-      const response = await fetch(`${IGNAV_BASE_URL}/fares/search`, {
+      const response = await fetch(`${IGNAV_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -377,12 +379,14 @@ function normalizeItinerary(
   request: { legs: ReturnType<typeof normalizeRequestLeg>[]; cabin_class: string },
   observedAt: string,
   index: number,
+  requireVerified = true,
 ) {
   const price = itinerary.price;
   if (!price || typeof price.amount !== "number" || !Number.isFinite(price.amount) || price.amount <= 0) return null;
-  // Ignav documents unverified prices as discovery hints. Package pricing may only
-  // consume a provider-verified fare because it becomes a customer-facing quote.
-  if (String(price.status || "").toLowerCase() !== "verified") return null;
+  // Customer-facing package pricing still requires a verified fare. Staff curation
+  // is a discovery workflow, so it may inspect an unverified Ignav price hint and
+  // decide manually whether that flight/date should be recommended.
+  if (requireVerified && String(price.status || "").toLowerCase() !== "verified") return null;
   const currency = String(price.currency ?? "").toUpperCase();
   if (!CURRENCY.test(currency)) return null;
   const sourceID = typeof itinerary.ignav_id === "string" && itinerary.ignav_id.length >= 1 && itinerary.ignav_id.length <= 160
@@ -415,6 +419,141 @@ function normalizeItinerary(
     requires_self_transfer: itinerary.requires_self_transfer ?? null,
     ignav_id: sourceID,
   };
+}
+
+
+function dedicatedOneWayItinerary(itinerary: IgnavItinerary): IgnavItinerary {
+  if (Array.isArray(itinerary.legs) && itinerary.legs.length > 0) return itinerary;
+  if (!itinerary.outbound) return itinerary;
+  return { ...itinerary, legs: [itinerary.outbound] };
+}
+
+function curationOneWayBody(
+  leg: ReturnType<typeof normalizeRequestLeg>,
+  body: ReturnType<typeof validateCurationSearchBody>,
+  includeAirlines: boolean,
+): Record<string, unknown> {
+  return {
+    origin: leg.origin,
+    destination: leg.destination,
+    departure_date: leg.departure_date,
+    adults: body.adults,
+    children: body.children,
+    infants_in_seat: body.infants_in_seat,
+    infants_on_lap: body.infants_on_lap,
+    cabin_class: body.cabin_class,
+    max_stops: leg.max_stops,
+    departure_time_range: leg.departure_time_range,
+    min_carry_on_bags: body.min_carry_on_bags,
+    min_checked_bags: body.min_checked_bags,
+    max_price: body.max_price,
+    airlines_include: includeAirlines ? body.airlines_include : undefined,
+    airlines_exclude: body.airlines_exclude,
+    allow_self_transfer: body.allow_self_transfer,
+    market: body.market,
+  };
+}
+
+function selectedAirlineMatch(
+  itinerary: NonNullable<ReturnType<typeof normalizeItinerary>>,
+  airlines: string[] | undefined,
+): boolean {
+  if (!airlines?.length) return true;
+  const allowed = new Set(airlines);
+  return itinerary.legs.every((leg) => allowed.has(leg.airline_code));
+}
+
+async function curationOneWayCandidates(
+  env: Env,
+  leg: ReturnType<typeof normalizeRequestLeg>,
+  body: ReturnType<typeof validateCurationSearchBody>,
+  observedAt: string,
+  legIndex: number,
+) {
+  const requestShape = { legs: [leg], cabin_class: body.cabin_class };
+  let successfulProviderRequests = 0;
+
+  const search = async (includeAirlines: boolean) => {
+    const upstream = await fetchIgnav(
+      env.IGNAV_API_KEY!,
+      curationOneWayBody(leg, body, includeAirlines),
+      "/fares/one-way",
+    );
+    successfulProviderRequests += 1;
+    const raw = upstream.itineraries ?? [];
+    const normalized = raw
+      .map((itinerary, index) => normalizeItinerary(
+        dedicatedOneWayItinerary(itinerary),
+        requestShape,
+        observedAt,
+        legIndex * 1_000 + index,
+        false,
+      ))
+      .filter((value): value is NonNullable<typeof value> => value !== null)
+      .filter((itinerary) => itinerary.legs.every((item) => item.stops === 0))
+      .filter((itinerary) => selectedAirlineMatch(itinerary, body.airlines_include))
+      .sort((a, b) => a.price.amount - b.price.amount);
+    return { rawCount: raw.length, normalized };
+  };
+
+  // Prefer Ignav's upstream airline filter. Some regional carriers occasionally
+  // disappear from provider-filtered searches even though the same flight is
+  // present in an unfiltered result. If that happens, retry once without
+  // airlines_include and enforce the selected airlines locally.
+  let result = await search(true);
+  let usedBroadFallback = false;
+  if (body.airlines_include?.length && result.normalized.length === 0) {
+    result = await search(false);
+    usedBroadFallback = true;
+  }
+
+  return {
+    candidates: result.normalized,
+    rawCount: result.rawCount,
+    usedBroadFallback,
+    successfulProviderRequests,
+  };
+}
+
+function pairCuratedLegs(
+  outbound: NonNullable<ReturnType<typeof normalizeItinerary>>[],
+  inbound: NonNullable<ReturnType<typeof normalizeItinerary>>[],
+  observedAt: string,
+) {
+  const outboundPool = outbound.slice(0, 12);
+  const inboundPool = inbound.slice(0, 12);
+  const pairs = [];
+
+  for (const out of outboundPool) {
+    for (const back of inboundPool) {
+      if (out.price.currency !== back.price.currency) continue;
+      const outStatus = String(out.price.status || "unverified").toLowerCase();
+      const backStatus = String(back.price.status || "unverified").toLowerCase();
+      const status = outStatus === "verified" && backStatus === "verified" ? "verified" : "unverified";
+      const pairID = `pair-${out.id.slice(0, 68)}-${back.id.slice(0, 68)}`;
+      pairs.push({
+        id: pairID,
+        source: "ignav",
+        source_name: "Ignav",
+        observed_at: observedAt,
+        fare_scope: "total_party",
+        price: {
+          amount: out.price.amount + back.price.amount,
+          currency: out.price.currency,
+          status,
+        },
+        legs: [...out.legs, ...back.legs],
+        cabin_class: out.cabin_class,
+        bags: null,
+        requires_self_transfer: false,
+        ignav_id: pairID,
+      });
+    }
+  }
+
+  return pairs
+    .sort((a, b) => a.price.amount - b.price.amount)
+    .slice(0, 40);
 }
 
 async function recordSuccessfulIgnavRequest(env: Env, observedAt: string) {
@@ -512,13 +651,24 @@ export async function searchIgnavFlightsForCuration(request: Request, env: Env):
 
   try {
     const observedAt = new Date().toISOString();
-    const upstream = await fetchIgnav(env.IGNAV_API_KEY, body as unknown as Record<string, unknown>);
-    await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
-    const itineraries = (upstream.itineraries ?? [])
-      .map((itinerary, index) => normalizeItinerary(itinerary, body, observedAt, index))
-      .filter((value): value is NonNullable<typeof value> => value !== null)
-      .filter((itinerary) => itinerary.legs.every((leg) => leg.stops === 0))
-      .sort((a, b) => a.price.amount - b.price.amount);
+
+    // Staff curation intentionally searches each requested leg independently with
+    // Ignav's dedicated one-way endpoint. This is materially more reliable for
+    // Umrah open-jaw routes (for example TAS→JED + MED→TAS) than asking the
+    // provider to price the two unrelated legs as one multi-city itinerary.
+    const legResults = [];
+    for (let index = 0; index < body.legs.length; index += 1) {
+      legResults.push(await curationOneWayCandidates(env, body.legs[index], body, observedAt, index));
+    }
+
+    const providerRequestCount = legResults.reduce((sum, item) => sum + item.successfulProviderRequests, 0);
+    for (let index = 0; index < providerRequestCount; index += 1) {
+      await recordSuccessfulIgnavRequest(env, observedAt).catch(() => undefined);
+    }
+
+    const itineraries = body.legs.length === 1
+      ? legResults[0].candidates.slice(0, 40)
+      : pairCuratedLegs(legResults[0].candidates, legResults[1].candidates, observedAt);
 
     return json({
       ok: true,
@@ -531,6 +681,13 @@ export async function searchIgnavFlightsForCuration(request: Request, env: Env):
         airlines_include: body.airlines_include ?? [],
         allow_self_transfer: body.allow_self_transfer,
       },
+      diagnostics: {
+        mode: body.legs.length === 2 ? "independent_one_way_pairing" : "dedicated_one_way",
+        provider_requests: providerRequestCount,
+        raw_itineraries_by_leg: legResults.map((item) => item.rawCount),
+        usable_itineraries_by_leg: legResults.map((item) => item.candidates.length),
+        broad_airline_fallback_by_leg: legResults.map((item) => item.usedBroadFallback),
+      },
     });
   } catch (error) {
     const status = Number((error as any)?.status ?? 0);
@@ -538,3 +695,4 @@ export async function searchIgnavFlightsForCuration(request: Request, env: Env):
     return json({ ok: false, error: "FLIGHT_SEARCH_UPSTREAM_FAILED", retryable, upstream_status: status || null }, retryable ? 503 : 502);
   }
 }
+
