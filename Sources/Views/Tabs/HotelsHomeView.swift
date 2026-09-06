@@ -72,7 +72,7 @@ struct HotelsHomeView: View {
             ShowcaseHero(
                 asset: "IumrahHotelsShowcaseHero",
                 title: "iumrah Hotel Space",
-                body: copy(
+                description: copy(
                     "Отели, которые iumrah отбирает для более спокойной Умры: удобная локация, проверенный сервис и готовая стоимость поездки.",
                     "Hotels curated by iumrah for a calmer Umrah: convenient location, trusted service and a ready trip price."
                 ),
@@ -138,7 +138,7 @@ struct HotelsHomeView: View {
             ShowcaseHero(
                 asset: "IumrahFlightsShowcaseHero",
                 title: "iumrah Flights",
-                body: copy(
+                description: copy(
                     "Актуальные прямые рейсы, опубликованные iumrah Business для более лёгкого пути на Умру — без лишних пересадок и сложных маршрутов.",
                     "Current direct flights published by iumrah Business for an easier Umrah journey — without unnecessary connections or complicated routing."
                 ),
@@ -174,7 +174,7 @@ struct HotelsHomeView: View {
             ShowcaseHero(
                 asset: "SundayUmrahClubShowcaseHero",
                 title: "Sunday Umrah Club",
-                body: copy(
+                description: copy(
                     "Умра, которая помещается в ваши выходные. Отдельная подборка коротких поездок для тех, кто хочет улететь на Умру без длинного отпуска.",
                     "Umrah that fits into your weekend. A separate collection of short journeys for pilgrims who want to travel without a long holiday."
                 ),
@@ -203,7 +203,7 @@ struct HotelsHomeView: View {
 private struct ShowcaseHero: View {
     let asset: String
     let title: String
-    let body: String
+    let description: String
     let note: String
     var imageBackground: Color = .black
 
@@ -220,7 +220,7 @@ private struct ShowcaseHero: View {
                 Text(title)
                     .font(.system(size: 29, weight: .bold, design: .rounded))
                     .tracking(-0.5)
-                Text(body)
+                Text(description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

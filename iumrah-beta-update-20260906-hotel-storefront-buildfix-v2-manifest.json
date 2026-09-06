@@ -1,0 +1,17 @@
+{
+  "update": "iumrah-beta-update-20260906-hotel-storefront-buildfix-v2",
+  "date": "2026-09-06",
+  "purpose": "Fix SwiftUI compile error invalid redeclaration of body in ShowcaseHero",
+  "files": [
+    {
+      "path": "BETA_HOTEL_STOREFRONT_BUILD_FIX_094_APPLIED.txt",
+      "sha256": "36a8a1fd22557a357a0d5747454431b82acc30685e50e62c4d11073836cdabed",
+      "bytes": 535
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "sha256": "7562d7cc496ec0a8c90ab8da94206f1ee79967747dde0b2912aa31685e73cbd0",
+      "bytes": 27645
+    }
+  ]
+}
