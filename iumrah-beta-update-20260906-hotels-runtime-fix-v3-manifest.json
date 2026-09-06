@@ -1,0 +1,51 @@
+{
+  "update": "iumrah-beta-update-20260906-hotels-runtime-fix-v3",
+  "date": "2026-09-06",
+  "source_state": "beta-iumrah-app-main 13.zip + hotel-storefront-v1 + buildfix-v2",
+  "purpose": "Fix empty Hotels tab/package quote rebuild and add local Centrum Air C6 logo",
+  "backend_source_changes": false,
+  "package_engine_deploy_required_if_v1_not_deployed": true,
+  "testflight_build_required": true,
+  "files": [
+    {
+      "path": "BETA_HOTEL_STOREFRONT_RUNTIME_FIX_095_APPLIED.txt",
+      "bytes": 1472,
+      "sha256": "030ace535e421d8ee9437ddf432b3d3d3fff274afda4baa0d3059f363a5fb4b2"
+    },
+    {
+      "path": "Resources/Assets.xcassets/CentrumAirLogo.imageset/Contents.json",
+      "bytes": 181,
+      "sha256": "df42d22839018c77e4534fd69cc01b8be239f06368e337a85d34e3c6de23d253"
+    },
+    {
+      "path": "Resources/Assets.xcassets/CentrumAirLogo.imageset/centrum-air-logo.png",
+      "bytes": 257014,
+      "sha256": "0790657ba227b1b2bf8ef3cf656a97aba9ddc88fffac863f82f3ee9715ed83d7"
+    },
+    {
+      "path": "Sources/Services/HotelStorefrontService.swift",
+      "bytes": 2035,
+      "sha256": "0f5ee00333915e374f4423f92be0846c1ca0ea28d8785e96546fdb04abb8b551"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 10636,
+      "sha256": "e2a694e3635cb0c42c20cea51e65cf1a98dc24f1dd9702443cb6ee24ef5676c3"
+    },
+    {
+      "path": "Sources/Views/Components/AirlineLogoView.swift",
+      "bytes": 2621,
+      "sha256": "a4c046ade6c7ab1ffcca9ed248058208d31354ebf187d25fb69da240cca17d3a"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "bytes": 65736,
+      "sha256": "ba3ecd46598195ffe11a517c25062712f525820b7686a43de67a655e2af055cc"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 28016,
+      "sha256": "42e51b0ecc6207c028076b3d5c576372e3e6910f2f36aa1b4074a9a02f832e01"
+    }
+  ]
+}

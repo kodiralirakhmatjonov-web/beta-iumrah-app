@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// Airline mark used by verified flight results and curated direct-flight cards.
-/// Google Flights' public carrier image endpoint is also used by iumrah Business;
-/// a strict two-character IATA check and local code fallback keep the card usable
-/// when a logo is unavailable.
+/// Known carriers with unreliable public logo endpoints can provide a local asset;
+/// every other airline keeps the existing Google Flights image + code fallback.
 struct AirlineLogoView: View {
     let airlineCode: String?
     var size: CGFloat = 38
@@ -13,7 +12,12 @@ struct AirlineLogoView: View {
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
                 .fill(Color.white)
 
-            if let logoURL {
+            if let localAssetName {
+                Image(localAssetName)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(size * 0.08)
+            } else if let logoURL {
                 AsyncImage(url: logoURL) { phase in
                     if case .success(let image) = phase {
                         image
@@ -41,6 +45,13 @@ struct AirlineLogoView: View {
         let code = airlineCode.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard code.range(of: "^[A-Z0-9]{2}$", options: .regularExpression) != nil else { return nil }
         return code
+    }
+
+    private var localAssetName: String? {
+        switch verifiedCode {
+        case "C6": return "CentrumAirLogo"
+        default: return nil
+        }
     }
 
     private var logoURL: URL? {

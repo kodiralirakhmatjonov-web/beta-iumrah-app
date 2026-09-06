@@ -1155,7 +1155,9 @@ struct HotelDetailView: View {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            detail = try await service.hotelDetail(id: hotel.id)
+            let loaded = try await service.hotelDetail(id: hotel.id)
+            detail = loaded
+            storefront.ingest(detail: loaded)
         } catch {
             errorMessage = L10n.text("hotels_load_error", settings.language)
         }

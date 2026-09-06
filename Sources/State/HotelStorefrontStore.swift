@@ -22,7 +22,7 @@ final class HotelStorefrontStore: ObservableObject {
 
     init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        snapshotURL = caches.appendingPathComponent("iumrah-hotel-storefront-v2.json")
+        snapshotURL = caches.appendingPathComponent("iumrah-hotel-storefront-v3.json")
         favoriteHotelIDs = Set(UserDefaults.standard.stringArray(forKey: favoritesKey) ?? [])
         restoreDiskSnapshot()
     }
@@ -56,6 +56,13 @@ final class HotelStorefrontStore: ObservableObject {
 
     func detail(for hotel: HotelSummary) -> HotelDetail? { details[hotel.id] }
 
+    func ingest(detail: HotelDetail) {
+        details[detail.id] = detail
+        rebuildQuotes()
+        persistDiskSnapshot()
+        startImageWarmup()
+    }
+
     func quote(for hotel: HotelSummary, tier: PackageTier = .standard) -> HotelStorefrontQuote? {
         tier == .luxury ? luxuryQuotes[hotel.id] : standardQuotes[hotel.id]
     }
@@ -83,39 +90,78 @@ final class HotelStorefrontStore: ObservableObject {
         AppConfig.apiBaseURL.appendingPathComponent("hotel").appendingPathComponent(hotel.id)
     }
 
+    /// The catalogue and the package baseline are intentionally loaded independently.
+    /// A Package Engine problem must never make the hotel catalogue disappear.
+    /// As soon as both a fresh hotel price and a published flight baseline are present,
+    /// the package quote is pure local arithmetic and is rebuilt immediately.
     private func prepare(force: Bool) async {
         guard force || !hasPrepared else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
-        do {
-            async let makkahRequest = catalog.listHotels(city: "Makkah")
-            async let madinahRequest = catalog.listHotels(city: "Madinah")
-            async let flightRequest = storefront.flightBoard(origin: "TAS")
+        async let makkahRequest = hotelListResult(city: "Makkah")
+        async let madinahRequest = hotelListResult(city: "Madinah")
+        async let flightRequest = flightBoardResult()
 
-            let (newMakkah, newMadinah, newFlightBoard) = try await (makkahRequest, madinahRequest, flightRequest)
-            makkahHotels = newMakkah
-            madinahHotels = newMadinah
-            flightBoard = newFlightBoard
+        let (makkahResult, madinahResult, flightResult) = await (makkahRequest, madinahRequest, flightRequest)
 
-            // Price cards do not depend on full hotel-detail payloads. Build them
-            // immediately from the already-cached catalogue rate + published flight
-            // baseline so the storefront becomes usable while photo metadata warms.
-            rebuildQuotes()
-            hasPrepared = baseline != nil && !standardQuotes.isEmpty
-            startImageWarmup()
+        var hotelErrors: [Error] = []
+        switch makkahResult {
+        case .success(let hotels): makkahHotels = hotels
+        case .failure(let error): hotelErrors.append(error)
+        }
+        switch madinahResult {
+        case .success(let hotels): madinahHotels = hotels
+        case .failure(let error): hotelErrors.append(error)
+        }
+        if case .success(let board) = flightResult {
+            flightBoard = board
+        }
 
-            let loadedDetails = await fetchDetails(for: newMakkah + newMadinah)
+        // Most catalogue responses already contain the fresh 48h nightly rate,
+        // so quotes normally become available here before detail/gallery requests.
+        rebuildQuotes()
+        startImageWarmup()
+
+        // Hotel detail is also a price fallback. Some catalogue deployments expose
+        // the current hotel price only on the detail payload. The previous storefront
+        // loaded that payload but never rebuilt quotes afterwards, leaving every hotel
+        // filtered out even though the price was present in the database.
+        let hotels = allHotels
+        if !hotels.isEmpty {
+            let loadedDetails = await fetchDetails(for: hotels)
             for detail in loadedDetails { details[detail.id] = detail }
+            rebuildQuotes()
             persistDiskSnapshot()
             startImageWarmup()
-        } catch {
-            rebuildQuotes()
-            hasPrepared = !allHotels.isEmpty && baseline != nil
-            errorMessage = L10n.error(error, .russian)
-            startImageWarmup()
         }
+
+        // A completed catalogue + baseline preparation should not rerun on every
+        // tab appearance. Pull-to-refresh remains available for an explicit retry.
+        hasPrepared = !allHotels.isEmpty && baseline != nil && !standardQuotes.isEmpty
+
+        if allHotels.isEmpty {
+            if let error = hotelErrors.first {
+                errorMessage = L10n.error(error, .russian)
+            } else {
+                errorMessage = "Каталог отелей временно недоступен."
+            }
+        } else if baseline == nil {
+            // Do not hide hotels. This message is shown only in the package-price
+            // placeholder and helps distinguish pricing availability from catalog data.
+            errorMessage = "Обновляем опубликованные рейсы для расчёта пакета."
+        }
+    }
+
+    private func hotelListResult(city: String) async -> Result<[HotelSummary], Error> {
+        do { return .success(try await catalog.listHotels(city: city)) }
+        catch { return .failure(error) }
+    }
+
+    private func flightBoardResult() async -> Result<StorefrontFlightBoardResponse, Error> {
+        do { return .success(try await storefront.flightBoard(origin: "TAS")) }
+        catch { return .failure(error) }
     }
 
     private func fetchDetails(for hotels: [HotelSummary]) async -> [HotelDetail] {
@@ -139,18 +185,26 @@ final class HotelStorefrontStore: ObservableObject {
             luxuryQuotes = [:]
             return
         }
+
         var standard: [String: HotelStorefrontQuote] = [:]
         var luxury: [String: HotelStorefrontQuote] = [:]
         for hotel in allHotels {
-            if let quote = try? storefront.quote(hotel: hotel, tier: .standard, baseline: baseline) {
+            let price = bestFreshPrice(for: hotel)
+            if let quote = try? storefront.quote(hotel: hotel, tier: .standard, baseline: baseline, price: price) {
                 standard[hotel.id] = quote
             }
-            if let quote = try? storefront.quote(hotel: hotel, tier: .luxury, baseline: baseline) {
+            if let quote = try? storefront.quote(hotel: hotel, tier: .luxury, baseline: baseline, price: price) {
                 luxury[hotel.id] = quote
             }
         }
         standardQuotes = standard
         luxuryQuotes = luxury
+    }
+
+    private func bestFreshPrice(for hotel: HotelSummary) -> HotelCatalogPrice? {
+        if let detailPrice = details[hotel.id]?.price, detailPrice.isFresh { return detailPrice }
+        if let summaryPrice = hotel.price, summaryPrice.isFresh { return summaryPrice }
+        return details[hotel.id]?.price ?? hotel.price
     }
 
     private func restoreDiskSnapshot() {
@@ -161,8 +215,8 @@ final class HotelStorefrontStore: ObservableObject {
         details = Dictionary(uniqueKeysWithValues: snapshot.hotelDetails.map { ($0.id, $0) })
         flightBoard = snapshot.flightBoard
         rebuildQuotes()
-        // Disk data is used immediately for instant rendering, but every app launch
-        // still runs a network preparation to respect the independent 48h price cache.
+        // Disk data renders immediately, then the app refreshes prices/flight baseline
+        // once per launch. Photo bytes themselves live in the persistent image cache.
         hasPrepared = false
         startImageWarmup()
     }
@@ -180,10 +234,6 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     private func startImageWarmup() {
-        // The storefront needs its three-photo collages immediately. Warm those first.
-        // For detail pages, prefetch only the first gallery screen in the background;
-        // the persistent cache stores the rest as the pilgrim browses them. This keeps
-        // launch responsive and avoids downloading an entire hotel media library at once.
         let critical = allHotels
             .flatMap { previewImages(for: $0, limit: 3) }
             .compactMap { AppConfig.absoluteURL($0) }

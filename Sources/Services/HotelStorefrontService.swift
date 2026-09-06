@@ -6,19 +6,21 @@ struct HotelStorefrontService {
     func flightBoard(origin: String = "TAS") async throws -> StorefrontFlightBoardResponse {
         try await api.get(
             "/api/package/storefront/flights",
-            query: [URLQueryItem(name: "origin", value: origin)]
+            query: [URLQueryItem(name: "origin", value: origin)],
+            timeoutInterval: 10
         )
     }
 
     func quote(
         hotel: HotelSummary,
         tier: PackageTier,
-        baseline: StorefrontFlightBaseline
+        baseline: StorefrontFlightBaseline,
+        price overridePrice: HotelCatalogPrice? = nil
     ) throws -> HotelStorefrontQuote {
         guard baseline.currency.uppercased() == "USD", baseline.perTravelerFareUsd > 0 else {
             throw LocalPricingError.invalidFlightFare
         }
-        guard let catalog = hotel.price,
+        guard let catalog = overridePrice ?? hotel.price,
               catalog.isFresh,
               let nightly = catalog.nightlyUSD,
               nightly.isFinite,

@@ -91,17 +91,17 @@ struct HotelsHomeView: View {
                 hotels: storefront.madinahHotels
             )
 
-            if storefront.isLoading && storefront.standardQuotes.isEmpty {
+            if storefront.isLoading && storefront.allHotels.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text(copy("Готовим актуальные цены пакетов…", "Preparing current package prices…"))
+                    Text(copy("Загружаем отели и готовим цены пакетов…", "Loading hotels and preparing package prices…"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 92)
             }
 
-            if let error = storefront.errorMessage, storefront.standardQuotes.isEmpty {
+            if let error = storefront.errorMessage, storefront.allHotels.isEmpty {
                 Text(error)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -111,11 +111,10 @@ struct HotelsHomeView: View {
     }
 
     private func hotelCitySection(title: String, hotels: [HotelSummary]) -> some View {
-        let readyHotels = hotels.filter { storefront.quote(for: $0, tier: .standard) != nil }
-        return VStack(alignment: .leading, spacing: 14) {
-            if !readyHotels.isEmpty {
+        VStack(alignment: .leading, spacing: 14) {
+            if !hotels.isEmpty {
                 SectionHeader(title, eyebrow: L10n.text("hotels_selected_badge", settings.language), subtitle: nil)
-                ForEach(readyHotels) { hotel in
+                ForEach(hotels) { hotel in
                     HotelStorefrontCard(
                         hotel: hotel,
                         images: storefront.previewImages(for: hotel),
@@ -328,6 +327,15 @@ private struct HotelStorefrontCard: View {
                          : "\(money(quote.packageQuote.totalPackagePrice)) package total")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 7) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(language == .russian ? "Считаем пакет…" : "Calculating package…")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(minHeight: 44, alignment: .leading)
                 }
 
                 HStack(spacing: 5) {
