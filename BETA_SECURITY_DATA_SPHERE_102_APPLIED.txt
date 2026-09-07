@@ -1,0 +1,14 @@
+BETA SECURITY DATA SPHERE 102
+
+Fixes the Security hero data sphere after v1 rendered effectively invisible on device.
+
+Changes:
+- keeps IumrahDataSphere as a standalone reusable native component
+- retains MTKView + Metal GPU rendering
+- adds an embedded Metal-library fallback if the generated Xcode target does not expose the precompiled shader functions
+- removes the glyph-atlas dependency and renders 0-9 procedurally in the Metal fragment shader
+- corrects Retina sizing so foreground digits occupy real visible pixels instead of sub-pixel quads
+- increases particle visibility, cyan/blue luminance and depth separation
+- moves the sphere further into the visible right side of the Security card
+- keeps all Security copy and account ID outside the animation component
+- no backend, hotel, booking, auth, pricing or business logic changed

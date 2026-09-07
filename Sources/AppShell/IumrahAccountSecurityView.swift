@@ -127,20 +127,20 @@ struct IumrahAccountSecurityView: View {
 
             // The renderer is a standalone reusable component. Security owns
             // the composition, copy and identifier independently.
-            IumrahDataSphere(state: .idle, intensity: 1.08)
-                .frame(width: 252, height: 252)
-                .offset(x: 135, y: -4)
+            IumrahDataSphere(state: .idle, intensity: 1.24)
+                .frame(width: 286, height: 286)
+                .offset(x: 98, y: -20)
 
             LinearGradient(
                 colors: [
-                    .black.opacity(0.82),
-                    .black.opacity(0.45),
+                    .black.opacity(0.86),
+                    .black.opacity(0.30),
                     .clear
                 ],
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            .frame(width: 184)
+            .frame(width: 162)
             .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 0) {
