@@ -1,0 +1,26 @@
+iumrah Beta — Hotels layout repair 098
+Date: 2026-09-07
+
+Scope: client-side SwiftUI layout only.
+
+Changed:
+- Hotels tab hotel cards now use a stable ~31% side photo collage instead of a wide collage that crowds/overlaps hotel text.
+- Hotel card image geometry is explicitly constrained, including the 1-large + 2-thumbnail collage.
+- Hotel card typography/pricing/loading states are compacted so they remain inside the text column.
+- Hotel detail page is hard-constrained to the device viewport to prevent any wide child from shifting the entire page off-screen.
+- Hotel detail photo overview has explicit deterministic column geometry.
+- Recommended room categories no longer use the nested horizontal layout that could widen the page; they are stable full-width cards.
+- Actual hotel rooms are now compact side-photo cards with the room photo carousel contained inside the card.
+- Reception clocks are stable 2x2 compact cards and cannot widen the parent layout.
+
+Not changed:
+- Package pricing mathematics
+- Hotel/flight APIs
+- Backend/Cloudflare code
+- Booking logic
+- Hotel selection logic
+- Localization dictionaries
+- Data models
+
+Backend deploy required: NO
+TestFlight build required to see the UI change: YES

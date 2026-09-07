@@ -237,115 +237,126 @@ private struct HotelStorefrontCard: View {
     let onOpen: () -> Void
     let onFavorite: () -> Void
 
+    private let cardHeight: CGFloat = 204
+
     var body: some View {
-        HStack(spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                HotelStorefrontCollage(images: images, fallback: hotel.coverImageURL)
-                    .frame(width: 142, height: 236)
+        GeometryReader { proxy in
+            let mediaWidth = min(max(proxy.size.width * 0.31, 108), 122)
 
-                HStack(spacing: 8) {
-                    Button(action: onFavorite) {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(isFavorite ? Color.iumrahCareLight : Color.white)
-                            .frame(width: 36, height: 36)
-                            .contentShape(Circle())
-                            .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.20), chrome: true)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.text(isFavorite ? "hotel_storefront_favorite_remove" : "hotel_storefront_favorite_add", language))
+            HStack(spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    HotelStorefrontCollage(images: images, fallback: hotel.coverImageURL)
+                        .frame(width: mediaWidth, height: cardHeight)
 
-                    ShareLink(
-                        item: shareURL,
-                        subject: Text(hotel.name),
-                        message: Text(L10n.text("hotel_storefront_share", language))
-                    ) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .contentShape(Circle())
-                            .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.20), chrome: true)
+                    HStack(spacing: 6) {
+                        Button(action: onFavorite) {
+                            Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(isFavorite ? Color.iumrahCareLight : Color.white)
+                                .frame(width: 32, height: 32)
+                                .background(.black.opacity(0.34), in: Circle())
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.text(isFavorite ? "hotel_storefront_favorite_remove" : "hotel_storefront_favorite_add", language))
+
+                        ShareLink(
+                            item: shareURL,
+                            subject: Text(hotel.name),
+                            message: Text(L10n.text("hotel_storefront_share", language))
+                        ) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 32, height: 32)
+                                .background(.black.opacity(0.34), in: Circle())
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.text("hotel_storefront_share", language))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.text("hotel_storefront_share", language))
+                    .padding(9)
                 }
-                .padding(10)
-            }
+                .frame(width: mediaWidth, height: cardHeight)
+                .clipped()
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(hotel.name)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .tracking(-0.15)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(hotel.name)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .tracking(-0.2)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 6) {
-                    if let stars = hotel.stars {
-                        Text(String(repeating: "★", count: max(1, min(5, stars))))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(IumrahIconRole.warning.color)
-                    }
-                    if let rating = hotel.rating {
-                        Text(String(format: "%.1f", rating))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Label(L10n.city(hotel.city, language), systemImage: "mappin.and.ellipse")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-
-                Spacer(minLength: 6)
-
-                if let quote {
-                    Text(PackageTier.standard.title(language).uppercased())
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .tracking(0.5)
-
-                    Text(money(quote.packageQuote.pricePerPerson))
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .tracking(-0.7)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-
-                    Text(L10n.text("hotel_storefront_per_pilgrim", language))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Text(L10n.format("hotel_storefront_package_total_fmt", language, money(quote.packageQuote.totalPackagePrice)))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                } else {
                     HStack(spacing: 7) {
-                        ProgressView().controlSize(.small)
-                        Text(L10n.text("hotel_storefront_calculating", language))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                        if let stars = hotel.stars {
+                            Text(String(repeating: "★", count: max(1, min(5, stars))))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(IumrahIconRole.rating.color)
+                        }
+                        if let rating = hotel.rating {
+                            Text(String(format: "%.1f", rating))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .frame(minHeight: 50, alignment: .leading)
-                }
 
-                HStack(spacing: 5) {
-                    Text(L10n.text("hotel_storefront_includes", language))
-                        .font(.caption2.weight(.semibold))
+                    Label(L10n.city(hotel.city, language), systemImage: "mappin.and.ellipse")
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+
                     Spacer(minLength: 2)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.tertiary)
+
+                    if let quote {
+                        HStack(alignment: .lastTextBaseline, spacing: 6) {
+                            Text(money(quote.packageQuote.pricePerPerson))
+                                .font(.system(size: 25, weight: .bold, design: .rounded))
+                                .tracking(-0.55)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.78)
+                            Spacer(minLength: 2)
+                            Text(L10n.text("hotel_storefront_per_pilgrim", language))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                        }
+
+                        Text(L10n.format("hotel_storefront_package_total_fmt", language, money(quote.packageQuote.totalPackagePrice)))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    } else {
+                        HStack(spacing: 7) {
+                            ProgressView().controlSize(.small)
+                            Text(L10n.text("hotel_storefront_calculating", language))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        .frame(minHeight: 38, alignment: .leading)
+                    }
+
+                    HStack(spacing: 5) {
+                        Text(L10n.text("hotel_storefront_includes", language))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.68)
+                        Spacer(minLength: 2)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(width: proxy.size.width, height: cardHeight)
         }
-        .frame(maxWidth: .infinity, minHeight: 236, maxHeight: 236)
+        .frame(height: cardHeight)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
@@ -377,16 +388,28 @@ private struct HotelStorefrontCollage: View {
     }
 
     var body: some View {
-        VStack(spacing: 3) {
-            HotelCachedImage(rawURL: resolved[0])
-                .frame(height: 146)
-                .clipped()
-            HStack(spacing: 3) {
-                HotelCachedImage(rawURL: resolved[1])
+        GeometryReader { proxy in
+            let gap: CGFloat = 3
+            let heroHeight = ((proxy.size.height - gap) * 0.63)
+            let thumbnailHeight = max(0, proxy.size.height - heroHeight - gap)
+            let thumbnailWidth = max(0, (proxy.size.width - gap) / 2)
+
+            VStack(spacing: gap) {
+                HotelCachedImage(rawURL: resolved[0])
+                    .frame(width: proxy.size.width, height: heroHeight)
                     .clipped()
-                HotelCachedImage(rawURL: resolved[2])
-                    .clipped()
+
+                HStack(spacing: gap) {
+                    HotelCachedImage(rawURL: resolved[1])
+                        .frame(width: thumbnailWidth, height: thumbnailHeight)
+                        .clipped()
+                    HotelCachedImage(rawURL: resolved[2])
+                        .frame(width: thumbnailWidth, height: thumbnailHeight)
+                        .clipped()
+                }
+                .frame(width: proxy.size.width, height: thumbnailHeight)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }
         .clipped()
     }

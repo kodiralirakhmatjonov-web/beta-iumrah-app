@@ -34,40 +34,45 @@ struct HotelDetailView: View {
     private let packageEngine = RemotePackageEngineClient()
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                heroCarousel
+        GeometryReader { proxy in
+            let contentWidth = max(0, proxy.size.width - (IumrahDesign.pagePadding * 2))
 
-                VStack(alignment: .leading, spacing: 30) {
-                    identitySection
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    heroCarousel
+                        .frame(width: proxy.size.width)
 
-                    if !selectionFlow && bookingID == nil {
-                        storefrontPackageSection
-                    }
+                    VStack(alignment: .leading, spacing: 30) {
+                        identitySection
 
-                    if let detail {
-                        qualitySection(detail)
-                        receptionClocksSection
-                        photoOverviewSection(detail)
-                        amenitiesSection(detail)
-                        primaryRoomSection(detail)
-                        actualRoomsSection(detail)
-                        if !detail.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            aboutSection(detail)
+                        if !selectionFlow && bookingID == nil {
+                            storefrontPackageSection
                         }
-                        mapSection(detail)
-                        practicalSection(detail)
-                        HotelCareShowcaseCard(language: settings.language) { carePresented = true }
-                    } else if isLoading {
-                        loadingSection
-                    } else if let errorMessage {
-                        errorSection(errorMessage)
+
+                        if let detail {
+                            qualitySection(detail)
+                            receptionClocksSection
+                            photoOverviewSection(detail)
+                            amenitiesSection(detail)
+                            primaryRoomSection(detail)
+                            actualRoomsSection(detail)
+                            if !detail.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                aboutSection(detail)
+                            }
+                            mapSection(detail)
+                            practicalSection(detail)
+                            HotelCareShowcaseCard(language: settings.language) { carePresented = true }
+                        } else if isLoading {
+                            loadingSection
+                        } else if let errorMessage {
+                            errorSection(errorMessage)
+                        }
                     }
+                    .frame(width: contentWidth, alignment: .leading)
+                    .padding(.top, 24)
+                    .padding(.bottom, shouldShowSelectionBar ? 128 : 48)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 24)
-                .padding(.bottom, shouldShowSelectionBar ? 128 : 48)
+                .frame(width: proxy.size.width, alignment: .top)
             }
         }
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())
@@ -331,7 +336,9 @@ struct HotelDetailView: View {
                 ReceptionClock(city: L10n.text("hotel_time_madinah", settings.language), timeZoneID: "Asia/Riyadh")
                 ReceptionClock(city: L10n.text("hotel_time_moscow", settings.language), timeZoneID: "Europe/Moscow")
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -351,23 +358,35 @@ struct HotelDetailView: View {
                     .buttonStyle(.plain)
                 }
 
-                HStack(spacing: 4) {
-                    HotelCachedImage(rawURL: photos[0].url)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                    VStack(spacing: 4) {
-                        HotelCachedImage(rawURL: photos[safe: 1]?.url ?? photos[0].url)
+                GeometryReader { proxy in
+                    let gap: CGFloat = 4
+                    let primaryWidth = ((proxy.size.width - gap) * 0.64)
+                    let secondaryWidth = max(0, proxy.size.width - primaryWidth - gap)
+                    let secondaryHeight = max(0, (proxy.size.height - gap) / 2)
+
+                    HStack(spacing: gap) {
+                        HotelCachedImage(rawURL: photos[0].url)
+                            .frame(width: primaryWidth, height: proxy.size.height)
                             .clipped()
-                        HotelCachedImage(rawURL: photos[safe: 2]?.url ?? photos[0].url)
-                            .clipped()
+
+                        VStack(spacing: gap) {
+                            HotelCachedImage(rawURL: photos[safe: 1]?.url ?? photos[0].url)
+                                .frame(width: secondaryWidth, height: secondaryHeight)
+                                .clipped()
+                            HotelCachedImage(rawURL: photos[safe: 2]?.url ?? photos[0].url)
+                                .frame(width: secondaryWidth, height: secondaryHeight)
+                                .clipped()
+                        }
+                        .frame(width: secondaryWidth, height: proxy.size.height)
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
                 .frame(height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                 .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                 .onTapGesture { isGalleryPresented = true }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -467,20 +486,15 @@ struct HotelDetailView: View {
                         .buttonStyle(IumrahSecondaryButtonStyle())
                 }
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 14) {
-                        ForEach(roomCategories) { option in
-                            primaryRoomCard(option)
-                                .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 14)
-                        }
+                LazyVStack(spacing: 12) {
+                    ForEach(roomCategories) { option in
+                        primaryRoomCard(option)
+                            .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, IumrahDesign.pagePadding)
-                    .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, 0, for: .scrollContent)
-                .scrollTargetBehavior(.viewAligned)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func primaryRoomCard(_ option: IumrahRoomCategoryOption) -> some View {
@@ -559,18 +573,12 @@ struct HotelDetailView: View {
                     .background(Color.iumrahCardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 14) {
-                        ForEach(detail.rooms) { room in
-                            actualRoomCard(room, detail: detail)
-                                .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 14)
-                        }
+                LazyVStack(spacing: 12) {
+                    ForEach(detail.rooms) { room in
+                        actualRoomCard(room, detail: detail)
+                            .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, IumrahDesign.pagePadding)
-                    .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, 0, for: .scrollContent)
-                .scrollTargetBehavior(.viewAligned)
             }
 
             if let selectionError {
@@ -580,132 +588,133 @@ struct HotelDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func actualRoomCard(_ room: HotelRoom, detail: HotelDetail) -> some View {
         let selected = isRoomSelected(room)
         let roomImages = images(for: room, detail: detail)
         let cleanDescription = cleanRoomDescription(room.description)
+        let cardHeight: CGFloat = canSelectRooms ? 236 : 196
 
-        return VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topTrailing) {
-                if roomImages.isEmpty {
-                    ZStack {
-                        Color.iumrahRaisedBackground
-                        VStack(spacing: 10) {
-                            Image(systemName: "bed.double.fill")
-                                .font(.system(size: 34, weight: .light))
-                            Text(FlowCopy.text(.hotelRooms, settings.language))
-                                .font(.caption.weight(.semibold))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                    .frame(height: 196)
-                } else {
-                    TabView(selection: roomImageSelectionBinding(for: room.id)) {
-                        ForEach(Array(roomImages.enumerated()), id: \.offset) { index, image in
-                            hotelImage(image.url)
-                                .frame(height: 196)
-                                .tag(index)
-                        }
-                    }
-                    .frame(height: 196)
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                }
+        return GeometryReader { proxy in
+            let mediaWidth = min(max(proxy.size.width * 0.36, 116), 142)
 
-                if roomImages.count > 1 {
-                    VStack {
-                        HStack {
-                            Spacer()
+            HStack(spacing: 0) {
+                ZStack(alignment: .topTrailing) {
+                    if roomImages.isEmpty {
+                        ZStack {
+                            Color.iumrahRaisedBackground
+                            VStack(spacing: 9) {
+                                Image(systemName: "bed.double.fill")
+                                    .font(.system(size: 28, weight: .light))
+                                Text(FlowCopy.text(.hotelRooms, settings.language))
+                                    .font(.caption2.weight(.semibold))
+                                    .multilineTextAlignment(.center)
+                            }
+                            .foregroundStyle(.secondary)
+                            .padding(10)
+                        }
+                    } else {
+                        TabView(selection: roomImageSelectionBinding(for: room.id)) {
+                            ForEach(Array(roomImages.enumerated()), id: \.offset) { index, image in
+                                hotelImage(image.url)
+                                    .tag(index)
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                    }
+
+                    if roomImages.count > 1 {
+                        VStack {
                             Label("\(roomImages.count)", systemImage: "photo.on.rectangle")
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .frame(height: 30)
+                                .padding(.horizontal, 9)
+                                .frame(height: 28)
                                 .background(.black.opacity(0.42), in: Capsule())
-                        }
-                        Spacer()
-                        HStack(spacing: 5) {
-                            ForEach(Array(roomImages.indices), id: \.self) { index in
-                                Capsule()
-                                    .fill(index == (roomImageIndices[room.id] ?? 0) ? Color.white : Color.white.opacity(0.42))
-                                    .frame(width: index == (roomImageIndices[room.id] ?? 0) ? 13 : 5, height: 5)
+
+                            Spacer()
+
+                            HStack(spacing: 4) {
+                                ForEach(Array(roomImages.indices), id: \.self) { index in
+                                    Capsule()
+                                        .fill(index == (roomImageIndices[room.id] ?? 0) ? Color.white : Color.white.opacity(0.42))
+                                        .frame(width: index == (roomImageIndices[room.id] ?? 0) ? 12 : 5, height: 5)
+                                }
                             }
+                            .padding(.horizontal, 8)
+                            .frame(height: 23)
+                            .background(.black.opacity(0.28), in: Capsule())
                         }
-                        .padding(.horizontal, 9)
-                        .frame(height: 25)
-                        .background(.black.opacity(0.28), in: Capsule())
-                    }
-                    .padding(14)
-                    .allowsHitTesting(false)
-                }
-            }
-            .frame(height: 196)
-            .clipped()
-
-            VStack(alignment: .leading, spacing: 11) {
-                HStack(alignment: .top, spacing: 10) {
-                    Text(localizedRoomName(room.name))
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
-                        .tracking(-0.25)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 6)
-                    if selected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 21, weight: .semibold))
-                            .foregroundStyle(Color.iumrahCareLight)
+                        .padding(10)
+                        .allowsHitTesting(false)
                     }
                 }
-                .frame(minHeight: 50, alignment: .top)
+                .frame(width: mediaWidth, height: cardHeight)
+                .clipped()
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 7) { roomFacts(room) }
-                    VStack(alignment: .leading, spacing: 7) { roomFacts(room) }
-                }
-
-                Group {
-                    if let cleanDescription {
-                        Text(cleanDescription)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 9) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(localizedRoomName(room.name))
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .tracking(-0.2)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        Color.clear
-                    }
-                }
-                .frame(height: 36, alignment: .topLeading)
 
-                Spacer(minLength: 0)
+                        Spacer(minLength: 4)
 
-                if canSelectRooms {
-                    Button { select(room) } label: {
-                        HStack(spacing: 10) {
-                            Text(selected ? FlowCopy.text(.roomChosen, settings.language) : FlowCopy.text(.chooseRoom, settings.language))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.82)
-                            Spacer(minLength: 8)
-                            Image(systemName: selected ? "checkmark" : "arrow.right")
-                                .font(.system(size: 14, weight: .bold))
+                        if selected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 19, weight: .semibold))
+                                .foregroundStyle(Color.iumrahCareLight)
                         }
-                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(RoomSelectButtonStyle(selected: selected))
-                    .disabled(isSavingSelection)
-                    .padding(.top, 2)
+
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 6) { roomFacts(room) }
+                        VStack(alignment: .leading, spacing: 6) { roomFacts(room) }
+                    }
+
+                    if let cleanDescription {
+                        Text(cleanDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(canSelectRooms ? 2 : 3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if canSelectRooms {
+                        Button { select(room) } label: {
+                            HStack(spacing: 8) {
+                                Text(selected ? FlowCopy.text(.roomChosen, settings.language) : FlowCopy.text(.chooseRoom, settings.language))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.78)
+                                Spacer(minLength: 4)
+                                Image(systemName: selected ? "checkmark" : "arrow.right")
+                                    .font(.system(size: 13, weight: .bold))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(RoomSelectButtonStyle(selected: selected))
+                        .disabled(isSavingSelection)
+                    }
                 }
+                .padding(14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(height: canSelectRooms ? 218 : 158, alignment: .topLeading)
-            .padding(18)
+            .frame(width: proxy.size.width, height: cardHeight)
         }
+        .frame(height: cardHeight)
         .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(selected ? Color.iumrahCareLight.opacity(0.62) : Color.primary.opacity(0.055), lineWidth: selected ? 1.2 : 0.6)
         }
-        .shadow(color: .black.opacity(0.05), radius: 14, y: 7)
+        .shadow(color: .black.opacity(0.04), radius: 12, y: 5)
     }
 
     @ViewBuilder
@@ -1229,24 +1238,23 @@ private struct ReceptionClock: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            HStack(spacing: 12) {
+            VStack(spacing: 8) {
                 clockFace(date: context.date)
-                    .frame(width: 54, height: 54)
+                    .frame(width: 52, height: 52)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(city)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    Text(timeText(context.date))
-                        .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
+                Text(city)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text(timeText(context.date))
+                    .font(.system(size: 19, weight: .bold, design: .rounded).monospacedDigit())
+                    .lineLimit(1)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 78)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 118)
             .background(Color.iumrahCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay {

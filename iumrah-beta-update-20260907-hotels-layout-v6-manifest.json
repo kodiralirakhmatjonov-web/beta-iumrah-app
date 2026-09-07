@@ -1,0 +1,27 @@
+{
+  "update": "iumrah-beta-update-20260907-hotels-layout-v6",
+  "date": "2026-09-07",
+  "source_state": "beta-iumrah-app-main 14.zip",
+  "purpose": "Repair Hotels tab and hotel detail SwiftUI layout without changing pricing, APIs, backend, localization, or booking logic",
+  "pricing_math_changed": false,
+  "backend_source_changes": false,
+  "package_engine_deploy_required": false,
+  "testflight_build_required": true,
+  "files": [
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 26922,
+      "sha256": "80e198818c72aa1635eae64b87438848ef835ae15ae0b305cc9aa6847a6a0089"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "bytes": 70062,
+      "sha256": "a50db306dde7fec42a30c8d85f8f3476d4cc7a6be4db01f1bd52062155e91e06"
+    },
+    {
+      "path": "BETA_HOTELS_LAYOUT_098_APPLIED.txt",
+      "bytes": 1220,
+      "sha256": "38ceb28a2f1266cef67650858af75860563dfb1dd52ca38b21a4bf0a0690897d"
+    }
+  ]
+}
