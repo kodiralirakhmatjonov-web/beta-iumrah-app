@@ -1,0 +1,34 @@
+iumrah Beta — Hotel catalogue restore + package-tier hotel mapping 100
+Date: 2026-09-07
+Source state: beta-iumrah-app-main 14.zip + Hotels Layout 098 + Package Builder Direct/Flex 099
+
+Scope
+- Restore the hotel selector catalogue without changing package pricing arithmetic.
+- Remove the separate customer-facing 1★–5★ hotel selector from Trip Builder.
+- Make package category the single hotel-level choice:
+  Economy -> primary 2★, plus 1★ shown as Super Economy
+  Standard -> 3★ only
+  Comfort -> 4★ only
+  Luxury -> 5★ only
+- Selected package row expands a short localized explanation (en/ru/uz/uz-Cyrl).
+
+Catalogue fix
+- JourneyStore no longer discards hotel rows merely because the list-level 48h price snapshot is stale.
+- HotelSelectionView no longer hides those rows for the same reason.
+- Madinah aliases are merged instead of stopping at the first non-empty spelling, so hotels stored as Madinah/Medina/Al Madinah variants remain visible.
+- Fresh-price validation remains in the existing hotel-detail/package-pricing pipeline before a final quote is produced.
+
+Compatibility
+- TripDraft.hotelStars remains as an internal compatibility field and is synchronized from PackageTier.
+- No flight flow, Weekend-specific flow, service fee, markup, FX, payment, hotel cost arithmetic or package-pricing formulas were changed.
+- The onboarding generator preview no longer shows the retired star-selector mock.
+
+Deployment
+- No backend source or D1 schema change.
+- Package Engine deploy is NOT required.
+- Apply ZIP, then build TestFlight/iOS normally.
+
+Validation
+- swiftc parser passed for all changed Swift files.
+- Static contract checks passed for 2/3/4/5-star mapping, Super Economy 1★ exposure, and removal of fresh-only catalogue filtering.
+- Core pricing files were verified unchanged against the supplied repository source.

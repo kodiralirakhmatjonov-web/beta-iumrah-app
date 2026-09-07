@@ -33,7 +33,6 @@ struct TripBuilderView: View {
                 if journey.packageFlightPath != .publishedDirect {
                     FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
                 }
-                hotelClassCard
                 packageCard
 
                 NavigationLink {
@@ -60,6 +59,10 @@ struct TripBuilderView: View {
             journey.packageFlightPath = .publishedDirect
         }
         .onAppear {
+            // Package category is now the single hotel-level choice. This also
+            // normalizes drafts created by builds where Standard defaulted to 4★.
+            journey.selectPackageTier(journey.trip.packageTier)
+
             // Production flow is always a complete Umrah journey: the pilgrim
             // chooses the outbound first and the compatible return afterwards.
             // Do not expose an internal ticket-type switch in the customer flow.
@@ -1321,50 +1324,24 @@ struct TripBuilderView: View {
         .iumrahCard()
     }
 
-    private var hotelClassCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label(L10n.text("hotel_level", settings.language), systemImage: "building.2")
-                .font(.headline)
-
-            HStack(spacing: 8) {
-                ForEach(1...5, id: \.self) { stars in
-                    Button {
-                        journey.trip.hotelStars = stars
-                        IumrahHaptics.selection()
-                    } label: {
-                        let selected = journey.trip.hotelStars == stars
-                        Text("\(stars)★")
-                            .font(.subheadline.weight(.bold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
-                            .foregroundColor(selected ? Color(uiColor: .systemBackground) : Color.primary)
-                            .iumrahGlass(
-                                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
-                                interactive: true,
-                                tint: selected ? Color.primary : nil
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .iumrahCard()
-    }
-
     private var packageCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(L10n.text("trip_format_title", settings.language), systemImage: "square.grid.2x2")
                 .font(.headline)
 
             ForEach(PackageTier.allCases) { tier in
+                let selected = journey.trip.packageTier == tier
                 Button {
-                    journey.trip.packageTier = tier
+                    withAnimation(.easeInOut(duration: 0.20)) {
+                        journey.selectPackageTier(tier)
+                    }
                     IumrahHaptics.selection()
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: journey.trip.packageTier == tier ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: selected ? 10 : 0) {
+                        HStack(spacing: 12) {
+                            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+
                             HStack(spacing: 7) {
                                 Text(tier.title(settings.language))
                                     .font(.body.weight(.semibold))
@@ -1377,19 +1354,30 @@ struct TripBuilderView: View {
                                         .clipShape(Capsule())
                                 }
                             }
+
+                            Spacer(minLength: 8)
+
+                            Text(tier == .economy ? "2★ · 1★" : "\(tier.primaryHotelStars)★")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if selected {
                             Text(tier.subtitle(settings.language))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
                         }
-                        Spacer()
                     }
                     .contentShape(Rectangle())
                     .padding(.horizontal, 12)
+                    .padding(.vertical, selected ? 12 : 0)
                     .frame(minHeight: 54)
                     .iumrahGlass(
                         in: RoundedRectangle(cornerRadius: 18, style: .continuous),
                         interactive: true,
-                        tint: journey.trip.packageTier == tier ? Color.primary.opacity(0.10) : nil
+                        tint: selected ? Color.primary.opacity(0.10) : nil
                     )
                 }
                 .buttonStyle(.plain)

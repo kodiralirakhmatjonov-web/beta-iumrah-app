@@ -68,10 +68,15 @@ final class JourneyStore: ObservableObject {
 
         do {
             let all = try await hotelService.listHotels(city: "Makkah")
-            let available = all.filter(\.hasFreshCatalogPrice)
-            hotels = available
+            // Keep the complete published catalogue in memory. A summary-level
+            // 48h price may be stale even though hotel detail can already expose
+            // the refreshed price. Filtering here was the reason the selector
+            // could incorrectly become completely empty.
+            hotels = all
             if selectedHotel == nil {
-                selectedHotel = await resolvedPrimaryHotel(from: available, city: "Makkah") ?? primaryHotelCandidate(from: available)
+                let primaryCandidates = all.filter { $0.stars == trip.packageTier.primaryHotelStars }
+                selectedHotel = await resolvedPrimaryHotel(from: primaryCandidates, city: "Makkah")
+                    ?? primaryHotelCandidate(from: all)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -91,26 +96,35 @@ final class JourneyStore: ObservableObject {
         errorMessage = nil
         defer { isLoadingMadinahHotels = false }
 
+        // The Business catalogue has historically used several spellings for
+        // Madinah. Merge them instead of stopping after the first non-empty alias;
+        // otherwise valid hotels stored under another spelling disappear.
+        let aliases = ["Madinah", "Medina", "Al Madinah", "Madinah Al Munawwarah", "Al Madinah Al Munawwarah"]
+        var merged: [String: HotelSummary] = [:]
         var lastError: Error?
-        for city in ["Madinah", "Medina", "Al Madinah"] {
+
+        for city in aliases {
             do {
-                let all = try await hotelService.listHotels(city: city)
-                let available = all.filter(\.hasFreshCatalogPrice)
-                if !available.isEmpty {
-                    madinahHotels = available
-                    if selectedMadinahHotel == nil {
-                        let aliases = ["Madinah", city, "Medina", "Al Madinah"]
-                        selectedMadinahHotel = await resolvedPrimaryHotel(from: available, cityAliases: aliases) ?? primaryHotelCandidate(from: available)
-                    }
-                    return
-                }
+                let values = try await hotelService.listHotels(city: city)
+                for hotel in values { merged[hotel.id] = hotel }
             } catch {
                 lastError = error
             }
         }
 
-        madinahHotels = []
-        if let lastError {
+        let all = Array(merged.values).sorted {
+            if $0.stars != $1.stars { return ($0.stars ?? 0) > ($1.stars ?? 0) }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+        madinahHotels = all
+
+        if selectedMadinahHotel == nil, !all.isEmpty {
+            let primaryCandidates = all.filter { $0.stars == trip.packageTier.primaryHotelStars }
+            selectedMadinahHotel = await resolvedPrimaryHotel(from: primaryCandidates, cityAliases: aliases)
+                ?? primaryHotelCandidate(from: all)
+        }
+
+        if all.isEmpty, let lastError {
             errorMessage = lastError.localizedDescription
         }
     }
@@ -140,8 +154,41 @@ final class JourneyStore: ObservableObject {
     }
 
     func primaryHotelCandidate(from all: [HotelSummary]) -> HotelSummary? {
-        let exactStars = all.filter { $0.stars == trip.hotelStars }
-        return exactStars.first ?? all.first
+        let exactStars = all.filter { $0.stars == trip.packageTier.primaryHotelStars }
+        // Prefer a summary that is already price-ready, but never hide the hotel
+        // catalogue merely because its list-row cache is stale. Final package
+        // pricing still validates a fresh detail price before arithmetic runs.
+        return exactStars.first(where: \.hasFreshCatalogPrice) ?? exactStars.first
+    }
+
+    /// Package category is the only hotel-level control shown to the pilgrim.
+    /// Keep `hotelStars` synchronized internally so all existing booking/pricing
+    /// contracts continue to work unchanged.
+    func selectPackageTier(_ tier: PackageTier) {
+        let expectedStars = tier.primaryHotelStars
+        guard trip.packageTier != tier || trip.hotelStars != expectedStars else { return }
+
+        trip.packageTier = tier
+        trip.hotelStars = expectedStars
+
+        // A category change invalidates only hotel choices and the quote. Flight
+        // selection, direct-flight IDs, dates, passengers and Weekend state stay intact.
+        selectedHotel = nil
+        selectedRoom = nil
+        selectedRoomCategory = nil
+        hotels = []
+
+        selectedMadinahHotel = nil
+        selectedMadinahRoom = nil
+        selectedMadinahRoomCategory = nil
+        madinahHotels = []
+
+        quote = nil
+        hotelPriceSnapshot = nil
+        cancelHotelPricePrefetch()
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+        (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
     }
 
     func resetAfterTripChange(keepingPublishedFlightSelection: Bool = false) {
@@ -232,10 +279,6 @@ final class JourneyStore: ObservableObject {
     }
 
     func chooseHotel(_ hotel: HotelSummary) {
-        guard hotel.hasFreshCatalogPrice else {
-            errorMessage = LocalPricingError.missingHotelPrice("Makkah").localizedDescription
-            return
-        }
         if selectedHotel?.id != hotel.id {
             selectedRoom = nil
             selectedRoomCategory = nil
@@ -313,10 +356,6 @@ final class JourneyStore: ObservableObject {
     }
 
     func chooseMadinahHotel(_ hotel: HotelSummary) {
-        guard hotel.hasFreshCatalogPrice else {
-            errorMessage = LocalPricingError.missingHotelPrice("Madinah").localizedDescription
-            return
-        }
         if selectedMadinahHotel?.id != hotel.id {
             selectedMadinahRoom = nil
             selectedMadinahRoomCategory = nil

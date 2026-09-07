@@ -26,6 +26,28 @@ enum PackageTier: String, CaseIterable, Codable, Identifiable, Hashable {
     func subtitle(_ language: AppSettingsStore.Language) -> String {
         L10n.text("tier_\(rawValue)_subtitle", language)
     }
+
+    /// Package category is now the single customer-facing hotel preference.
+    /// `hotelStars` stays in TripDraft only as an internal compatibility/pricing field.
+    var primaryHotelStars: Int {
+        switch self {
+        case .economy: return 2
+        case .standard: return 3
+        case .comfort: return 4
+        case .luxury: return 5
+        }
+    }
+
+    /// Economy also exposes 1★ inventory as an explicit Super Economy alternative.
+    /// All other package categories are intentionally strict.
+    var selectableHotelStars: [Int] {
+        switch self {
+        case .economy: return [2, 1]
+        case .standard: return [3]
+        case .comfort: return [4]
+        case .luxury: return [5]
+        }
+    }
 }
 
 enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
@@ -115,7 +137,7 @@ struct TripDraft: Codable, Hashable {
     var children: Int = 0
     var infants: Int = 0
     var rooms: Int = 1
-    var hotelStars: Int = 4
+    var hotelStars: Int = 3
     var packageTier: PackageTier = .standard
     var scope: JourneyScope = .makkahAndMadinah
     var flightFilters: FlightSearchFilters? = nil

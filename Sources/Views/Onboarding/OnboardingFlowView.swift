@@ -941,25 +941,6 @@ private struct OnboardingBuilderMock: View {
             }
             .cinematicReveal(isActive, delay: 0.10, y: 16)
 
-            VStack(alignment: .leading, spacing: 9) {
-                Text(L10n.text("hotel_level", settings.language))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.secondary)
-
-                HStack(spacing: 7) {
-                    ForEach(1...5, id: \.self) { star in
-                        Text("\(star)★")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(star == 4 ? Color.white : Color.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 34)
-                            .background(star == 4 ? Color.black : Color.iumrahRaisedBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-            }
-            .cinematicReveal(isActive, delay: 0.14, y: 16)
-
             HStack(spacing: 10) {
                 IumrahInlineIcon(systemName: "checkmark.circle.fill", role: .success, size: 15)
                 VStack(alignment: .leading, spacing: 1) {

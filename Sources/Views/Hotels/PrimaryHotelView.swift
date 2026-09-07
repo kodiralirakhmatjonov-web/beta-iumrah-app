@@ -9,8 +9,11 @@ struct PrimaryHotelView: View {
 
     private var requiresMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canContinue: Bool {
-        journey.selectedHotel?.hasFreshCatalogPrice == true &&
-        (!requiresMadinah || journey.selectedMadinahHotel?.hasFreshCatalogPrice == true)
+        // Selection should not be blocked by a stale list-row cache. The existing
+        // pricing pipeline re-reads hotel detail and still requires a fresh 48h
+        // price before any final package quote can be produced.
+        journey.selectedHotel != nil &&
+        (!requiresMadinah || journey.selectedMadinahHotel != nil)
     }
 
     var body: some View {

@@ -23,12 +23,94 @@ struct HotelSelectionView: View {
     }
 
     private var filteredHotels: [HotelSummary] {
-        sourceHotels.filter(\.hasFreshCatalogPrice).sorted { lhs, rhs in
-            let lhsExact = lhs.stars == journey.trip.hotelStars
-            let rhsExact = rhs.stars == journey.trip.hotelStars
-            if lhsExact != rhsExact { return lhsExact && !rhsExact }
-            if lhs.stars != rhs.stars { return (lhs.stars ?? 0) > (rhs.stars ?? 0) }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        let allowed = Set(journey.trip.packageTier.selectableHotelStars)
+        return sourceHotels
+            .filter { hotel in
+                guard let stars = hotel.stars else { return false }
+                return allowed.contains(stars)
+            }
+            .sorted { lhs, rhs in
+                let lhsPrimary = lhs.stars == journey.trip.packageTier.primaryHotelStars
+                let rhsPrimary = rhs.stars == journey.trip.packageTier.primaryHotelStars
+                if lhsPrimary != rhsPrimary { return lhsPrimary && !rhsPrimary }
+                if lhs.hasFreshCatalogPrice != rhs.hasFreshCatalogPrice {
+                    return lhs.hasFreshCatalogPrice && !rhs.hasFreshCatalogPrice
+                }
+                if lhs.stars != rhs.stars { return (lhs.stars ?? 0) > (rhs.stars ?? 0) }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+    }
+
+    private var primaryHotels: [HotelSummary] {
+        filteredHotels.filter { $0.stars == journey.trip.packageTier.primaryHotelStars }
+    }
+
+    private var superEconomyHotels: [HotelSummary] {
+        guard journey.trip.packageTier == .economy else { return [] }
+        return filteredHotels.filter { $0.stars == 1 }
+    }
+
+    @ViewBuilder
+    private func hotelLink(_ hotel: HotelSummary) -> some View {
+        NavigationLink {
+            HotelDetailView(hotel: hotel, selectionFlow: true, selectionRole: role)
+        } label: {
+            HotelCard(
+                hotel: hotel,
+                badge: selectedHotelID == hotel.id
+                    ? FlowCopy.text(.selected, settings.language)
+                    : (journey.trip.packageTier == .economy && hotel.stars == 1 ? superEconomyTitle : nil)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func hotelSectionHeader(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
+    }
+
+    private var economyHotelsTitle: String {
+        switch settings.language {
+        case .russian: return "Эконом · 2★"
+        case .english: return "Economy · 2★"
+        case .uzbek: return "Ekonom · 2★"
+        case .uzbekCyrillic: return "Эконом · 2★"
+        }
+    }
+
+    private var economyHotelsBody: String {
+        switch settings.language {
+        case .russian: return "Основной выбор категории — практичные 2★ отели."
+        case .english: return "The main Economy selection: practical 2★ hotels."
+        case .uzbek: return "Ekonom toifasining asosiy tanlovi — amaliy 2★ mehmonxonalar."
+        case .uzbekCyrillic: return "Эконом тоифасининг асосий танлови — амалий 2★ меҳмонхоналар."
+        }
+    }
+
+    private var superEconomyTitle: String {
+        switch settings.language {
+        case .russian: return "Super Economy · 1★"
+        case .english: return "Super Economy · 1★"
+        case .uzbek: return "Super Economy · 1★"
+        case .uzbekCyrillic: return "Super Economy · 1★"
+        }
+    }
+
+    private var superEconomyBody: String {
+        switch settings.language {
+        case .russian: return "Если важнее минимальная стоимость пакета — доступны и 1★ варианты."
+        case .english: return "If the lowest package price matters most, 1★ options are also available."
+        case .uzbek: return "Paket narxini yanada kamaytirish muhim bo‘lsa, 1★ variantlar ham mavjud."
+        case .uzbekCyrillic: return "Пакет нархини янада камайтириш муҳим бўлса, 1★ вариантлар ҳам мавжуд."
         }
     }
 
@@ -63,16 +145,30 @@ struct HotelSelectionView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 48)
                 } else {
-                    ForEach(filteredHotels) { hotel in
-                        NavigationLink {
-                            HotelDetailView(hotel: hotel, selectionFlow: true, selectionRole: role)
-                        } label: {
-                            HotelCard(
-                                hotel: hotel,
-                                badge: selectedHotelID == hotel.id ? FlowCopy.text(.selected, settings.language) : nil
+                    if journey.trip.packageTier == .economy {
+                        if !primaryHotels.isEmpty {
+                            hotelSectionHeader(
+                                economyHotelsTitle,
+                                subtitle: economyHotelsBody
                             )
+                            ForEach(primaryHotels) { hotel in
+                                hotelLink(hotel)
+                            }
                         }
-                        .buttonStyle(.plain)
+
+                        if !superEconomyHotels.isEmpty {
+                            hotelSectionHeader(
+                                superEconomyTitle,
+                                subtitle: superEconomyBody
+                            )
+                            ForEach(superEconomyHotels) { hotel in
+                                hotelLink(hotel)
+                            }
+                        }
+                    } else {
+                        ForEach(primaryHotels) { hotel in
+                            hotelLink(hotel)
+                        }
                     }
                 }
             }
