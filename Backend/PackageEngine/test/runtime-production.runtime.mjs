@@ -27,7 +27,7 @@ function hotelDb({ curated = null, fallback = null, publishedHotel = null, sourc
   };
 }
 
-test('curated Primary Hotel resolves only from fresh-priced catalog inventory', async () => {
+test('curated Primary Hotel resolves from Business-approved last-known/manual-priced catalog inventory', async () => {
   const env = { HOTELS_DB: hotelDb({ curated: { position: 1, hotel_id: 'makkah-5', stars: 5, city: 'Makkah' } }) };
   const response = await curatedPrimaryHotel(new URL('https://iumrah.app/api/package/primary-hotel?stars=5&city=Makkah&tier=comfort'), env);
   assert.equal(response.status, 200);
@@ -39,7 +39,7 @@ test('curated Primary Hotel resolves only from fresh-priced catalog inventory', 
   assert.equal('basePriceUsd' in body, false);
 });
 
-test('catalog fallback can select a fresh-priced hotel without returning supplier price data', async () => {
+test('catalog fallback can select a Business-approved priced hotel without returning supplier price data', async () => {
   const env = { HOTELS_DB: hotelDb({ fallback: { id: 'catalog-3', stars: 3, city: 'Makkah' } }) };
   const response = await curatedPrimaryHotel(new URL('https://iumrah.app/api/package/primary-hotel?stars=3&city=Makkah&tier=standard'), env);
   assert.equal(response.status, 200);

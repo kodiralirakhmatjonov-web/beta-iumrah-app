@@ -5,7 +5,7 @@ Production hotel pricing comes from the shared iumrah Hotels catalog maintained 
 ## Responsibilities
 
 - Resolve recommended Primary Hotels from the shared `primary_hotels` table.
-- Only resolve hotels whose `hotel_price_cache` row is `fresh`, has a normalized USD room-night rate, and has not expired.
+- Resolve hotels from a positive Business-approved room-night rate: a manual override first, otherwise the last accepted `hotel_price_cache` value. Provider refresh lateness must not block package generation.
 - Proxy complete flight searches through `POST /api/package/flights/search`.
 - Normalize and validate every returned itinerary without truncating valid results.
 - Cache an exact normalized provider search in D1 for 12 hours so identical searches do not spend another provider request while the cache is fresh.
@@ -27,4 +27,4 @@ The calendar endpoint never calls the upstream flight provider. It only reads D1
 
 Booking/Expedia price extraction and the 48-hour refresh lifecycle belong to iumrah Business / HotelsWorker. Beta does not open Booking or Expedia and does not run on-device hotel price bots.
 
-Public catalog hotel responses contain a fresh normalized `price.nightlyUSD` value. The client scales that room-night benchmark by the actual number of trip rooms and the actual Makkah/Madinah stay nights. If the cache expires, the hotel is not generator-eligible until iumrah Business refreshes it.
+Public catalog hotel responses contain the Business-approved normalized `price.nightlyUSD` value. The client scales that room-night benchmark by the actual number of trip rooms and the actual Makkah/Madinah stay nights. A late/failed source refresh keeps the last accepted value usable as fallback; a manual Business override is authoritative until Business replaces it.

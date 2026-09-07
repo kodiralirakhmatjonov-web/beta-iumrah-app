@@ -10,11 +10,12 @@ assert.ok(primaryStart >= 0 && fallbackStart > primaryStart, 'Primary/fallback r
 const primaryResolver = source.slice(primaryStart, fallbackStart);
 assert.doesNotMatch(primaryResolver, /h\.stars = \?2/, 'Primary category must be allowed to contain a hotel with a different factual star rating');
 assert.match(source, /ORDER BY p\.position ASC/);
-assert.match(source, /INNER JOIN hotel_price_cache hp ON hp\.hotel_id = h\.id/);
-assert.match(source, /hp\.status = 'fresh'/);
-assert.match(source, /hp\.nightly_price_usd IS NOT NULL/);
-assert.match(source, /hp\.expires_at > \?3/);
+assert.match(source, /LEFT JOIN hotel_price_cache hp ON hp\.hotel_id = h\.id/);
+assert.match(source, /LEFT JOIN hotel_price_overrides hpo ON hpo\.hotel_id = h\.id/);
+assert.match(source, /COALESCE\(hpo\.nightly_price_usd, hp\.nightly_price_usd\) IS NOT NULL/);
+assert.match(source, /COALESCE\(hpo\.nightly_price_usd, hp\.nightly_price_usd\) > 0/);
+assert.doesNotMatch(source, /hp\.expires_at > \?3/);
 assert.match(source, /pricingMode: "catalog48h"/);
 assert.ok(!source.includes('package_primary_hotels'), 'Primary Hotel resolver must not depend on package_primary_hotels');
 assert.ok(!source.includes('base_price_usd'), 'Primary Hotel selection must not return a synthetic/configured price');
-console.log('fresh-priced primary_hotels recommendation contract OK');
+console.log('last-known/manual-priced primary_hotels recommendation contract OK');

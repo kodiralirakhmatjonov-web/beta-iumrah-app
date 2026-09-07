@@ -244,10 +244,10 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
     }
 
     private func catalogPrice(for hotel: HotelSummary, forceRefresh: Bool) async -> HotelCatalogPrice? {
-        if !forceRefresh, let price = hotel.price, price.isFresh { return price }
+        if !forceRefresh, let price = hotel.price, price.isUsableForPackage { return price }
         do {
             let detail = try await hotelCatalogService.hotelDetail(id: hotel.id)
-            guard let price = detail.price, price.isFresh else { return nil }
+            guard let price = detail.price, price.isUsableForPackage else { return nil }
             return price
         } catch {
             return nil
@@ -262,9 +262,10 @@ final class RealFlightPackageSearchService: FlightSearchServicing, GeneratorComp
         roomName: String?,
         price: HotelCatalogPrice?
     ) -> HotelPriceObservation? {
-        guard let price, price.isFresh,
+        guard let price, price.isUsableForPackage,
               let amount = price.nightlyUSD, amount.isFinite, amount > 0,
-              let fetchedAt = price.fetchedAt, let expiresAt = price.expiresAt else { return nil }
+              let fetchedAt = price.fetchedAt else { return nil }
+        let expiresAt = price.expiresAt
 
         let provider: HotelPriceProviderID
         let sourceURL: String

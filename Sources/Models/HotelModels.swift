@@ -23,6 +23,21 @@ struct HotelCatalogPrice: Codable, Hashable {
         return expiry > Date()
     }
 
+    /// Package-generation availability is intentionally broader than freshness.
+    /// A non-zero server-maintained catalog price remains usable when a provider
+    /// refresh is late or a Business manual override is active. Freshness still
+    /// drives UI/status decisions through `isFresh`; it must not erase the last
+    /// accepted D1 room-night rate from package arithmetic.
+    var isUsableForPackage: Bool {
+        guard let nightlyUSD, nightlyUSD.isFinite, nightlyUSD > 0 else { return false }
+        switch status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "fresh", "stale", "manual":
+            return true
+        default:
+            return false
+        }
+    }
+
     /// Consumer-facing source identity. The raw supplier stays internal so the
     /// pilgrim sees one coherent iumrah hotel catalogue rather than component vendors.
     var providerDisplayName: String { "iumrah Hotels" }

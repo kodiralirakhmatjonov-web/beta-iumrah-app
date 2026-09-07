@@ -14,9 +14,10 @@ assert.match(trip, /var hotelStayStartDate:\s*Date \{ saudiArrivalDate \?\? depa
 assert.match(planner, /trip\.hotelStayStartDate/);
 assert.match(journey, /trip\.saudiArrivalDate = selectedArrivalDay/);
 
-// Price itself comes from the 48-hour Business catalog cache.
+// Price itself comes from the Business-maintained catalog cache. Freshness is diagnostic; the last accepted D1 rate remains a package fallback.
 assert.match(hotelModels, /struct HotelCatalogPrice/);
-assert.match(hotelModels, /expiry > Date\(\)/);
+assert.match(hotelModels, /var isUsableForPackage: Bool/);
+assert.match(hotelModels, /case "fresh", "stale", "manual"/);
 assert.match(coordinator, /catalogPrice\(for: makkahHotel/);
 assert.match(coordinator, /hotelCatalogService\.hotelDetail/);
 assert.match(coordinator, /unit: \.perRoomNight/);
@@ -24,9 +25,9 @@ assert.match(coordinator, /currency: "USD"/);
 assert.ok(!coordinator.includes('HotelPriceBotRunner'));
 assert.ok(!coordinator.includes('HotelLivePriceSearchService'));
 
-// Final package fails closed if the catalog cache has no usable current rate.
+// Final package fails closed only when the catalog has no accepted non-zero rate.
 assert.match(journey, /throw LocalPricingError\.missingHotelPrice\(city\)/);
 assert.match(journey, /nightlyUsd >= 15/);
 assert.match(journey, /nightlyUsd <= 10_000/);
 
-console.log('arrival-aware 48h hotel catalog pricing contract OK');
+console.log('arrival-aware last-known hotel catalog pricing contract OK');

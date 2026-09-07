@@ -59,11 +59,17 @@ struct HotelPriceObservation: Identifiable, Codable, Hashable {
               checkOutDate == Self.dayFormatter.string(from: window.checkOut) else { return false }
         guard let observed = Self.parseObservedAt(observedAt) else { return false }
         let age = now.timeIntervalSince(observed)
-        if let expiresAt {
+        let isServerCatalogObservation = id.hasPrefix("catalog-")
+        if isServerCatalogObservation {
+            // The Hotels Worker owns refresh/retry policy. If a provider refresh
+            // fails, the last accepted D1 price remains the generator fallback.
+            // Only reject impossible future timestamps here; do not re-expire the
+            // same server value a second time on the pilgrim device.
+            guard age >= -5 * 60 else { return false }
+        } else if let expiresAt {
             guard let expiry = Self.parseObservedAt(expiresAt), expiry > now, age >= -5 * 60, age <= 49 * 60 * 60 else { return false }
         } else {
-            // Legacy device observations remain short-lived. Production generator
-            // hotel pricing now comes from the server-maintained 48-hour catalog cache.
+            // Legacy device observations remain short-lived.
             guard age >= -5 * 60, age <= 20 * 60 else { return false }
         }
         guard let url = URL(string: sourceURL), url.scheme?.lowercased() == "https",

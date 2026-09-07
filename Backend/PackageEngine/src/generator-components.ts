@@ -15,7 +15,9 @@ function json(value: unknown, status = 200) {
  * assigned to a different category than its factual property star rating.
  *
  * Generator eligibility is coupled to the hotel catalog's server-maintained
- * 48-hour price cache. Beta never scrapes Booking/Expedia directly.
+ * accepted price. A late provider refresh does not invalidate the last known D1
+ * room-night rate, and a Business manual override is immediately eligible. Beta
+ * never scrapes Booking/Expedia directly.
  */
 export async function curatedPrimaryHotel(url: URL, env: Env) {
   if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB binding is not configured" }, 503);
@@ -28,21 +30,20 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
   }
 
   try {
-    const now = new Date().toISOString();
     const curated = await env.HOTELS_DB.prepare(
       `SELECT p.position, h.id AS hotel_id, h.stars, h.city
        FROM primary_hotels p
        INNER JOIN hotels h ON h.id = p.hotel_id
-       INNER JOIN hotel_price_cache hp ON hp.hotel_id = h.id
+       LEFT JOIN hotel_price_cache hp ON hp.hotel_id = h.id
+       LEFT JOIN hotel_price_overrides hpo ON hpo.hotel_id = h.id
        WHERE LOWER(p.city) = LOWER(?1)
          AND p.star_category = ?2
          AND h.status = 'published'
-         AND hp.status = 'fresh'
-         AND hp.nightly_price_usd IS NOT NULL
-         AND hp.expires_at > ?3
+         AND COALESCE(hpo.nightly_price_usd, hp.nightly_price_usd) IS NOT NULL
+         AND COALESCE(hpo.nightly_price_usd, hp.nightly_price_usd) > 0
        ORDER BY p.position ASC
        LIMIT 1`,
-    ).bind(city, stars, now).first<{ position: number; hotel_id: string; stars: number | null; city: string }>();
+    ).bind(city, stars).first<{ position: number; hotel_id: string; stars: number | null; city: string }>();
 
     if (curated) {
       return json({
@@ -66,16 +67,16 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
     const catalog = await env.HOTELS_DB.prepare(
       `SELECT h.id, h.stars, h.city
        FROM hotels h
-       INNER JOIN hotel_price_cache hp ON hp.hotel_id = h.id
+       LEFT JOIN hotel_price_cache hp ON hp.hotel_id = h.id
+       LEFT JOIN hotel_price_overrides hpo ON hpo.hotel_id = h.id
        WHERE h.status = 'published'
          AND LOWER(h.city) = LOWER(?1)
          AND h.stars = ?2
-         AND hp.status = 'fresh'
-         AND hp.nightly_price_usd IS NOT NULL
-         AND hp.expires_at > ?3
+         AND COALESCE(hpo.nightly_price_usd, hp.nightly_price_usd) IS NOT NULL
+         AND COALESCE(hpo.nightly_price_usd, hp.nightly_price_usd) > 0
        ORDER BY h.rating DESC, h.review_count DESC, h.updated_at DESC
        LIMIT 1`,
-    ).bind(city, stars, now).first<{ id: string; stars: number | null; city: string }>();
+    ).bind(city, stars).first<{ id: string; stars: number | null; city: string }>();
 
     if (!catalog) return json({ ok: false, error: `No published ${stars}-star hotel is available for ${city}` }, 404);
     return json({
