@@ -1,0 +1,26 @@
+BETA SECURITY DATA SPHERE 101
+Date: 2026-09-07
+
+Implemented a reusable native GPU-rendered data sphere and integrated it into the Account > Security hero.
+
+Component
+- Sources/Core/Components/IumrahDataSphere.swift
+- Sources/Core/Components/IumrahDataSphereShaders.metal
+- SwiftUI wrapper + MTKView + Metal Shading Language renderer.
+- No security text, IDs, labels or page-specific copy inside the animation component.
+- Digit glyphs 0–9 are generated from the system monospaced digit font into a GPU texture atlas.
+- Thousands of instanced glyph quads form a volumetric sphere with shell/interior populations, perspective depth, blue/cyan glow, sparse orbit dust, procedural filaments, shimmer, subtle breathing and continuous rotation.
+- Adaptive 9k–22k glyph count according to drawable resolution.
+- Up to the device native refresh rate, capped at 120 FPS; Reduce Motion uses a restrained static-time presentation at 15 FPS.
+- Transparent renderer background so the component can be reused over other product surfaces.
+
+Security page
+- Replaced the old decorative hero circle with IumrahDataSphere.
+- Animation is placed on the right side and clipped by the existing rounded hero card.
+- iUmrah Security title and account ID remain owned by IumrahAccountSecurityView and are not coupled to renderer code.
+- Long security principle copy was moved below the hero so it cannot cover the sphere.
+- Hero height increased to 238pt for cleaner separation between typography and animation.
+
+No backend, Package Engine, D1, hotel or flight logic changed.
+No deployment is required.
+A new iOS/TestFlight build is required to see the native Metal renderer.

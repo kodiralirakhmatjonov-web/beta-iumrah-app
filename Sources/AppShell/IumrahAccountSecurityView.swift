@@ -26,6 +26,7 @@ struct IumrahAccountSecurityView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
                 securityHero
+                securityPrincipleNote
 
                 if let overview {
                     primaryDeviceCard(overview)
@@ -112,42 +113,78 @@ struct IumrahAccountSecurityView: View {
     private var securityHero: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(LinearGradient(colors: [.black, Color.iumrahCareDark], startPoint: .topLeading, endPoint: .bottomTrailing))
-            Circle()
-                .fill(Color.white.opacity(0.07))
-                .frame(width: 180, height: 180)
-                .offset(x: 220, y: -90)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black,
+                            Color(red: 0.004, green: 0.018, blue: 0.026),
+                            Color(red: 0.006, green: 0.052, blue: 0.070)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
 
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
+            // The renderer is a standalone reusable component. Security owns
+            // the composition, copy and identifier independently.
+            IumrahDataSphere(state: .idle, intensity: 1.08)
+                .frame(width: 252, height: 252)
+                .offset(x: 135, y: -4)
+
+            LinearGradient(
+                colors: [
+                    .black.opacity(0.82),
+                    .black.opacity(0.45),
+                    .clear
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: 184)
+            .allowsHitTesting(false)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .center, spacing: 12) {
                     Image(systemName: "lock.shield.fill")
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(Color.iumrahCareLight)
-                    Spacer()
+                        .shadow(color: Color.iumrahCareLight.opacity(0.22), radius: 10)
+
                     if let overview {
                         Text("ID \(overview.iumrahID)")
                             .font(.caption.monospaced().weight(.bold))
-                            .foregroundStyle(.white.opacity(0.64))
+                            .foregroundStyle(.white.opacity(0.66))
                     }
                 }
-                Text(tr("Your account. Your devices.", "Ваш аккаунт. Ваши устройства.", "Akkauntingiz. Qurilmalaringiz.", "Аккаунтингиз. Қурилмаларингиз."))
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
+
+                Spacer(minLength: 28)
+
+                Text("iUmrah Security")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-                Text(tr(
-                    "A new session can end only itself. Only your protected primary device can end other sessions.",
-                    "Новый сеанс может завершить только себя. Остальные сеансы может завершать только Ваше защищённое основное устройство.",
-                    "Yangi seans faqat o‘zini tugata oladi. Boshqa seanslarni faqat himoyalangan asosiy qurilmangiz tugata oladi.",
-                    "Янги сеанс фақат ўзини тугата олади. Бошқа сеансларни фақат ҳимояланган асосий қурилмангиз тугата олади."
-                ))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.70))
+                    .tracking(-0.5)
+                    .frame(maxWidth: 172, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(22)
         }
-        .frame(minHeight: 220)
+        .frame(height: 238)
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 24, y: 12)
+    }
+
+    private var securityPrincipleNote: some View {
+        Text(tr(
+            "A new session can end only itself. Only your protected primary device can end other sessions.",
+            "Новый сеанс может завершить только себя. Остальные сеансы может завершать только Ваше защищённое основное устройство.",
+            "Yangi seans faqat o‘zini tugata oladi. Boshqa seanslarni faqat himoyalangan asosiy qurilmangiz tugata oladi.",
+            "Янги сеанс фақат ўзини тугата олади. Бошқа сеансларни фақат ҳимояланган асосий қурилмангиз тугата олади."
+        ))
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
     }
 
     private func primaryDeviceCard(_ value: IumrahSecurityOverview) -> some View {
