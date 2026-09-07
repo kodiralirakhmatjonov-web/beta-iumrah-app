@@ -1,21 +1,27 @@
 import SwiftUI
 
+struct FlightDateCalendarResult {
+    let departure: Date
+    let returnDate: Date
+    let publishedSelection: CuratedPublishedFlightSelection?
+}
+
 struct FlightDateCalendarView: View {
     let trip: TripDraft
     let initialDeparture: Date
     let initialReturn: Date
-    let onApply: (Date, Date) -> Void
+    let onApply: (FlightDateCalendarResult) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var settings: AppSettingsStore
+
     @State private var departure: Date?
     @State private var returnDate: Date?
-    @State private var outboundPrices: [String: FlightFareCalendarEntry] = [:]
-    @State private var returnPrices: [String: FlightFareCalendarEntry] = [:]
-    @State private var suggestions: [FlightFareCalendarEntry] = []
+    @State private var publishedFlights: [CuratedFlightRecommendation] = []
     @State private var isLoading = false
     @State private var loadError = false
+    @State private var showFlexibleWarning = false
 
     private let calendar: Calendar = {
         var value = Calendar(identifier: .gregorian)
@@ -32,18 +38,20 @@ struct FlightDateCalendarView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         header
                         routeSummary
-                        fareLegend
+                        directLegend
+                        if selectionNeedsFlexibleSearch { flexibleInlineWarning }
                         ForEach(monthStarts, id: \.self) { month in
                             monthSection(month)
                         }
-                        if !suggestions.isEmpty { bestDatesSection }
-                        cacheExplanation
+                        directInventoryNote
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
                     .padding(.bottom, 136)
                 }
                 .scrollIndicators(.hidden)
+
+                if showFlexibleWarning { flexibleWarningOverlay }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -54,7 +62,7 @@ struct FlightDateCalendarView: View {
                     } label: {
                         Image(systemName: "xmark")
                     }
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel(closeLabel)
                 }
 
                 ToolbarItem(placement: .principal) {
@@ -68,7 +76,7 @@ struct FlightDateCalendarView: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
-            .task { await loadCalendar() }
+            .task { await loadPublishedFlights() }
         }
         .onAppear {
             departure = calendar.startOfDay(for: initialDeparture)
@@ -85,7 +93,7 @@ struct FlightDateCalendarView: View {
                 colors: [
                     Color.primary.opacity(colorScheme == .dark ? 0.025 : 0.018),
                     Color.clear,
-                    Color.iumrahCareLight.opacity(colorScheme == .dark ? 0.055 : 0.10)
+                    Color.green.opacity(colorScheme == .dark ? 0.035 : 0.055)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -134,34 +142,68 @@ struct FlightDateCalendarView: View {
             .frame(maxWidth: .infinity)
     }
 
-    private var fareLegend: some View {
-        HStack(spacing: 10) {
-            IumrahIconBadge(
-                systemName: "chart.line.downtrend.xyaxis",
-                role: .payment,
-                size: 40,
-                symbolSize: 16,
-                shape: .circle
-            )
-            VStack(alignment: .leading, spacing: 2) {
-                Text(copy(.priceCalendar))
+    private var directLegend: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.14))
+                    .frame(width: 42, height: 42)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(Color.green)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(copy(.recommendedDirect))
                     .font(.subheadline.weight(.bold))
-                Text(isLoading ? copy(.loading) : copy(.priceHint))
+                Text(isLoading ? copy(.loading) : copy(.directHint))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+
+            Spacer(minLength: 4)
+
             if loadError {
-                Button(copy(.retry)) { Task { await loadCalendar() } }
+                Button(copy(.retry)) { Task { await loadPublishedFlights() } }
                     .font(.caption.weight(.bold))
-                    .padding(.horizontal, 12)
-                    .frame(height: 36)
+                    .padding(.horizontal, 11)
+                    .frame(height: 34)
                     .iumrahGlass(in: Capsule(), interactive: true)
                     .buttonStyle(.plain)
             }
         }
         .padding(14)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(Color.green.opacity(0.075), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.green.opacity(0.16), lineWidth: 1)
+        }
+    }
+
+    private var flexibleInlineWarning: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.orange)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(copy(.noDirectTitle))
+                    .font(.subheadline.weight(.bold))
+                Text(copy(.noDirectInlineBody))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.orange.opacity(0.24), lineWidth: 1)
+        }
     }
 
     private func monthSection(_ month: Date) -> some View {
@@ -181,7 +223,7 @@ struct FlightDateCalendarView: View {
                     if let date = cell.date {
                         dayCell(date)
                     } else {
-                        Color.clear.frame(height: 62)
+                        Color.clear.frame(height: 58)
                     }
                 }
             }
@@ -196,84 +238,53 @@ struct FlightDateCalendarView: View {
         let isDeparture = departure.map { calendar.isDate($0, inSameDayAs: day) } ?? false
         let isReturn = returnDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false
         let inRange = isInsideSelectedRange(day)
-        let entry = priceEntry(for: day)
+        let directDay = isRecommendedDay(day)
+        let directPair = selectedPublishedSelection != nil
 
         return Button {
             guard !disabled else { return }
             select(day)
         } label: {
-            VStack(spacing: 3) {
-                Text(String(calendar.component(.day, from: day)))
-                    .font(.system(size: 17, weight: isDeparture || isReturn ? .bold : .medium, design: .rounded))
-                if entry != nil {
-                    Circle()
-                        .fill(isDeparture || isReturn ? Color.iumrahCardBackground.opacity(0.82) : Color.green)
-                        .frame(width: 5, height: 5)
-                        .accessibilityHidden(true)
-                } else {
-                    Color.clear.frame(width: 5, height: 5)
+            Text(String(calendar.component(.day, from: day)))
+                .font(.system(size: 17, weight: isDeparture || isReturn || directDay ? .bold : .medium, design: .rounded))
+                .frame(maxWidth: .infinity)
+                .frame(height: 58)
+                .background {
+                    if isDeparture || isReturn {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(directPair ? Color.green : Color.primary)
+                    } else if inRange {
+                        Rectangle()
+                            .fill(directPair ? Color.green.opacity(0.15) : Color.primary.opacity(0.055))
+                    } else if directDay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.green.opacity(0.14))
+                    }
                 }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background {
-                if isDeparture || isReturn {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.primary)
-                } else if inRange {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.07))
+                .foregroundStyle(
+                    disabled
+                        ? Color.secondary.opacity(0.36)
+                        : ((isDeparture || isReturn) ? Color.iumrahCardBackground : (directDay ? Color.green : Color.primary))
+                )
+                .overlay {
+                    if directDay && !isDeparture && !isReturn {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color.green.opacity(0.24), lineWidth: 0.8)
+                    }
                 }
-            }
-            .foregroundStyle(disabled ? Color.secondary.opacity(0.45) : ((isDeparture || isReturn) ? Color.iumrahCardBackground : Color.primary))
-            .contentShape(Rectangle())
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(disabled)
+        .accessibilityHint(directDay ? copy(.directAccessibility) : "")
     }
 
-    private var bestDatesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(copy(.bestDates))
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-            Text(copy(.bestDatesHint))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(suggestions.prefix(6)) { entry in
-                        Button {
-                            guard let out = FlightFareCalendarService.date(entry.outboundDate),
-                                  let inboundText = entry.inboundDate,
-                                  let inbound = FlightFareCalendarService.date(inboundText), inbound > out else { return }
-                            departure = out
-                            returnDate = inbound
-                            Task { await loadReturnPrices(for: out) }
-                            IumrahHaptics.selection()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 7) {
-                                Text(suggestionDates(entry))
-                                    .font(.subheadline.weight(.bold))
-                                Text(copy(.fareAvailable))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Color.green)
-                            }
-                            .padding(.horizontal, 14)
-                            .frame(height: 72)
-                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private var cacheExplanation: some View {
+    private var directInventoryNote: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "clock.arrow.circlepath")
+            Image(systemName: "checkmark.seal")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.secondary)
-            Text(copy(.cacheNote))
+            Text(copy(.inventoryNote))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -286,7 +297,6 @@ struct FlightDateCalendarView: View {
             Button {
                 departure = nil
                 returnDate = nil
-                returnPrices = [:]
                 IumrahHaptics.selection()
             } label: {
                 Text(copy(.reset))
@@ -298,18 +308,25 @@ struct FlightDateCalendarView: View {
 
             Button {
                 guard let departure, let returnDate, returnDate > departure else { return }
-                IumrahHaptics.success()
-                onApply(departure, returnDate)
-                dismiss()
-            } label: {
-                VStack(spacing: 2) {
-                    Text(copy(.chooseDates))
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                if let published = selectedPublishedSelection {
+                    IumrahHaptics.success()
+                    onApply(FlightDateCalendarResult(
+                        departure: departure,
+                        returnDate: returnDate,
+                        publishedSelection: published
+                    ))
+                    dismiss()
+                } else {
+                    IumrahHaptics.soft()
+                    showFlexibleWarning = true
                 }
-                .foregroundStyle(Color.iumrahCardBackground)
-                .frame(maxWidth: .infinity)
-                .frame(height: 60)
-                .background(Color.primary.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            } label: {
+                Text(copy(.chooseDates))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.iumrahCardBackground)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 60)
+                    .background(Color.primary.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(!hasValidRange)
@@ -322,23 +339,176 @@ struct FlightDateCalendarView: View {
         .overlay(alignment: .top) { Divider().opacity(0.14) }
     }
 
+    private var flexibleWarningOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.30)
+                .ignoresSafeArea()
+                .onTapGesture { showFlexibleWarning = false }
+
+            VStack(alignment: .leading, spacing: 18) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.13))
+                        .frame(width: 54, height: 54)
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color.orange)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(copy(.noDirectTitle))
+                        .font(.system(size: 25, weight: .bold, design: .rounded))
+                    Text(copy(.noDirectPopupBody))
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button {
+                    showFlexibleWarning = false
+                    departure = nil
+                    returnDate = nil
+                    IumrahHaptics.selection()
+                } label: {
+                    Text(copy(.chooseDirectDates))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.iumrahCardBackground)
+                .background(Color.green, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+
+                Button {
+                    guard let departure, let returnDate else { return }
+                    IumrahHaptics.success()
+                    onApply(FlightDateCalendarResult(
+                        departure: departure,
+                        returnDate: returnDate,
+                        publishedSelection: nil
+                    ))
+                    dismiss()
+                } label: {
+                    Text(copy(.continueFlexible))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.primary)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            }
+            .padding(22)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.14), radius: 34, y: 16)
+            .padding(.horizontal, 22)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .zIndex(20)
+    }
+
     private var hasValidRange: Bool {
         guard let departure, let returnDate else { return false }
         return returnDate > departure
     }
 
+    private var selectionNeedsFlexibleSearch: Bool {
+        guard let departure else { return false }
+        if let returnDate { return publishedSelection(departure: departure, returnDate: returnDate) == nil }
+        return !recommendedOutboundDateKeys.contains(dayKey(departure))
+    }
+
+    private var selectedPublishedSelection: CuratedPublishedFlightSelection? {
+        guard let departure, let returnDate else { return nil }
+        return publishedSelection(departure: departure, returnDate: returnDate)
+    }
+
+    private func publishedSelection(departure: Date, returnDate: Date) -> CuratedPublishedFlightSelection? {
+        let outKey = dayKey(departure)
+        let returnKey = dayKey(returnDate)
+
+        if let complete = completeRecommendations.first(where: {
+            $0.outboundDate == outKey && $0.inboundDate == returnKey
+        }) {
+            return CuratedPublishedFlightSelection(completeID: complete.id)
+        }
+
+        guard let outbound = oneWayOutboundRecommendations.first(where: { $0.outboundDate == outKey }),
+              let inbound = oneWayReturnRecommendations.first(where: { $0.outboundDate == returnKey }) else {
+            return nil
+        }
+        return CuratedPublishedFlightSelection(outboundID: outbound.id, returnID: inbound.id)
+    }
+
+    private var completeRecommendations: [CuratedFlightRecommendation] {
+        publishedFlights.filter { recommendation in
+            guard recommendation.effectiveJourneyRole == "complete",
+                  let inbound = recommendation.inbound else { return false }
+            return recommendation.outbound.origin == trip.originCode &&
+                recommendation.outbound.destination == trip.outboundDestinationCode &&
+                inbound.origin == trip.returnOriginCode &&
+                inbound.destination == trip.originCode &&
+                recommendation.inboundDate != nil
+        }
+    }
+
+    private var oneWayOutboundRecommendations: [CuratedFlightRecommendation] {
+        publishedFlights.filter { recommendation in
+            recommendation.effectiveOfferType == "one_way" &&
+            recommendation.effectiveJourneyRole == "outbound" &&
+            recommendation.outbound.origin == trip.originCode &&
+            recommendation.outbound.destination == trip.outboundDestinationCode
+        }
+    }
+
+    private var oneWayReturnRecommendations: [CuratedFlightRecommendation] {
+        publishedFlights.filter { recommendation in
+            recommendation.effectiveOfferType == "one_way" &&
+            recommendation.effectiveJourneyRole == "return" &&
+            recommendation.outbound.origin == trip.returnOriginCode &&
+            recommendation.outbound.destination == trip.originCode
+        }
+    }
+
+    private var recommendedOutboundDateKeys: Set<String> {
+        Set(completeRecommendations.map(\.outboundDate) + oneWayOutboundRecommendations.map(\.outboundDate))
+    }
+
+    private func recommendedReturnDateKeys(for outbound: Date) -> Set<String> {
+        let outKey = dayKey(outbound)
+        var keys = Set(completeRecommendations.compactMap { recommendation -> String? in
+            guard recommendation.outboundDate == outKey else { return nil }
+            return recommendation.inboundDate
+        })
+        if oneWayOutboundRecommendations.contains(where: { $0.outboundDate == outKey }) {
+            for recommendation in oneWayReturnRecommendations {
+                if let date = CuratedFlightRecommendationService.date(recommendation.outboundDate), date > outbound {
+                    keys.insert(recommendation.outboundDate)
+                }
+            }
+        }
+        return keys
+    }
+
+    private func isRecommendedDay(_ day: Date) -> Bool {
+        let key = dayKey(day)
+        if let departure, returnDate == nil {
+            return recommendedReturnDateKeys(for: departure).contains(key)
+        }
+        return recommendedOutboundDateKeys.contains(key)
+    }
 
     private func select(_ date: Date) {
         if departure == nil || (departure != nil && returnDate != nil) {
             departure = date
             returnDate = nil
-            returnPrices = [:]
-            Task { await loadReturnPrices(for: date) }
         } else if let departure, date <= departure {
             self.departure = date
             returnDate = nil
-            returnPrices = [:]
-            Task { await loadReturnPrices(for: date) }
         } else {
             returnDate = date
         }
@@ -350,25 +520,10 @@ struct FlightDateCalendarView: View {
         return date > departure && date < returnDate
     }
 
-    private func priceEntry(for date: Date) -> FlightFareCalendarEntry? {
-        let key = FlightFareCalendarService.day.string(from: date)
-        if departure != nil, returnDate == nil, !returnPrices.isEmpty { return returnPrices[key] }
-        return outboundPrices[key]
-    }
-
-
-    private func suggestionDates(_ entry: FlightFareCalendarEntry) -> String {
-        guard let out = FlightFareCalendarService.date(entry.outboundDate) else { return entry.outboundDate }
-        let outText = shortDate(out)
-        guard let inboundText = entry.inboundDate, let inbound = FlightFareCalendarService.date(inboundText) else { return outText }
-        return "\(outText) → \(shortDate(inbound))"
-    }
-
-    private func shortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.setLocalizedDateFormatFromTemplate("dMMM")
-        return formatter.string(from: date)
+    private func dayKey(_ date: Date) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else { return "" }
+        return String(format: "%04d-%02d-%02d", year, month, day)
     }
 
     private func monthTitle(_ date: Date) -> String {
@@ -410,46 +565,25 @@ struct FlightDateCalendarView: View {
         var cells: [MonthCell] = (0..<leading).map { MonthCell(id: "blank-\(month.timeIntervalSince1970)-\($0)", date: nil) }
         cells += range.compactMap { day -> MonthCell? in
             guard let date = calendar.date(byAdding: .day, value: day - 1, to: first) else { return nil }
-            return MonthCell(id: FlightFareCalendarService.day.string(from: date), date: date)
+            return MonthCell(id: dayKey(date), date: date)
         }
         return cells
     }
 
-    private func loadCalendar() async {
+    private func loadPublishedFlights() async {
         guard !isLoading else { return }
         isLoading = true
         loadError = false
         defer { isLoading = false }
         do {
-            let months = monthStarts
-            guard let first = months.first, let last = months.last,
-                  let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: last) else { return }
-            let result = try await FlightFareCalendarService.shared.load(trip: trip, from: first, to: end)
-            outboundPrices = Dictionary(uniqueKeysWithValues: result.prices.map { ($0.outboundDate, $0) })
-            suggestions = result.suggestions
-            if let departure { await loadReturnPrices(for: departure) }
+            let start = calendar.startOfDay(for: Date())
+            let last = monthStarts.last ?? start
+            let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: last) ?? last
+            let days = max(1, calendar.dateComponents([.day], from: start, to: end).day ?? 180)
+            publishedFlights = try await CuratedFlightRecommendationService.shared.load(trip: trip, from: Date(), days: min(365, days + 2))
         } catch {
+            publishedFlights = []
             loadError = true
-        }
-    }
-
-    private func loadReturnPrices(for outbound: Date) async {
-        do {
-            let months = monthStarts
-            guard let first = months.first, let last = months.last,
-                  let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: last) else { return }
-            let result = try await FlightFareCalendarService.shared.load(trip: trip, from: first, to: end, selectedOutbound: outbound)
-            var mapped: [String: FlightFareCalendarEntry] = [:]
-            for entry in result.observations {
-                guard let inbound = entry.inboundDate else { continue }
-                if let current = mapped[inbound], current.minPerTravelerFare <= entry.minPerTravelerFare { continue }
-                mapped[inbound] = entry
-            }
-            returnPrices = mapped
-            if !result.suggestions.isEmpty { suggestions = result.suggestions }
-        } catch {
-            // Calendar prices are advisory. Date selection itself stays fully usable.
-            returnPrices = [:]
         }
     }
 
@@ -462,60 +596,86 @@ struct FlightDateCalendarView: View {
         }
     }
 
-    private enum CopyKey { case title, subtitle, priceCalendar, loading, priceHint, retry, bestDates, bestDatesHint, cacheNote, reset, chooseDates, fareAvailable }
+    private var closeLabel: String {
+        switch settings.language {
+        case .russian: return "Закрыть"
+        case .english: return "Close"
+        case .uzbek: return "Yopish"
+        case .uzbekCyrillic: return "Ёпиш"
+        }
+    }
+
+    private enum CopyKey {
+        case title, subtitle, recommendedDirect, loading, directHint, retry
+        case noDirectTitle, noDirectInlineBody, noDirectPopupBody
+        case inventoryNote, reset, chooseDates, chooseDirectDates, continueFlexible, directAccessibility
+    }
+
     private func copy(_ key: CopyKey) -> String {
         switch (settings.language, key) {
-        case (.russian, .title): return "Когда лететь"
-        case (.russian, .subtitle): return "Выберите даты по актуальным данным рейсов"
-        case (.russian, .priceCalendar): return "Календарь актуальных дат"
-        case (.russian, .loading): return "Загружаем накопленные результаты…"
-        case (.russian, .priceHint): return "Зелёная отметка означает, что для даты есть актуальный тариф"
+        case (.russian, .title): return "Выберите даты"
+        case (.russian, .subtitle): return "Зелёные дни — опубликованные прямые рейсы iumrah"
+        case (.russian, .recommendedDirect): return "Рекомендует iumrah AI"
+        case (.russian, .loading): return "Проверяем опубликованные прямые рейсы…"
+        case (.russian, .directHint): return "Зелёные дни доступны в базе iumrah: это прямые рейсы, которые обычно удобнее и выгоднее вариантов с пересадками."
         case (.russian, .retry): return "Обновить"
-        case (.russian, .bestDates): return "Рекомендуемые даты"
-        case (.russian, .bestDatesHint): return "Подходящие пары дат из актуальных поисков"
-        case (.russian, .cacheNote): return "Календарь пополняется реальными поисками паломников. Повторный одинаковый поиск сначала использует свежий серверный кэш, поэтому результаты открываются быстрее и не создают лишний запрос к авиасистеме. Прошедшие даты автоматически удаляются."
+        case (.russian, .noDirectTitle): return "На эти даты нет прямых рейсов"
+        case (.russian, .noDirectInlineBody): return "Можно продолжить с гибкими датами, но система может предложить рейсы с одной или двумя пересадками и более высокой стоимостью. Это повлияет на итоговую цену пакета."
+        case (.russian, .noDirectPopupBody): return "В iumrah сейчас нет опубликованной пары прямых рейсов на выбранные даты. При гибком поиске могут появиться варианты с 1–2 пересадками и более высокой ценой, которая увеличит итоговую стоимость вашего пакета."
+        case (.russian, .inventoryNote): return "Зелёные дни берутся только из опубликованных рейсов в базе iumrah. Другие дни не помечаются как прямые автоматически."
         case (.russian, .reset): return "Сбросить"
-        case (.russian, .chooseDates): return "Выбрать даты"
-        case (.russian, .fareAvailable): return "Актуальный тариф найден"
+        case (.russian, .chooseDates): return "Продолжить"
+        case (.russian, .chooseDirectDates): return "Выбрать даты с прямым рейсом"
+        case (.russian, .continueFlexible): return "Продолжить с гибкими датами"
+        case (.russian, .directAccessibility): return "Опубликованный прямой рейс"
 
-        case (.english, .title): return "When to fly"
-        case (.english, .subtitle): return "Choose dates using current flight data"
-        case (.english, .priceCalendar): return "Current-date calendar"
-        case (.english, .loading): return "Loading accumulated results…"
-        case (.english, .priceHint): return "A green mark means a current fare is available for that date"
+        case (.english, .title): return "Choose your dates"
+        case (.english, .subtitle): return "Green days are iumrah-published direct flights"
+        case (.english, .recommendedDirect): return "Recommended by iumrah AI"
+        case (.english, .loading): return "Checking published direct flights…"
+        case (.english, .directHint): return "Green days are available in iumrah inventory: direct flights that are usually more convenient and better value than connecting options."
         case (.english, .retry): return "Refresh"
-        case (.english, .bestDates): return "Recommended dates"
-        case (.english, .bestDatesHint): return "Suitable date combinations from current searches"
-        case (.english, .cacheNote): return "The calendar grows from real pilgrim searches. An identical search uses fresh server cache first, so results open faster without spending another flight-system request. Past dates are removed automatically."
+        case (.english, .noDirectTitle): return "No direct flights on these dates"
+        case (.english, .noDirectInlineBody): return "You can continue with flexible dates, but the system may offer one- or two-stop flights at a higher fare. This affects your final package total."
+        case (.english, .noDirectPopupBody): return "iumrah currently has no published direct-flight pair for these dates. Flexible search may return one- or two-stop options at a higher fare, increasing your final package total."
+        case (.english, .inventoryNote): return "Green days come only from flights published in the iumrah database. Other dates are never marked direct automatically."
         case (.english, .reset): return "Reset"
-        case (.english, .chooseDates): return "Choose dates"
-        case (.english, .fareAvailable): return "Current fare available"
+        case (.english, .chooseDates): return "Continue"
+        case (.english, .chooseDirectDates): return "Choose direct-flight dates"
+        case (.english, .continueFlexible): return "Continue with flexible dates"
+        case (.english, .directAccessibility): return "Published direct flight"
 
-        case (.uzbek, .title): return "Qachon uchasiz"
-        case (.uzbek, .subtitle): return "Dolzarb reys ma’lumotlari asosida sanalarni tanlang"
-        case (.uzbek, .priceCalendar): return "Dolzarb sanalar kalendari"
-        case (.uzbek, .loading): return "Yig‘ilgan natijalar yuklanmoqda…"
-        case (.uzbek, .priceHint): return "Yashil belgi shu sana uchun dolzarb tarif borligini bildiradi"
+        case (.uzbek, .title): return "Sanalarni tanlang"
+        case (.uzbek, .subtitle): return "Yashil kunlar — iumrah e’lon qilgan to‘g‘ridan-to‘g‘ri reyslar"
+        case (.uzbek, .recommendedDirect): return "iumrah AI tavsiya qiladi"
+        case (.uzbek, .loading): return "E’lon qilingan to‘g‘ri reyslar tekshirilmoqda…"
+        case (.uzbek, .directHint): return "Yashil kunlar iumrah bazasida mavjud: ular odatda transferli variantlardan qulayroq va foydaliroq bo‘lgan to‘g‘ridan-to‘g‘ri reyslardir."
         case (.uzbek, .retry): return "Yangilash"
-        case (.uzbek, .bestDates): return "Tavsiya etilgan sanalar"
-        case (.uzbek, .bestDatesHint): return "Dolzarb qidiruvlardan mos sana juftliklari"
-        case (.uzbek, .cacheNote): return "Kalendar ziyoratchilarning haqiqiy qidiruvlari bilan to‘lib boradi. Bir xil qidiruv avval yangi server keshidan olinadi — natija tezroq ochiladi va aviatsiya tizimiga ortiqcha so‘rov yuborilmaydi. O‘tgan sanalar avtomatik o‘chiriladi."
+        case (.uzbek, .noDirectTitle): return "Bu sanalarda to‘g‘ridan-to‘g‘ri reys yo‘q"
+        case (.uzbek, .noDirectInlineBody): return "Moslashuvchan sanalar bilan davom etishingiz mumkin, ammo tizim 1–2 ta transferli va qimmatroq reyslarni taklif qilishi mumkin. Bu paketning yakuniy narxiga ta’sir qiladi."
+        case (.uzbek, .noDirectPopupBody): return "Hozir iumrah bazasida tanlangan sanalar uchun e’lon qilingan to‘g‘ridan-to‘g‘ri reys juftligi yo‘q. Moslashuvchan qidiruv 1–2 ta transferli va qimmatroq variantlarni topishi mumkin; bu yakuniy paket narxini oshiradi."
+        case (.uzbek, .inventoryNote): return "Yashil kunlar faqat iumrah bazasida e’lon qilingan reyslardan olinadi. Boshqa kunlar avtomatik ravishda to‘g‘ri reys deb belgilanmaydi."
         case (.uzbek, .reset): return "Tozalash"
-        case (.uzbek, .chooseDates): return "Sanalarni tanlash"
-        case (.uzbek, .fareAvailable): return "Dolzarb tarif topildi"
+        case (.uzbek, .chooseDates): return "Davom etish"
+        case (.uzbek, .chooseDirectDates): return "To‘g‘ri reysli sanalarni tanlash"
+        case (.uzbek, .continueFlexible): return "Moslashuvchan sanalar bilan davom etish"
+        case (.uzbek, .directAccessibility): return "E’lon qilingan to‘g‘ridan-to‘g‘ri reys"
 
-        case (.uzbekCyrillic, .title): return "Қачон учасиз"
-        case (.uzbekCyrillic, .subtitle): return "Долзарб рейс маълумотлари асосида саналарни танланг"
-        case (.uzbekCyrillic, .priceCalendar): return "Долзарб саналар календари"
-        case (.uzbekCyrillic, .loading): return "Йиғилган натижалар юкланмоқда…"
-        case (.uzbekCyrillic, .priceHint): return "Яшил белги шу сана учун долзарб тариф борлигини билдиради"
+        case (.uzbekCyrillic, .title): return "Саналарни танланг"
+        case (.uzbekCyrillic, .subtitle): return "Яшил кунлар — iumrah эълон қилган тўғридан-тўғри рейслар"
+        case (.uzbekCyrillic, .recommendedDirect): return "iumrah AI тавсия қилади"
+        case (.uzbekCyrillic, .loading): return "Эълон қилинган тўғри рейслар текширилмоқда…"
+        case (.uzbekCyrillic, .directHint): return "Яшил кунлар iumrah базасида мавжуд: улар одатда трансферли вариантлардан қулайроқ ва фойдалироқ бўлган тўғридан-тўғри рейслардир."
         case (.uzbekCyrillic, .retry): return "Янгилаш"
-        case (.uzbekCyrillic, .bestDates): return "Тавсия этилган саналар"
-        case (.uzbekCyrillic, .bestDatesHint): return "Долзарб қидирувлардан мос сана жуфтликлари"
-        case (.uzbekCyrillic, .cacheNote): return "Календар зиёратчиларнинг ҳақиқий қидирувлари билан тўлиб боради. Бир хил қидирув аввал янги сервер кешидан олинади — натижа тезроқ очилади ва авиация тизимига ортиқча сўров юборилмайди. Ўтган саналар автоматик ўчирилади."
+        case (.uzbekCyrillic, .noDirectTitle): return "Бу саналарда тўғридан-тўғри рейс йўқ"
+        case (.uzbekCyrillic, .noDirectInlineBody): return "Мослашувчан саналар билан давом этишингиз мумкин, аммо тизим 1–2 та трансферли ва қимматроқ рейсларни таклиф қилиши мумкин. Бу пакетнинг якуний нархига таъсир қилади."
+        case (.uzbekCyrillic, .noDirectPopupBody): return "Ҳозир iumrah базасида танланган саналар учун эълон қилинган тўғридан-тўғри рейс жуфтлиги йўқ. Мослашувчан қидирув 1–2 та трансферли ва қимматроқ вариантларни топиши мумкин; бу якуний пакет нархини оширади."
+        case (.uzbekCyrillic, .inventoryNote): return "Яшил кунлар фақат iumrah базасида эълон қилинган рейслардан олинади. Бошқа кунлар автоматик равишда тўғри рейс деб белгиланмайди."
         case (.uzbekCyrillic, .reset): return "Тозалаш"
-        case (.uzbekCyrillic, .chooseDates): return "Саналарни танлаш"
-        case (.uzbekCyrillic, .fareAvailable): return "Долзарб тариф топилди"
+        case (.uzbekCyrillic, .chooseDates): return "Давом этиш"
+        case (.uzbekCyrillic, .chooseDirectDates): return "Тўғри рейсли саналарни танлаш"
+        case (.uzbekCyrillic, .continueFlexible): return "Мослашувчан саналар билан давом этиш"
+        case (.uzbekCyrillic, .directAccessibility): return "Эълон қилинган тўғридан-тўғри рейс"
         }
     }
 }

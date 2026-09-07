@@ -17,10 +17,7 @@ struct TripBuilderView: View {
     @State private var showsDateCalendar = false
     @State private var curatedFlights: [CuratedFlightRecommendation] = []
     @State private var isLoadingCuratedFlights = false
-    @State private var curatedDisplayMode: CuratedDisplayMode = .separate
-    @State private var selectedCuratedOutboundID: String? = nil
-    @State private var selectedCuratedReturnID: String? = nil
-    @State private var selectedCuratedRoundTripID: String? = nil
+    @State private var curatedDisplayMode: CuratedDisplayMode = .roundTrip
 
     var body: some View {
         ScrollView {
@@ -29,9 +26,13 @@ struct TripBuilderView: View {
                 intro
                 routeCard
                 datesCard
-                curatedFlightsSection
+                if journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah {
+                    curatedFlightsSection
+                }
                 travelersCard
-                FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
+                if journey.packageFlightPath != .publishedDirect {
+                    FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
+                }
                 hotelClassCard
                 packageCard
 
@@ -41,8 +42,8 @@ struct TripBuilderView: View {
                     Text(L10n.text("trip_continue_hotel", settings.language))
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
-                .disabled(!journey.trip.canContinue)
-                .opacity(journey.trip.canContinue ? 1 : 0.45)
+                .disabled(!canContinueFromBuilder)
+                .opacity(canContinueFromBuilder ? 1 : 0.45)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -52,6 +53,11 @@ struct TripBuilderView: View {
         .iumrahInternalNavigation(progress: .trip)
         .task(id: curatedFlightsQueryKey) {
             await loadCuratedFlights()
+        }
+        .onChange(of: routeSelectionKey) { _, _ in
+            guard !journey.trip.isWeekendUmrah else { return }
+            journey.resetAfterTripChange()
+            journey.packageFlightPath = .publishedDirect
         }
         .onAppear {
             // Production flow is always a complete Umrah journey: the pilgrim
@@ -70,9 +76,30 @@ struct TripBuilderView: View {
                 journey.trip.flexibility = .exact
             }
             if journey.trip.isWeekendUmrah {
+                journey.packageFlightPath = .weekend
                 journey.trip.applyWeekendWindow(around: journey.trip.departureDate)
             }
         }
+    }
+
+    private var canContinueFromBuilder: Bool {
+        guard journey.trip.canContinue else { return false }
+        switch journey.packageFlightPath {
+        case .publishedDirect:
+            return journey.hasCompletePublishedFlightSelection
+        case .flexibleDates:
+            return !journey.trip.isWeekendUmrah
+        case .weekend:
+            return journey.trip.isWeekendUmrah
+        }
+    }
+
+    private var routeSelectionKey: String {
+        [
+            journey.trip.originCode.uppercased(),
+            journey.trip.scope.rawValue,
+            journey.trip.arrivalAirport.rawValue
+        ].joined(separator: "|")
     }
 
     private var intro: some View {
@@ -182,14 +209,19 @@ struct TripBuilderView: View {
 
     private var datesCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(L10n.text("trip_dates_title", settings.language), systemImage: "calendar")
+            Label(flightChoiceTitle, systemImage: "airplane")
                 .font(.headline)
+
+            Text(flightChoiceBody)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             dateModePicker
 
-            if journey.trip.isWeekendUmrah {
+            if journey.packageFlightPath == .weekend || journey.trip.isWeekendUmrah {
                 weekendDatesContent
-            } else {
+            } else if journey.packageFlightPath == .flexibleDates {
                 Button {
                     showsDateCalendar = true
                     IumrahHaptics.selection()
@@ -213,15 +245,28 @@ struct TripBuilderView: View {
 
                 HStack(alignment: .top, spacing: 10) {
                     IumrahInlineIcon(
-                        systemName: "chart.line.downtrend.xyaxis",
+                        systemName: "calendar.badge.clock",
                         role: .payment,
                         size: 12
                     )
-                    Text(dateCalendarHint)
+                    Text(flexibleDatesHint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.green)
+                    Text(publishedDirectHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .padding(14)
+                .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
         }
         .iumrahCard()
@@ -230,11 +275,23 @@ struct TripBuilderView: View {
                 trip: journey.trip,
                 initialDeparture: journey.trip.departureDate,
                 initialReturn: journey.trip.returnDate
-            ) { outbound, inbound in
+            ) { result in
                 journey.resetAfterTripChange()
                 journey.trip.flexibility = .exact
-                journey.trip.departureDate = outbound
-                journey.trip.returnDate = inbound
+                journey.trip.flightTripType = .roundTrip
+                journey.trip.departureDate = result.departure
+                journey.trip.returnDate = result.returnDate
+
+                if let published = result.publishedSelection, published.isComplete {
+                    journey.packageFlightPath = .publishedDirect
+                    journey.selectedPublishedCompleteID = published.completeID
+                    journey.selectedPublishedOutboundID = published.outboundID
+                    journey.selectedPublishedReturnID = published.returnID
+                    curatedDisplayMode = published.completeID == nil ? .separate : .roundTrip
+                } else {
+                    journey.packageFlightPath = .flexibleDates
+                    journey.clearPublishedFlightSelection()
+                }
             }
             .environmentObject(settings)
         }
@@ -243,36 +300,40 @@ struct TripBuilderView: View {
     private var dateModePicker: some View {
         HStack(spacing: 8) {
             Button {
-                if journey.trip.isWeekendUmrah {
-                    journey.resetAfterTripChange()
-                    journey.trip.flexibility = .exact
-                }
+                guard journey.packageFlightPath != .publishedDirect || journey.trip.isWeekendUmrah else { return }
+                journey.resetAfterTripChange()
+                journey.packageFlightPath = .publishedDirect
+                journey.trip.flexibility = .exact
+                journey.trip.flightTripType = .roundTrip
                 IumrahHaptics.selection()
             } label: {
-                dateModeChip(dateExactTitle, selected: !journey.trip.isWeekendUmrah)
+                dateModeChip(directFlightsModeTitle, selected: journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah, systemImage: "airplane")
             }
             .buttonStyle(.plain)
 
             Button {
-                if journey.trip.isWeekendUmrah {
+                if journey.packageFlightPath != .flexibleDates || journey.trip.isWeekendUmrah {
                     journey.resetAfterTripChange()
+                    journey.packageFlightPath = .flexibleDates
                     journey.trip.flexibility = .exact
+                    journey.trip.flightTripType = .roundTrip
                 }
                 showsDateCalendar = true
                 IumrahHaptics.selection()
             } label: {
-                dateModeChip(dateCalendarTitle, selected: false, systemImage: "calendar.badge.clock")
+                dateModeChip(flexibleDatesModeTitle, selected: journey.packageFlightPath == .flexibleDates, systemImage: "calendar.badge.clock")
             }
             .buttonStyle(.plain)
 
             Button {
-                guard !journey.trip.isWeekendUmrah else { return }
+                guard journey.packageFlightPath != .weekend || !journey.trip.isWeekendUmrah else { return }
                 journey.resetAfterTripChange()
+                journey.packageFlightPath = .weekend
                 journey.trip.selectFlexibility(.weekend)
                 journey.trip.flightTripType = .roundTrip
                 IumrahHaptics.selection()
             } label: {
-                dateModeChip(dateWeekendTitle, selected: journey.trip.isWeekendUmrah)
+                dateModeChip(dateWeekendTitle, selected: journey.packageFlightPath == .weekend || journey.trip.isWeekendUmrah)
             }
             .buttonStyle(.plain)
         }
@@ -326,6 +387,60 @@ struct TripBuilderView: View {
         case .english: return "Dates"
         case .uzbek: return "Sanalar"
         case .uzbekCyrillic: return "Саналар"
+        }
+    }
+
+    private var flightChoiceTitle: String {
+        switch settings.language {
+        case .russian: return "Сначала выберите перелёт"
+        case .english: return "Choose your flight first"
+        case .uzbek: return "Avval parvozni tanlang"
+        case .uzbekCyrillic: return "Аввал парвозни танланг"
+        }
+    }
+
+    private var flightChoiceBody: String {
+        switch settings.language {
+        case .russian: return "Выберите опубликованный прямой рейс с подходящими датами. Если даты важнее рейса, используйте гибкий календарь."
+        case .english: return "Choose a published direct flight with suitable dates. If your dates matter more than the flight, use the flexible calendar."
+        case .uzbek: return "Mos sanali e’lon qilingan to‘g‘ridan-to‘g‘ri reysni tanlang. Agar sana muhimroq bo‘lsa, moslashuvchan kalendardan foydalaning."
+        case .uzbekCyrillic: return "Мос санали эълон қилинган тўғридан-тўғри рейсни танланг. Агар сана муҳимроқ бўлса, мослашувчан календардан фойдаланинг."
+        }
+    }
+
+    private var directFlightsModeTitle: String {
+        switch settings.language {
+        case .russian: return "Прямые"
+        case .english: return "Direct"
+        case .uzbek: return "To‘g‘ri"
+        case .uzbekCyrillic: return "Тўғри"
+        }
+    }
+
+    private var flexibleDatesModeTitle: String {
+        switch settings.language {
+        case .russian: return "Гибкие даты"
+        case .english: return "Flexible"
+        case .uzbek: return "Moslashuvchan"
+        case .uzbekCyrillic: return "Мослашувчан"
+        }
+    }
+
+    private var publishedDirectHint: String {
+        switch settings.language {
+        case .russian: return "Рейсы ниже уже опубликованы iumrah. Выберите билет туда и обратно — цену авиабилета отдельно не показываем; она войдёт в итоговую цену вашего личного пакета."
+        case .english: return "The flights below are already published by iumrah. Choose your outbound and return; the airfare is not shown separately and will be included in your personal package total."
+        case .uzbek: return "Quyidagi reyslar iumrah tomonidan allaqachon e’lon qilingan. Borish va qaytish reysini tanlang — aviachipta narxi alohida ko‘rsatilmaydi, u shaxsiy paketingiz yakuniy narxiga kiradi."
+        case .uzbekCyrillic: return "Қуйидаги рейслар iumrah томонидан аллақачон эълон қилинган. Бориш ва қайтиш рейсини танланг — авиачипта нархи алоҳида кўрсатилмайди, у шахсий пакетингиз якуний нархига киради."
+        }
+    }
+
+    private var flexibleDatesHint: String {
+        switch settings.language {
+        case .russian: return "Зелёные дни в календаре — даты опубликованных прямых рейсов, которые рекомендует iumrah AI. Выбор других дат запустит гибкий поиск после выбора отеля."
+        case .english: return "Green calendar days are published direct-flight dates recommended by iumrah AI. Choosing other dates starts flexible flight search after your hotel is selected."
+        case .uzbek: return "Kalendardagi yashil kunlar — iumrah AI tavsiya qiladigan e’lon qilingan to‘g‘ridan-to‘g‘ri reys sanalari. Boshqa sanalar mehmonxona tanlangach moslashuvchan qidiruvni ishga tushiradi."
+        case .uzbekCyrillic: return "Календардаги яшил кунлар — iumrah AI тавсия қиладиган эълон қилинган тўғридан-тўғри рейс саналари. Бошқа саналар меҳмонхона танлангач мослашувчан қидирувни ишга туширади."
         }
     }
 
@@ -537,6 +652,14 @@ struct TripBuilderView: View {
                 Text(curatedRoundTripModeLabel).tag(CuratedDisplayMode.roundTrip)
             }
             .pickerStyle(.segmented)
+            .onChange(of: curatedDisplayMode) { _, mode in
+                if mode == .separate {
+                    journey.selectedPublishedCompleteID = nil
+                } else {
+                    journey.selectedPublishedOutboundID = nil
+                    journey.selectedPublishedReturnID = nil
+                }
+            }
 
             if isLoadingCuratedFlights && curatedFlights.isEmpty {
                 HStack(spacing: 10) {
@@ -748,7 +871,7 @@ struct TripBuilderView: View {
     }
 
     private func curatedRoundTripCard(_ recommendation: CuratedFlightRecommendation) -> some View {
-        let isSelected = selectedCuratedRoundTripID == recommendation.id
+        let isSelected = journey.selectedPublishedCompleteID == recommendation.id
 
         return Button {
             selectCuratedRoundTrip(recommendation)
@@ -859,41 +982,29 @@ struct TripBuilderView: View {
 
     private var curatedOutboundFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
-            if recommendation.effectiveOfferType == "one_way" && recommendation.effectiveJourneyRole == "outbound" {
-                return recommendation.outbound.origin == journey.trip.originCode
-                    && recommendation.outbound.destination == journey.trip.outboundDestinationCode
-            }
-            if recommendation.effectiveOfferType == "paired_one_way" {
-                return recommendation.outbound.origin == journey.trip.originCode
-                    && recommendation.outbound.destination == journey.trip.outboundDestinationCode
-            }
-            return false
+            recommendation.effectiveOfferType == "one_way" &&
+            recommendation.effectiveJourneyRole == "outbound" &&
+            recommendation.outbound.origin == journey.trip.originCode &&
+            recommendation.outbound.destination == journey.trip.outboundDestinationCode
         }
     }
 
     private var curatedReturnFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
-            if recommendation.effectiveOfferType == "one_way" && recommendation.effectiveJourneyRole == "return" {
-                return recommendation.outbound.origin == journey.trip.returnOriginCode
-                    && recommendation.outbound.destination == journey.trip.originCode
-            }
-            if recommendation.effectiveOfferType == "paired_one_way", let inbound = recommendation.inbound {
-                return inbound.origin == journey.trip.returnOriginCode
-                    && inbound.destination == journey.trip.originCode
-            }
-            return false
+            recommendation.effectiveOfferType == "one_way" &&
+            recommendation.effectiveJourneyRole == "return" &&
+            recommendation.outbound.origin == journey.trip.returnOriginCode &&
+            recommendation.outbound.destination == journey.trip.originCode
         }
         .filter { recommendation in
-            guard let dateString = curatedLegDate(for: recommendation, selection: .inbound),
-                  let date = CuratedFlightRecommendationService.date(dateString) else { return false }
+            guard let date = CuratedFlightRecommendationService.date(recommendation.outboundDate) else { return false }
             return Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: journey.trip.departureDate)
         }
     }
 
     private var curatedRoundTripFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
-            guard recommendation.effectiveOfferType == "round_trip",
-                  recommendation.effectiveJourneyRole == "complete",
+            guard recommendation.effectiveJourneyRole == "complete",
                   let inbound = recommendation.inbound else { return false }
             return recommendation.outbound.origin == journey.trip.originCode
                 && recommendation.outbound.destination == journey.trip.outboundDestinationCode
@@ -930,8 +1041,8 @@ struct TripBuilderView: View {
 
     private func selectedCuratedID(for selection: CuratedLegSelection) -> String? {
         switch selection {
-        case .outbound: return selectedCuratedOutboundID
-        case .inbound: return selectedCuratedReturnID
+        case .outbound: return journey.selectedPublishedOutboundID
+        case .inbound: return journey.selectedPublishedReturnID
         }
     }
 
@@ -946,7 +1057,8 @@ struct TripBuilderView: View {
         let calendar = Calendar.current
         let oldDuration = max(1, calendar.dateComponents([.day], from: journey.trip.departureDate, to: journey.trip.returnDate).day ?? 7)
 
-        journey.resetAfterTripChange()
+        journey.resetAfterTripChange(keepingPublishedFlightSelection: true)
+        journey.packageFlightPath = .publishedDirect
         journey.trip.flexibility = .exact
         journey.trip.flightTripType = .roundTrip
 
@@ -955,17 +1067,15 @@ struct TripBuilderView: View {
             journey.trip.departureDate = date
             if journey.trip.returnDate < date {
                 journey.trip.returnDate = calendar.date(byAdding: .day, value: oldDuration, to: date) ?? date
-                // The previously selected return card no longer represents the
-                // adjusted date, so do not leave a false checkmark in the UI.
-                selectedCuratedReturnID = nil
+                journey.selectedPublishedReturnID = nil
             }
-            selectedCuratedOutboundID = recommendation.id
+            journey.selectedPublishedOutboundID = recommendation.id
         case .inbound:
             journey.trip.returnDate = date
-            selectedCuratedReturnID = recommendation.id
+            journey.selectedPublishedReturnID = recommendation.id
         }
 
-        selectedCuratedRoundTripID = nil
+        journey.selectedPublishedCompleteID = nil
         IumrahHaptics.selection()
     }
 
@@ -974,13 +1084,14 @@ struct TripBuilderView: View {
               let inbound = CuratedFlightRecommendationService.date(recommendation.inboundDate),
               inbound >= outbound else { return }
         journey.resetAfterTripChange()
+        journey.packageFlightPath = .publishedDirect
         journey.trip.flexibility = .exact
         journey.trip.flightTripType = .roundTrip
         journey.trip.departureDate = outbound
         journey.trip.returnDate = inbound
-        selectedCuratedRoundTripID = recommendation.id
-        selectedCuratedOutboundID = nil
-        selectedCuratedReturnID = nil
+        journey.selectedPublishedCompleteID = recommendation.id
+        journey.selectedPublishedOutboundID = nil
+        journey.selectedPublishedReturnID = nil
         IumrahHaptics.selection()
     }
 
@@ -990,6 +1101,20 @@ struct TripBuilderView: View {
         defer { isLoadingCuratedFlights = false }
         do {
             curatedFlights = try await CuratedFlightRecommendationService.shared.load(trip: journey.trip)
+
+            // Keep the currently chosen presentation whenever it has inventory. If a
+            // route has only one published product shape, fall back automatically so
+            // the pilgrim sees real flights instead of an empty first tab.
+            if curatedDisplayMode == .roundTrip,
+               curatedRoundTripFlights.isEmpty,
+               !curatedOutboundFlights.isEmpty || !curatedReturnFlights.isEmpty {
+                curatedDisplayMode = .separate
+            } else if curatedDisplayMode == .separate,
+                      curatedOutboundFlights.isEmpty,
+                      curatedReturnFlights.isEmpty,
+                      !curatedRoundTripFlights.isEmpty {
+                curatedDisplayMode = .roundTrip
+            }
         } catch {
             curatedFlights = []
         }

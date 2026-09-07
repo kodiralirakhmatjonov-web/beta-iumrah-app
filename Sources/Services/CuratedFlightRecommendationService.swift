@@ -1,5 +1,63 @@
 import Foundation
 
+private func cleanCuratedID(_ value: String?) -> String? {
+    guard let value else { return nil }
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+}
+
+struct CuratedPublishedFlightSelection: Hashable {
+    let completeID: String?
+    let outboundID: String?
+    let returnID: String?
+
+    init(completeID: String? = nil, outboundID: String? = nil, returnID: String? = nil) {
+        self.completeID = cleanCuratedID(completeID)
+        self.outboundID = cleanCuratedID(outboundID)
+        self.returnID = cleanCuratedID(returnID)
+    }
+
+    var isComplete: Bool {
+        completeID != nil || (outboundID != nil && returnID != nil)
+    }
+}
+
+private struct CuratedPublishedFlightResolveRequest: Encodable {
+    let completeID: String?
+    let outboundID: String?
+    let returnID: String?
+    let travelerCount: Int
+    let origin: String
+    let outboundDestination: String
+    let returnOrigin: String
+    let returnDestination: String
+}
+
+private struct CuratedPublishedFlightResolveResponse: Decodable {
+    struct ResolvedLeg: Decodable {
+        let id: String
+        let airline: String
+        let flightNumber: String
+        let airlineCode: String?
+        let origin: String
+        let destination: String
+        let departureAt: String
+        let arrivalAt: String
+        let durationMinutes: Int
+        let cabinClass: String?
+    }
+
+    let ok: Bool
+    let resolvedAt: String
+    let currency: String
+    let totalFare: Decimal
+    let fareScope: String
+    let providerItineraryID: String
+    let sourceName: String
+    let outbound: ResolvedLeg
+    let inbound: ResolvedLeg
+}
+
 @MainActor
 final class CuratedFlightRecommendationService {
     static let shared = CuratedFlightRecommendationService()
@@ -19,8 +77,8 @@ final class CuratedFlightRecommendationService {
             "/api/package/flights/recommendations",
             query: [
                 URLQueryItem(name: "umrah_origin", value: trip.originCode.uppercased()),
-                URLQueryItem(name: "from", value: Self.day.string(from: start)),
-                URLQueryItem(name: "to", value: Self.day.string(from: end))
+                URLQueryItem(name: "from", value: Self.requestDay(start)),
+                URLQueryItem(name: "to", value: Self.requestDay(end))
             ],
             timeoutInterval: 10
         )
@@ -29,6 +87,174 @@ final class CuratedFlightRecommendationService {
         // Keep the server order: staff priority first, then the lowest hidden
         // supplier fare. The customer sees no fare, only the best-ranked cards.
         return response.recommendations.filter { $0.nonstop }
+    }
+
+    /// Resolves the already-selected published direct flight into the same verified
+    /// FlightOffer contract used by the normal Generator. This endpoint reads D1 only;
+    /// it deliberately does not call Ignav again.
+    func resolvePublishedSelection(
+        trip: TripDraft,
+        selection: CuratedPublishedFlightSelection
+    ) async throws -> (outbound: FlightOffer, inbound: FlightOffer) {
+        guard selection.isComplete else { throw APIError.invalidResponse }
+
+        let response: CuratedPublishedFlightResolveResponse = try await api.post(
+            "/api/package/flights/recommendations/resolve",
+            body: CuratedPublishedFlightResolveRequest(
+                completeID: selection.completeID,
+                outboundID: selection.outboundID,
+                returnID: selection.returnID,
+                travelerCount: trip.travelerCount,
+                origin: trip.originCode,
+                outboundDestination: trip.outboundDestinationCode,
+                returnOrigin: trip.returnOriginCode,
+                returnDestination: trip.originCode
+            ),
+            timeoutInterval: 12
+        )
+        guard response.ok,
+              let observedAt = Self.instant(response.resolvedAt),
+              response.totalFare > 0 else { throw APIError.invalidResponse }
+
+        let fareScope: FlightFareScope = response.fareScope == "perPassenger" ? .perPassenger : .totalParty
+        let outboundCandidate = try candidate(
+            response.outbound,
+            direction: .outbound,
+            response: response,
+            observedAt: observedAt,
+            fareScope: fareScope
+        )
+        let inboundCandidate = try candidate(
+            response.inbound,
+            direction: .inbound,
+            response: response,
+            observedAt: observedAt,
+            fareScope: fareScope
+        )
+
+        let outbound = FlightOffer(
+            id: "published:outbound:\(response.providerItineraryID)",
+            direction: .outbound,
+            airline: outboundCandidate.airline,
+            flightNumber: outboundCandidate.flightNumber,
+            origin: outboundCandidate.origin,
+            destination: outboundCandidate.destination,
+            departureAt: outboundCandidate.departureAt,
+            arrivalAt: outboundCandidate.arrivalAt,
+            stops: outboundCandidate.stops,
+            durationMinutes: outboundCandidate.durationMinutes,
+            totalPackagePrice: response.totalFare,
+            currency: response.currency,
+            sourceLabel: response.sourceName,
+            packageTotalPrice: response.totalFare,
+            sourceCandidateID: outboundCandidate.id,
+            airlineCode: outboundCandidate.airlineCode,
+            segments: outboundCandidate.segments,
+            connectionAirports: outboundCandidate.connectionAirports,
+            fareAmount: response.totalFare,
+            fareScope: fareScope,
+            fareObservedAt: observedAt,
+            providerItineraryID: response.providerItineraryID,
+            cabinClass: outboundCandidate.cabinClass,
+            requiresSelfTransfer: false,
+            pairedLeg: FlightPairedLeg(candidate: inboundCandidate)
+        )
+
+        let inbound = FlightOffer(
+            id: "published:inbound:\(response.providerItineraryID)",
+            direction: .inbound,
+            airline: inboundCandidate.airline,
+            flightNumber: inboundCandidate.flightNumber,
+            origin: inboundCandidate.origin,
+            destination: inboundCandidate.destination,
+            departureAt: inboundCandidate.departureAt,
+            arrivalAt: inboundCandidate.arrivalAt,
+            stops: inboundCandidate.stops,
+            durationMinutes: inboundCandidate.durationMinutes,
+            totalPackagePrice: response.totalFare,
+            currency: response.currency,
+            sourceLabel: response.sourceName,
+            packageTotalPrice: response.totalFare,
+            sourceCandidateID: inboundCandidate.id,
+            airlineCode: inboundCandidate.airlineCode,
+            segments: inboundCandidate.segments,
+            connectionAirports: inboundCandidate.connectionAirports,
+            fareAmount: response.totalFare,
+            fareScope: fareScope,
+            fareObservedAt: observedAt,
+            providerItineraryID: response.providerItineraryID,
+            cabinClass: inboundCandidate.cabinClass,
+            requiresSelfTransfer: false,
+            pairedLeg: FlightPairedLeg(candidate: outboundCandidate)
+        )
+
+        guard outbound.isVerifiedForBooking, inbound.isVerifiedForBooking else {
+            throw APIError.invalidResponse
+        }
+        return (outbound, inbound)
+    }
+
+    private func candidate(
+        _ leg: CuratedPublishedFlightResolveResponse.ResolvedLeg,
+        direction: FlightDirection,
+        response: CuratedPublishedFlightResolveResponse,
+        observedAt: Date,
+        fareScope: FlightFareScope
+    ) throws -> LiveFlightCandidate {
+        guard let departure = Self.instant(leg.departureAt),
+              let arrival = Self.instant(leg.arrivalAt),
+              departure < arrival else { throw APIError.invalidResponse }
+
+        // Published recommendations are direct by contract. A single normalized
+        // segment is sufficient for the same booking-safety gate as Ignav results.
+        let segment = FlightSegment(
+            id: "published-segment:\(leg.id)",
+            airline: leg.airline,
+            airlineCode: leg.airlineCode,
+            flightNumber: leg.flightNumber,
+            origin: FlightAirportSnapshot(code: leg.origin),
+            destination: FlightAirportSnapshot(code: leg.destination),
+            departureAt: departure,
+            arrivalAt: arrival,
+            durationMinutes: leg.durationMinutes,
+            cabin: leg.cabinClass
+        )
+
+        let candidate = LiveFlightCandidate(
+            id: "published:\(direction.rawValue):\(leg.id)",
+            sourceID: "iumrah-published",
+            sourceName: response.sourceName,
+            direction: direction,
+            airline: leg.airline,
+            flightNumber: leg.flightNumber,
+            origin: leg.origin,
+            destination: leg.destination,
+            departureAt: departure,
+            arrivalAt: arrival,
+            stops: 0,
+            durationMinutes: leg.durationMinutes,
+            observedFare: response.totalFare,
+            observedCurrency: response.currency,
+            fareScope: fareScope,
+            observedAt: observedAt,
+            rawFingerprint: response.providerItineraryID,
+            airlineCode: leg.airlineCode,
+            segments: [segment],
+            connectionAirports: nil,
+            providerItineraryID: response.providerItineraryID,
+            cabinClass: leg.cabinClass,
+            requiresSelfTransfer: false
+        )
+        guard candidate.isDisplayableCandidate else { throw APIError.invalidResponse }
+        return candidate
+    }
+
+    private static func requestDay(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        guard let year = components.year, let month = components.month, let day = components.day else {
+            return Self.day.string(from: date)
+        }
+        return String(format: "%04d-%02d-%02d", year, month, day)
     }
 
     static let day: DateFormatter = {
@@ -43,5 +269,14 @@ final class CuratedFlightRecommendationService {
     static func date(_ string: String?) -> Date? {
         guard let string else { return nil }
         return day.date(from: string)
+    }
+
+    private static func instant(_ string: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let value = fractional.date(from: string) { return value }
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        return standard.date(from: string)
     }
 }

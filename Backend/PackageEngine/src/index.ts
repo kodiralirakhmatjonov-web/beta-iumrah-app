@@ -7,7 +7,7 @@ import { searchIgnavFlights, searchIgnavFlightsForCuration } from "./ignav-fligh
 import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
 import { cleanupExpiredFlightCache, flightCalendarResponse } from "./flight-cache";
-import { deleteCuratedFlightAdmin, listCuratedFlightsAdmin, publicCuratedFlightRecommendations, saveCuratedFlightAdmin } from "./curated-flights";
+import { deleteCuratedFlightAdmin, listCuratedFlightsAdmin, publicCuratedFlightRecommendations, resolvePublicCuratedFlightRecommendation, saveCuratedFlightAdmin } from "./curated-flights";
 import { appleAppSiteAssociation, hotelWebFallback, publicStorefrontFlightBoard } from "./storefront";
 
 function json(value: unknown, status = 200) {
@@ -184,6 +184,10 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/api/package/flights/recommendations") {
       return publicCuratedFlightRecommendations(url, env.HOTELS_DB);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/flights/recommendations/resolve") {
+      return resolvePublicCuratedFlightRecommendation(request, env.HOTELS_DB);
     }
 
     if (request.method === "GET" && url.pathname === "/api/package/storefront/flights") {

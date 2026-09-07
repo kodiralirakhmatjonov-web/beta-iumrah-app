@@ -1,5 +1,16 @@
 import Foundation
 
+enum PackageFlightPath: String, Hashable {
+    /// A staff-published direct itinerary chosen before the hotel stage.
+    /// Pricing resolves from the curated D1 row and must not trigger Ignav search.
+    case publishedDirect
+    /// User-selected dates outside (or instead of) published direct inventory.
+    /// After hotel selection the normal Ignav search flow runs for those exact dates.
+    case flexibleDates
+    /// Existing Weekend Umrah product. Its dedicated behavior remains unchanged.
+    case weekend
+}
+
 enum PackageTier: String, CaseIterable, Codable, Identifiable, Hashable {
     case economy
     case standard

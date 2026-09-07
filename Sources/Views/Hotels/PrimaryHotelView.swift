@@ -3,6 +3,9 @@ import SwiftUI
 struct PrimaryHotelView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @State private var showFinalPackage = false
+    @State private var isPreparingPublishedPackage = false
+    @State private var publishedPackageError: String?
 
     private var requiresMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canContinue: Bool {
@@ -17,18 +20,34 @@ struct PrimaryHotelView: View {
                 heading
                 hotelContent
 
-                NavigationLink {
-                    OutboundFlightView()
-                } label: {
-                    HStack(spacing: 9) {
-                        Text(FlowCopy.text(.continueToFlights, settings.language))
-                        Image(systemName: "arrow.right")
+                if journey.packageFlightPath == .publishedDirect {
+                    Button {
+                        Task { await continuePublishedDirectPackage() }
+                    } label: {
+                        HStack(spacing: 9) {
+                            if isPreparingPublishedPackage { ProgressView().tint(.white) }
+                            Text(publishedContinueTitle)
+                            if !isPreparingPublishedPackage { Image(systemName: "arrow.right") }
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(!canContinue || isPreparingPublishedPackage)
+                    .opacity(canContinue && !isPreparingPublishedPackage ? 1 : 0.42)
+                } else {
+                    NavigationLink {
+                        OutboundFlightView()
+                    } label: {
+                        HStack(spacing: 9) {
+                            Text(FlowCopy.text(.continueToFlights, settings.language))
+                            Image(systemName: "arrow.right")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(!canContinue)
+                    .opacity(canContinue ? 1 : 0.42)
                 }
-                .buttonStyle(IumrahPrimaryButtonStyle())
-                .disabled(!canContinue)
-                .opacity(canContinue ? 1 : 0.42)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -39,6 +58,61 @@ struct PrimaryHotelView: View {
         .task {
             if journey.hotels.isEmpty { await journey.loadMakkahHotels() }
             if requiresMadinah, journey.madinahHotels.isEmpty { await journey.loadMadinahHotels() }
+        }
+        .navigationDestination(isPresented: $showFinalPackage) {
+            FinalPackageView()
+        }
+        .alert(publishedErrorTitle, isPresented: Binding(
+            get: { publishedPackageError != nil },
+            set: { if !$0 { publishedPackageError = nil } }
+        )) {
+            Button("OK", role: .cancel) { publishedPackageError = nil }
+        } message: {
+            Text(publishedPackageError ?? "")
+        }
+    }
+
+    @MainActor
+    private func continuePublishedDirectPackage() async {
+        guard !isPreparingPublishedPackage else { return }
+        isPreparingPublishedPackage = true
+        publishedPackageError = nil
+        defer { isPreparingPublishedPackage = false }
+
+        let ready = await journey.preparePublishedDirectQuote()
+        if ready {
+            IumrahHaptics.success()
+            showFinalPackage = true
+        } else {
+            IumrahHaptics.error()
+            publishedPackageError = journey.errorMessage ?? publishedFallbackError
+        }
+    }
+
+    private var publishedContinueTitle: String {
+        switch settings.language {
+        case .russian: return "Рассчитать итоговую цену"
+        case .english: return "Calculate final price"
+        case .uzbek: return "Yakuniy narxni hisoblash"
+        case .uzbekCyrillic: return "Якуний нархни ҳисоблаш"
+        }
+    }
+
+    private var publishedErrorTitle: String {
+        switch settings.language {
+        case .russian: return "Не удалось собрать пакет"
+        case .english: return "Could not build package"
+        case .uzbek: return "Paketni yig‘ib bo‘lmadi"
+        case .uzbekCyrillic: return "Пакетни йиғиб бўлмади"
+        }
+    }
+
+    private var publishedFallbackError: String {
+        switch settings.language {
+        case .russian: return "Не удалось получить опубликованный рейс или актуальную цену отеля. Попробуйте ещё раз."
+        case .english: return "The published flight or current hotel price could not be resolved. Please try again."
+        case .uzbek: return "E’lon qilingan reys yoki mehmonxonaning dolzarb narxini olib bo‘lmadi. Qayta urinib ko‘ring."
+        case .uzbekCyrillic: return "Эълон қилинган рейс ёки меҳмонхонанинг долзарб нархини олиб бўлмади. Қайта уриниб кўринг."
         }
     }
 

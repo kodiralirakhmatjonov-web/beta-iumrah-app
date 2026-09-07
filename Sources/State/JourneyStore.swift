@@ -5,6 +5,14 @@ import Combine
 final class JourneyStore: ObservableObject {
     @Published var trip = TripDraft()
 
+    /// Controls the three package-generation paths without changing the persisted
+    /// TripDraft contract. Weekend keeps its existing DateFlexibility behavior;
+    /// published/direct and flexible-date paths are session architecture state.
+    @Published var packageFlightPath: PackageFlightPath = .publishedDirect
+    @Published var selectedPublishedCompleteID: String?
+    @Published var selectedPublishedOutboundID: String?
+    @Published var selectedPublishedReturnID: String?
+
     @Published var hotels: [HotelSummary] = []
     @Published var selectedHotel: HotelSummary?
     @Published var selectedRoom: HotelRoom?
@@ -136,7 +144,9 @@ final class JourneyStore: ObservableObject {
         return exactStars.first ?? all.first
     }
 
-    func resetAfterTripChange() {
+    func resetAfterTripChange(keepingPublishedFlightSelection: Bool = false) {
+        if !keepingPublishedFlightSelection { clearPublishedFlightSelection() }
+
         selectedHotel = nil
         selectedRoom = nil
         selectedRoomCategory = nil
@@ -159,6 +169,53 @@ final class JourneyStore: ObservableObject {
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
         (flightService as? AutomaticFlightSearchService)?.invalidateSession()
+    }
+
+    var hasCompletePublishedFlightSelection: Bool {
+        selectedPublishedCompleteID != nil ||
+        (selectedPublishedOutboundID != nil && selectedPublishedReturnID != nil)
+    }
+
+    var publishedFlightSelection: CuratedPublishedFlightSelection {
+        CuratedPublishedFlightSelection(
+            completeID: selectedPublishedCompleteID,
+            outboundID: selectedPublishedOutboundID,
+            returnID: selectedPublishedReturnID
+        )
+    }
+
+    func clearPublishedFlightSelection() {
+        selectedPublishedCompleteID = nil
+        selectedPublishedOutboundID = nil
+        selectedPublishedReturnID = nil
+    }
+
+    /// Converts the selected D1-published direct itinerary into verified FlightOffer
+    /// values and runs the existing local package-pricing engine. No Ignav search is
+    /// performed here; the only flight request is the D1 recommendation resolver.
+    @discardableResult
+    func preparePublishedDirectQuote() async -> Bool {
+        guard packageFlightPath == .publishedDirect, hasCompletePublishedFlightSelection else {
+            errorMessage = "Published direct flight selection is incomplete."
+            quote = nil
+            return false
+        }
+
+        do {
+            let resolved = try await CuratedFlightRecommendationService.shared.resolvePublishedSelection(
+                trip: trip,
+                selection: publishedFlightSelection
+            )
+            chooseOutboundFlight(resolved.outbound)
+            chooseInboundFlight(resolved.inbound)
+            scheduleHotelPricePrefetch()
+            await buildQuote()
+            return hasFinalGeneratorQuote
+        } catch {
+            errorMessage = error.localizedDescription
+            quote = nil
+            return false
+        }
     }
 
     func updateFlightFilters(_ filters: FlightSearchFilters) {

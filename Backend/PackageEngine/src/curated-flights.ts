@@ -421,7 +421,7 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
           OR (journey_role = 'complete' AND outbound_origin = ? AND inbound_destination = ?)
         )
       ORDER BY priority ASC, per_traveler_fare ASC, outbound_date ASC
-      LIMIT 80`)
+      LIMIT 300`)
       .bind(from, to, umrahOrigin, umrahOrigin, umrahOrigin, umrahOrigin)
       .all<CuratedRow>();
   } else {
@@ -521,4 +521,135 @@ export async function curatedCalendarRows(
       observed_at: string;
     }>();
   return result.results ?? [];
+}
+type PublishedResolvePayload = {
+  completeID?: unknown;
+  outboundID?: unknown;
+  returnID?: unknown;
+  travelerCount?: unknown;
+  origin?: unknown;
+  outboundDestination?: unknown;
+  returnOrigin?: unknown;
+  returnDestination?: unknown;
+};
+
+function resolvedPublicLeg(leg: CuratedLeg, id: string) {
+  return {
+    id,
+    airline: leg.airline,
+    flightNumber: leg.flight_number,
+    airlineCode: leg.airline_code || null,
+    origin: leg.origin,
+    destination: leg.destination,
+    departureAt: leg.departure_at,
+    arrivalAt: leg.arrival_at,
+    durationMinutes: leg.duration_minutes,
+    cabinClass: leg.cabin_class || null,
+  };
+}
+
+function validExpectedAirport(value: unknown): string | null {
+  const airport = safeText(value, 3).toUpperCase();
+  return IATA_AIRPORT.test(airport) ? airport : null;
+}
+
+async function publishedRow(db: D1Like, id: string): Promise<CuratedRow | null> {
+  return await db.prepare(`SELECT * FROM curated_flight_offers WHERE id=? AND published=1 LIMIT 1`)
+    .bind(id).first<CuratedRow>();
+}
+
+/**
+ * Resolves only an already-published recommendation. This is intentionally a D1-only
+ * operation: it never calls Ignav and therefore cannot consume a provider search.
+ * The public carousel still hides supplier fare amounts; the selected product is
+ * resolved only when the client is ready to price the package.
+ */
+export async function resolvePublicCuratedFlightRecommendation(request: Request, db: D1Like | undefined): Promise<Response> {
+  if (!db) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
+  await ensureCuratedFlightSchema(db);
+
+  let payload: PublishedResolvePayload;
+  try { payload = await request.json() as PublishedResolvePayload; }
+  catch { return json({ ok: false, error: "INVALID_JSON" }, 400); }
+
+  const travelerCount = Number(payload.travelerCount);
+  if (!Number.isInteger(travelerCount) || travelerCount < 1 || travelerCount > 9) {
+    return json({ ok: false, error: "INVALID_TRAVELER_COUNT" }, 400);
+  }
+
+  const origin = validExpectedAirport(payload.origin);
+  const outboundDestination = validExpectedAirport(payload.outboundDestination);
+  const returnOrigin = validExpectedAirport(payload.returnOrigin);
+  const returnDestination = validExpectedAirport(payload.returnDestination);
+  if (!origin || !outboundDestination || !returnOrigin || !returnDestination || origin !== returnDestination) {
+    return json({ ok: false, error: "INVALID_CURATED_ROUTE" }, 400);
+  }
+
+  const completeID = safeText(payload.completeID, 180);
+  const outboundID = safeText(payload.outboundID, 180);
+  const returnID = safeText(payload.returnID, 180);
+  if (!completeID && (!outboundID || !returnID)) {
+    return json({ ok: false, error: "INCOMPLETE_CURATED_SELECTION" }, 400);
+  }
+
+  let outboundLeg: CuratedLeg;
+  let inboundLeg: CuratedLeg;
+  let currency: string;
+  let totalFare: number;
+  let providerItineraryID: string;
+
+  if (completeID) {
+    const row = await publishedRow(db, completeID);
+    if (!row || row.journey_role !== "complete") return json({ ok: false, error: "CURATED_FLIGHT_NOT_FOUND" }, 404);
+    const itinerary = normalizeItinerary(parseJSON<unknown>(row.itinerary_json, null));
+    if (!itinerary || itinerary.legs.length !== 2) return json({ ok: false, error: "INVALID_CURATED_ITINERARY" }, 409);
+    outboundLeg = itinerary.legs[0];
+    inboundLeg = itinerary.legs[1];
+    currency = row.currency.toUpperCase();
+    totalFare = row.per_traveler_fare * travelerCount;
+    providerItineraryID = `curated:${row.id}`;
+  } else {
+    const [outboundRow, returnRow] = await Promise.all([
+      publishedRow(db, outboundID),
+      publishedRow(db, returnID),
+    ]);
+    if (!outboundRow || !returnRow || outboundRow.journey_role !== "outbound" || returnRow.journey_role !== "return") {
+      return json({ ok: false, error: "CURATED_FLIGHT_NOT_FOUND" }, 404);
+    }
+    const outboundItinerary = normalizeItinerary(parseJSON<unknown>(outboundRow.itinerary_json, null));
+    const returnItinerary = normalizeItinerary(parseJSON<unknown>(returnRow.itinerary_json, null));
+    if (!outboundItinerary || !returnItinerary || outboundItinerary.legs.length !== 1 || returnItinerary.legs.length !== 1) {
+      return json({ ok: false, error: "INVALID_CURATED_ITINERARY" }, 409);
+    }
+    if (outboundRow.currency.toUpperCase() !== returnRow.currency.toUpperCase()) {
+      return json({ ok: false, error: "CURATED_CURRENCY_MISMATCH" }, 409);
+    }
+    outboundLeg = outboundItinerary.legs[0];
+    inboundLeg = returnItinerary.legs[0];
+    currency = outboundRow.currency.toUpperCase();
+    totalFare = (outboundRow.per_traveler_fare + returnRow.per_traveler_fare) * travelerCount;
+    providerItineraryID = `curated:${outboundRow.id}+${returnRow.id}`;
+  }
+
+  if (outboundLeg.origin !== origin || outboundLeg.destination !== outboundDestination ||
+      inboundLeg.origin !== returnOrigin || inboundLeg.destination !== returnDestination ||
+      Date.parse(inboundLeg.departure_at) <= Date.parse(outboundLeg.departure_at)) {
+    return json({ ok: false, error: "CURATED_ROUTE_MISMATCH" }, 409);
+  }
+  if (!CURRENCY.test(currency) || !Number.isFinite(totalFare) || totalFare <= 0 || totalFare > 9_000_000) {
+    return json({ ok: false, error: "INVALID_CURATED_FARE" }, 409);
+  }
+
+  const resolvedAt = new Date().toISOString();
+  return json({
+    ok: true,
+    resolvedAt,
+    currency,
+    totalFare: Math.round(totalFare * 100) / 100,
+    fareScope: "totalParty",
+    providerItineraryID,
+    sourceName: "iumrah Published",
+    outbound: resolvedPublicLeg(outboundLeg, `${providerItineraryID}:outbound`),
+    inbound: resolvedPublicLeg(inboundLeg, `${providerItineraryID}:inbound`),
+  }, 200, "no-store");
 }

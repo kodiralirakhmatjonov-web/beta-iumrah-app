@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import worker from '../.runtime-dist/index.js';
 import { curatedPrimaryHotel } from '../.runtime-dist/generator-components.js';
 import { searchIgnavFlightsForCuration } from '../.runtime-dist/ignav-flights.js';
-import { saveCuratedFlightAdmin } from '../.runtime-dist/curated-flights.js';
+import { resolvePublicCuratedFlightRecommendation, saveCuratedFlightAdmin } from '../.runtime-dist/curated-flights.js';
 
 function statementFor(handler) {
   return {
@@ -722,4 +722,43 @@ test('publishing the same physical curated fare twice with a new Ignav candidate
   const secondBody = await second.json();
   assert.equal(secondBody.offer.id, firstID, 'structurally identical fare must retain the existing curated row id');
   assert.equal(db.row.source_candidate_id, 'provider-candidate-B', 'latest provider candidate metadata updates the same row');
+});
+
+
+test('published direct resolver prices the saved D1 itinerary without a provider fetch', async () => {
+  const db = curatedSaveDb();
+  const publish = new Request('https://iumrah.app/api/admin/package/flights/curated', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ itinerary: curatedSaveItinerary('provider-direct-resolve'), travelerCount: 1, published: true, priority: 100 }),
+  });
+  const savedResponse = await saveCuratedFlightAdmin(publish, db, 'test-admin');
+  const saved = await savedResponse.json();
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('published resolver must never call a flight provider'); };
+  try {
+    const request = new Request('https://iumrah.app/api/package/flights/recommendations/resolve', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        completeID: saved.offer.id,
+        travelerCount: 2,
+        origin: 'TAS',
+        outboundDestination: 'JED',
+        returnOrigin: 'JED',
+        returnDestination: 'TAS',
+      }),
+    });
+    const response = await resolvePublicCuratedFlightRecommendation(request, db);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.totalFare, 860);
+    assert.equal(body.fareScope, 'totalParty');
+    assert.equal(body.outbound.origin, 'TAS');
+    assert.equal(body.outbound.destination, 'JED');
+    assert.equal(body.inbound.origin, 'JED');
+    assert.equal(body.inbound.destination, 'TAS');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
