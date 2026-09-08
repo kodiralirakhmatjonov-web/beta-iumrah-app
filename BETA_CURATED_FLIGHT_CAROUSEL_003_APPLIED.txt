@@ -1,9 +1,0 @@
-iumrah Beta · Curated Flight Carousel V3
-2026-09-06
-
-- Keeps the recommended-flight block visible between dates and travelers.
-- Loads all published JED/MED Umrah routing combinations for the selected origin airport.
-- Adds the orange iumrah recommendation surface and horizontal flight-card carousel.
-- Selecting a published card applies its outbound/return dates without exposing supplier fare.
-- Public recommendations are no-store so Business publications become visible immediately.
-- Requires Package Engine deploy after the ZIP is applied.

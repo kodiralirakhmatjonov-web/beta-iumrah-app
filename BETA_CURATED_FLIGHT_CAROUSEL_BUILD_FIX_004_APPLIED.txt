@@ -1,5 +1,0 @@
-iumrah Beta curated flight carousel build fix v4
-Date: 2026-09-06
-Scope: compile-only hotfix for TripBuilderView.swift.
-Fix: replace invalid SwiftUI .frame(width:minHeight:alignment:) overload with the valid flexible-frame overload using minWidth/maxWidth/minHeight.
-No backend, database, pricing, booking, hotel, flight-cache, or Business changes.

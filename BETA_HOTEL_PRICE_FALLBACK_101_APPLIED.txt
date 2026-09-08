@@ -1,5 +1,0 @@
-iumrah Beta hotel price fallback fix 101
-- Manual D1 hotel prices are package-usable.
-- Last accepted stale source price remains package-usable when refresh is late/failed.
-- Package Engine Primary Hotel resolver accepts manual override or last accepted positive cache value.
-- No booking, flight, navigation, or pricing-formula architecture changed.
