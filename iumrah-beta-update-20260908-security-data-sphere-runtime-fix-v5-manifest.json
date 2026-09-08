@@ -1,0 +1,32 @@
+{
+  "patch": "iumrah Beta Security Data Sphere v5 runtime fix",
+  "date": "2026-09-08",
+  "files": [
+    {
+      "path": "BETA_SECURITY_DATA_SPHERE_105_RUNTIME_FIX_APPLIED.txt",
+      "sha256": "b21db01cfe1d84ea1cbba6af5b417452b52687679be80b8ac99e2a280d72841d",
+      "bytes": 461
+    },
+    {
+      "path": "Sources/Core/Components/IumrahDataSphere.swift",
+      "sha256": "ca6f808ff7aeb2ca8f35bbfdda4e8751ea03646acd9b3d080477ecb5a52daa56",
+      "bytes": 22036
+    },
+    {
+      "path": "Sources/Core/Components/IumrahDataSphereShaderSource.swift",
+      "sha256": "b20863e807bda05d1c66646e0b007ac8ae452a3c7f5b18d2c984ce6c7797dfcf",
+      "bytes": 11521
+    },
+    {
+      "path": "Sources/Core/Components/IumrahDataSphereShaders.metal",
+      "sha256": "6e0b6ce53d3954cdb9d1da844dce84080e411a2d640b2f60ce4185c666ffa98e",
+      "bytes": 11128
+    },
+    {
+      "path": "project.yml",
+      "sha256": "6c437227381aebc95282dbc968d4df2ed67b7b209c8b6a60273a94dc53d020cf",
+      "bytes": 1861
+    }
+  ],
+  "notes": "Explicit Metal build phase + runtime shader-library fallback. No backend changes."
+}

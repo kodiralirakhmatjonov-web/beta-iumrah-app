@@ -1,0 +1,10 @@
+iumrah Beta Security Data Sphere v5 runtime fix
+
+Purpose:
+- keep IumrahDataSphere as a standalone reusable native Metal component;
+- explicitly compile the .metal source through XcodeGen;
+- fall back to compiling the identical Metal shader source at runtime if the
+  bundled default.metallib does not contain the required shader functions;
+- prevent the silent transparent/black-card failure observed on TestFlight.
+
+No backend or hotel deployment is required.

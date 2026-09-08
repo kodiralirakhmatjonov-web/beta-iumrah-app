@@ -175,9 +175,7 @@ private final class IumrahDataSphereRenderer: NSObject, MTKViewDelegate {
         guard let commandQueue = device.makeCommandQueue() else {
             throw RendererError.commandQueue
         }
-        guard let library = device.makeDefaultLibrary() else {
-            throw RendererError.defaultLibrary
-        }
+        let library = try Self.resolveShaderLibrary(device: device)
 
         self.commandQueue = commandQueue
         self.atmospherePipeline = try Self.makePipeline(
@@ -325,6 +323,51 @@ private final class IumrahDataSphereRenderer: NSObject, MTKViewDelegate {
     private enum BlendMode {
         case normal
         case additive
+    }
+
+    /// Resolve the precompiled app Metal library first. Some XcodeGen project
+    /// layouts can omit a nested `.metal` file from the default metallib even
+    /// though the Swift target itself builds successfully. To make this reusable
+    /// component deterministic on-device, compile the exact same shader source
+    /// at runtime when the precompiled functions are not present. The result is
+    /// cached by Metal for the renderer lifetime and does not affect each frame.
+    private static func resolveShaderLibrary(device: MTLDevice) throws -> MTLLibrary {
+        let requiredFunctions = [
+            "iumrahDataSphereAtmosphereVertexV4",
+            "iumrahDataSphereAtmosphereFragmentV4",
+            "iumrahDataSphereParticleVertexV4",
+            "iumrahDataSphereParticleFragmentV4",
+            "iumrahDataSphereGlintFragmentV4"
+        ]
+
+        let bundledLibraries: [MTLLibrary?] = [
+            try? device.makeDefaultLibrary(bundle: .main),
+            device.makeDefaultLibrary()
+        ]
+
+        for candidate in bundledLibraries.compactMap({ $0 }) {
+            if requiredFunctions.allSatisfy({ candidate.makeFunction(name: $0) != nil }) {
+                return candidate
+            }
+        }
+
+        let options = MTLCompileOptions()
+        options.fastMathEnabled = true
+
+        do {
+            let runtimeLibrary = try device.makeLibrary(
+                source: IumrahDataSphereShaderSource.source,
+                options: options
+            )
+            guard requiredFunctions.allSatisfy({ runtimeLibrary.makeFunction(name: $0) != nil }) else {
+                throw RendererError.runtimeLibrary("compiled library is missing required functions")
+            }
+            return runtimeLibrary
+        } catch let error as RendererError {
+            throw error
+        } catch {
+            throw RendererError.runtimeLibrary(error.localizedDescription)
+        }
     }
 
     private static func makePipeline(
@@ -518,20 +561,18 @@ private final class IumrahDataSphereRenderer: NSObject, MTKViewDelegate {
 
     private enum RendererError: LocalizedError {
         case commandQueue
-        case defaultLibrary
         case missingFunction(String)
         case pipeline(String)
         case particleBuffer
         case digitAtlas
         case texture(String)
+        case runtimeLibrary(String)
         case sampler
 
         var errorDescription: String? {
             switch self {
             case .commandQueue:
                 return "Metal command queue is unavailable."
-            case .defaultLibrary:
-                return "The app Metal library is unavailable."
             case .missingFunction(let name):
                 return "Missing Metal shader function: \(name)."
             case .pipeline(let message):
@@ -542,6 +583,8 @@ private final class IumrahDataSphereRenderer: NSObject, MTKViewDelegate {
                 return "Could not create the digit atlas image."
             case .texture(let message):
                 return "Could not create the digit atlas texture: \(message)"
+            case .runtimeLibrary(let message):
+                return "Runtime Metal library failed: \(message)"
             case .sampler:
                 return "Could not create the digit atlas sampler."
             }

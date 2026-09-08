@@ -19,6 +19,9 @@ targets:
     sources:
       - path: Sources
         excludes:
+          # Compiled explicitly below so the data-sphere shaders are guaranteed
+          # to land in the app's default Metal library under XcodeGen.
+          - Core/Components/IumrahDataSphereShaders.metal
           # Legacy on-device Booking/Expedia hotel scrapers are intentionally
           # outside the production target. Hotel pricing comes from the 48h
           # server catalog cache maintained by iumrah Business.
@@ -27,6 +30,8 @@ targets:
           - HotelPricing/HotelPriceBotScripts.swift
           - HotelPricing/HotelPriceProvider.swift
           - HotelPricing/HotelPriceTextParser.swift
+      - path: Sources/Core/Components/IumrahDataSphereShaders.metal
+        buildPhase: sources
       - path: Resources/Assets.xcassets
         buildPhase: resources
       - path: Resources/Animations
