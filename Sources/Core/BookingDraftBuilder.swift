@@ -21,13 +21,9 @@ enum BookingDraftBuilder {
         let stay = TripStayPlanner.breakdown(for: trip)
         let dates = stayDates(trip: trip, stay: stay)
         let includeMadinah = trip.scope == .makkahAndMadinah
-        // Generator V2 pricing chooses Haramain locally for Comfort/Luxury. Keep
-        // the booking payload aligned even when the discontinued server-package
-        // flow does not pass an explicit intercity transport value.
-        let usesHaramain = includeMadinah && (
-            intercityTransport == .haramainTrain ||
-            (intercityTransport == nil && (trip.packageTier == .comfort || trip.packageTier == .luxury))
-        )
+        // Haramain is an explicit hybrid-route add-on. Package tier never enables
+        // it implicitly; the transfer stage passes the selected intercity mode.
+        let usesHaramain = includeMadinah && intercityTransport == .haramainTrain
         let services = [
             "flight",
             "makkahHotel",

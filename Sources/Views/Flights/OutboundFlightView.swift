@@ -287,7 +287,7 @@ struct OutboundFlightView: View {
                 if journey.trip.isRoundTripFlight {
                     ReturnFlightView()
                 } else {
-                    FinalPackageView()
+                    TransferSelectionView()
                 }
             } label: {
                 HStack(spacing: 10) {
@@ -463,10 +463,10 @@ struct OutboundFlightView: View {
             }
         }
         switch settings.language {
-        case .russian: return "Выбрать билет и рассчитать пакет"
-        case .english: return "Select ticket and calculate package"
-        case .uzbek: return "Chiptani tanlash va paketni hisoblash"
-        case .uzbekCyrillic: return "Чиптани танлаш ва пакетни ҳисоблаш"
+        case .russian: return "Выбрать билет и продолжить к трансферу"
+        case .english: return "Select ticket and continue to transfer"
+        case .uzbek: return "Chiptani tanlash va transferga o‘tish"
+        case .uzbekCyrillic: return "Чиптани танлаш ва трансферга ўтиш"
         }
     }
 

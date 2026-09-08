@@ -3,7 +3,7 @@ import SwiftUI
 struct PrimaryHotelView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
-    @State private var showFinalPackage = false
+    @State private var showTransfer = false
     @State private var isPreparingPublishedPackage = false
     @State private var publishedPackageError: String?
 
@@ -62,8 +62,8 @@ struct PrimaryHotelView: View {
             if journey.hotels.isEmpty { await journey.loadMakkahHotels() }
             if requiresMadinah, journey.madinahHotels.isEmpty { await journey.loadMadinahHotels() }
         }
-        .navigationDestination(isPresented: $showFinalPackage) {
-            FinalPackageView()
+        .navigationDestination(isPresented: $showTransfer) {
+            TransferSelectionView()
         }
         .alert(publishedErrorTitle, isPresented: Binding(
             get: { publishedPackageError != nil },
@@ -85,7 +85,7 @@ struct PrimaryHotelView: View {
         let ready = await journey.preparePublishedDirectQuote()
         if ready {
             IumrahHaptics.success()
-            showFinalPackage = true
+            showTransfer = true
         } else {
             IumrahHaptics.error()
             publishedPackageError = journey.errorMessage ?? publishedFallbackError
@@ -94,10 +94,10 @@ struct PrimaryHotelView: View {
 
     private var publishedContinueTitle: String {
         switch settings.language {
-        case .russian: return "Рассчитать итоговую цену"
-        case .english: return "Calculate final price"
-        case .uzbek: return "Yakuniy narxni hisoblash"
-        case .uzbekCyrillic: return "Якуний нархни ҳисоблаш"
+        case .russian: return "Продолжить к трансферу"
+        case .english: return "Continue to transfer"
+        case .uzbek: return "Transferga davom etish"
+        case .uzbekCyrillic: return "Трансферга давом этиш"
         }
     }
 

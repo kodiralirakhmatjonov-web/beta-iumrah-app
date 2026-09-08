@@ -51,7 +51,7 @@ assert.match(localPricing, /code: trip\.isRoundTripFlight \? "flight_roundtrip" 
 assert.match(localPricing, /journeyFare: journeyInput/);
 assert.match(localPricing, /outbound: nil/);
 assert.match(localPricing, /inbound: nil/);
-assert.match(localPricing, /local-expedia-package-v6/);
+assert.match(localPricing, /local-expedia-package-v7/);
 
 // Only verified provider fares may become package prices.
 assert.match(ignavClient, /price\.status\.caseInsensitiveCompare\("verified"\) == \.orderedSame/);
@@ -70,13 +70,19 @@ assert.match(outbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
 assert.match(inbound, /packagePricePerPerson: packagePrices\[offer\.id\]/);
 assert.ok(!outbound.includes('waiting-return'));
 
-// Preserve the existing commercial/service policy outside flights and hotels.
-assert.match(localPricing, /packageMarkupRate\s*=\s*Decimal\(string:\s*"0\.50"\)!/);
+// Commercial/service policy: 25% normal tiers, 35% Luxury, 2% payment fee.
+// Transfer is one $300 package allocation; Haramain is opt-in only.
+assert.match(localPricing, /standardPackageMarkupRate\s*=\s*Decimal\(string:\s*"0\.25"\)!/);
+assert.match(localPricing, /luxuryPackageMarkupRate\s*=\s*Decimal\(string:\s*"0\.35"\)!/);
+assert.match(localPricing, /tier == \.luxury \? luxuryPackageMarkupRate : standardPackageMarkupRate/);
 assert.match(localPricing, /paymentFeeRate\s*=\s*Decimal\(string:\s*"0\.02"\)!/);
 assert.match(localPricing, /case \.comfort:\s*return 50/);
 assert.match(localPricing, /case \.luxury:\s*return 100/);
-assert.match(localPricing, /roadWithMadinahPerSedanUsd = Decimal\(300\)/);
-assert.match(localPricing, /localWithTrainPerSedanUsd = Decimal\(200\)/);
+assert.match(localPricing, /transferPerPackageUsd = Decimal\(300\)/);
+assert.match(localPricing, /includeHaramainTrain: Bool = false/);
+assert.match(localPricing, /haramain_train_addon/);
+assert.ok(!localPricing.includes('localWithTrainPerSedanUsd'));
+assert.ok(!localPricing.includes('roadWithMadinahPerSedanUsd'));
 
 // Exact component report remains synchronized into iumrah Business.
 assert.match(localPricing, /GeneratorPricingSnapshot/);

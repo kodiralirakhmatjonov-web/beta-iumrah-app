@@ -314,7 +314,8 @@ struct FinalPackageView: View {
                 includedRow(.returnFlight, value: "\(inbound.airlinesSummary) · \(inbound.flightNumbersSummary)", icon: "airplane.arrival")
             }
 
-            includedRow(.fullTransfer, icon: "car.fill")
+            includedRow(.fullTransfer, value: journey.selectedTransferVehicle?.modelName, icon: "car.fill")
+            if journey.haramainTrainSelected { haramainIncludedRow }
             includedRow(.ziyaratMakkah, icon: "mappin.and.ellipse")
             if needsMadinah { includedRow(.ziyaratMadinah, icon: "mappin.and.ellipse") }
             includedRow(.careSupport, icon: "heart.fill")
@@ -353,6 +354,35 @@ struct FinalPackageView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 9)
+    }
+
+    private var haramainIncludedRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            IumrahIconBadge(systemName: "checkmark", role: .success, size: 30, symbolSize: 12, shape: .circle)
+            Image("HaramainMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 30, height: 30)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Haramain High Speed Railway")
+                    .font(.subheadline.weight(.semibold))
+                Text(haramainIncludedSubtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 9)
+    }
+
+    private var haramainIncludedSubtitle: String {
+        switch settings.language {
+        case .russian: return "Быстрый участок Мекка ↔ Медина добавлен"
+        case .english: return "Fast Makkah ↔ Madinah segment added"
+        case .uzbek: return "Makka ↔ Madina tezkor qismi qo‘shildi"
+        case .uzbekCyrillic: return "Макка ↔ Мадина тезкор қисми қўшилди"
+        }
     }
 
     private var esimIncludedRow: some View {
@@ -575,6 +605,7 @@ struct FinalPackageView: View {
                 roomCategory: journey.selectedRoomCategory,
                 madinahRoom: journey.selectedMadinahRoom,
                 madinahRoomCategory: journey.selectedMadinahRoomCategory,
+                intercityTransport: needsMadinah ? (journey.haramainTrainSelected ? .haramainTrain : .road) : nil,
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,

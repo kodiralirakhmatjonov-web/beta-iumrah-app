@@ -13,6 +13,13 @@ final class JourneyStore: ObservableObject {
     @Published var selectedPublishedOutboundID: String?
     @Published var selectedPublishedReturnID: String?
 
+    // Transfer is a first-class generator stage shared by both flight paths.
+    // The base transfer price is package-wide; vehicle class controls the service
+    // experience, while Haramain is the only optional priced hybrid-route add-on.
+    @Published var selectedTransferVehicle: TransferVehicleKind?
+    @Published var haramainTrainSelected = false
+    @Published var transferSelectionConfirmed = false
+
     @Published var hotels: [HotelSummary] = []
     @Published var selectedHotel: HotelSummary?
     @Published var selectedRoom: HotelRoom?
@@ -189,6 +196,7 @@ final class JourneyStore: ObservableObject {
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
         (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
+        resetTransferSelection()
     }
 
     func resetAfterTripChange(keepingPublishedFlightSelection: Bool = false) {
@@ -215,6 +223,7 @@ final class JourneyStore: ObservableObject {
         cancelHotelPricePrefetch()
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
+        resetTransferSelection()
         (flightService as? AutomaticFlightSearchService)?.invalidateSession()
     }
 
@@ -275,6 +284,7 @@ final class JourneyStore: ObservableObject {
         inboundFlightPrefetchTask = nil
         trip.saudiArrivalDate = nil
         quote = nil
+        transferSelectionConfirmed = false
         (flightService as? AutomaticFlightSearchService)?.invalidateFlightInventory()
     }
 
@@ -311,6 +321,7 @@ final class JourneyStore: ObservableObject {
         selectedOutbound = offer
         selectedInbound = nil
         quote = nil
+        transferSelectionConfirmed = false
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
 
@@ -339,6 +350,7 @@ final class JourneyStore: ObservableObject {
     func chooseInboundFlight(_ offer: FlightOffer) {
         selectedInbound = offer
         quote = nil
+        transferSelectionConfirmed = false
         pricingMakkahRoomID = nil
         pricingMadinahRoomID = nil
 
@@ -380,8 +392,51 @@ final class JourneyStore: ObservableObject {
     }
 
 
+    func recommendedTransferVehicle() -> TransferVehicleKind {
+        if trip.packageTier == .luxury { return .yukon }
+        return trip.travelerCount <= TransferVehicleKind.malibu.passengerCapacity ? .malibu : .carnival
+    }
+
+    func chooseTransferVehicle(_ vehicle: TransferVehicleKind) {
+        guard selectedTransferVehicle != vehicle else { return }
+        selectedTransferVehicle = vehicle
+        transferSelectionConfirmed = false
+        // Rebuild the final generator snapshot so iumrah Business receives the
+        // exact selected vehicle class even though base transfer pricing is fixed.
+        quote = nil
+    }
+
+    func setHaramainTrainSelected(_ selected: Bool) {
+        let allowed = trip.scope == .makkahAndMadinah
+        let resolved = allowed && selected
+        guard haramainTrainSelected != resolved else { return }
+        haramainTrainSelected = resolved
+        transferSelectionConfirmed = false
+        quote = nil
+    }
+
+    func confirmTransferSelection() {
+        if selectedTransferVehicle == nil { selectedTransferVehicle = recommendedTransferVehicle() }
+        transferSelectionConfirmed = true
+    }
+
+    func resetTransferSelection() {
+        selectedTransferVehicle = nil
+        haramainTrainSelected = false
+        transferSelectionConfirmed = false
+    }
+
+    var haramainTrainAddOnUsd: Decimal {
+        LocalPackagePricingEngine.haramainPublicAddOnEstimateUsd(
+            travelers: trip.travelerCount,
+            tier: trip.packageTier
+        )
+    }
+
+
     private func invalidateHotelPriceAndQuote() {
         quote = nil
+        transferSelectionConfirmed = false
         hotelPriceSnapshot = nil
         cancelHotelPricePrefetch()
         pricingMakkahRoomID = nil
@@ -539,7 +594,9 @@ final class JourneyStore: ObservableObject {
                     outboundOffer: outbound,
                     inboundOffer: direction == .inbound ? offer : nil,
                     makkahHotel: makkah,
-                    madinahHotel: madinah
+                    madinahHotel: madinah,
+                    includeHaramainTrain: haramainTrainSelected,
+                    transferVehicle: selectedTransferVehicle
                 )
                 output[offer.id] = preview.pricePerPerson
             }
@@ -652,7 +709,9 @@ final class JourneyStore: ObservableObject {
                 outboundOffer: outbound,
                 inboundOffer: inbound,
                 makkahHotel: makkah,
-                madinahHotel: madinah
+                madinahHotel: madinah,
+                includeHaramainTrain: haramainTrainSelected,
+                transferVehicle: selectedTransferVehicle
             )
             errorMessage = nil
         } catch {

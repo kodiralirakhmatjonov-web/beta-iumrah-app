@@ -4,13 +4,15 @@ enum TripProgressStage: Int, CaseIterable {
     case trip = 1
     case hotel = 2
     case flight = 3
-    case ready = 4
+    case transfer = 4
+    case ready = 5
 
     var localizationKey: String {
         switch self {
         case .trip: return "step_trip"
         case .hotel: return "step_hotel"
         case .flight: return "step_flight"
+        case .transfer: return "step_transfer"
         case .ready: return "step_ready"
         }
     }
@@ -26,7 +28,7 @@ struct IumrahFlowProgress: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(alignment: .firstTextBaseline) {
-                Text("\(FlowCopy.text(.stepOfFour, settings.language)) \(stage.rawValue) / 4")
+                Text("\(FlowCopy.text(.stepOfFour, settings.language)) \(stage.rawValue) / 5")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 12)

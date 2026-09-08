@@ -200,10 +200,10 @@ struct ReturnFlightView: View {
         VStack(spacing: 0) {
             Divider().opacity(0.35)
             NavigationLink {
-                FinalPackageView()
+                TransferSelectionView()
             } label: {
                 HStack(spacing: 10) {
-                    Text(L10n.text("flight_view_package", settings.language))
+                    Text(continueToTransferTitle)
                     Spacer(minLength: 12)
                     Image(systemName: "arrow.right")
                         .font(.system(size: 16, weight: .bold))
@@ -217,6 +217,15 @@ struct ReturnFlightView: View {
             .padding(.bottom, 8)
         }
         .background(Color.iumrahCardBackground)
+    }
+
+    private var continueToTransferTitle: String {
+        switch settings.language {
+        case .russian: return "Выбрать билет и продолжить к трансферу"
+        case .english: return "Select ticket and continue to transfer"
+        case .uzbek: return "Chiptani tanlash va transferga o‘tish"
+        case .uzbekCyrillic: return "Чиптани танлаш ва трансферга ўтиш"
+        }
     }
 
     private func search(continueExisting: Bool) async {
