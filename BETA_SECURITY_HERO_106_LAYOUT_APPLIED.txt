@@ -1,0 +1,9 @@
+iumrah Beta Security hero v6 layout fix
+
+Purpose:
+- move the Security hero identity row away from the top edge;
+- move the product title away from the bottom edge;
+- change the visible hero title from "iUmrah Security" to "Iumrah Security";
+- keep IumrahDataSphere completely separate and untouched.
+
+No backend or hotel deployment is required.

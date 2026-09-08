@@ -1,0 +1,17 @@
+{
+  "patch": "iumrah Beta Security hero v6 layout fix",
+  "date": "2026-09-08",
+  "files": [
+    {
+      "path": "BETA_SECURITY_HERO_106_LAYOUT_APPLIED.txt",
+      "sha256": "e8e57ad0be73e8792dce1b18a9be0ba013fa75f22fd1ef55f5108f64137daae8",
+      "bytes": 345
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
+      "sha256": "723d49507adc27343fa8cc85e6780fea6e284585d2f3e132002ac8fc54c5c39b",
+      "bytes": 47176
+    }
+  ],
+  "notes": "Security hero spacing and capitalization only. IumrahDataSphere and backend are untouched."
+}

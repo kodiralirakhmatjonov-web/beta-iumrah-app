@@ -153,16 +153,18 @@ struct IumrahAccountSecurityView: View {
                     }
                 }
 
-                Spacer(minLength: 36)
+                Spacer(minLength: 30)
 
-                Text("iUmrah Security")
+                Text("Iumrah Security")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .tracking(-0.5)
                     .frame(maxWidth: 148, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(22)
+            .padding(.horizontal, 22)
+            .padding(.top, 30)
+            .padding(.bottom, 34)
         }
         .frame(height: 246)
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
