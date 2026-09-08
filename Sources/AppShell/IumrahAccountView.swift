@@ -549,16 +549,16 @@ struct IumrahAccountView: View {
 
             Divider().padding(.leading, 54)
 
-            Menu {
-                Picker(tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), selection: $settings.appearance) {
-                    ForEach(AppSettingsStore.Appearance.allCases) { appearance in
-                        Text(appearance.title(settings.language)).tag(appearance)
-                    }
-                }
+            NavigationLink {
+                IumrahAppearanceView()
             } label: {
-                settingsRow(icon: "circle.lefthalf.filled", title: tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), value: settings.appearance.title(settings.language))
+                settingsRow(
+                    icon: "circle.lefthalf.filled",
+                    title: tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"),
+                    value: settings.appearance.title(settings.language)
+                )
             }
-            .tint(Color.primary)
+            .buttonStyle(.plain)
 
             Divider().padding(.leading, 54)
 
@@ -753,14 +753,16 @@ struct IumrahAccountView: View {
             }
             .tint(Color.primary)
             Divider().padding(.leading, 54)
-            Menu {
-                Picker(tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), selection: $settings.appearance) {
-                    ForEach(AppSettingsStore.Appearance.allCases) { appearance in Text(appearance.title(settings.language)).tag(appearance) }
-                }
+            NavigationLink {
+                IumrahAppearanceView()
             } label: {
-                settingsRow(icon: "circle.lefthalf.filled", title: tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"), value: settings.appearance.title(settings.language))
+                settingsRow(
+                    icon: "circle.lefthalf.filled",
+                    title: tr("Appearance", "Оформление", "Ko‘rinish", "Кўриниш"),
+                    value: settings.appearance.title(settings.language)
+                )
             }
-            .tint(Color.primary)
+            .buttonStyle(.plain)
             Divider().padding(.leading, 54)
             NavigationLink {
                 AccountNotificationsView()

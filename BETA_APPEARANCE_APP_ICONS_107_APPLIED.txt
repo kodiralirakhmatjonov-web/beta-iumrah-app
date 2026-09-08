@@ -1,0 +1,18 @@
+BETA_APPEARANCE_APP_ICONS_107_APPLIED
+Date: 2026-09-08
+
+Scope:
+- Account > Appearance now opens a dedicated native appearance screen.
+- Existing System / Light / Dark theme selection moved into that screen.
+- Added three user-selectable alternate iOS app icons from the supplied artwork:
+  AppIconFur, AppIconWorld, AppIconMakkah.
+- Added native UIApplication.setAlternateIconName switching with success/error state,
+  current-icon detection, haptics, and a restore-standard-icon action.
+- Added alternate icon sets and in-app preview assets to Assets.xcassets.
+- project.yml preserves the Security Data Sphere Metal source configuration from v5
+  and adds ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES.
+
+No backend changes.
+No database migration.
+No Cloudflare deploy.
+A new iOS/TestFlight build is required.

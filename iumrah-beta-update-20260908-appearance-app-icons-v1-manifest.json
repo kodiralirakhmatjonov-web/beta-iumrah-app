@@ -1,0 +1,253 @@
+{
+  "patch": "iumrah Beta Appearance App Icons 107",
+  "date": "2026-09-08",
+  "source_state": "beta-iumrah-app-main(8) + Security Data Sphere v5 project.yml compatibility",
+  "purpose": "Add a dedicated Account > Appearance screen with native iOS alternate app icon selection using the three supplied icons.",
+  "backend_changes": false,
+  "database_migration_required": false,
+  "cloudflare_deploy_required": false,
+  "testflight_build_required": true,
+  "alternate_app_icon_names": [
+    "AppIconFur",
+    "AppIconWorld",
+    "AppIconMakkah"
+  ],
+  "bootstrap004_marker_restored": true,
+  "files": [
+    {
+      "path": "BETA_APPEARANCE_APP_ICONS_107_APPLIED.txt",
+      "bytes": 810,
+      "sha256": "091b9711b3a1c90623149bd610f84254ec98227504b3059c038f8067b94ab1db"
+    },
+    {
+      "path": "BETA_BOOTSTRAP_004_APPLIED.txt",
+      "bytes": 224,
+      "sha256": "d6b16ac52e0f6e2ef0188f609887d4acd9f20d079cdd861d457f60c8c27d361a"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-1024.png",
+      "bytes": 1013460,
+      "sha256": "3128750e6615a232e605e7394da7a0cb01fa246ea33787b9933dcdd210dad1f3"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-20@2x.png",
+      "bytes": 2353,
+      "sha256": "43f3f3c498b79b1a6caf21f3b66de64fdd0de608f6b201e8ae3e4efdc176238f"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-20@3x.png",
+      "bytes": 4885,
+      "sha256": "fe545728929c08ca9bf15613623c884a338df3fc70ae1352a5cb984bd3a6f0a7"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-29@2x.png",
+      "bytes": 4564,
+      "sha256": "dd033216e355ff11f49c2b2fcfb76a4e99965fd843f9f32a3f4585e6501bc831"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-29@3x.png",
+      "bytes": 10060,
+      "sha256": "4e3f64f792e2d6092b55fb1ce867afecbe870a56bf784bce4053fbfae5a4e90c"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-40@2x.png",
+      "bytes": 8462,
+      "sha256": "6e4c712866aff91bd372d813362b3d530e15f2e170219f2124c3334eb63b9360"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-40@3x.png",
+      "bytes": 18542,
+      "sha256": "35f3c236e756d5292aa3ef46af0af5c1288b789b9d36ff57ad908af8157e9253"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-60@2x.png",
+      "bytes": 18542,
+      "sha256": "35f3c236e756d5292aa3ef46af0af5c1288b789b9d36ff57ad908af8157e9253"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/AppIcon-60@3x.png",
+      "bytes": 40775,
+      "sha256": "c2efbdf21ef8edd927c9ee8b014fe4b76a70296b02e583f098d83dae4db24687"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFur.appiconset/Contents.json",
+      "bytes": 1168,
+      "sha256": "2011bdbff6f46ace391e486725e531d0d4c29852f7521b34fab976d15519bbad"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFurPreview.imageset/Contents.json",
+      "bytes": 369,
+      "sha256": "1a747f04cc0c746b3c9ac93d75ce4c1ad41e91829d26e33b4b7c97054c6a7c51"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFurPreview.imageset/preview@1x.png",
+      "bytes": 12112,
+      "sha256": "29012a04efb8ac614abfdd50adbe43fc4ca9859ea3ad7915993d5fbadfc6d81d"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFurPreview.imageset/preview@2x.png",
+      "bytes": 46259,
+      "sha256": "73cbd945cde40c20c859cd5e3ebbf959c8d1d0fe2299fed8f819318d74a2f632"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconFurPreview.imageset/preview@3x.png",
+      "bytes": 101437,
+      "sha256": "0cc6b5843cc6f57f6594978356ff5c541098f90832a9802197dba5a676a3b070"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-1024.png",
+      "bytes": 827130,
+      "sha256": "a4c1f430555b451a7bdb3ff30b48ebf88523690dcbf45354d70a979443ab9a2a"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-20@2x.png",
+      "bytes": 2963,
+      "sha256": "57b4c62ce7bf8d8ab4808c01af45a17a67ac21bd594ef09f1012d22f53000cee"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-20@3x.png",
+      "bytes": 5784,
+      "sha256": "24dd99777d7c0be54359587178e895ebc42f6a328920dca4cf0d942dfb228e4e"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-29@2x.png",
+      "bytes": 5415,
+      "sha256": "8c0ba9f2fb21d08431a0b54de22fe5899464f690a8cfbbeddc82d2eaeda27202"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-29@3x.png",
+      "bytes": 10967,
+      "sha256": "2c7c9ce2879e9a51d9307887d6bd8d0db3b397d2795bebc7feaeccb308ab3b4e"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-40@2x.png",
+      "bytes": 9453,
+      "sha256": "f9cc73ccbadafd8716f053fd890d8638658a5f72aae77c083d434749ee488c08"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-40@3x.png",
+      "bytes": 19068,
+      "sha256": "f05e9f0780ecc07442d058c29cab06329dd7f26c356b97b309d9ee8107d5d18e"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-60@2x.png",
+      "bytes": 19068,
+      "sha256": "f05e9f0780ecc07442d058c29cab06329dd7f26c356b97b309d9ee8107d5d18e"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/AppIcon-60@3x.png",
+      "bytes": 39063,
+      "sha256": "51126a68822b459f2fb061ceca47d618fdaef83b847ab4b9eb8844f0c92caf25"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkah.appiconset/Contents.json",
+      "bytes": 1168,
+      "sha256": "2011bdbff6f46ace391e486725e531d0d4c29852f7521b34fab976d15519bbad"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkahPreview.imageset/Contents.json",
+      "bytes": 369,
+      "sha256": "1a747f04cc0c746b3c9ac93d75ce4c1ad41e91829d26e33b4b7c97054c6a7c51"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkahPreview.imageset/preview@1x.png",
+      "bytes": 12960,
+      "sha256": "351ca84329c33f4089d09b5db2986ab98019b313d6f83c54546106ca1ad28097"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkahPreview.imageset/preview@2x.png",
+      "bytes": 44027,
+      "sha256": "7e70e8128a2e9b6127c71c22852a38f93a86f0cc40137107ab82e73e551019db"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconMakkahPreview.imageset/preview@3x.png",
+      "bytes": 90194,
+      "sha256": "9f5e88351ca3ce529b6dce492f35916267501cea7bbf2ae59f7a15198a497878"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-1024.png",
+      "bytes": 451231,
+      "sha256": "c7015e85a99ee6153de206b4ab8ffc76d4aafc6ae99bcc3276e1448174da5403"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-20@2x.png",
+      "bytes": 1362,
+      "sha256": "f61248254e4cd5243ec87166dbb503afbf432f4b26cc3e6e4fd4941cea896685"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-20@3x.png",
+      "bytes": 2512,
+      "sha256": "98c3e08f4b3528b96795653709c33ef754f41e3e2620ed6993c7a3ea9227b069"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-29@2x.png",
+      "bytes": 2398,
+      "sha256": "65c85f5a584427a2d7eb4f4051b7912f1d7f208540745e82a355be8d417f0fbc"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-29@3x.png",
+      "bytes": 4433,
+      "sha256": "536a02010351f4fc76cf575b1772f24e028ec50fa235c0c1273074bd14fa98c0"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-40@2x.png",
+      "bytes": 3870,
+      "sha256": "9f0231d0c204d09241c3199fafc955afd4f8780f86c40bf42be96e308151a058"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-40@3x.png",
+      "bytes": 7641,
+      "sha256": "d31cd19d3396743c2c32ee34140b00c4678ef4c342cbcd5df4b0323d1c6e870f"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-60@2x.png",
+      "bytes": 7641,
+      "sha256": "d31cd19d3396743c2c32ee34140b00c4678ef4c342cbcd5df4b0323d1c6e870f"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/AppIcon-60@3x.png",
+      "bytes": 17583,
+      "sha256": "14d52988e8da82f515c1f3d51d8724647895c8a15b37ddfa712dc2ea47b2e5dc"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorld.appiconset/Contents.json",
+      "bytes": 1168,
+      "sha256": "2011bdbff6f46ace391e486725e531d0d4c29852f7521b34fab976d15519bbad"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorldPreview.imageset/Contents.json",
+      "bytes": 369,
+      "sha256": "1a747f04cc0c746b3c9ac93d75ce4c1ad41e91829d26e33b4b7c97054c6a7c51"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorldPreview.imageset/preview@1x.png",
+      "bytes": 5077,
+      "sha256": "a8cbb169957ebce5b988de5e13c77a70e270e64d68b161d41ae6573aa45cd5de"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorldPreview.imageset/preview@2x.png",
+      "bytes": 20744,
+      "sha256": "e1e3e99ff754dbea8a058bfbef8aa515ac87002b1b65d9967c73a06e8afd8bee"
+    },
+    {
+      "path": "Resources/Assets.xcassets/AppIconWorldPreview.imageset/preview@3x.png",
+      "bytes": 50961,
+      "sha256": "5434cab9e945c5295b35f79e59de12f0e5e6e33b0132a72fe83f5eec50da2b7c"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 52285,
+      "sha256": "965bf1dd96881ba86151ce2dee45c190fb50b6802b085ef45da57d36aa65f8af"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAppearanceView.swift",
+      "bytes": 14501,
+      "sha256": "3af0a906e991b74df086895394a849ec1b499ec8f11813a4b6dcb23ea5231e90"
+    },
+    {
+      "path": "project.yml",
+      "bytes": 1956,
+      "sha256": "3fbc8eea73271ef9243dd63c9cacab63f00dea7b6fb491b91eb11a32fd8db85f"
+    }
+  ]
+}
