@@ -111,12 +111,15 @@ struct IumrahAppearanceView: View {
             )
 
             VStack(spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(AppIconOption.allCases) { option in
-                        appIconButton(option)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach(AppIconOption.allCases) { option in
+                            appIconButton(option)
+                        }
                     }
+                    .padding(.horizontal, 1)
                 }
-                .frame(maxWidth: .infinity)
+                .scrollClipDisabled()
 
                 Divider()
 
@@ -223,7 +226,7 @@ struct IumrahAppearanceView: View {
                     .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: 92)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -296,7 +299,9 @@ struct IumrahAppearanceView: View {
 }
 
 private enum AppIconOption: String, CaseIterable, Identifiable {
-    case fur
+    case blue
+    case cyan
+    case deepBlue
     case world
     case makkah
 
@@ -304,7 +309,9 @@ private enum AppIconOption: String, CaseIterable, Identifiable {
 
     var alternateIconName: String {
         switch self {
-        case .fur: return "AppIconFur"
+        case .blue: return "AppIconBlue"
+        case .cyan: return "AppIconCyan"
+        case .deepBlue: return "AppIconDeepBlue"
         case .world: return "AppIconWorld"
         case .makkah: return "AppIconMakkah"
         }
@@ -312,7 +319,9 @@ private enum AppIconOption: String, CaseIterable, Identifiable {
 
     var previewAssetName: String {
         switch self {
-        case .fur: return "AppIconFurPreview"
+        case .blue: return "AppIconBluePreview"
+        case .cyan: return "AppIconCyanPreview"
+        case .deepBlue: return "AppIconDeepBluePreview"
         case .world: return "AppIconWorldPreview"
         case .makkah: return "AppIconMakkahPreview"
         }
@@ -320,26 +329,45 @@ private enum AppIconOption: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .fur: return "Soft"
+        case .blue: return "Blue"
+        case .cyan: return "Cyan"
+        case .deepBlue: return "Deep"
         case .world: return "World"
         case .makkah: return "Makkah"
         }
     }
 
     func accessibilityName(_ language: AppSettingsStore.Language) -> String {
-        switch (self, language) {
-        case (.fur, .russian): return "Пушистая иконка iumrah"
-        case (.world, .russian): return "Иконка iumrah с картой мира"
-        case (.makkah, .russian): return "Иконка iumrah с Каабой"
-        case (.fur, .uzbek): return "Yumshoq iumrah ikonkasi"
-        case (.world, .uzbek): return "Dunyo xaritasi bilan iumrah ikonkasi"
-        case (.makkah, .uzbek): return "Ka’ba bilan iumrah ikonkasi"
-        case (.fur, .uzbekCyrillic): return "Юмшоқ iumrah иконкаси"
-        case (.world, .uzbekCyrillic): return "Дунё харитаси билан iumrah иконкаси"
-        case (.makkah, .uzbekCyrillic): return "Каъба билан iumrah иконкаси"
-        default:
+        switch language {
+        case .russian:
             switch self {
-            case .fur: return "Soft iumrah app icon"
+            case .blue: return "Синяя иконка iumrah"
+            case .cyan: return "Бирюзово-синяя иконка iumrah"
+            case .deepBlue: return "Тёмно-синяя иконка iumrah"
+            case .world: return "Иконка iumrah с картой мира"
+            case .makkah: return "Иконка iumrah с Каабой"
+            }
+        case .uzbek:
+            switch self {
+            case .blue: return "Ko‘k iumrah ikonkasi"
+            case .cyan: return "Moviy iumrah ikonkasi"
+            case .deepBlue: return "To‘q ko‘k iumrah ikonkasi"
+            case .world: return "Dunyo xaritasi bilan iumrah ikonkasi"
+            case .makkah: return "Ka’ba bilan iumrah ikonkasi"
+            }
+        case .uzbekCyrillic:
+            switch self {
+            case .blue: return "Кўк iumrah иконкаси"
+            case .cyan: return "Мовий iumrah иконкаси"
+            case .deepBlue: return "Тўқ кўк iumrah иконкаси"
+            case .world: return "Дунё харитаси билан iumrah иконкаси"
+            case .makkah: return "Каъба билан iumrah иконкаси"
+            }
+        case .english:
+            switch self {
+            case .blue: return "Blue iumrah app icon"
+            case .cyan: return "Cyan iumrah app icon"
+            case .deepBlue: return "Deep blue iumrah app icon"
             case .world: return "iumrah world map app icon"
             case .makkah: return "iumrah Makkah app icon"
             }

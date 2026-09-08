@@ -1,0 +1,8 @@
+BETA_SECURITY_SPHERE_ICONS_108_APPLIED
+2026-09-08
+
+- Reusable IumrahDataSphere now has an always-present Apple-native SpriteKit GPU base beneath the Metal detail layer, so the Security hero can no longer degrade to an empty black card when Metal fails at runtime.
+- The fallback preserves the reference sphere geometry, coherent 3D rotation, micro-digit particles, deep blue/cobalt surface, local cyan core, depth attenuation, rim and sparse additive glints.
+- Appearance removes the rejected fluffy/Fur option from the UI.
+- Adds Blue, Cyan and Deep Blue iumrah PROJECT alternate icons ahead of World and Makkah.
+- Alternate icon switching is declared in CFBundleIcons and backed by raw icon resources as well as asset-catalog alternate icon sets.

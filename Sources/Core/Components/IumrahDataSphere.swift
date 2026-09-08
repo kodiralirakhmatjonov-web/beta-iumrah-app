@@ -36,11 +36,27 @@ struct IumrahDataSphere: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        IumrahDataSphereMetalView(
-            state: state,
-            intensity: Float(max(0.0, min(intensity, 1.25))),
-            reduceMotion: reduceMotion
-        )
+        let resolvedIntensity = Float(max(0.0, min(intensity, 1.25)))
+
+        ZStack {
+            // Always-present Apple-native GPU base. This prevents the component
+            // from ever degrading into an empty black area on a device where a
+            // Metal shader/pipeline fails to initialise.
+            IumrahDataSphereFallbackView(
+                state: state,
+                intensity: resolvedIntensity,
+                reduceMotion: reduceMotion
+            )
+
+            // High-density Metal detail layer. It remains transparent outside
+            // the sphere, so the SpriteKit base is both a safety net and a
+            // restrained under-layer when Metal is healthy.
+            IumrahDataSphereMetalView(
+                state: state,
+                intensity: resolvedIntensity,
+                reduceMotion: reduceMotion
+            )
+        }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

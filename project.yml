@@ -36,6 +36,8 @@ targets:
         buildPhase: resources
       - path: Resources/Animations
         buildPhase: resources
+      - path: Resources/AlternateIcons
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta
@@ -48,7 +50,7 @@ targets:
         INFOPLIST_FILE: Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Resources/iumrahBeta.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconFur AppIconWorld AppIconMakkah"
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconBlue AppIconCyan AppIconDeepBlue AppIconWorld AppIconMakkah"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
     scheme:
       testTargets: []
