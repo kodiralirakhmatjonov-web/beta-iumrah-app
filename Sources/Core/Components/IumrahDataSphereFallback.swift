@@ -76,7 +76,7 @@ private extension IumrahDataSphere.MotionState {
     }
 }
 
-fileprivate final class IumrahDataSphereFallbackScene: SKScene {
+final class IumrahDataSphereFallbackScene: SKScene {
     private static let particleCount = 3_600
     private static let centerInset: CGFloat = 37.6 / 512.0
     private static let centerY: CGFloat = 254.6 / 512.0
