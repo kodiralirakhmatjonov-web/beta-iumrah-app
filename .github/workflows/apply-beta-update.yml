@@ -74,6 +74,12 @@ jobs:
           test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
           echo 'iumrah Beta patch structure validated.'
 
+      - name: Remove applied ZIP files
+        run: |
+          set -euo pipefail
+          rm -f -- iumrah-beta-update-*.zip
+          echo 'Applied iumrah Beta ZIP files removed.'
+
       - name: Commit applied files
         run: |
           set -euo pipefail
