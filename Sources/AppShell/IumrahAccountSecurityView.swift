@@ -113,34 +113,30 @@ struct IumrahAccountSecurityView: View {
     private var securityHero: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.black,
-                            Color(red: 0.004, green: 0.018, blue: 0.026),
-                            Color(red: 0.006, green: 0.052, blue: 0.070)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.black)
 
-            // The renderer is a standalone reusable component. Security owns
-            // the composition, copy and identifier independently.
-            IumrahDataSphere(state: .idle, intensity: 1.24)
-                .frame(width: 286, height: 286)
-                .offset(x: 98, y: -20)
+            // Standalone reusable renderer. The sphere owns only pixels and
+            // motion; Security owns all copy, identity and composition.
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                IumrahDataSphere(state: .idle, intensity: 1.00)
+                    .frame(width: 292, height: 292)
+                    .offset(x: 18, y: -24)
+            }
 
+            // A restrained left-side readability veil keeps the product copy
+            // separate from the moving data field without muting the sphere.
             LinearGradient(
-                colors: [
-                    .black.opacity(0.86),
-                    .black.opacity(0.30),
-                    .clear
+                stops: [
+                    .init(color: .black.opacity(0.98), location: 0.00),
+                    .init(color: .black.opacity(0.90), location: 0.36),
+                    .init(color: .black.opacity(0.38), location: 0.63),
+                    .init(color: .clear, location: 0.86)
                 ],
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            .frame(width: 162)
+            .frame(width: 205)
             .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -148,27 +144,27 @@ struct IumrahAccountSecurityView: View {
                     Image(systemName: "lock.shield.fill")
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(Color.iumrahCareLight)
-                        .shadow(color: Color.iumrahCareLight.opacity(0.22), radius: 10)
+                        .shadow(color: Color.iumrahCareLight.opacity(0.18), radius: 8)
 
                     if let overview {
                         Text("ID \(overview.iumrahID)")
                             .font(.caption.monospaced().weight(.bold))
-                            .foregroundStyle(.white.opacity(0.66))
+                            .foregroundStyle(.white.opacity(0.64))
                     }
                 }
 
-                Spacer(minLength: 28)
+                Spacer(minLength: 36)
 
                 Text("iUmrah Security")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .tracking(-0.5)
-                    .frame(maxWidth: 172, alignment: .leading)
+                    .frame(maxWidth: 148, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(22)
         }
-        .frame(height: 238)
+        .frame(height: 246)
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 24, y: 12)
     }

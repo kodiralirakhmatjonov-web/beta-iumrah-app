@@ -1,0 +1,13 @@
+{
+  "id": "BETA_SECURITY_DATA_SPHERE_104",
+  "title": "Security data sphere final v4",
+  "scope": "iOS beta native UI only",
+  "files": [
+    "Sources/Core/Components/IumrahDataSphere.swift",
+    "Sources/Core/Components/IumrahDataSphereShaders.metal",
+    "Sources/AppShell/IumrahAccountSecurityView.swift",
+    "BETA_SECURITY_DATA_SPHERE_104_APPLIED.txt"
+  ],
+  "backend_deploy_required": false,
+  "ios_rebuild_required": true
+}

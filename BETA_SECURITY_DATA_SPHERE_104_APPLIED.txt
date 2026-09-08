@@ -1,0 +1,14 @@
+BETA SECURITY DATA SPHERE 104
+Final reference-calibrated native renderer.
+
+- Standalone SwiftUI host + MTKView + Metal renderer.
+- Geometry calibrated from the supplied 512x512 reference clip.
+- 18,400 deterministic 3D particles split across shell, volume and sparse stray layers.
+- Every particle is a real SF monospaced digit (0-9) sampled from a runtime native glyph atlas.
+- Mipmapped micro-glyphs collapse visually into fine data points at distance while larger foreground glyphs remain recognisable as digits.
+- Deep-blue palette with localised cyan inner core; no full-sphere cyan wash.
+- Separate sparse glint pass restores isolated bright reference points without additive overexposure.
+- Coherent 3D rotation, depth attenuation, filaments, subtle shimmer and rare glints.
+- Normal alpha blending replaces the previous over-bright additive particle wall.
+- Security text/ID remain outside the reusable renderer.
+- Security hero uses a trailing square component to preserve the reference composition.
