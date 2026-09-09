@@ -18,7 +18,7 @@ final class JourneyStore: ObservableObject {
     // experience, while Haramain is the only optional priced hybrid-route add-on.
     @Published var selectedTransferVehicle: TransferVehicleKind?
     @Published var haramainTrainSelected = false
-    @Published var haramainFareClass: HaramainFareClass = .business
+    @Published var haramainFareClass: HaramainFareClass = .economy
     @Published var haramainAdultTickets = 0
     @Published var haramainChildTickets = 0
     @Published var transferSelectionConfirmed = false
@@ -466,7 +466,7 @@ final class JourneyStore: ObservableObject {
     func resetTransferSelection() {
         selectedTransferVehicle = nil
         haramainTrainSelected = false
-        haramainFareClass = .business
+        haramainFareClass = .economy
         haramainAdultTickets = 0
         haramainChildTickets = 0
         transferSelectionConfirmed = false

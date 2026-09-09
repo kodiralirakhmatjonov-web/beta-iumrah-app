@@ -1,5 +1,16 @@
 import SwiftUI
 
+private enum FinalPackageServiceSection: Hashable {
+    case outboundFlight
+    case makkahHotel
+    case madinahHotel
+    case returnFlight
+    case transfer
+    case haramain
+    case visa
+    case meals
+}
+
 struct FinalPackageView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -14,6 +25,7 @@ struct FinalPackageView: View {
     @State private var showCreatedBooking = false
     @State private var isCalculatingPrice = false
     @State private var showCareExplanation = false
+    @State private var expandedService: FinalPackageServiceSection?
 
     private var needsMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canBook: Bool {
@@ -302,26 +314,92 @@ struct FinalPackageView: View {
                 .padding(.bottom, 12)
 
             if let outbound = journey.selectedOutbound {
-                includedRow(.outboundFlight, value: "\(outbound.airlinesSummary) · \(outbound.flightNumbersSummary)", icon: "airplane.departure")
-            }
-            if let makkah = journey.selectedHotel {
-                includedRow(.makkahHotel, value: makkah.name, icon: "building.2.fill")
-            }
-            if needsMadinah, let madinah = journey.selectedMadinahHotel {
-                includedRow(.madinahHotel, value: madinah.name, icon: "building.2.fill")
-            }
-            if let inbound = journey.selectedInbound {
-                includedRow(.returnFlight, value: "\(inbound.airlinesSummary) · \(inbound.flightNumbersSummary)", icon: "airplane.arrival")
+                expandableServiceRow(
+                    .outboundFlight,
+                    title: FlowCopy.text(.outboundFlight, settings.language),
+                    subtitle: "\(outbound.airlinesSummary) · \(outbound.flightNumbersSummary)",
+                    icon: "airplane.departure"
+                ) {
+                    flightExpandedContent(outbound)
+                }
             }
 
-            includedRow(.fullTransfer, value: journey.selectedTransferVehicle?.modelName, icon: "car.fill")
-            if journey.haramainTrainSelected { haramainIncludedRow }
-            includedRow(.ziyaratMakkah, icon: "mappin.and.ellipse")
-            if needsMadinah { includedRow(.ziyaratMadinah, icon: "mappin.and.ellipse") }
-            includedRow(.careSupport, icon: "heart.fill")
-            includedRow(.guide, icon: "person.2.fill")
-            includedRow(.visa, icon: "doc.text.fill")
-            includedRow(.meals, icon: "fork.knife")
+            if let makkah = journey.selectedHotel {
+                expandableServiceRow(
+                    .makkahHotel,
+                    title: FlowCopy.text(.makkahHotel, settings.language),
+                    subtitle: makkah.name,
+                    icon: "building.2.fill"
+                ) {
+                    hotelExpandedContent(makkah, cityLabel: "Makkah", roomName: journey.selectedRoom?.name ?? journey.selectedRoomCategory?.displayName)
+                }
+            }
+
+            if needsMadinah, let madinah = journey.selectedMadinahHotel {
+                expandableServiceRow(
+                    .madinahHotel,
+                    title: FlowCopy.text(.madinahHotel, settings.language),
+                    subtitle: madinah.name,
+                    icon: "building.2.fill"
+                ) {
+                    hotelExpandedContent(madinah, cityLabel: "Madinah", roomName: journey.selectedMadinahRoom?.name ?? journey.selectedMadinahRoomCategory?.displayName)
+                }
+            }
+
+            if let inbound = journey.selectedInbound {
+                expandableServiceRow(
+                    .returnFlight,
+                    title: FlowCopy.text(.returnFlight, settings.language),
+                    subtitle: "\(inbound.airlinesSummary) · \(inbound.flightNumbersSummary)",
+                    icon: "airplane.arrival"
+                ) {
+                    flightExpandedContent(inbound)
+                }
+            }
+
+            expandableServiceRow(
+                .transfer,
+                title: FlowCopy.text(.fullTransfer, settings.language),
+                subtitle: journey.selectedTransferVehicle?.modelName ?? "Kia Carnival",
+                icon: "car.fill"
+            ) {
+                transferExpandedContent
+            }
+
+            if journey.haramainTrainSelected {
+                expandableServiceRow(
+                    .haramain,
+                    title: "Haramain High Speed Railway",
+                    subtitle: haramainIncludedSubtitle,
+                    customImage: "HaramainMark"
+                ) {
+                    haramainExpandedContent
+                }
+            }
+
+            staticIncludedRow(.ziyaratMakkah, icon: "mappin.and.ellipse")
+            if needsMadinah { staticIncludedRow(.ziyaratMadinah, icon: "mappin.and.ellipse") }
+            staticIncludedRow(.careSupport, icon: "heart.fill")
+            staticIncludedRow(.guide, icon: "person.2.fill")
+
+            expandableServiceRow(
+                .visa,
+                title: FlowCopy.text(.visa, settings.language),
+                subtitle: FlowCopy.text(.included, settings.language),
+                icon: "doc.text.fill"
+            ) {
+                visaExpandedContent
+            }
+
+            expandableServiceRow(
+                .meals,
+                title: FlowCopy.text(.meals, settings.language),
+                subtitle: mealsSummary,
+                icon: "fork.knife"
+            ) {
+                mealsExpandedContent
+            }
+
             esimIncludedRow
         }
         .padding(20)
@@ -330,19 +408,83 @@ struct FinalPackageView: View {
         .overlay { RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5) }
     }
 
-    private func includedRow(_ key: FlowCopy.Key, value: String? = nil, icon: String) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            IumrahIconBadge(
-                systemName: "checkmark",
-                role: .success,
-                size: 30,
-                symbolSize: 12,
-                shape: .circle
-            )
+    @ViewBuilder
+    private func expandableServiceRow<Content: View>(
+        _ section: FinalPackageServiceSection,
+        title: String,
+        subtitle: String,
+        icon: String? = nil,
+        customImage: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let expanded = expandedService == section
 
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.90)) {
+                    expandedService = expanded ? nil : section
+                }
+                IumrahHaptics.selection()
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    IumrahIconBadge(
+                        systemName: "checkmark",
+                        role: .success,
+                        size: 30,
+                        symbolSize: 12,
+                        shape: .circle
+                    )
+
+                    if let customImage {
+                        Image(customImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 28, height: 28)
+                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    } else if let icon {
+                        IumrahInlineIcon(systemName: icon, size: 15)
+                            .frame(width: 22)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(expanded ? 3 : 2)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.iumrahRaisedBackground, in: Circle())
+                }
+                .contentShape(Rectangle())
+                .padding(.vertical, 9)
+            }
+            .buttonStyle(.plain)
+
+            if expanded {
+                Divider().padding(.leading, 42)
+                content()
+                    .padding(.leading, 42)
+                    .padding(.top, 12)
+                    .padding(.bottom, 14)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func staticIncludedRow(_ key: FlowCopy.Key, value: String? = nil, icon: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            IumrahIconBadge(systemName: "checkmark", role: .success, size: 30, symbolSize: 12, shape: .circle)
             IumrahInlineIcon(systemName: icon, size: 15)
                 .frame(width: 22)
-
             VStack(alignment: .leading, spacing: 2) {
                 Text(FlowCopy.text(key, settings.language))
                     .font(.subheadline.weight(.semibold))
@@ -356,34 +498,352 @@ struct FinalPackageView: View {
         .padding(.vertical, 9)
     }
 
-    private var haramainIncludedRow: some View {
-        HStack(alignment: .center, spacing: 12) {
-            IumrahIconBadge(systemName: "checkmark", role: .success, size: 30, symbolSize: 12, shape: .circle)
-            Image("HaramainMark")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 30, height: 30)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Haramain High Speed Railway")
-                    .font(.subheadline.weight(.semibold))
-                Text(haramainIncludedSubtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+    private func flightExpandedContent(_ offer: FlightOffer) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(offer.origin)
+                        .font(.title3.weight(.bold))
+                    Text(shortFlightDate(offer.departureAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(shortFlightTime(offer.departureAt))
+                        .font(.headline.monospacedDigit())
+                }
+
+                Spacer()
+
+                VStack(spacing: 4) {
+                    Image(systemName: "airplane")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(durationText(offer.durationMinutes))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 3)
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(offer.destination)
+                        .font(.title3.weight(.bold))
+                    Text(shortFlightDate(offer.arrivalAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(shortFlightTime(offer.arrivalAt))
+                        .font(.headline.monospacedDigit())
+                }
             }
-            Spacer(minLength: 0)
+
+            HStack(spacing: 8) {
+                bookingDetailChip(icon: "airplane.circle", text: offer.stops == 0 ? directFlightTitle : "\(offer.stops) stop")
+                if let cabin = offer.cabinClass?.nilIfBlank {
+                    bookingDetailChip(icon: "seat.recline.normal", text: cabin)
+                }
+                if let checked = offer.baggage?.checked {
+                    bookingDetailChip(icon: "suitcase.fill", text: "\(checked) kg")
+                }
+            }
+
+            if let segments = offer.segments, segments.count > 1 {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(segments) { segment in
+                        HStack {
+                            Text("\(segment.origin.code) → \(segment.destination.code)")
+                                .font(.caption.weight(.bold))
+                            Spacer()
+                            Text("\(segment.airline) · \(segment.flightNumber)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
         }
-        .padding(.vertical, 9)
+        .padding(14)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
+    private func hotelExpandedContent(_ hotel: HotelSummary, cityLabel: String, roomName: String?) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            AsyncImage(url: AppConfig.absoluteURL(hotel.coverImageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    ZStack {
+                        LinearGradient(colors: [Color.iumrahRaisedBackground, Color.iumrahPageBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        Image(systemName: "building.2.fill").font(.system(size: 34)).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 150)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(hotel.name).font(.headline)
+                    Text(cityLabel).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let stars = hotel.stars {
+                    Label("\(stars)", systemImage: "star.fill")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 9)
+                        .frame(height: 30)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
+                }
+            }
+
+            if let roomName, !roomName.isEmpty {
+                bookingDetailChip(icon: "bed.double.fill", text: roomName)
+            }
+        }
+    }
+
+    private var transferExpandedContent: some View {
+        let vehicle = journey.selectedTransferVehicle ?? .carnival
+        return VStack(alignment: .leading, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(vehicle == .yukon ? Color.black : Color.iumrahRaisedBackground)
+                if vehicle == .yukon {
+                    RadialGradient(colors: [.white.opacity(0.55), .white.opacity(0.12), .clear], center: .center, startRadius: 8, endRadius: 150)
+                }
+                Image(vehicle.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(10)
+            }
+            .frame(height: 180)
+
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(vehicle.modelName).font(.headline)
+                    Text(vehicle == .yukon ? "VIP Transfer" : "iumrah Transfer")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                bookingDetailChip(icon: "person.2.fill", text: "\(journey.trip.travelerCount)/\(vehicle.passengerCapacity)")
+            }
+
+            transferRouteSummary
+        }
+    }
+
+    private var transferRouteSummary: some View {
+        HStack(spacing: 0) {
+            bookingRouteStop("airplane.arrival", label: journey.trip.arrivalAirport.rawValue)
+            bookingRouteLine
+            bookingRouteStop("building.2.fill", label: "Makkah")
+            if needsMadinah {
+                bookingRouteLine
+                bookingRouteStop(journey.haramainTrainSelected ? "train.side.front.car" : "car.fill", label: journey.haramainTrainSelected ? "Train" : "Intercity")
+                bookingRouteLine
+                bookingRouteStop("building.2.fill", label: "Madinah")
+            }
+            bookingRouteLine
+            bookingRouteStop("airplane.departure", label: journey.trip.returnOriginCode)
+        }
+        .padding(12)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var haramainExpandedContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 9) {
+                    ForEach(["HaramainHero", "HaramainGalleryStation", "HaramainGalleryInterior", "HaramainGalleryTrain"], id: \.self) { name in
+                        Image(name)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 210, height: 125)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                bookingDetailChip(icon: "speedometer", text: "300 km/h")
+                bookingDetailChip(icon: "clock.fill", text: "≈ 2h 20m")
+                bookingDetailChip(icon: "wifi", text: "Wi‑Fi")
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Standard").font(.subheadline.weight(.bold))
+                    Text("\(max(1, journey.haramainTicketCount)) × $150")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("+$\(haramainAmountNumber)")
+                    .font(.headline.monospacedDigit())
+            }
+        }
+    }
+
+    private var visaExpandedContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(visaMultipleEntryTitle, systemImage: "checkmark.seal.fill")
+                .font(.headline)
+            Text(visaExplanation)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                bookingDetailChip(icon: "calendar", text: visaOneYearTitle)
+                bookingDetailChip(icon: "arrow.triangle.2.circlepath", text: visaMultipleTitle)
+                bookingDetailChip(icon: "clock", text: visaNinetyDaysTitle)
+            }
+        }
+        .padding(14)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var mealsExpandedContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(mealGalleryURLs, id: \.absoluteString) { url in
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image): image.resizable().scaledToFill()
+                            default:
+                                ZStack {
+                                    LinearGradient(colors: [Color.orange.opacity(0.18), Color.iumrahRaisedBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                    Image(systemName: "fork.knife.circle.fill")
+                                        .font(.system(size: 34))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .frame(width: 205, height: 132)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                mealCountPill(city: "Makkah", count: 3)
+                if needsMadinah { mealCountPill(city: "Madinah", count: 2) }
+            }
+
+            Text(mealsExplanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func bookingDetailChip(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Color.iumrahRaisedBackground, in: Capsule())
+    }
+
+    private func bookingRouteStop(_ icon: String, label: String) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+            Text(label).font(.caption2.weight(.semibold)).lineLimit(1)
+        }
+        .frame(minWidth: 46)
+    }
+
+    private var bookingRouteLine: some View {
+        Capsule().fill(Color.primary.opacity(0.18)).frame(width: 18, height: 2).offset(y: -8)
+    }
+
+    private func mealCountPill(city: String, count: Int) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "fork.knife")
+            Text("\(city) · \(count)×")
+        }
+        .font(.caption.weight(.bold))
+        .padding(.horizontal, 11)
+        .frame(height: 34)
+        .background(Color.iumrahRaisedBackground, in: Capsule())
+    }
+
+    private var mealGalleryURLs: [URL] {
+        [
+            "https://images.unsplash.com/photo-1679312061521-d7d619a8cfb7?auto=format&fit=crop&w=900&q=78",
+            "https://images.unsplash.com/photo-1679312182375-28464cfc00d7?auto=format&fit=crop&w=900&q=78",
+            "https://images.unsplash.com/photo-1760594308930-06b631dd916b?auto=format&fit=crop&w=900&q=78"
+        ].compactMap { URL(string: $0) }
+    }
+
+    private var mealsSummary: String {
+        needsMadinah ? localizedFinal("3 раза в Мекке · 2 раза в Медине", "3 meals in Makkah · 2 in Madinah", "Makkada 3 marta · Madinada 2 marta", "Маккада 3 марта · Мадинада 2 марта") : localizedFinal("3 раза в Мекке", "3 meals in Makkah", "Makkada 3 marta", "Маккада 3 марта")
+    }
+
+    private var mealsExplanation: String {
+        localizedFinal(
+            "Питание включено в программу пакета. Конкретные рестораны и время приёмов пищи подтверждаются в деталях поездки.",
+            "Meals are included in the package program. Specific restaurants and meal times are confirmed in your trip details.",
+            "Ovqatlanish paket dasturiga kiritilgan. Aniq restoranlar va vaqtlar safar tafsilotlarida tasdiqlanadi.",
+            "Овқатланиш пакет дастурига киритилган. Аниқ ресторанлар ва вақтлар сафар тафсилотларида тасдиқланади."
+        )
+    }
+
+    private var directFlightTitle: String { localizedFinal("Прямой", "Direct", "To‘g‘ridan-to‘g‘ri", "Тўғридан-тўғри") }
+
     private var haramainIncludedSubtitle: String {
-        let fare = journey.haramainFareClass == .business ? "Business" : "Economy"
         let tickets = max(1, journey.haramainTicketCount)
+        return localizedFinal("Мекка ↔ Медина · Standard · \(tickets) бил.", "Makkah ↔ Madinah · Standard · \(tickets) tickets", "Makka ↔ Madina · Standard · \(tickets) chipta", "Макка ↔ Мадина · Standard · \(tickets) чипта")
+    }
+
+    private var haramainAmountNumber: String {
+        let value = NSDecimalNumber(decimal: journey.haramainTrainAddOnUsd).doubleValue
+        return String(format: "%.0f", value)
+    }
+
+    private func shortFlightDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: date)
+    }
+
+    private func shortFlightTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func durationText(_ minutes: Int) -> String {
+        let h = max(0, minutes) / 60
+        let m = max(0, minutes) % 60
+        return m == 0 ? "\(h)h" : "\(h)h \(m)m"
+    }
+
+    private var visaMultipleEntryTitle: String { localizedFinal("Туристическая eVisa", "Tourist eVisa", "Turistik eVisa", "Туристик eVisa") }
+    private var visaOneYearTitle: String { localizedFinal("1 год", "1 year", "1 yil", "1 йил") }
+    private var visaMultipleTitle: String { localizedFinal("Многократный въезд", "Multiple entry", "Ko‘p martalik kirish", "Кўп марталик кириш") }
+    private var visaNinetyDaysTitle: String { localizedFinal("до 90 дней", "up to 90 days", "90 kungacha", "90 кунгача") }
+    private var visaExplanation: String {
+        localizedFinal(
+            "Электронная туристическая виза Саудовской Аравии действует один год с даты выдачи и предусматривает многократный въезд, если в самой визе не указано иное. Максимальный разрешённый срок пребывания по eVisa — до 90 дней.",
+            "Saudi Arabia's tourist eVisa is valid for one year from issuance and permits multiple entries unless the issued visa states otherwise. The maximum permitted stay under the eVisa is up to 90 days.",
+            "Saudiya Arabistonining turistik eVisa-si berilgan kundan boshlab bir yil amal qiladi va vizada boshqacha ko‘rsatilmagan bo‘lsa, ko‘p martalik kirishga ruxsat beradi. eVisa bo‘yicha maksimal qolish muddati 90 kungacha.",
+            "Саудия Арабистонининг туристик eVisa-си берилган кундан бошлаб бир йил амал қилади ва визада бошқача кўрсатилмаган бўлса, кўп марталик киришга рухсат беради. eVisa бўйича максимал қолиш муддати 90 кунгача."
+        )
+    }
+
+    private func localizedFinal(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
-        case .russian: return "Мекка ↔ Медина · \(fare) · \(tickets) бил."
-        case .english: return "Makkah ↔ Madinah · \(fare) · \(tickets) tickets"
-        case .uzbek: return "Makka ↔ Madina · \(fare) · \(tickets) chipta"
-        case .uzbekCyrillic: return "Макка ↔ Мадина · \(fare) · \(tickets) чипта"
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCy
         }
     }
 
@@ -445,11 +905,19 @@ struct FinalPackageView: View {
                 } label: {
                     HStack {
                         Text(careHowItWorks)
+                            .font(.headline)
                         Spacer()
                         Image(systemName: "arrow.up.right")
+                            .font(.system(size: 14, weight: .bold))
                     }
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
-                .buttonStyle(IumrahSecondaryButtonStyle())
+                .buttonStyle(.plain)
             }
             .padding(18)
         }

@@ -18,12 +18,11 @@ struct TransferSelectionView: View {
     @State private var selectedIndex = 1
     @State private var dragOffset: CGFloat = 0
     @State private var basePackagePriceUsd: Decimal?
-    @State private var showTrainBooking = false
     @State private var showFinalPackage = false
     @State private var isConfirming = false
     @State private var confirmationError: String?
 
-    private let searchDuration = 30
+    @State private var searchDuration = Int.random(in: 20...40)
     private let vehicles = TransferVehicleKind.allCases
 
     private var selectedVehicle: TransferVehicleKind {
@@ -65,14 +64,6 @@ struct TransferSelectionView: View {
         .navigationDestination(isPresented: $showFinalPackage) {
             FinalPackageView()
         }
-        .sheet(isPresented: $showTrainBooking) {
-            HaramainTrainBookingSheet(
-                routeTitle: trainSegmentTitle,
-                language: settings.language
-            )
-            .environmentObject(journey)
-            .environmentObject(settings)
-        }
         .alert(errorTitle, isPresented: Binding(
             get: { confirmationError != nil },
             set: { if !$0 { confirmationError = nil } }
@@ -92,7 +83,7 @@ struct TransferSelectionView: View {
 
     private var searchExperience: some View {
         ZStack {
-            TransferLiveSearchMap(second: searchSecond, reduceMotion: reduceMotion)
+            TransferLiveSearchMap(second: searchSecond, searchDuration: searchDuration, reduceMotion: reduceMotion)
                 .ignoresSafeArea(edges: .bottom)
 
             LinearGradient(
@@ -153,16 +144,16 @@ struct TransferSelectionView: View {
                 Spacer(minLength: 8)
 
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text("\(min(searchSecond, searchDuration)) / \(searchDuration)s")
+                    Text("\(searchSecond)s")
                         .font(.caption.monospacedDigit().weight(.bold))
-                    Text(localized("поиск", "search", "qidiruv", "қидирув"))
+                        .contentTransition(.numericText())
+                    Text(localized("идёт поиск", "searching", "qidiruv", "қидирув"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            ProgressView(value: Double(min(searchSecond, searchDuration)), total: Double(searchDuration))
-                .tint(.blue)
+            TransferSearchActivityBar(second: searchSecond)
 
             HStack(spacing: 8) {
                 searchChip(icon: "location.fill", text: routeTitle)
@@ -203,7 +194,7 @@ struct TransferSelectionView: View {
     }
 
     private var nearbyVehicleCount: Int {
-        min(9, 3 + searchSecond / 4)
+        min(11, 2 + searchSecond / 3)
     }
 
     private var searchStatusTitle: String {
@@ -399,6 +390,8 @@ struct TransferSelectionView: View {
                 }
             }
 
+            transferCoverageCard
+
             Divider()
 
             HStack(alignment: .lastTextBaseline) {
@@ -478,25 +471,21 @@ struct TransferSelectionView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(localized("Билеты для вашей группы", "Tickets for your party", "Guruhingiz uchun chiptalar", "Гуруҳингиз учун чипталар"))
                             .font(.subheadline.weight(.semibold))
-                        Text(haramainTicketSummary)
+                        Text(localized("Standard", "Standard", "Standard", "Standard") + " · " + usd(Decimal(150)) + " / " + localized("паломник", "pilgrim", "ziyoratchi", "зиёратчи"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text("+\(usd(journey.haramainTrainAddOnUsd))")
+                    Text("+\(usd(standardTrainPreviewUsd))")
                         .font(.title3.monospacedDigit().weight(.bold))
-                }
-
-                HStack(spacing: 10) {
-                    fareClassButton(.economy)
-                    fareClassButton(.business)
+                        .contentTransition(.numericText())
                 }
 
                 Divider()
 
                 CounterRow(
                     title: L10n.text("adults", settings.language),
-                    subtitle: usd(journey.haramainFareClass.publicSeatPriceUsd) + " / " + localized("билет", "ticket", "chipta", "чипта"),
+                    subtitle: usd(Decimal(150)) + " / " + localized("билет", "ticket", "chipta", "чипта"),
                     value: Binding(
                         get: { journey.haramainAdultTickets },
                         set: { journey.setHaramainAdultTickets($0) }
@@ -509,7 +498,7 @@ struct TransferSelectionView: View {
                     Divider()
                     CounterRow(
                         title: L10n.text("children", settings.language),
-                        subtitle: usd(journey.haramainFareClass.publicSeatPriceUsd) + " / " + localized("место", "seat", "joy", "жой"),
+                        subtitle: usd(Decimal(150)) + " / " + localized("место", "seat", "joy", "жой"),
                         value: Binding(
                             get: { journey.haramainChildTickets },
                             set: { journey.setHaramainChildTickets($0) }
@@ -524,24 +513,36 @@ struct TransferSelectionView: View {
 
             Button {
                 journey.ensureHaramainTicketDefaults()
-                showTrainBooking = true
-                IumrahHaptics.soft()
+                journey.setHaramainFareClass(.economy)
+                journey.setHaramainTrainSelected(!journey.haramainTrainSelected)
+                journey.haramainTrainSelected ? IumrahHaptics.success() : IumrahHaptics.selection()
             } label: {
-                HStack {
+                HStack(spacing: 12) {
+                    Image(systemName: journey.haramainTrainSelected ? "checkmark.circle.fill" : "plus.circle.fill")
+                        .font(.system(size: 20, weight: .bold))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(journey.haramainTrainSelected
-                             ? localized("Изменить билеты", "Manage train tickets", "Chiptalarni o‘zgartirish", "Чипталарни ўзгартириш")
-                             : localized("Выбрать Haramain", "Choose Haramain", "Haramain-ni tanlash", "Haramain-ни танлаш"))
-                        Text(localized("Бронирование и подтверждение", "Booking and confirmation", "Band qilish va tasdiqlash", "Банд қилиш ва тасдиқлаш"))
+                             ? localized("Поезд подключён", "Train added", "Poyezd qo‘shildi", "Поезд қўшилди")
+                             : localized("Подключить поезд к поездке", "Add train to this trip", "Poyezdni safarga qo‘shish", "Поездни сафарга қўшиш"))
+                            .font(.headline)
+                        Text(journey.haramainTrainSelected
+                             ? localized("Нажмите, чтобы отключить", "Tap to remove", "Olib tashlash uchun bosing", "Олиб ташлаш учун босинг")
+                             : "+" + usd(standardTrainPreviewUsd) + " · Standard")
                             .font(.caption)
                             .opacity(0.72)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right")
+                    Image(systemName: journey.haramainTrainSelected ? "checkmark" : "arrow.right")
+                        .font(.system(size: 14, weight: .bold))
                 }
+                .foregroundStyle(journey.haramainTrainSelected ? Color.white : Color.white)
+                .padding(.horizontal, 17)
                 .frame(maxWidth: .infinity)
+                .frame(height: 62)
+                .background(journey.haramainTrainSelected ? Color.green : Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
-            .buttonStyle(IumrahPrimaryButtonStyle())
+            .buttonStyle(.plain)
         }
         .padding(18)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
@@ -557,31 +558,6 @@ struct TransferSelectionView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 38)
             .background(Color.iumrahRaisedBackground, in: Capsule())
-    }
-
-    private func fareClassButton(_ fareClass: HaramainFareClass) -> some View {
-        let selected = journey.haramainFareClass == fareClass
-        return Button {
-            journey.setHaramainFareClass(fareClass)
-            IumrahHaptics.selection()
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(haramainFareTitle(fareClass))
-                    .font(.caption.weight(.bold))
-                Text("\(usd(fareClass.publicSeatPriceUsd)) / " + localized("гость", "guest", "mehmon", "меҳмон"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .frame(height: 54)
-            .background(selected ? Color.primary.opacity(0.09) : Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(selected ? Color.primary.opacity(0.35) : Color.primary.opacity(0.06), lineWidth: selected ? 1.2 : 0.7)
-            }
-        }
-        .buttonStyle(.plain)
     }
 
     private var confirmationButton: some View {
@@ -612,6 +588,7 @@ struct TransferSelectionView: View {
     @MainActor
     private func startDiscoveryIfNeeded() async {
         journey.ensureHaramainTicketDefaults()
+        journey.setHaramainFareClass(.economy)
 
         let selected = journey.selectedTransferVehicle ?? journey.recommendedTransferVehicle()
         selectedIndex = vehicles.firstIndex(of: selected) ?? 1
@@ -630,6 +607,7 @@ struct TransferSelectionView: View {
             return
         }
 
+        searchDuration = Int.random(in: 20...40)
         searchSecond = 0
         for second in 1...searchDuration {
             try? await Task.sleep(for: .seconds(1))
@@ -637,7 +615,7 @@ struct TransferSelectionView: View {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {
                 searchSecond = second
             }
-            if second == 8 || second == 16 || second == 24 {
+            if second == 6 || second == 13 || second == 21 || second == 30 {
                 IumrahHaptics.soft()
             }
         }
@@ -727,6 +705,51 @@ struct TransferSelectionView: View {
     }
 
     // MARK: - Copy / formatting
+
+    private var transferCoverageCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(localized("Что входит в трансфер", "Included in your transfer", "Transferga kiradi", "Трансферга киради"))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    coverageStop(icon: "airplane.arrival", title: localized("Аэропорт", "Airport", "Aeroport", "Аэропорт"))
+                    coverageLine
+                    coverageStop(icon: "building.2.fill", title: "Makkah")
+                    if includesMadinah {
+                        coverageLine
+                        coverageStop(icon: journey.haramainTrainSelected ? "train.side.front.car" : "car.fill", title: localized("Межгород", "Intercity", "Shaharlararo", "Шаҳарлараро"))
+                        coverageLine
+                        coverageStop(icon: "building.2.fill", title: "Madinah")
+                    }
+                    coverageLine
+                    coverageStop(icon: "airplane.departure", title: localized("Вылет", "Departure", "Jo‘nab ketish", "Жўнаб кетиш"))
+                }
+                .padding(.horizontal, 2)
+            }
+        }
+        .padding(14)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func coverageStop(icon: String, title: String) -> some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle().fill(Color.primary.opacity(0.08)).frame(width: 34, height: 34)
+                Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+            }
+            Text(title).font(.caption2.weight(.semibold)).lineLimit(1)
+        }
+        .frame(minWidth: 62)
+    }
+
+    private var coverageLine: some View {
+        Capsule()
+            .fill(Color.primary.opacity(0.18))
+            .frame(width: 32, height: 2)
+            .offset(y: -10)
+    }
 
     private func metricChip(systemName: String, text: String) -> some View {
         Label(text, systemImage: systemName)
@@ -826,14 +849,12 @@ struct TransferSelectionView: View {
 
     private var haramainTicketSummary: String {
         let count = journey.haramainTicketCount > 0 ? journey.haramainTicketCount : max(1, journey.trip.adults + journey.trip.children)
-        return "\(count) × \(usd(journey.haramainFareClass.publicSeatPriceUsd)) · \(haramainFareTitle(journey.haramainFareClass))"
+        return "\(count) × $150 · Standard"
     }
 
-    private func haramainFareTitle(_ fareClass: HaramainFareClass) -> String {
-        switch fareClass {
-        case .economy: return localized("Economy", "Economy", "Economy", "Economy")
-        case .business: return localized("Business", "Business", "Business", "Business")
-        }
+    private var standardTrainPreviewUsd: Decimal {
+        let count = journey.haramainTicketCount > 0 ? journey.haramainTicketCount : max(1, journey.trip.adults + journey.trip.children)
+        return Decimal(150 * count)
     }
 
     private var confirmTitle: String {
@@ -862,6 +883,7 @@ struct TransferSelectionView: View {
 
 private struct TransferLiveSearchMap: View {
     let second: Int
+    let searchDuration: Int
     let reduceMotion: Bool
 
     @State private var position: MapCameraPosition = .camera(
@@ -877,18 +899,13 @@ private struct TransferLiveSearchMap: View {
     private let candidates = TransferSearchCandidate.defaults
 
     var body: some View {
-        Map(position: $position, interactionModes: [.pan, .zoom, .rotate]) {
+        Map(position: $position, interactionModes: [.pan, .zoom]) {
+            MapCircle(center: Self.makkah, radius: searchRadiusMeters)
+                .foregroundStyle(Color.blue.opacity(0.075))
+                .stroke(Color.blue.opacity(0.44), lineWidth: 2)
+
             Annotation("Makkah", coordinate: Self.makkah, anchor: .center) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.16))
-                        .frame(width: 42, height: 42)
-                    Circle()
-                        .fill(.white)
-                        .frame(width: 15, height: 15)
-                        .overlay(Circle().stroke(Color.blue, lineWidth: 4))
-                }
-                .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                TransferSearchCenterPulse(reduceMotion: reduceMotion)
             }
 
             ForEach(candidates) { candidate in
@@ -913,7 +930,84 @@ private struct TransferLiveSearchMap: View {
                 .padding(.top, 122)
                 .padding(.trailing, 16)
         }
+        .onChange(of: second) { _, value in
+            guard !reduceMotion, value > 0, value % 5 == 0 else { return }
+            withAnimation(.easeInOut(duration: 2.1)) {
+                position = .camera(
+                    MapCamera(
+                        centerCoordinate: Self.makkah,
+                        distance: min(12_000, 7_400 + Double(value) * 105),
+                        heading: 0,
+                        pitch: 34
+                    )
+                )
+            }
+        }
         .accessibilityLabel("Live transfer search map in Makkah")
+    }
+
+    private var searchRadiusMeters: CLLocationDistance {
+        let denominator = max(1, searchDuration)
+        let progress = min(1, Double(second) / Double(denominator))
+        return 650 + (5_900 * progress)
+    }
+}
+
+private struct TransferSearchCenterPulse: View {
+    let reduceMotion: Bool
+    @State private var animate = false
+
+    var body: some View {
+        ZStack {
+            if !reduceMotion {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .stroke(Color.blue.opacity(0.46 - Double(index) * 0.09), lineWidth: 2)
+                        .frame(width: 34, height: 34)
+                        .scaleEffect(animate ? CGFloat(3.0 + Double(index) * 0.72) : 0.78)
+                        .opacity(animate ? 0.02 : 0.72)
+                        .animation(
+                            .easeOut(duration: 2.6)
+                                .repeatForever(autoreverses: false)
+                                .delay(Double(index) * 0.55),
+                            value: animate
+                        )
+                }
+            }
+
+            Circle()
+                .fill(Color.blue.opacity(0.14))
+                .frame(width: 48, height: 48)
+            Circle()
+                .fill(.white)
+                .frame(width: 18, height: 18)
+                .overlay(Circle().stroke(Color.blue, lineWidth: 5))
+                .shadow(color: .black.opacity(0.16), radius: 7, y: 2)
+        }
+        .onAppear { animate = true }
+    }
+}
+
+private struct TransferSearchActivityBar: View {
+    let second: Int
+    @State private var travel = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(1, proxy.size.width)
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.09))
+                Capsule()
+                    .fill(Color.blue)
+                    .frame(width: max(68, width * 0.34))
+                    .offset(x: travel ? max(0, width * 0.66) : 0)
+            }
+        }
+        .frame(height: 5)
+        .clipShape(Capsule())
+        .onAppear { travel = true }
+        .animation(.easeInOut(duration: 1.35).repeatForever(autoreverses: true), value: travel)
+        .accessibilityHidden(true)
     }
 }
 
@@ -924,16 +1018,19 @@ private struct TransferSearchCarPin: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(active ? Color.white : Color.white.opacity(0.55))
-                .frame(width: emphasis ? 38 : 34, height: emphasis ? 38 : 34)
-                .shadow(color: .black.opacity(active ? 0.18 : 0.07), radius: 8, y: 3)
+                .fill(active ? Color.black : Color.black.opacity(0.36))
+                .frame(width: emphasis ? 46 : 40, height: emphasis ? 46 : 40)
+                .overlay {
+                    Circle().stroke(Color.white.opacity(active ? 0.92 : 0.45), lineWidth: 2)
+                }
+                .shadow(color: .black.opacity(active ? 0.30 : 0.12), radius: 10, y: 4)
 
             Image(systemName: "car.fill")
-                .font(.system(size: emphasis ? 15 : 13, weight: .bold))
-                .foregroundStyle(active ? Color.black : Color.gray)
+                .font(.system(size: emphasis ? 18 : 16, weight: .bold))
+                .foregroundStyle(Color.white)
         }
-        .scaleEffect(active ? 1 : 0.68)
-        .opacity(active ? 1 : 0.24)
+        .scaleEffect(active ? 1 : 0.74)
+        .opacity(active ? 1 : 0.42)
         .animation(.spring(response: 0.5, dampingFraction: 0.82), value: active)
     }
 }
@@ -1039,292 +1136,6 @@ private struct HaramainPhotoGallery: View {
                 }
             }
         }
-    }
-}
-
-private struct HaramainTrainBookingSheet: View {
-    @EnvironmentObject private var journey: JourneyStore
-    @EnvironmentObject private var settings: AppSettingsStore
-    @Environment(\.dismiss) private var dismiss
-
-    let routeTitle: String
-    let language: AppSettingsStore.Language
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    hero
-                    heading
-                    HaramainPhotoGallery(compact: false)
-                    benefits
-                    fareSelector
-                    travelersSelector
-                    bookingSummary
-                    actionArea
-                }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 34)
-            }
-            .background(Color.iumrahPageBackground)
-            .navigationTitle("Haramain")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .frame(width: 32, height: 32)
-                            .iumrahGlass(in: Circle(), interactive: true, chrome: true)
-                    }
-                }
-            }
-        }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .onAppear { journey.ensureHaramainTicketDefaults() }
-    }
-
-    private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            Image("HaramainHero")
-                .resizable()
-                .scaledToFill()
-                .frame(height: 270)
-                .frame(maxWidth: .infinity)
-                .clipped()
-
-            LinearGradient(colors: [.clear, .black.opacity(0.78)], startPoint: .center, endPoint: .bottom)
-
-            VStack(alignment: .leading, spacing: 9) {
-                Image("HaramainLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 190, height: 52)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.95), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                Text(routeTitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.88))
-            }
-            .padding(16)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .padding(.top, 8)
-    }
-
-    private var heading: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(text("ГИБРИДНЫЙ МАРШРУТ", "HYBRID ROUTE", "GIBRID YO‘NALISH", "ГИБРИД ЙЎНАЛИШ"))
-                .font(.caption.weight(.bold))
-                .tracking(0.9)
-                .foregroundStyle(.secondary)
-
-            Text(text(
-                "Мекка ↔ Медина на Haramain",
-                "Makkah ↔ Madinah by Haramain",
-                "Makka ↔ Madina Haramain bilan",
-                "Макка ↔ Мадина Haramain билан"
-            ))
-            .font(.system(size: 30, weight: .bold, design: .rounded))
-            .tracking(-0.7)
-
-            Text(text(
-                "Поезд заменяет только междугородний участок. iumrah сохраняет автомобильный трансфер до станции и после прибытия.",
-                "The train replaces only the intercity leg. iumrah keeps your car transfer to the station and after arrival connected.",
-                "Poyezd faqat shaharlararo qismni almashtiradi. iumrah vokzalgacha va kelgandan keyin avtomobil transferini saqlaydi.",
-                "Поезд фақат шаҳарлараро қисмни алмаштиради. iumrah вокзалгача ва келгандан кейин автомобиль трансферини сақлайди."
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-    }
-
-    private var benefits: some View {
-        VStack(spacing: 0) {
-            benefitRow(icon: "speedometer", title: "300 km/h", body: text("скорость движения", "operating speed", "harakat tezligi", "ҳаракат тезлиги"))
-            Divider().padding(.leading, 50)
-            benefitRow(icon: "clock.fill", title: "≈ 2h 20m", body: text("Мекка — Медина", "Makkah–Madinah", "Makka–Madina", "Макка–Мадина"))
-            Divider().padding(.leading, 50)
-            benefitRow(icon: "wifi", title: "Wi‑Fi + A/C", body: text("в поезде и зонах ожидания", "on board and in waiting areas", "poyezd va kutish joylarida", "поезд ва кутиш жойларида"))
-            Divider().padding(.leading, 50)
-            benefitRow(icon: "cup.and.saucer.fill", title: text("Кафе и молитвенная зона", "Café and prayer area", "Kafe va namoz joyi", "Кафе ва намоз жойи"), body: text("для комфортной поездки", "for a comfortable journey", "qulay safar uchun", "қулай сафар учун"))
-        }
-        .padding(.horizontal, 16)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-
-    private func benefitRow(icon: String, title: String, body: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 36, height: 36)
-                .background(Color.iumrahRaisedBackground, in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(body).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.vertical, 12)
-    }
-
-    private var fareSelector: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(text("Класс билета", "Ticket class", "Chipta klassi", "Чипта класси"))
-                .font(.headline)
-
-            HStack(spacing: 10) {
-                fareButton(.economy)
-                fareButton(.business)
-            }
-        }
-    }
-
-    private func fareButton(_ fareClass: HaramainFareClass) -> some View {
-        let selected = journey.haramainFareClass == fareClass
-        return Button {
-            journey.setHaramainFareClass(fareClass)
-            IumrahHaptics.selection()
-        } label: {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(fareTitle(fareClass)).font(.subheadline.weight(.bold))
-                    Spacer()
-                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                }
-                Text("\(money(fareClass.publicSeatPriceUsd)) / " + text("гость", "guest", "mehmon", "меҳмон"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
-            .background(selected ? Color.primary.opacity(0.09) : Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(selected ? Color.primary.opacity(0.38) : Color.primary.opacity(0.06), lineWidth: selected ? 1.2 : 0.7)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var travelersSelector: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(text("Паломники", "Pilgrims", "Ziyoratchilar", "Зиёратчилар"))
-                .font(.headline)
-
-            CounterRow(
-                title: L10n.text("adults", settings.language),
-                subtitle: money(journey.haramainFareClass.publicSeatPriceUsd) + " / " + text("билет", "ticket", "chipta", "чипта"),
-                value: Binding(
-                    get: { journey.haramainAdultTickets },
-                    set: { journey.setHaramainAdultTickets($0) }
-                ),
-                minimum: 1,
-                maximum: max(1, journey.trip.adults)
-            )
-
-            if journey.trip.children > 0 {
-                Divider()
-                CounterRow(
-                    title: L10n.text("children", settings.language),
-                    subtitle: money(journey.haramainFareClass.publicSeatPriceUsd) + " / " + text("место", "seat", "joy", "жой"),
-                    value: Binding(
-                        get: { journey.haramainChildTickets },
-                        set: { journey.setHaramainChildTickets($0) }
-                    ),
-                    minimum: 0,
-                    maximum: journey.trip.children
-                )
-            }
-
-            if journey.trip.infants > 0 {
-                Divider()
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.text("infants", settings.language)).font(.body.weight(.semibold))
-                        Text(text("без отдельного места", "without a separate seat", "alohida joysiz", "алоҳида жойсиз"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Text("\(journey.trip.infants)")
-                        .font(.body.monospacedDigit().weight(.semibold))
-                }
-                .padding(.vertical, 6)
-            }
-        }
-        .padding(16)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-
-    private var bookingSummary: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(text("Билеты", "Tickets", "Chiptalar", "Чипталар"))
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text("\(journey.haramainTicketCount) × \(money(journey.haramainFareClass.publicSeatPriceUsd))")
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
-            }
-            Divider()
-            HStack(alignment: .lastTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(text("Добавится к пакету", "Added to package", "Paketga qo‘shiladi", "Пакетга қўшилади"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("+\(money(journey.haramainTrainAddOnUsd))")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .contentTransition(.numericText())
-                }
-                Spacer()
-                Image("HaramainMark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 54, height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-            }
-        }
-        .padding(16)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-
-    private var actionArea: some View {
-        VStack(spacing: 10) {
-            Button {
-                journey.setHaramainTrainSelected(!journey.haramainTrainSelected)
-                IumrahHaptics.success()
-                dismiss()
-            } label: {
-                Text(journey.haramainTrainSelected
-                     ? text("Убрать поезд из маршрута", "Remove train from route", "Poyezdni yo‘nalishdan olib tashlash", "Поездни йўналишдан олиб ташлаш")
-                     : text("Подтвердить билеты Haramain", "Confirm Haramain tickets", "Haramain chiptalarini tasdiqlash", "Haramain чипталарини тасдиқлаш"))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-
-            if !journey.haramainTrainSelected {
-                Text("+\(money(journey.haramainTrainAddOnUsd)) · " + text("к итоговой цене пакета", "to the package total", "paketning yakuniy narxiga", "пакетнинг якуний нархига"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func fareTitle(_ fareClass: HaramainFareClass) -> String {
-        switch fareClass {
-        case .economy: return "Economy"
-        case .business: return "Business"
-        }
-    }
-
-    private func money(_ value: Decimal) -> String {
-        String(format: "$%.0f", NSDecimalNumber(decimal: value).doubleValue)
-    }
-
-    private func text(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
-        transferLocalized(language, russian: ru, english: en, uzbek: uz, uzbekCyrillic: uzCy)
     }
 }
 

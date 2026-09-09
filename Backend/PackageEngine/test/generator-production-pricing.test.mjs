@@ -87,21 +87,27 @@ assert.ok(!localPricing.includes('localWithTrainPerSedanUsd'));
 assert.ok(!localPricing.includes('roadWithMadinahPerSedanUsd'));
 
 
-// Transfer V2 contract: Carnival is the default match, a 30-second MapKit search
-// precedes selection, Yukon is an exact +$750 VIP public upgrade, and Haramain
-// offers $150 Economy / $200 Business seats with explicit ticket counts.
+// Transfer V3 contract: Carnival is the default match, MapKit discovery runs for a
+// randomized 20–40 second window without exposing the target duration, Yukon is an
+// exact +$750 VIP public upgrade, and Haramain is an inline $150 Standard seat add-on.
 assert.match(journey, /func recommendedTransferVehicle\(\) -> TransferVehicleKind \{[\s\S]*\.carnival/);
 assert.match(transferModels, /guard self == \.yukon, scope == \.makkahAndMadinah else \{ return 0 \}/);
 assert.match(transferModels, /return Decimal\(750\)/);
 assert.match(transferModels, /case \.economy: return Decimal\(150\)/);
 assert.match(transferModels, /case \.business: return Decimal\(200\)/);
-assert.match(transferView, /private let searchDuration = 30/);
+assert.match(transferView, /searchDuration = Int\.random\(in: 20\.\.\.40\)/);
 assert.match(transferView, /import MapKit/);
 assert.match(transferView, /TransferLiveSearchMap/);
 assert.match(transferView, /showsTraffic: true/);
 assert.match(transferView, /RadialGradient/);
 assert.match(transferView, /currentPriceText: currentPackagePriceTitle/);
 assert.match(transferView, /HaramainPhotoGallery/);
+assert.match(transferView, /Подключить поезд к поездке/);
+assert.ok(!transferView.includes('HaramainTrainBookingSheet'));
+assert.match(finalPackage, /expandableServiceRow/);
+assert.match(finalPackage, /transferExpandedContent/);
+assert.match(finalPackage, /visaExpandedContent/);
+assert.match(finalPackage, /mealsExpandedContent/);
 assert.match(localPricing, /let publicAddOns = vehicleUpgrade \+ trainAddOn/);
 
 // Exact component report remains synchronized into iumrah Business.
