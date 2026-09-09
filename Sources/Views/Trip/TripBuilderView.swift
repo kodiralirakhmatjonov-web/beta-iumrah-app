@@ -678,7 +678,7 @@ struct TripBuilderView: View {
                 VStack(alignment: .leading, spacing: 17) {
                     curatedOneWayRow(
                         title: curatedOutboundRowTitle,
-                        subtitle: "\(journey.trip.originCode) → \(journey.trip.outboundDestinationCode)",
+                        subtitle: "\(journey.trip.originCode) → JED / MED",
                         recommendations: curatedOutboundFlights,
                         selection: .outbound
                     )
@@ -688,7 +688,7 @@ struct TripBuilderView: View {
 
                     curatedOneWayRow(
                         title: curatedReturnRowTitle,
-                        subtitle: "\(journey.trip.returnOriginCode) → \(journey.trip.originCode)",
+                        subtitle: "JED / MED → \(journey.trip.originCode)",
                         recommendations: curatedReturnFlights,
                         selection: .inbound
                     )
@@ -984,20 +984,30 @@ struct TripBuilderView: View {
     }
 
     private var curatedOutboundFlights: [CuratedFlightRecommendation] {
+        // The published-flight catalogue is discovery-first. Before a pilgrim has
+        // committed to JED vs MED, show every direct Saudi-bound publication from
+        // the selected origin. Selecting a card then makes that airport authoritative
+        // for the TripDraft. Filtering by the draft's default JED value here was the
+        // client-side reason valid TAS → MED publications could be loaded but hidden.
         curatedFlights.filter { recommendation in
             recommendation.inbound == nil &&
-            recommendation.outbound.origin == journey.trip.originCode &&
-            recommendation.outbound.destination == journey.trip.outboundDestinationCode
+            recommendation.outbound.origin.uppercased() == journey.trip.originCode.uppercased() &&
+            Self.isUmrahAirport(recommendation.outbound.destination)
         }
     }
 
     private var curatedReturnFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
             recommendation.inbound == nil &&
-            recommendation.outbound.origin == journey.trip.returnOriginCode &&
-            recommendation.outbound.destination == journey.trip.originCode
+            Self.isUmrahAirport(recommendation.outbound.origin) &&
+            recommendation.outbound.destination.uppercased() == journey.trip.originCode.uppercased()
         }
         .filter { recommendation in
+            // Before an outbound publication is selected, TripDraft still contains
+            // its synthetic +21-day default departure date. Using that placeholder
+            // to filter the return catalogue hides perfectly valid Business rows.
+            // Apply chronological filtering only after the user has picked outbound.
+            guard journey.selectedPublishedOutboundID != nil else { return true }
             guard let date = CuratedFlightRecommendationService.date(recommendation.outboundDate) else { return false }
             return Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: journey.trip.departureDate)
         }
@@ -1046,13 +1056,37 @@ struct TripBuilderView: View {
         }
     }
 
+    private static func isUmrahAirport(_ code: String) -> Bool {
+        let value = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return value == "JED" || value == "MED"
+    }
+
+    private func applyPublishedRoute(_ leg: CuratedFlightRecommendation.Leg, selection: CuratedLegSelection) {
+        let airportCode: String
+        switch selection {
+        case .outbound:
+            airportCode = leg.destination.uppercased()
+        case .inbound:
+            // For the normal Makkah + Madinah open-jaw product, the airport used
+            // for the return leg determines the opposite arrival airport.
+            airportCode = leg.origin.uppercased() == "JED" ? "MED" : "JED"
+        }
+
+        guard let airport = SaudiArrivalAirport(rawValue: airportCode) else { return }
+        journey.trip.scope = .makkahAndMadinah
+        journey.trip.arrivalAirport = airport
+    }
+
     private func selectCuratedOneWay(
         _ recommendation: CuratedFlightRecommendation,
         date value: String,
         selection: CuratedLegSelection
     ) {
-        guard let date = CuratedFlightRecommendationService.date(value) else { return }
+        guard let date = CuratedFlightRecommendationService.date(value),
+              let leg = curatedLeg(for: recommendation, selection: selection) else { return }
         if selection == .inbound, date < journey.trip.departureDate { return }
+
+        applyPublishedRoute(leg, selection: selection)
 
         let calendar = Calendar.current
         let oldDuration = max(1, calendar.dateComponents([.day], from: journey.trip.departureDate, to: journey.trip.returnDate).day ?? 7)

@@ -17,7 +17,7 @@ type StorefrontLeg = {
 type StorefrontItinerary = {
   id: string;
   observed_at: string;
-  legs: StorefrontLeg[];
+  legs: unknown[];
   bags?: { carry_on?: number | null; checked?: number | null } | null;
 };
 
@@ -71,12 +71,42 @@ function validOrigin(value: string): boolean {
   return /^[A-Z]{3}$/.test(value);
 }
 
+function safeString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeStorefrontLeg(raw: unknown): StorefrontLeg | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const origin = safeString(value.origin).toUpperCase();
+  const destination = safeString(value.destination).toUpperCase();
+  const departureAt = safeString(value.departure_at);
+  const arrivalAt = safeString(value.arrival_at);
+  const duration = Number(value.duration_minutes);
+  const stops = Number(value.stops);
+  if (!validOrigin(origin) || !validOrigin(destination) || origin === destination) return null;
+  if (!departureAt || !arrivalAt || !Number.isFinite(Date.parse(departureAt)) || !Number.isFinite(Date.parse(arrivalAt))) return null;
+  if (!Number.isFinite(duration) || duration <= 0 || !Number.isInteger(stops) || stops < 0) return null;
+  return {
+    airline: safeString(value.airline) || safeString(value.airline_code) || "Airline",
+    flight_number: safeString(value.flight_number),
+    airline_code: safeString(value.airline_code).toUpperCase(),
+    origin,
+    destination,
+    departure_at: departureAt,
+    arrival_at: arrivalAt,
+    duration_minutes: Math.round(duration),
+    stops,
+    cabin_class: safeString(value.cabin_class) || "economy",
+  };
+}
+
 function mapRow(row: CuratedRow): PublicOption | null {
   const itinerary = parseJSON<StorefrontItinerary>(row.itinerary_json);
   if (!itinerary || !Array.isArray(itinerary.legs) || itinerary.legs.length < 1 || itinerary.legs.length > 2) return null;
-  const outbound = itinerary.legs[0];
-  const inbound = itinerary.legs[1] ?? null;
-  if (!outbound || outbound.stops !== 0 || (inbound && inbound.stops !== 0)) return null;
+  const outbound = normalizeStorefrontLeg(itinerary.legs[0]);
+  const inbound = itinerary.legs[1] == null ? null : normalizeStorefrontLeg(itinerary.legs[1]);
+  if (!outbound || (itinerary.legs.length > 1 && !inbound) || outbound.stops !== 0 || (inbound && inbound.stops !== 0)) return null;
 
   const totalFare = Number(row.total_fare);
   const perTravelerFare = Number(row.per_traveler_fare);

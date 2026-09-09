@@ -76,6 +76,14 @@ final class CuratedFlightRecommendationService {
         let fromKey = Self.requestDay(start)
         let toKey = Self.requestDay(end)
 
+        // Read both public D1 projections and merge them. Do not return early from
+        // /recommendations: during staged backend deployments one projection can be
+        // older or partially filtered while the other already contains the staff-
+        // published row. A single non-empty stale response must never hide the rest
+        // of the Business catalogue from the client.
+        var merged: [String: CuratedFlightRecommendation] = [:]
+        var firstError: Error?
+
         do {
             let response: CuratedFlightRecommendationsResponse = try await api.get(
                 "/api/package/flights/recommendations",
@@ -86,22 +94,38 @@ final class CuratedFlightRecommendationService {
                 ],
                 timeoutInterval: 10
             )
-
             if response.ok {
-                let direct = response.recommendations.filter { $0.nonstop }
-                if !direct.isEmpty { return direct }
+                for item in response.recommendations where item.nonstop {
+                    merged[item.id] = item
+                }
             }
         } catch {
-            // Fall through to the second public D1 view. This is deliberate: an
-            // older Package Engine deployment must not turn 50 Business-published
-            // flights into an empty client catalogue.
+            firstError = error
         }
 
-        return try await storefrontFallback(
-            origin: trip.originCode.uppercased(),
-            fromKey: fromKey,
-            toKey: toKey
-        )
+        do {
+            let fallback = try await storefrontFallback(
+                origin: trip.originCode.uppercased(),
+                fromKey: fromKey,
+                toKey: toKey
+            )
+            for item in fallback where item.nonstop {
+                // The recommendations projection has richer canonical metadata, so
+                // keep it when both endpoints describe the same publication.
+                if merged[item.id] == nil { merged[item.id] = item }
+            }
+        } catch {
+            if firstError == nil { firstError = error }
+        }
+
+        if !merged.isEmpty {
+            return merged.values.sorted { lhs, rhs in
+                if lhs.outboundDate != rhs.outboundDate { return lhs.outboundDate < rhs.outboundDate }
+                return lhs.id < rhs.id
+            }
+        }
+        if let firstError { throw firstError }
+        return []
     }
 
     private func storefrontFallback(origin: String, fromKey: String, toKey: String) async throws -> [CuratedFlightRecommendation] {

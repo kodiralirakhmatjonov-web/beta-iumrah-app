@@ -1,0 +1,25 @@
+{
+  "name": "iumrah-beta-update-20260909-published-flights-catalog-fix-v3",
+  "date": "2026-09-09",
+  "purpose": "Make Business-published direct flight inventory actually visible in the iOS client catalog.",
+  "root_causes": [
+    "The iOS service returned immediately when /flights/recommendations was merely non-empty, so a partial/stale projection could hide rows available from the storefront projection.",
+    "TripBuilder filtered one-way outbound rows against the TripDraft default arrival airport (JED), hiding valid TAS->MED publications before the user had selected an airport.",
+    "TripBuilder filtered return rows against the synthetic default departure date (+21 days), hiding currently published return inventory before an outbound publication was selected.",
+    "The storefront endpoint passed raw itinerary legs through without normalization, making older/malformed published rows more fragile for client decoding."
+  ],
+  "changed_files": [
+    "Sources/Services/CuratedFlightRecommendationService.swift",
+    "Sources/Views/Trip/TripBuilderView.swift",
+    "Backend/PackageEngine/src/storefront.ts"
+  ],
+  "verification": {
+    "package_engine_contract_tests": "31/31 passed",
+    "package_engine_runtime_tests": "18/18 passed",
+    "typescript_typecheck": "passed"
+  },
+  "required_after_apply": [
+    "Deploy Package Engine",
+    "Build/install new iOS Beta/TestFlight build"
+  ]
+}
