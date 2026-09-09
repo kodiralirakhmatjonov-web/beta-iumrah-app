@@ -4,18 +4,35 @@ import MapKit
 actor ZiyaratService {
     static let shared = ZiyaratService()
 
+    private let cachePrefix = "iumrah.ziyarats.catalog.v1."
+
     func route(city: String = "Madinah") async -> ZiyaratRoute {
         do {
             let response: ZiyaratCatalogResponse = try await APIClient.shared.get(
                 "/api/catalog/ziyarats",
                 query: [URLQueryItem(name: "city", value: city)]
             )
-            if let route = response.route, !route.places.isEmpty { return route }
+            if let route = response.route, !route.places.isEmpty {
+                cache(route, city: city)
+                return route
+            }
         } catch {
-            // The bundled Quba seed keeps the first Ziyarat useful before the cloud
-            // migration is deployed; live Business data automatically replaces it.
+            // A short network interruption should not collapse a previously loaded
+            // multi-stop journey back to the one-place bundled seed.
         }
+
+        if let cached = cachedRoute(city: city), !cached.places.isEmpty { return cached }
         return ZiyaratSeedData.medina
+    }
+
+    private func cache(_ route: ZiyaratRoute, city: String) {
+        guard let data = try? JSONEncoder().encode(route) else { return }
+        UserDefaults.standard.set(data, forKey: cachePrefix + city.lowercased())
+    }
+
+    private func cachedRoute(city: String) -> ZiyaratRoute? {
+        guard let data = UserDefaults.standard.data(forKey: cachePrefix + city.lowercased()) else { return nil }
+        return try? JSONDecoder().decode(ZiyaratRoute.self, from: data)
     }
 }
 

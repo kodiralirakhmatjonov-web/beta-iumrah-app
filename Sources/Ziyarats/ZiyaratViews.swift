@@ -1,12 +1,14 @@
 import SwiftUI
 import MapKit
+import UIKit
 
 // MARK: - iumrah Ziyarats
 //
-// Map-first experience inspired by Apple's own map surfaces. The map remains the
-// spatial scene while a native presentation sheet provides the interactive card.
-// Sheet movement, snapping, resistance and swipe physics are handled by SwiftUI/
-// UIKit rather than a hand-built drag recognizer.
+// Map-first experience inspired by Apple Maps / Find My. The map is the permanent
+// spatial scene and the Ziyarats chrome lives in one floating bottom surface. The
+// surface has three physical states and follows the finger continuously; only the
+// final snap is spring-animated. This avoids the rectangular host surface and the
+// sheet hand-off visible in the previous implementation.
 
 struct ZiyaratJourneyView: View {
     @Environment(\.dismiss) private var dismiss
@@ -31,44 +33,51 @@ struct ZiyaratJourneyView: View {
     @State private var welcomeCopyVisible = false
     @State private var revealedStopCount = 0
 
-    @State private var panelPresented = false
-    @State private var panelDetent: PresentationDetent = Self.compactDetent
+    @State private var panelVisible = false
+    @State private var panelLevel: ZiyaratPanelLevel = .compact
+    @GestureState private var panelDrag: CGFloat = 0
     @State private var closing = false
-
-    private static let compactDetent = PresentationDetent.height(104)
-    private static let cardDetent = PresentationDetent.height(368)
 
     private var orderedPlaces: [ZiyaratPlace] {
         route.places.sorted { $0.routeOrder < $1.routeOrder }
     }
 
-    private var isCompactPanel: Bool { panelDetent == Self.compactDetent }
-    private var isExpandedPanel: Bool { panelDetent == .large }
+    private var isCompactPanel: Bool { panelLevel == .compact }
+    private var isExpandedPanel: Bool { panelLevel == .full }
 
     var body: some View {
-        ZStack {
-            mapScene
-                .ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack(alignment: .bottom) {
+                mapScene
+                    .ignoresSafeArea()
 
-            mapChrome
+                mapChrome
 
-            if welcomeVisible {
-                ZiyaratWelcomeOverlay(
-                    pretitle: welcomePretitle,
-                    title: "iumrah Ziyarats",
-                    city: cityTitle,
-                    copyVisible: welcomeCopyVisible
-                )
-                .transition(.opacity)
-                .allowsHitTesting(false)
-                .zIndex(20)
+                if orderedPlaces.isEmpty && !loadingCatalog {
+                    emptyOverlay
+                        .padding(.horizontal, 24)
+                        .zIndex(5)
+                }
+
+                if panelVisible && !welcomeVisible {
+                    panelDrawer(in: proxy)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .zIndex(15)
+                }
+
+                if welcomeVisible {
+                    ZiyaratWelcomeOverlay(
+                        pretitle: welcomePretitle,
+                        title: "iumrah Ziyarats",
+                        city: cityTitle,
+                        copyVisible: welcomeCopyVisible
+                    )
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+                    .zIndex(20)
+                }
             }
-
-            if orderedPlaces.isEmpty && !loadingCatalog {
-                emptyOverlay
-                    .padding(.horizontal, 24)
-                    .zIndex(5)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(uiColor: .systemBackground))
         .toolbar(.hidden, for: .navigationBar)
@@ -81,28 +90,10 @@ struct ZiyaratJourneyView: View {
             if !closing { chrome.setImmersive(false) }
         }
         .task {
-            async let catalogTask: Void = loadJourney()
-            async let welcomeTask: Void = playWelcomeSequence()
-            _ = await (catalogTask, welcomeTask)
+            await loadJourney()
+            await playWelcomeSequence()
         }
-        .sheet(isPresented: $panelPresented, onDismiss: {
-            // The Ziyarats panel is permanent while the map module is open.
-            // If UIKit ever dismisses it unexpectedly, restore it quietly.
-            guard !closing else { return }
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(80))
-                panelPresented = true
-            }
-        }) {
-            panelSheet
-                .presentationDetents([Self.compactDetent, Self.cardDetent, .large], selection: $panelDetent)
-                .presentationDragIndicator(.hidden)
-                .presentationCornerRadius(0)
-                .presentationBackground(.clear)
-                .presentationBackgroundInteraction(.enabled)
-                .interactiveDismissDisabled(true)
-        }
-        .onChange(of: panelDetent) { _, _ in
+        .onChange(of: panelLevel) { _, _ in
             guard let selectedPlace else { return }
             focus(on: selectedPlace, animated: true)
         }
@@ -169,8 +160,8 @@ struct ZiyaratJourneyView: View {
             HStack(alignment: .top) {
                 IumrahGlassIconButton(
                     systemName: "xmark",
-                    size: 50,
-                    fontSize: 18,
+                    size: 48,
+                    fontSize: 17,
                     accessibilityLabel: closeLabel
                 ) {
                     closeZiyarats()
@@ -182,8 +173,8 @@ struct ZiyaratJourneyView: View {
                     VStack(spacing: 10) {
                         IumrahGlassIconButton(
                             systemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
-                            size: 50,
-                            fontSize: 17,
+                            size: 48,
+                            fontSize: 16.5,
                             foreground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
                             accessibilityLabel: mapModeLabel
                         ) {
@@ -194,8 +185,8 @@ struct ZiyaratJourneyView: View {
 
                         IumrahGlassIconButton(
                             systemName: "scope",
-                            size: 50,
-                            fontSize: 17,
+                            size: 48,
+                            fontSize: 16.5,
                             accessibilityLabel: fitRouteLabel
                         ) {
                             fitEntireRoute(animated: true)
@@ -203,8 +194,8 @@ struct ZiyaratJourneyView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.horizontal, 15)
+            .padding(.top, 6)
 
             Spacer(minLength: 0)
         }
@@ -215,40 +206,88 @@ struct ZiyaratJourneyView: View {
         .zIndex(10)
     }
 
-    // MARK: Native lower sheet
+    // MARK: Floating lower panel
 
-    private var panelSheet: some View {
-        VStack(spacing: 0) {
-            Capsule()
-                .fill(Color.secondary.opacity(0.42))
-                .frame(width: 36, height: 5)
-                .padding(.top, 9)
-                .padding(.bottom, isCompactPanel ? 1 : 7)
+    private func panelDrawer(in proxy: GeometryProxy) -> some View {
+        let metrics = ZiyaratPanelMetrics(containerHeight: proxy.size.height)
+        let targetHeight = metrics.height(for: panelLevel)
+        let liveHeight = metrics.rubberBandedHeight(targetHeight - panelDrag)
+        let bodyProgress = metrics.bodyProgress(for: liveHeight)
+        let showBody = liveHeight > metrics.compactHeight + 18
 
-            if !isCompactPanel {
+        return VStack(spacing: 0) {
+            ZStack {
+                Rectangle()
+                    .fill(.clear)
+                    .frame(height: 22)
+
+                Capsule()
+                    .fill(Color.secondary.opacity(isCompactPanel ? 0.0 : 0.38))
+                    .frame(width: 34, height: 4)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if isCompactPanel { setPanel(.card) }
+                else if isExpandedPanel { setPanel(.card) }
+                else { setPanel(.full) }
+            }
+            .gesture(panelGesture(metrics: metrics))
+
+            if showBody {
                 panelBody
+                    .id(panelContentID)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .opacity(bodyProgress)
+                    .allowsHitTesting(bodyProgress > 0.92)
                     .transition(.opacity)
 
                 Divider()
-                    .opacity(0.34)
+                    .opacity(0.28 * bodyProgress)
             } else {
                 Spacer(minLength: 0)
             }
 
             panelTabBar
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: liveHeight)
         .iumrahGlass(
-            in: RoundedRectangle(cornerRadius: 31, style: .continuous),
+            in: RoundedRectangle(cornerRadius: 30, style: .continuous),
             allowsStaticGlass: true,
             chrome: true
         )
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .padding(.horizontal, 7)
-        .padding(.top, 3)
-        .padding(.bottom, 7)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: activeTab)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedPlace?.id)
+        .padding(.bottom, 5)
+        .transaction { transaction in
+            // While the finger is moving the surface must track 1:1. Animation is
+            // applied only after release in setPanel(_:).
+            if panelDrag != 0 { transaction.animation = nil }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: activeTab)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectedPlace?.id)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var panelContentID: String {
+        if let selectedPlace { return "place-\(selectedPlace.id)" }
+        return "tab-\(activeTab.rawValue)"
+    }
+
+    private func panelGesture(metrics: ZiyaratPanelMetrics) -> some Gesture {
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .updating($panelDrag) { value, state, _ in
+                guard abs(value.translation.height) >= abs(value.translation.width) * 0.72 else { return }
+                state = value.translation.height
+            }
+            .onEnded { value in
+                guard abs(value.translation.height) >= abs(value.translation.width) * 0.72 else { return }
+                let current = metrics.height(for: panelLevel)
+                let projected = current - value.predictedEndTranslation.height
+                let target = metrics.level(forProjectedHeight: projected, current: panelLevel)
+                if target != panelLevel { IumrahHaptics.selection() }
+                setPanel(target)
+            }
     }
 
     private var panelBody: some View {
@@ -269,7 +308,6 @@ struct ZiyaratJourneyView: View {
                     onExpand: { setPanel(.full) },
                     onOpenMaps: { openInMaps(selectedPlace) }
                 )
-                .id("place-\(selectedPlace.id)-\(isExpandedPanel)")
             } else {
                 switch activeTab {
                 case .journey: journeyPanel
@@ -289,15 +327,15 @@ struct ZiyaratJourneyView: View {
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 18, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
+                            .font(.system(size: 19, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
                             .symbolRenderingMode(.hierarchical)
                         Text(tabTitle(tab))
-                            .font(.system(size: 10.5, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
+                            .font(.system(size: 11, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
                             .lineLimit(1)
                     }
                     .foregroundStyle(activeTab == tab && selectedPlace == nil ? Color(uiColor: .systemBlue) : Color.secondary)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 62)
+                    .frame(height: 61)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -305,7 +343,7 @@ struct ZiyaratJourneyView: View {
             }
         }
         .padding(.horizontal, 8)
-        .padding(.bottom, 4)
+        .padding(.bottom, 6)
     }
 
     // MARK: Panel pages
@@ -327,7 +365,6 @@ struct ZiyaratJourneyView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
-                    if loadingCatalog { ProgressView().controlSize(.small) }
                 }
 
                 HStack(spacing: 0) {
@@ -555,7 +592,11 @@ struct ZiyaratJourneyView: View {
         selectedPlace = nil
         activeTab = tab
 
-        if wasActive && !isCompactPanel {
+        if tab == .map {
+            // The map tab is the "map first" state: selecting it gives the map
+            // back almost the whole screen. A second tap opens map controls.
+            setPanel(wasActive && isCompactPanel ? .card : .compact)
+        } else if wasActive && !isCompactPanel {
             setPanel(.compact)
         } else {
             setPanel(.card)
@@ -565,18 +606,12 @@ struct ZiyaratJourneyView: View {
     }
 
     private func setPanel(_ level: ZiyaratPanelLevel) {
-        let detent: PresentationDetent
-        switch level {
-        case .compact: detent = Self.compactDetent
-        case .card: detent = Self.cardDetent
-        case .full: detent = .large
-        }
-
+        guard panelLevel != level else { return }
         if reduceMotion {
-            panelDetent = detent
+            panelLevel = level
         } else {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.9)) {
-                panelDetent = detent
+            withAnimation(.interactiveSpring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.12)) {
+                panelLevel = level
             }
         }
     }
@@ -628,13 +663,14 @@ struct ZiyaratJourneyView: View {
         guard !closing else { return }
         closing = true
         IumrahHaptics.selection()
-        panelPresented = false
         chrome.setImmersive(false)
         if reduceMotion {
+            panelVisible = false
             dismiss()
         } else {
+            withAnimation(.easeInOut(duration: 0.16)) { panelVisible = false }
             Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(120))
+                try? await Task.sleep(for: .milliseconds(110))
                 dismiss()
             }
         }
@@ -650,11 +686,15 @@ struct ZiyaratJourneyView: View {
         camera = .region(Self.region(for: live.places))
         loadingCatalog = false
 
-        loadingRoute = true
-        polylines = await ZiyaratRouteService.shared.roadPolylines(for: live.places)
-        loadingRoute = false
-
         if !welcomeVisible { revealedStopCount = live.places.count }
+
+        loadingRoute = true
+        Task { @MainActor in
+            let lines = await ZiyaratRouteService.shared.roadPolylines(for: live.places)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.28)) { polylines = lines }
+            loadingRoute = false
+        }
     }
 
     @MainActor
@@ -664,8 +704,8 @@ struct ZiyaratJourneyView: View {
             revealedStopCount = orderedPlaces.count
             try? await Task.sleep(for: .milliseconds(450))
             welcomeVisible = false
-            panelPresented = true
-            panelDetent = Self.cardDetent
+            panelVisible = true
+            panelLevel = .card
             return
         }
 
@@ -683,9 +723,9 @@ struct ZiyaratJourneyView: View {
         try? await Task.sleep(for: .milliseconds(650))
         withAnimation(.easeInOut(duration: 0.38)) { welcomeVisible = false }
         try? await Task.sleep(for: .milliseconds(90))
-        panelDetent = Self.compactDetent
-        panelPresented = true
-        try? await Task.sleep(for: .milliseconds(180))
+        panelLevel = .compact
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) { panelVisible = true }
+        try? await Task.sleep(for: .milliseconds(190))
         setPanel(.card)
     }
 
@@ -810,6 +850,67 @@ private enum ZiyaratPanelLevel {
     case compact
     case card
     case full
+}
+
+private struct ZiyaratPanelMetrics {
+    let compactHeight: CGFloat
+    let cardHeight: CGFloat
+    let fullHeight: CGFloat
+
+    init(containerHeight: CGFloat) {
+        compactHeight = 88
+        cardHeight = min(388, max(334, containerHeight * 0.46))
+        fullHeight = max(cardHeight + 150, containerHeight - 8)
+    }
+
+    func height(for level: ZiyaratPanelLevel) -> CGFloat {
+        switch level {
+        case .compact: return compactHeight
+        case .card: return cardHeight
+        case .full: return fullHeight
+        }
+    }
+
+    func bodyProgress(for height: CGFloat) -> Double {
+        let distance = max(1, cardHeight - compactHeight)
+        return Double(min(1, max(0, (height - compactHeight - 8) / min(92, distance))))
+    }
+
+    func rubberBandedHeight(_ proposed: CGFloat) -> CGFloat {
+        if proposed < compactHeight {
+            return compactHeight - rubberBand(compactHeight - proposed)
+        }
+        if proposed > fullHeight {
+            return fullHeight + rubberBand(proposed - fullHeight)
+        }
+        return proposed
+    }
+
+    func level(forProjectedHeight projected: CGFloat, current: ZiyaratPanelLevel) -> ZiyaratPanelLevel {
+        let lowerMid = (compactHeight + cardHeight) / 2
+        let upperMid = (cardHeight + fullHeight) / 2
+
+        // A small directional bias makes quick flicks feel like the system sheet
+        // without making slow positioning unpredictable.
+        switch current {
+        case .compact:
+            if projected > upperMid { return .full }
+            return projected > lowerMid - 18 ? .card : .compact
+        case .card:
+            if projected < lowerMid + 12 { return .compact }
+            if projected > upperMid - 12 { return .full }
+            return .card
+        case .full:
+            if projected < lowerMid { return .compact }
+            return projected < upperMid + 18 ? .card : .full
+        }
+    }
+
+    private func rubberBand(_ distance: CGFloat) -> CGFloat {
+        // Diminishing resistance close to UIScrollView/UISheet overscroll.
+        let c: CGFloat = 0.36
+        return (1 - (1 / ((distance * c / 120) + 1))) * 120
+    }
 }
 
 private enum ZiyaratPanelTab: String, CaseIterable, Identifiable {
@@ -1408,15 +1509,7 @@ struct ZiyaratImageView: View {
                     .resizable()
                     .scaledToFill()
             } else if let image, let url = AppConfig.absoluteURL(image.url) {
-                AsyncImage(url: url) { phase in
-                    if let loaded = phase.image {
-                        loaded.resizable().scaledToFill()
-                    } else if phase.error != nil, let fallback = fallbackAsset(for: image.id) {
-                        Image(fallback).resizable().scaledToFill()
-                    } else {
-                        ProgressView()
-                    }
-                }
+                ZiyaratRemoteImageView(url: url, fallbackAsset: fallbackAsset(for: image.id))
             } else {
                 Image(systemName: "photo")
                     .font(.title2)
@@ -1430,5 +1523,91 @@ struct ZiyaratImageView: View {
         guard id.hasPrefix("quba-") else { return nil }
         let number = id.replacingOccurrences(of: "quba-", with: "")
         return "ZiyaratQuba\(number)"
+    }
+}
+
+private struct ZiyaratRemoteImageView: View {
+    let url: URL
+    let fallbackAsset: String?
+    @StateObject private var loader = ZiyaratRemoteImageLoader()
+
+    var body: some View {
+        Group {
+            if let image = loader.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .transition(.opacity)
+            } else if loader.failed, let fallbackAsset {
+                Image(fallbackAsset)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .task(id: url) {
+            loader.load(url: url)
+        }
+        .onDisappear { loader.cancel() }
+        .animation(.easeOut(duration: 0.16), value: loader.image != nil)
+    }
+}
+
+@MainActor
+private final class ZiyaratRemoteImageLoader: ObservableObject {
+    @Published private(set) var image: UIImage?
+    @Published private(set) var failed = false
+
+    private static let cache: NSCache<NSURL, UIImage> = {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.countLimit = 48
+        cache.totalCostLimit = 72 * 1024 * 1024
+        return cache
+    }()
+
+    private var task: Task<Void, Never>?
+    private var currentURL: URL?
+
+    func load(url: URL) {
+        guard currentURL != url || (image == nil && !failed) else { return }
+        currentURL = url
+        failed = false
+        task?.cancel()
+
+        if let cached = Self.cache.object(forKey: url as NSURL) {
+            image = cached
+            return
+        }
+
+        image = nil
+        task = Task { [weak self] in
+            guard let self else { return }
+            do {
+                var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 30)
+                request.setValue("image/avif,image/webp,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard !Task.isCancelled else { return }
+                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    failed = true
+                    return
+                }
+                guard let decoded = UIImage(data: data) else {
+                    failed = true
+                    return
+                }
+                Self.cache.setObject(decoded, forKey: url as NSURL, cost: data.count)
+                image = decoded
+            } catch {
+                guard !Task.isCancelled else { return }
+                failed = true
+            }
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
     }
 }
