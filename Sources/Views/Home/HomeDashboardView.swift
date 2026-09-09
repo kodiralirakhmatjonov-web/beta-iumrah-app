@@ -39,6 +39,7 @@ struct HomeDashboardView: View {
                 hero
                 friendsHomeCard
                 UmrahAdvisorHomeCard()
+                ziyaratsHomeCard
                 confidenceStrip
                 philosophyCard
                 connectedTripCard
@@ -281,6 +282,93 @@ struct HomeDashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint(session.displayPilgrimID.map { "ID \($0)" } ?? "")
+    }
+
+    private var ziyaratsHomeCard: some View {
+        NavigationLink {
+            ZiyaratJourneyView()
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                Image("ZiyaratQuba3")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 255)
+                    .clipped()
+
+                LinearGradient(
+                    colors: [.clear, Color.black.opacity(0.16), Color.black.opacity(0.82)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 7) {
+                        Image(systemName: "map.fill")
+                        Text("iumrah Ziyarats")
+                    }
+                    .font(.caption.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(.white.opacity(0.86))
+
+                    Text(ziyaratsHomeTitle)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .tracking(-0.6)
+                        .foregroundStyle(.white)
+
+                    Text(ziyaratsHomeSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.78))
+                        .lineLimit(2)
+
+                    HStack(spacing: 6) {
+                        Text(ziyaratsHomeCTA)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.top, 2)
+                }
+                .padding(20)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 255)
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.16), radius: 24, y: 11)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("iumrah Ziyarats")
+    }
+
+    private var ziyaratsHomeTitle: String {
+        switch settings.language {
+        case .russian: return "Зияраты Медины"
+        case .english: return "Medina Ziyarat"
+        case .uzbek: return "Madina ziyorati"
+        case .uzbekCyrillic: return "Мадина зиёрати"
+        }
+    }
+
+    private var ziyaratsHomeSubtitle: String {
+        switch settings.language {
+        case .russian: return "Точные места, фотографии и единый маршрут в стиле Apple Maps."
+        case .english: return "Exact places, photos and one beautifully organized route."
+        case .uzbek: return "Aniq joylar, suratlar va yagona chiroyli yo‘nalish."
+        case .uzbekCyrillic: return "Аниқ жойлар, суратлар ва ягона чиройли йўналиш."
+        }
+    }
+
+    private var ziyaratsHomeCTA: String {
+        switch settings.language {
+        case .russian: return "Открыть карту"
+        case .english: return "Open map"
+        case .uzbek: return "Xaritani ochish"
+        case .uzbekCyrillic: return "Харитани очиш"
+        }
     }
 
     private var flightsHomeCard: some View {

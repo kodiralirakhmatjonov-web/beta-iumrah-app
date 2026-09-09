@@ -9,6 +9,7 @@ struct BookingsHomeView: View {
 
     @State private var pendingDeleteID: String?
     @State private var deleteError: String?
+    @State private var showZiyarats = false
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { session in
@@ -55,6 +56,10 @@ struct BookingsHomeView: View {
             } else {
                 EmptyView()
             }
+        }
+        .fullScreenCover(isPresented: $showZiyarats) {
+            NavigationStack { ZiyaratJourneyView() }
+                .environmentObject(settings)
         }
     }
 
@@ -108,6 +113,7 @@ struct BookingsHomeView: View {
                         endDate: session.booking.input.endDate,
                         booking: session.booking
                     )
+                    ziyaratsBookingCard
                     tripActions(session)
 
                     if bookings.sessions.count > 1 {
@@ -258,6 +264,46 @@ struct BookingsHomeView: View {
         }
         .shadow(color: .black.opacity(0.12), radius: 20, y: 9)
     }
+
+    private var ziyaratsBookingCard: some View {
+        Button { showZiyarats = true } label: {
+            ZStack(alignment: .bottomLeading) {
+                Image("ZiyaratQuba5")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 190)
+                    .clipped()
+                LinearGradient(colors: [.clear, .black.opacity(0.76)], startPoint: .top, endPoint: .bottom)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("iumrah Ziyarats")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.82))
+                    Text(ziyaratsBookingTitle)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .tracking(-0.4)
+                        .foregroundStyle(.white)
+                    HStack {
+                        Label(ziyaratsBookingSubtitle, systemImage: "map.fill")
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.82))
+                }
+                .padding(17)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 190)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7))
+            .shadow(color: .black.opacity(0.18), radius: 22, y: 10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var ziyaratsBookingTitle: String { localized("Зияраты Медины", "Medina Ziyarat", "Madina ziyorati", "Мадина зиёрати") }
+    private var ziyaratsBookingSubtitle: String { localized("Открыть маршрут и места", "Open route and places", "Yo‘nalish va joylarni ochish", "Йўналиш ва жойларни очиш") }
 
     private func tripActions(_ session: StoredBookingSession) -> some View {
         VStack(alignment: .leading, spacing: 12) {
