@@ -45,6 +45,10 @@ struct HotelDetailView: View {
                     VStack(alignment: .leading, spacing: 30) {
                         identitySection
 
+                        if selectionFlow || bookingID != nil {
+                            IumrahRefundPolicyCard(component: .hotel, compact: false)
+                        }
+
                         if !selectionFlow && bookingID == nil {
                             storefrontPackageSection
                         }

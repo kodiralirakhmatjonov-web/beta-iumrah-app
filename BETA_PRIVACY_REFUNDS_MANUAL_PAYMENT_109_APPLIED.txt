@@ -1,0 +1,17 @@
+iumrah Beta update 109 — privacy, refund policy and temporary manual payment trust layer
+Date: 2026-09-09
+
+Implemented:
+- Settings: Privacy Policy, Refund Policy, Payment Security (RU / EN / UZ Latin / UZ Cyrillic).
+- Generator: contextual refund-policy cards for flights, hotels and transfer.
+- Final package and pre-booking: package refund summary and temporary manual-payment notice.
+- Booking detail and pilgrim checkout: payment notice, refund summary, invoice PDF access.
+- Manual payment: clear first-35-days server-integration notice; no escrow/guarantee claim without an escrow provider.
+- Payment receipt: existing server upload preserved; optional stored receipt URL can be reopened when backend provides it.
+- Invoice: generated from the saved booking snapshot and persisted under Documents/iumrah/Invoices before iOS share/save.
+- Refund defaults: flight and hotel non-refundable unless the selected fare/rate says otherwise; transfer free cancellation >=120h, then $100 fee; unused iumrah services refundable before service starts.
+
+Validation performed in this environment:
+- Swift syntax parsing passed for every modified Swift source file.
+- Patch path safety and extraction simulation are validated during packaging.
+- Full SwiftUI/Xcode/TestFlight compilation still requires the repository's macOS GitHub Actions workflow.

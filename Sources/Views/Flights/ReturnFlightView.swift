@@ -64,6 +64,7 @@ struct ReturnFlightView: View {
                 )
 
                 resultCountLabel
+                IumrahRefundPolicyCard(component: .flight, compact: true)
                 flightGroups
 
                 FlightSearchProgressCard(

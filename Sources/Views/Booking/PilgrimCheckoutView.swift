@@ -311,6 +311,12 @@ struct PilgrimCheckoutView: View {
         VStack(alignment: .leading, spacing: 16) {
             stageHeader(number: "03", icon: "creditcard.fill", title: tr("Payment", "Оплата", "To‘lov", "Тўлов"))
 
+            IumrahManualPaymentNotice()
+            IumrahRefundPolicyCard(component: .package, compact: true)
+            if let session {
+                IumrahInvoiceShareCard(session: session, compact: true)
+            }
+
             friendsBenefitCard
 
             if paymentOptions(value).isEmpty {
@@ -353,22 +359,48 @@ struct PilgrimCheckoutView: View {
                 Divider()
 
                 if let receipt = value.receipts.first {
-                    HStack(spacing: 12) {
-                        IumrahIconBadge(
-                            systemName: "doc.text.image.fill",
-                            role: .success,
-                            size: 42,
-                            symbolSize: 18,
-                            cornerRadius: 14
-                        )
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(tr("Receipt attached", "Чек прикреплён", "Chek biriktirildi", "Чек бириктирилди"))
-                                .font(.subheadline.weight(.semibold))
-                            Text(receiptStatus(receipt.reviewStatus))
-                                .font(.caption).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 12) {
+                            IumrahIconBadge(
+                                systemName: "doc.text.image.fill",
+                                role: .success,
+                                size: 42,
+                                symbolSize: 18,
+                                cornerRadius: 14
+                            )
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tr("Receipt attached", "Чек прикреплён", "Chek biriktirildi", "Чек бириктирилди"))
+                                    .font(.subheadline.weight(.semibold))
+                                Text(receiptStatus(receipt.reviewStatus))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                Text(tr(
+                                    "Saved with this booking",
+                                    "Сохранён в этом бронировании",
+                                    "Shu bronga saqlandi",
+                                    "Шу бронга сақланди"
+                                ))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                         }
-                        Spacer()
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+
+                        if let url = receipt.url, !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button {
+                                Task { await openReceipt(receipt) }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.down.doc.fill")
+                                    Text(tr("Open payment receipt", "Открыть чек оплаты", "To‘lov chekini ochish", "Тўлов чекини очиш"))
+                                    Spacer()
+                                    if isLoadingDocument { ProgressView() } else { Image(systemName: "chevron.right") }
+                                }
+                                .font(.caption.weight(.bold))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isLoadingDocument)
+                        }
                     }
                 } else if isPaymentPending {
                     PhotosPicker(selection: $receiptPhoto, matching: .images) {
@@ -891,6 +923,37 @@ struct PilgrimCheckoutView: View {
             let data = try await service.media(path: path, token: token)
             paymeQRImage = UIImage(data: data)
         } catch { errorMessage = L10n.error(error, settings.language) }
+    }
+
+    @MainActor
+    private func openReceipt(_ receipt: IumrahPaymentReceipt) async {
+        guard let token = account.bearerToken,
+              let path = receipt.url?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !path.isEmpty else { return }
+        isLoadingDocument = true
+        defer { isLoadingDocument = false }
+        do {
+            let data = try await service.media(path: path, token: token)
+            let ext: String
+            if let filename = receipt.filename, !URL(fileURLWithPath: filename).pathExtension.isEmpty {
+                ext = URL(fileURLWithPath: filename).pathExtension
+            } else if receipt.contentType == "application/pdf" {
+                ext = "pdf"
+            } else if let direct = URL(string: path), !direct.pathExtension.isEmpty {
+                ext = direct.pathExtension
+            } else {
+                ext = "jpg"
+            }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("iumrah-payment-receipt-\(receipt.id).\(ext)")
+            try data.write(to: url, options: .atomic)
+            previewFile = IumrahPreviewFile(
+                id: "receipt-\(receipt.id)",
+                title: tr("Payment receipt", "Чек оплаты", "To‘lov cheki", "Тўлов чеки"),
+                url: url
+            )
+        } catch {
+            errorMessage = L10n.error(error, settings.language)
+        }
     }
 
     @MainActor

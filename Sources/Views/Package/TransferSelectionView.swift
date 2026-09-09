@@ -227,6 +227,7 @@ struct TransferSelectionView: View {
                 matchedHeader
                 vehicleStage
                 vehicleInformation
+                IumrahRefundPolicyCard(component: .transfer, compact: false)
 
                 if includesMadinah {
                     haramainExpandedCard

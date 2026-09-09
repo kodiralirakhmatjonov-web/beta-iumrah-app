@@ -51,6 +51,8 @@ struct FinalPackageView: View {
                         pricingStatusCard
                     }
                     includedServicesCard
+                    IumrahRefundPolicyCard(component: .package, compact: false)
+                    IumrahManualPaymentNotice()
                     careReassuranceCard
                     notificationCard
 

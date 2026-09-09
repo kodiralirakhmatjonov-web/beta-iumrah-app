@@ -590,6 +590,46 @@ struct IumrahAccountView: View {
                 )
             }
             .buttonStyle(.plain)
+
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .privacy)
+            } label: {
+                settingsRow(
+                    icon: "hand.raised.fill",
+                    title: IumrahPolicyKind.privacy.title(settings.language),
+                    value: tr("Data and privacy", "Данные и конфиденциальность", "Ma’lumotlar va maxfiylik", "Маълумотлар ва махфийлик")
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .refund)
+            } label: {
+                settingsRow(
+                    icon: "arrow.uturn.backward.circle.fill",
+                    title: IumrahPolicyKind.refund.title(settings.language),
+                    value: tr("Flights, hotels, transfer and services", "Авиабилеты, отели, трансфер и сервисы", "Aviachipta, mehmonxona, transfer va xizmatlar", "Авиачипта, меҳмонхона, трансфер ва хизматлар")
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .paymentSecurity)
+            } label: {
+                settingsRow(
+                    icon: "creditcard.and.123",
+                    title: IumrahPolicyKind.paymentSecurity.title(settings.language),
+                    value: tr("Manual payment · first 35 days", "Ручная оплата · первые 35 дней", "Qo‘lda to‘lov · dastlabki 35 kun", "Қўлда тўлов · дастлабки 35 кун")
+                )
+            }
+            .buttonStyle(.plain)
         }
         .iumrahCard()
     }
@@ -768,6 +808,30 @@ struct IumrahAccountView: View {
                 AccountNotificationsView()
             } label: {
                 settingsRow(icon: "bell.and.waves.left.and.right.fill", title: "iumrah Signal", value: signalHistoryValueText)
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .privacy)
+            } label: {
+                settingsRow(icon: "hand.raised.fill", title: IumrahPolicyKind.privacy.title(settings.language), value: tr("Data and privacy", "Данные и конфиденциальность", "Ma’lumotlar va maxfiylik", "Маълумотлар ва махфийлик"))
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .refund)
+            } label: {
+                settingsRow(icon: "arrow.uturn.backward.circle.fill", title: IumrahPolicyKind.refund.title(settings.language), value: tr("Component refund rules", "Правила возврата компонентов", "Komponentlarni qaytarish", "Компонентларни қайтариш"))
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .paymentSecurity)
+            } label: {
+                settingsRow(icon: "creditcard.and.123", title: IumrahPolicyKind.paymentSecurity.title(settings.language), value: tr("Manual payment · first 35 days", "Ручная оплата · первые 35 дней", "Qo‘lda to‘lov · dastlabki 35 kun", "Қўлда тўлов · дастлабки 35 кун"))
             }
             .buttonStyle(.plain)
         }

@@ -64,6 +64,11 @@ struct BookingDetailView: View {
                                 isFlipped: $bookingCardFlipped
                             )
                             statusHero(session)
+                            if shouldShowCheckoutEntry(for: session) {
+                                IumrahManualPaymentNotice()
+                                IumrahRefundPolicyCard(component: .package, compact: true)
+                                IumrahInvoiceShareCard(session: session, compact: true)
+                            }
                             bookingMetaCard(session.booking)
                             if session.booking.perPilgrimUsd >= 1800 {
                                 bookingCareBalanceCard

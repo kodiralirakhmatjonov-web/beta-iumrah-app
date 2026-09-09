@@ -174,6 +174,9 @@ struct IumrahPaymentReceipt: Codable, Identifiable, Hashable {
     let note: String?
     let reviewStatus: String
     let createdAt: String
+    let url: String?
+    let contentType: String?
+    let filename: String?
 }
 
 struct IumrahTravelDocument: Codable, Identifiable, Hashable {

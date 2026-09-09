@@ -1,0 +1,93 @@
+{
+  "name": "iumrah Beta privacy, refunds and temporary manual payment v1",
+  "date": "2026-09-09",
+  "root": "beta-iumrah-app-main",
+  "reason": "Add a clear four-language trust layer for privacy, component-level refunds, the initial 35-day manual-payment period, booking-linked receipts and downloadable booking invoices without changing package pricing or travel-selection business logic.",
+  "files": [
+    {
+      "path": "Sources/Legal/IumrahPolicies.swift",
+      "bytes": 44042,
+      "sha256": "b5f525d67d9011518d98abdaf3c441f49b88e6050a3138a2c097c29239e8fafb"
+    },
+    {
+      "path": "Sources/Legal/IumrahInvoiceRenderer.swift",
+      "bytes": 15682,
+      "sha256": "8bbc00929c49d4962b7a50b194bb667d0320373dc96dd77992d1fb9a8abaa889"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 55621,
+      "sha256": "b33b100069d68579ea4fbaff8714180f879aae86ade435204264ffce82337413"
+    },
+    {
+      "path": "Sources/AppShell/ProfileSettingsView.swift",
+      "bytes": 2768,
+      "sha256": "60a981d842804dc9573692dca6b738d87b4218cc266140cc1979e55fbb76878c"
+    },
+    {
+      "path": "Sources/Models/IumrahAccountModels.swift",
+      "bytes": 8573,
+      "sha256": "117a8d3989fdc78976db51395657ae10b6c04ec9c998af1ebafae8911ff77752"
+    },
+    {
+      "path": "Sources/Views/Booking/BookingCheckoutView.swift",
+      "bytes": 9746,
+      "sha256": "170d85280124bd6f44ee8bf8f26b7b05e36312f9c0a7da1b0066958625b44269"
+    },
+    {
+      "path": "Sources/Views/Booking/BookingDetailView.swift",
+      "bytes": 75101,
+      "sha256": "2fb794be9fa8a578b105a9f65a6e207cf019fcd9f6a152703bbb9d06deb402c8"
+    },
+    {
+      "path": "Sources/Views/Booking/PilgrimCheckoutView.swift",
+      "bytes": 81258,
+      "sha256": "94d82184b9fbe0edce12fd1ff30b6667a61c755b60bd06654837aab45d6df8f4"
+    },
+    {
+      "path": "Sources/Views/Flights/FlightDetailsView.swift",
+      "bytes": 18495,
+      "sha256": "d44156980d7da78662d261cfa24bfd2ce2fdb5bfa08e3806a41608547fc51495"
+    },
+    {
+      "path": "Sources/Views/Flights/OutboundFlightView.swift",
+      "bytes": 31441,
+      "sha256": "887996ac1679d6d8c6eb1dbcbaf094f9e4c7b32a863e4e9a0fd9df5b74aa004b"
+    },
+    {
+      "path": "Sources/Views/Flights/ReturnFlightView.swift",
+      "bytes": 20184,
+      "sha256": "ef63504674c9c667907447224b09ec46b156a7b7c0a41897af3ebb1aa3d0355d"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "bytes": 70238,
+      "sha256": "2209e6725d18232a53df1e981f9755b962bba92fdfaeb0d355a8d9efbff8d075"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelSelectionView.swift",
+      "bytes": 7997,
+      "sha256": "7325213571947ad62ec292d1dd5a50b3e44c08368ef7fc2c23aa3222c3a23338"
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "bytes": 51085,
+      "sha256": "ce33146248603489cfe34aa480340c746186326cac638b45353fb96e65e04fda"
+    },
+    {
+      "path": "Sources/Views/Package/TransferSelectionView.swift",
+      "bytes": 49981,
+      "sha256": "8f548fdaabf908d799246aac00693f4988397f25307dcea1216e2aa6a56ff6e5"
+    },
+    {
+      "path": "BETA_PRIVACY_REFUNDS_MANUAL_PAYMENT_109_APPLIED.txt",
+      "bytes": 1344,
+      "sha256": "48fed26b0788cc2b925d34eedef80f37f6cf7c8a3b8c8bec3b723a3afdf3f05d"
+    }
+  ],
+  "validation": [
+    "Swift frontend syntax parse for all modified Swift files",
+    "ZIP CRC validation",
+    "Safe extraction simulation against the supplied seed repository"
+  ]
+}

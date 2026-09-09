@@ -128,6 +128,8 @@ struct HotelSelectionView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                IumrahRefundPolicyCard(component: .hotel, compact: true)
+
                 if filteredHotels.isEmpty {
                     VStack(spacing: 14) {
                         if role == .makkah ? journey.isLoadingHotels : journey.isLoadingMadinahHotels {

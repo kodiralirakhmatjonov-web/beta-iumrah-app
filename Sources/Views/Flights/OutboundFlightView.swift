@@ -82,6 +82,7 @@ struct OutboundFlightView: View {
                 )
 
                 resultCountLabel
+                IumrahRefundPolicyCard(component: .flight, compact: true)
                 resultFilters
                 flightGroups
 

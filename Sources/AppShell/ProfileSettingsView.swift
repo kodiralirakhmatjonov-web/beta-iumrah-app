@@ -34,6 +34,13 @@ struct ProfileSettingsView: View {
                         }
                     }
                 }
+
+
+                Section {
+                    IumrahPolicySettingsRows()
+                } header: {
+                    Text(policySectionTitle)
+                }
             }
             .navigationTitle(L10n.text("settings_title", settings.language))
             .navigationBarTitleDisplayMode(.inline)
@@ -42,6 +49,15 @@ struct ProfileSettingsView: View {
                     Button(L10n.text("settings_done", settings.language)) { dismiss() }
                 }
             }
+        }
+    }
+
+    private var policySectionTitle: String {
+        switch settings.language {
+        case .russian: return "Конфиденциальность, возвраты и оплата"
+        case .english: return "Privacy, refunds & payment"
+        case .uzbek: return "Maxfiylik, qaytarish va to‘lov"
+        case .uzbekCyrillic: return "Махфийлик, қайтариш ва тўлов"
         }
     }
 }

@@ -13,6 +13,8 @@ struct BookingCheckoutView: View {
         ScrollView {
             VStack(spacing: 22) {
                 summaryHero
+                IumrahManualPaymentNotice()
+                IumrahRefundPolicyCard(component: .package, compact: false)
                 nextStepsCard
                 actions
             }

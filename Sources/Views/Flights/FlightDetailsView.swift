@@ -9,6 +9,7 @@ struct FlightDetailsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
+                IumrahRefundPolicyCard(component: .flight, compact: false)
 
                 ForEach(Array(offer.displaySegments.enumerated()), id: \.element.id) { index, segment in
                     segmentSection(segment, index: index)
