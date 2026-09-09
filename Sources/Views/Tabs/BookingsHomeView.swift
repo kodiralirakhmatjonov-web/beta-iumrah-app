@@ -58,8 +58,9 @@ struct BookingsHomeView: View {
             }
         }
         .fullScreenCover(isPresented: $showZiyarats) {
-            NavigationStack { ZiyaratJourneyView() }
+            ZiyaratJourneyView()
                 .environmentObject(settings)
+                .environmentObject(chrome)
         }
     }
 

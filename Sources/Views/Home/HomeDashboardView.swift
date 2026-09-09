@@ -6,6 +6,7 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var account: IumrahAccountStore
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
+    @State private var showZiyarats = false
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { $0.effectiveStatus.uppercased() != "COMPLETED" }
@@ -19,6 +20,11 @@ struct HomeDashboardView: View {
                     if let activeSession { _ = try? await bookings.loadESIMs(for: activeSession.id) }
                     try? await Task.sleep(nanoseconds: 120_000_000_000)
                 }
+            }
+            .fullScreenCover(isPresented: $showZiyarats) {
+                ZiyaratJourneyView()
+                    .environmentObject(settings)
+                    .environmentObject(chrome)
             }
     }
 
@@ -285,8 +291,9 @@ struct HomeDashboardView: View {
     }
 
     private var ziyaratsHomeCard: some View {
-        NavigationLink {
-            ZiyaratJourneyView()
+        Button {
+            IumrahHaptics.selection()
+            showZiyarats = true
         } label: {
             ZStack(alignment: .bottomLeading) {
                 Image("ZiyaratQuba3")

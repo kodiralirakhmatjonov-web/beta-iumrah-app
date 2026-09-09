@@ -3,20 +3,20 @@ import MapKit
 
 // MARK: - iumrah Ziyarats
 //
-// This module intentionally behaves like a map-first Apple system experience:
-// the MapKit scene never navigates away, one persistent lower surface changes
-// state, and place details expand inside the same spatial context.
+// Map-first experience inspired by Apple's own map surfaces. The map remains the
+// spatial scene while a native presentation sheet provides the interactive card.
+// Sheet movement, snapping, resistance and swipe physics are handled by SwiftUI/
+// UIKit rather than a hand-built drag recognizer.
 
 struct ZiyaratJourneyView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var chrome: AppChromeStore
 
     @State private var route = ZiyaratSeedData.medina
     @State private var selectedPlace: ZiyaratPlace?
     @State private var activeTab: ZiyaratPanelTab = .journey
-    @State private var panelDetent: ZiyaratPanelDetent = .medium
-    @GestureState private var panelDragTranslation: CGFloat = 0
 
     @State private var camera: MapCameraPosition = .region(Self.region(for: ZiyaratSeedData.medina.places))
     @State private var polylines: [MKPolyline] = []
@@ -31,71 +31,96 @@ struct ZiyaratJourneyView: View {
     @State private var welcomeCopyVisible = false
     @State private var revealedStopCount = 0
 
-    private let panelAnimation = Animation.spring(response: 0.46, dampingFraction: 0.88, blendDuration: 0.12)
-    private let cameraAnimation = Animation.easeInOut(duration: 0.62)
+    @State private var panelPresented = false
+    @State private var panelDetent: PresentationDetent = Self.compactDetent
+    @State private var closing = false
+
+    private static let compactDetent = PresentationDetent.height(104)
+    private static let cardDetent = PresentationDetent.height(368)
 
     private var orderedPlaces: [ZiyaratPlace] {
         route.places.sorted { $0.routeOrder < $1.routeOrder }
     }
 
+    private var isCompactPanel: Bool { panelDetent == Self.compactDetent }
+    private var isExpandedPanel: Bool { panelDetent == .large }
+
     var body: some View {
-        GeometryReader { proxy in
-            let safeTop = proxy.safeAreaInsets.top
-            let safeBottom = proxy.safeAreaInsets.bottom
-            let heights = panelHeights(totalHeight: proxy.size.height, safeTop: safeTop, safeBottom: safeBottom)
-            let panelHeight = livePanelHeight(heights: heights)
+        ZStack {
+            mapScene
+                .ignoresSafeArea()
 
-            ZStack(alignment: .bottom) {
-                mapScene
-                    .ignoresSafeArea()
+            mapChrome
 
-                mapChrome(safeTop: safeTop)
-                    .opacity(panelDetent == .expanded ? 0 : 1)
-                    .allowsHitTesting(panelDetent != .expanded)
-                    .animation(panelAnimation, value: panelDetent)
+            if welcomeVisible {
+                ZiyaratWelcomeOverlay(
+                    pretitle: welcomePretitle,
+                    title: "iumrah Ziyarats",
+                    city: cityTitle,
+                    copyVisible: welcomeCopyVisible
+                )
+                .transition(.opacity)
+                .allowsHitTesting(false)
+                .zIndex(20)
+            }
 
-                if welcomeVisible {
-                    ZiyaratWelcomeOverlay(
-                        pretitle: welcomePretitle,
-                        title: "iumrah Ziyarats",
-                        city: cityTitle,
-                        copyVisible: welcomeCopyVisible
-                    )
-                    .transition(.opacity)
-                    .allowsHitTesting(false)
-                    .zIndex(4)
-                }
-
-                if orderedPlaces.isEmpty && !loadingCatalog {
-                    emptyOverlay
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, heights.collapsed + 22)
-                        .zIndex(3)
-                }
-
-                lowerPanel(height: panelHeight, safeBottom: safeBottom, heights: heights)
-                    .padding(.horizontal, 6)
-                    .padding(.bottom, 4)
+            if orderedPlaces.isEmpty && !loadingCatalog {
+                emptyOverlay
+                    .padding(.horizontal, 24)
                     .zIndex(5)
             }
-            .ignoresSafeArea(edges: .bottom)
         }
+        .background(Color(uiColor: .systemBackground))
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .navigationBarBackButtonHidden(true)
-        .task { await loadJourney() }
+        .onAppear {
+            chrome.setImmersive(true)
+        }
+        .onDisappear {
+            if !closing { chrome.setImmersive(false) }
+        }
+        .task {
+            async let catalogTask: Void = loadJourney()
+            async let welcomeTask: Void = playWelcomeSequence()
+            _ = await (catalogTask, welcomeTask)
+        }
+        .sheet(isPresented: $panelPresented, onDismiss: {
+            // The Ziyarats panel is permanent while the map module is open.
+            // If UIKit ever dismisses it unexpectedly, restore it quietly.
+            guard !closing else { return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(80))
+                panelPresented = true
+            }
+        }) {
+            panelSheet
+                .presentationDetents([Self.compactDetent, Self.cardDetent, .large], selection: $panelDetent)
+                .presentationDragIndicator(.hidden)
+                .presentationCornerRadius(0)
+                .presentationBackground(.clear)
+                .presentationBackgroundInteraction(.enabled)
+                .interactiveDismissDisabled(true)
+        }
         .onChange(of: panelDetent) { _, _ in
             guard let selectedPlace else { return }
             focus(on: selectedPlace, animated: true)
         }
     }
 
-    // MARK: Map scene
+    // MARK: Map
 
     @ViewBuilder
     private var mapScene: some View {
         switch mapMode {
         case .standard:
             mapContent
-                .mapStyle(.standard(elevation: .realistic, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
+                .mapStyle(.standard(
+                    elevation: .realistic,
+                    emphasis: .muted,
+                    pointsOfInterest: .excludingAll,
+                    showsTraffic: false
+                ))
         case .satellite:
             mapContent
                 .mapStyle(.imagery(elevation: .realistic))
@@ -106,9 +131,8 @@ struct ZiyaratJourneyView: View {
         Map(position: $camera) {
             if showRouteLine {
                 ForEach(Array(polylines.enumerated()), id: \.offset) { _, polyline in
-                    // A light casing keeps the route legible over both Standard and Satellite.
                     MapPolyline(polyline)
-                        .stroke(.white.opacity(0.88), style: StrokeStyle(lineWidth: 7.5, lineCap: .round, lineJoin: .round))
+                        .stroke(.white.opacity(0.92), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
                     MapPolyline(polyline)
                         .stroke(Color(uiColor: .systemBlue), style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round))
                 }
@@ -130,7 +154,7 @@ struct ZiyaratJourneyView: View {
                                 isSelected: selectedPlace?.id == place.id
                             )
                             .opacity(!welcomeVisible || index < revealedStopCount ? 1 : 0)
-                            .scaleEffect(!welcomeVisible || index < revealedStopCount ? 1 : 0.72)
+                            .scaleEffect(!welcomeVisible || index < revealedStopCount ? 1 : 0.76)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(place.localizedContent(locale: settings.language.rawValue).title)
@@ -140,38 +164,38 @@ struct ZiyaratJourneyView: View {
         }
     }
 
-    private func mapChrome(safeTop: CGFloat) -> some View {
-        VStack {
+    private var mapChrome: some View {
+        VStack(spacing: 0) {
             HStack(alignment: .top) {
                 IumrahGlassIconButton(
                     systemName: "xmark",
-                    size: 46,
-                    fontSize: 16,
+                    size: 50,
+                    fontSize: 18,
                     accessibilityLabel: closeLabel
                 ) {
-                    dismiss()
+                    closeZiyarats()
                 }
 
                 Spacer()
 
-                IumrahGlassGroup(spacing: 8) {
-                    VStack(spacing: 8) {
+                IumrahGlassGroup(spacing: 10) {
+                    VStack(spacing: 10) {
                         IumrahGlassIconButton(
                             systemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
-                            size: 46,
-                            fontSize: 16,
+                            size: 50,
+                            fontSize: 17,
                             foreground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
                             accessibilityLabel: mapModeLabel
                         ) {
                             selectedPlace = nil
                             activeTab = .map
-                            withAnimation(panelAnimation) { panelDetent = .medium }
+                            setPanel(.card)
                         }
 
                         IumrahGlassIconButton(
                             systemName: "scope",
-                            size: 46,
-                            fontSize: 16,
+                            size: 50,
+                            fontSize: 17,
                             accessibilityLabel: fitRouteLabel
                         ) {
                             fitEntireRoute(animated: true)
@@ -179,137 +203,143 @@ struct ZiyaratJourneyView: View {
                     }
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.top, safeTop + 6)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .zIndex(2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .opacity(isExpandedPanel ? 0 : 1)
+        .allowsHitTesting(!isExpandedPanel && !welcomeVisible)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: isExpandedPanel)
+        .zIndex(10)
     }
 
-    // MARK: Persistent lower panel
+    // MARK: Native lower sheet
 
-    private func lowerPanel(
-        height: CGFloat,
-        safeBottom: CGFloat,
-        heights: ZiyaratPanelHeights
-    ) -> some View {
+    private var panelSheet: some View {
         VStack(spacing: 0) {
-            panelHandle(heights: heights)
+            Capsule()
+                .fill(Color.secondary.opacity(0.42))
+                .frame(width: 36, height: 5)
+                .padding(.top, 9)
+                .padding(.bottom, isCompactPanel ? 1 : 7)
 
-            if panelDetent != .collapsed || panelDragTranslation < -18 {
+            if !isCompactPanel {
                 panelBody
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .transition(.opacity)
+
+                Divider()
+                    .opacity(0.34)
             } else {
                 Spacer(minLength: 0)
             }
 
-            Divider()
-                .opacity(panelDetent == .collapsed ? 0 : 0.55)
-
-            panelTabBar(safeBottom: safeBottom)
+            panelTabBar
         }
-        .frame(height: height)
-        .frame(maxWidth: .infinity)
-        .clipped()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .iumrahGlass(
-            in: RoundedRectangle(cornerRadius: 34, style: .continuous),
+            in: RoundedRectangle(cornerRadius: 31, style: .continuous),
             allowsStaticGlass: true,
             chrome: true
         )
-        .shadow(color: .black.opacity(0.17), radius: 24, y: 10)
-        .animation(panelAnimation, value: panelDetent)
-        .animation(panelAnimation, value: activeTab)
-        .animation(panelAnimation, value: selectedPlace?.id)
-    }
-
-    private func panelHandle(heights: ZiyaratPanelHeights) -> some View {
-        VStack(spacing: 0) {
-            Capsule()
-                .fill(Color.secondary.opacity(0.42))
-                .frame(width: 38, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-        }
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .gesture(panelDragGesture(heights: heights))
-        .accessibilityLabel(panelResizeLabel)
+        .padding(.horizontal, 7)
+        .padding(.top, 3)
+        .padding(.bottom, 7)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: activeTab)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedPlace?.id)
     }
 
     private var panelBody: some View {
-        ZStack(alignment: .topLeading) {
+        Group {
             if let selectedPlace {
                 ZiyaratPlacePanelContent(
                     place: selectedPlace,
                     totalStops: orderedPlaces.count,
-                    expanded: panelDetent == .expanded,
+                    expanded: isExpandedPanel,
                     language: settings.language,
                     onClose: {
-                        withAnimation(panelAnimation) { self.selectedPlace = nil }
+                        IumrahHaptics.selection()
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+                            self.selectedPlace = nil
+                        }
                         fitEntireRoute(animated: true)
                     },
-                    onExpand: {
-                        withAnimation(panelAnimation) { panelDetent = .expanded }
-                    },
+                    onExpand: { setPanel(.full) },
                     onOpenMaps: { openInMaps(selectedPlace) }
                 )
-                .id("place-\(selectedPlace.id)-\(panelDetent == .expanded)")
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .id("place-\(selectedPlace.id)-\(isExpandedPanel)")
             } else {
                 switch activeTab {
-                case .journey:
-                    journeyPanel
-                        .id("journey")
-                        .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                case .places:
-                    placesPanel
-                        .id("places")
-                        .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                case .route:
-                    routePanel
-                        .id("route")
-                        .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                case .map:
-                    mapPanel
-                        .id("map")
-                        .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                case .journey: journeyPanel
+                case .places: placesPanel
+                case .route: routePanel
+                case .map: mapPanel
                 }
             }
         }
-        .animation(panelAnimation, value: activeTab)
-        .animation(panelAnimation, value: selectedPlace?.id)
     }
+
+    private var panelTabBar: some View {
+        HStack(spacing: 2) {
+            ForEach(ZiyaratPanelTab.allCases) { tab in
+                Button {
+                    selectTab(tab)
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 18, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
+                            .symbolRenderingMode(.hierarchical)
+                        Text(tabTitle(tab))
+                            .font(.system(size: 10.5, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(activeTab == tab && selectedPlace == nil ? Color(uiColor: .systemBlue) : Color.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 62)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(activeTab == tab && selectedPlace == nil ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: Panel pages
 
     private var journeyPanel: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("iumrah Ziyarats")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(routeTitle)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .tracking(-0.7)
-                    Text(routeSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 17) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("iumrah Ziyarats")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(routeTitle)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .tracking(-0.6)
+                        Text(routeSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    if loadingCatalog { ProgressView().controlSize(.small) }
                 }
 
                 HStack(spacing: 0) {
                     journeyMetric(icon: "mappin.and.ellipse", value: "\(orderedPlaces.count)", label: stopsLabel)
-                    Divider().frame(height: 40)
+                    Divider().frame(height: 38)
                     journeyMetric(icon: "clock", value: timeText(route.estimatedMinutes), label: totalTimeLabel)
-                    Divider().frame(height: 40)
+                    Divider().frame(height: 38)
                     journeyMetric(icon: "car.fill", value: transportLabel, label: routeLabel)
                 }
 
                 if let first = orderedPlaces.first {
-                    Button {
-                        select(first)
-                    } label: {
+                    Button { select(first) } label: {
                         ZiyaratJourneyNextStopRow(
                             place: first,
                             title: first.localizedContent(locale: settings.language.rawValue).title,
@@ -323,18 +353,19 @@ struct ZiyaratJourneyView: View {
                 Button {
                     selectedPlace = nil
                     activeTab = .route
-                    withAnimation(panelAnimation) { panelDetent = .medium }
                     fitEntireRoute(animated: true)
+                    setPanel(.card)
                 } label: {
                     Label(showRouteLabel, systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(height: 48)
                 }
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: true))
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 18)
         }
     }
 
@@ -361,7 +392,8 @@ struct ZiyaratJourneyView: View {
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 18)
         }
     }
 
@@ -371,9 +403,7 @@ struct ZiyaratJourneyView: View {
                 HStack(alignment: .firstTextBaseline) {
                     panelSectionHeader(title: itineraryTitle, subtitle: routeSubtitle)
                     Spacer(minLength: 8)
-                    if loadingRoute {
-                        ProgressView().controlSize(.small)
-                    }
+                    if loadingRoute { ProgressView().controlSize(.small) }
                 }
 
                 VStack(spacing: 0) {
@@ -393,23 +423,24 @@ struct ZiyaratJourneyView: View {
 
                 Button {
                     fitEntireRoute(animated: true)
-                    withAnimation(panelAnimation) { panelDetent = .collapsed }
+                    setPanel(.compact)
                 } label: {
                     Label(showOnMapLabel, systemImage: "map.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(height: 48)
                 }
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: true))
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 18)
         }
     }
 
     private var mapPanel: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 17) {
                 panelSectionHeader(title: mapModesTitle, subtitle: mapModesSubtitle)
 
                 HStack(spacing: 12) {
@@ -437,28 +468,29 @@ struct ZiyaratJourneyView: View {
 
                 Button {
                     fitEntireRoute(animated: true)
-                    withAnimation(panelAnimation) { panelDetent = .collapsed }
+                    setPanel(.compact)
                 } label: {
                     Label(fitRouteLabel, systemImage: "scope")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(height: 48)
                 }
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: false))
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 18)
         }
     }
 
     private func mapModeChoice(_ mode: ZiyaratMapMode, title: String, icon: String) -> some View {
         Button {
             IumrahHaptics.selection()
-            withAnimation(.easeInOut(duration: 0.28)) { mapMode = mode }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { mapMode = mode }
         } label: {
             VStack(alignment: .leading, spacing: 14) {
                 Image(systemName: icon)
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 25, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
                 HStack {
                     Text(title).font(.subheadline.weight(.semibold))
@@ -471,49 +503,19 @@ struct ZiyaratJourneyView: View {
             }
             .foregroundStyle(.primary)
             .padding(15)
-            .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
             .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(mapMode == mode ? Color(uiColor: .systemBlue) : Color.primary.opacity(0.07), lineWidth: mapMode == mode ? 2 : 0.7)
+                    .stroke(mapMode == mode ? Color(uiColor: .systemBlue) : Color.primary.opacity(0.07), lineWidth: mapMode == mode ? 1.7 : 0.7)
             }
         }
         .buttonStyle(.plain)
     }
 
-    private func panelTabBar(safeBottom: CGFloat) -> some View {
-        HStack(spacing: 0) {
-            ForEach(ZiyaratPanelTab.allCases) { tab in
-                Button {
-                    selectTab(tab)
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 18, weight: activeTab == tab ? .semibold : .regular))
-                            .symbolRenderingMode(.hierarchical)
-                        Text(tabTitle(tab))
-                            .font(.system(size: 10.5, weight: activeTab == tab ? .semibold : .regular))
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(activeTab == tab ? Color(uiColor: .systemBlue) : Color.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(activeTab == tab ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.bottom, max(2, safeBottom - 2))
-        .frame(minHeight: 70 + max(0, safeBottom - 2))
-    }
-
     private func panelSectionHeader(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.title2.bold())
-                .tracking(-0.25)
+            Text(title).font(.title2.bold()).tracking(-0.25)
             Text(subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -526,7 +528,7 @@ struct ZiyaratJourneyView: View {
         VStack(spacing: 4) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                Text(value).lineLimit(1).minimumScaleFactor(0.75)
+                Text(value).lineLimit(1).minimumScaleFactor(0.72)
             }
             .font(.subheadline.weight(.semibold))
             Text(label)
@@ -543,85 +545,63 @@ struct ZiyaratJourneyView: View {
         IumrahHaptics.selection()
         selectedPlace = place
         activeTab = .places
-        withAnimation(panelAnimation) { panelDetent = .medium }
+        setPanel(.card)
         focus(on: place, animated: true)
     }
 
     private func selectTab(_ tab: ZiyaratPanelTab) {
         IumrahHaptics.selection()
-        let sameTab = activeTab == tab && selectedPlace == nil
+        let wasActive = activeTab == tab && selectedPlace == nil
         selectedPlace = nil
         activeTab = tab
 
-        withAnimation(panelAnimation) {
-            if sameTab && panelDetent == .medium {
-                panelDetent = .collapsed
-            } else {
-                panelDetent = .medium
-            }
+        if wasActive && !isCompactPanel {
+            setPanel(.compact)
+        } else {
+            setPanel(.card)
         }
 
-        if tab == .route {
-            fitEntireRoute(animated: true)
+        if tab == .route { fitEntireRoute(animated: true) }
+    }
+
+    private func setPanel(_ level: ZiyaratPanelLevel) {
+        let detent: PresentationDetent
+        switch level {
+        case .compact: detent = Self.compactDetent
+        case .card: detent = Self.cardDetent
+        case .full: detent = .large
         }
-    }
 
-    private func panelDragGesture(heights: ZiyaratPanelHeights) -> some Gesture {
-        DragGesture(minimumDistance: 3, coordinateSpace: .global)
-            .updating($panelDragTranslation) { value, state, _ in
-                state = value.translation.height
+        if reduceMotion {
+            panelDetent = detent
+        } else {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.9)) {
+                panelDetent = detent
             }
-            .onEnded { value in
-                let current = targetPanelHeight(heights: heights)
-                let projected = current - value.predictedEndTranslation.height
-                let targets: [(ZiyaratPanelDetent, CGFloat)] = [
-                    (.collapsed, heights.collapsed),
-                    (.medium, heights.medium),
-                    (.expanded, heights.expanded)
-                ]
-                let nearest = targets.min { abs($0.1 - projected) < abs($1.1 - projected) }?.0 ?? .medium
-                IumrahHaptics.selection()
-                withAnimation(panelAnimation) { panelDetent = nearest }
-            }
-    }
-
-    private func panelHeights(totalHeight: CGFloat, safeTop: CGFloat, safeBottom: CGFloat) -> ZiyaratPanelHeights {
-        let collapsed = 92 + max(0, safeBottom - 2)
-        let maximumMedium = max(collapsed + 170, totalHeight - safeTop - 126)
-        let desiredMedium = max(collapsed + 230, totalHeight * 0.52)
-        let medium = min(desiredMedium, maximumMedium)
-        let expanded = min(totalHeight - 4, max(medium + 90, totalHeight - safeTop - 8))
-        return ZiyaratPanelHeights(collapsed: collapsed, medium: medium, expanded: expanded)
-    }
-
-    private func targetPanelHeight(heights: ZiyaratPanelHeights) -> CGFloat {
-        switch panelDetent {
-        case .collapsed: return heights.collapsed
-        case .medium: return heights.medium
-        case .expanded: return heights.expanded
         }
-    }
-
-    private func livePanelHeight(heights: ZiyaratPanelHeights) -> CGFloat {
-        let target = targetPanelHeight(heights: heights)
-        return min(heights.expanded, max(heights.collapsed, target - panelDragTranslation))
     }
 
     private func focus(on place: ZiyaratPlace, animated: Bool) {
-        // Shift the map center slightly south so the exact coordinate remains
-        // visible above the persistent lower panel instead of being hidden by it.
         let shift: Double
-        switch panelDetent {
-        case .collapsed: shift = 0.0010
-        case .medium: shift = 0.0042
-        case .expanded: shift = 0.0075
+        let span: Double
+        if isExpandedPanel {
+            shift = 0.0068
+            span = 0.021
+        } else if isCompactPanel {
+            shift = 0.0008
+            span = 0.0135
+        } else {
+            shift = 0.0038
+            span = 0.0155
         }
+
         let region = MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: place.latitude - shift, longitude: place.longitude),
-            span: MKCoordinateSpan(latitudeDelta: panelDetent == .expanded ? 0.022 : 0.015, longitudeDelta: panelDetent == .expanded ? 0.022 : 0.015)
+            span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
         )
-        if animated {
-            withAnimation(cameraAnimation) { camera = .region(region) }
+
+        if animated && !reduceMotion {
+            withAnimation(.easeInOut(duration: 0.56)) { camera = .region(region) }
         } else {
             camera = .region(region)
         }
@@ -630,21 +610,37 @@ struct ZiyaratJourneyView: View {
     private func fitEntireRoute(animated: Bool) {
         guard !orderedPlaces.isEmpty else { return }
         let target = Self.region(for: orderedPlaces)
-        if animated {
-            withAnimation(cameraAnimation) { camera = .region(target) }
+        if animated && !reduceMotion {
+            withAnimation(.easeInOut(duration: 0.56)) { camera = .region(target) }
         } else {
             camera = .region(target)
         }
     }
 
     private func openInMaps(_ place: ZiyaratPlace) {
-        let content = place.localizedContent(locale: settings.language.rawValue)
+        IumrahHaptics.selection()
         let item = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
-        item.name = content.title
+        item.name = place.localizedContent(locale: settings.language.rawValue).title
         item.openInMaps()
     }
 
-    // MARK: Loading / welcome
+    private func closeZiyarats() {
+        guard !closing else { return }
+        closing = true
+        IumrahHaptics.selection()
+        panelPresented = false
+        chrome.setImmersive(false)
+        if reduceMotion {
+            dismiss()
+        } else {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(120))
+                dismiss()
+            }
+        }
+    }
+
+    // MARK: Loading / intro
 
     @MainActor
     private func loadJourney() async {
@@ -658,33 +654,39 @@ struct ZiyaratJourneyView: View {
         polylines = await ZiyaratRouteService.shared.roadPolylines(for: live.places)
         loadingRoute = false
 
-        await playWelcomeSequence(stopCount: live.places.count)
+        if !welcomeVisible { revealedStopCount = live.places.count }
     }
 
     @MainActor
-    private func playWelcomeSequence(stopCount: Int) async {
+    private func playWelcomeSequence() async {
         if reduceMotion {
             welcomeCopyVisible = true
-            revealedStopCount = stopCount
-            try? await Task.sleep(for: .milliseconds(650))
+            revealedStopCount = orderedPlaces.count
+            try? await Task.sleep(for: .milliseconds(450))
             welcomeVisible = false
+            panelPresented = true
+            panelDetent = Self.cardDetent
             return
         }
 
-        withAnimation(.easeOut(duration: 0.38)) { welcomeCopyVisible = true }
-        try? await Task.sleep(for: .milliseconds(240))
+        withAnimation(.easeOut(duration: 0.34)) { welcomeCopyVisible = true }
+        try? await Task.sleep(for: .milliseconds(260))
 
-        if stopCount > 0 {
-            for index in 1...stopCount {
-                try? await Task.sleep(for: .milliseconds(90))
-                withAnimation(.spring(response: 0.34, dampingFraction: 0.78)) {
-                    revealedStopCount = index
-                }
+        let count = max(orderedPlaces.count, 1)
+        for index in 1...count {
+            try? await Task.sleep(for: .milliseconds(92))
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+                revealedStopCount = index
             }
         }
 
-        try? await Task.sleep(for: .milliseconds(820))
-        withAnimation(.easeInOut(duration: 0.48)) { welcomeVisible = false }
+        try? await Task.sleep(for: .milliseconds(650))
+        withAnimation(.easeInOut(duration: 0.38)) { welcomeVisible = false }
+        try? await Task.sleep(for: .milliseconds(90))
+        panelDetent = Self.compactDetent
+        panelPresented = true
+        try? await Task.sleep(for: .milliseconds(180))
+        setPanel(.card)
     }
 
     private static func region(for places: [ZiyaratPlace]) -> MKCoordinateRegion {
@@ -704,12 +706,12 @@ struct ZiyaratJourneyView: View {
 
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(
-                latitude: (minLat + maxLat) / 2 - 0.003,
+                latitude: (minLat + maxLat) / 2 - 0.002,
                 longitude: (minLon + maxLon) / 2
             ),
             span: MKCoordinateSpan(
-                latitudeDelta: max(0.035, (maxLat - minLat) * 1.65),
-                longitudeDelta: max(0.035, (maxLon - minLon) * 1.65)
+                latitudeDelta: max(0.033, (maxLat - minLat) * 1.7),
+                longitudeDelta: max(0.033, (maxLon - minLon) * 1.7)
             )
         )
     }
@@ -756,7 +758,6 @@ struct ZiyaratJourneyView: View {
     private var fitRouteLabel: String { localized("Показать весь маршрут", "Fit entire route", "Butun yo‘nalishni ko‘rsatish", "Бутун йўналишни кўрсатиш") }
     private var mapModeLabel: String { localized("Режим карты", "Map mode", "Xarita rejimi", "Харита режими") }
     private var closeLabel: String { localized("Закрыть", "Close", "Yopish", "Ёпиш") }
-    private var panelResizeLabel: String { localized("Изменить размер панели", "Resize panel", "Panel o‘lchamini o‘zgartirish", "Панель ўлчамини ўзгартириш") }
     private var noPlacesTitle: String { localized("Пока нет мест", "No places yet", "Hozircha joylar yo‘q", "Ҳозирча жойлар йўқ") }
     private var noPlacesSubtitle: String { localized("Опубликованные в iumrah Business точки появятся здесь автоматически.", "Places published in iumrah Business will appear here automatically.", "iumrah Business’da chop etilgan joylar bu yerda avtomatik paydo bo‘ladi.", "iumrah Business’да чоп этилган жойлар бу ерда автоматик пайдо бўлади.") }
 
@@ -805,18 +806,10 @@ struct ZiyaratJourneyView: View {
     }
 }
 
-// MARK: - Panel state
-
-private enum ZiyaratPanelDetent: Equatable {
-    case collapsed
-    case medium
-    case expanded
-}
-
-private struct ZiyaratPanelHeights {
-    let collapsed: CGFloat
-    let medium: CGFloat
-    let expanded: CGFloat
+private enum ZiyaratPanelLevel {
+    case compact
+    case card
+    case full
 }
 
 private enum ZiyaratPanelTab: String, CaseIterable, Identifiable {
@@ -841,8 +834,6 @@ private enum ZiyaratMapMode: Equatable {
     case standard
     case satellite
 }
-
-// MARK: - Welcome
 
 private struct ZiyaratWelcomeOverlay: View {
     let pretitle: String
