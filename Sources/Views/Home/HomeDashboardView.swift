@@ -355,10 +355,10 @@ struct HomeDashboardView: View {
 
     private var ziyaratsHomeSubtitle: String {
         switch settings.language {
-        case .russian: return "Точные места, фотографии и единый маршрут в стиле Apple Maps."
-        case .english: return "Exact places, photos and one beautifully organized route."
-        case .uzbek: return "Aniq joylar, suratlar va yagona chiroyli yo‘nalish."
-        case .uzbekCyrillic: return "Аниқ жойлар, суратлар ва ягона чиройли йўналиш."
+        case .russian: return "Точные места, фотографии и единый маршрут по Медине."
+        case .english: return "Exact places, photos and one beautifully organized route through Madinah."
+        case .uzbek: return "Aniq joylar, suratlar va Madina bo‘ylab yagona yo‘nalish."
+        case .uzbekCyrillic: return "Аниқ жойлар, суратлар ва Мадина бўйлаб ягона йўналиш."
         }
     }
 
