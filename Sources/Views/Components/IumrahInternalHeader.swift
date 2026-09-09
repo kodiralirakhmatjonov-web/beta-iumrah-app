@@ -24,6 +24,7 @@ struct IumrahFlowProgress: View {
     @EnvironmentObject private var settings: AppSettingsStore
     let stage: TripProgressStage
     var labelKey: String? = nil
+    var currentPriceText: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
@@ -32,8 +33,20 @@ struct IumrahFlowProgress: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 12)
-                Text(L10n.text(labelKey ?? stage.localizationKey, settings.language))
-                    .font(.subheadline.weight(.semibold))
+                if let currentPriceText {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(currentPriceLabel)
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .tracking(0.7)
+                            .foregroundStyle(.secondary)
+                        Text(currentPriceText)
+                            .font(.subheadline.monospacedDigit().weight(.bold))
+                            .contentTransition(.numericText())
+                    }
+                } else {
+                    Text(L10n.text(labelKey ?? stage.localizationKey, settings.language))
+                        .font(.subheadline.weight(.semibold))
+                }
             }
 
             HStack(spacing: 7) {
@@ -49,6 +62,15 @@ struct IumrahFlowProgress: View {
         .padding(.vertical, 14)
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+
+    private var currentPriceLabel: String {
+        switch settings.language {
+        case .russian: return "ТЕКУЩАЯ ЦЕНА"
+        case .english: return "CURRENT TOTAL"
+        case .uzbek: return "JORIY NARX"
+        case .uzbekCyrillic: return "ЖОРИЙ НАРХ"
+        }
     }
 
     private func segmentColor(_ item: TripProgressStage) -> Color {

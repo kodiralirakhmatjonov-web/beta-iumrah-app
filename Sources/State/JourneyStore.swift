@@ -18,6 +18,9 @@ final class JourneyStore: ObservableObject {
     // experience, while Haramain is the only optional priced hybrid-route add-on.
     @Published var selectedTransferVehicle: TransferVehicleKind?
     @Published var haramainTrainSelected = false
+    @Published var haramainFareClass: HaramainFareClass = .business
+    @Published var haramainAdultTickets = 0
+    @Published var haramainChildTickets = 0
     @Published var transferSelectionConfirmed = false
 
     @Published var hotels: [HotelSummary] = []
@@ -393,8 +396,9 @@ final class JourneyStore: ObservableObject {
 
 
     func recommendedTransferVehicle() -> TransferVehicleKind {
-        if trip.packageTier == .luxury { return .yukon }
-        return trip.travelerCount <= TransferVehicleKind.malibu.passengerCapacity ? .malibu : .carnival
+        // Kia Carnival is the default matched transfer for every package tier.
+        // Malibu remains a no-cost alternative and Yukon is an explicit VIP upgrade.
+        .carnival
     }
 
     func chooseTransferVehicle(_ vehicle: TransferVehicleKind) {
@@ -409,10 +413,49 @@ final class JourneyStore: ObservableObject {
     func setHaramainTrainSelected(_ selected: Bool) {
         let allowed = trip.scope == .makkahAndMadinah
         let resolved = allowed && selected
+        if resolved { ensureHaramainTicketDefaults() }
         guard haramainTrainSelected != resolved else { return }
         haramainTrainSelected = resolved
         transferSelectionConfirmed = false
         quote = nil
+    }
+
+    func ensureHaramainTicketDefaults() {
+        if haramainAdultTickets == 0 && haramainChildTickets == 0 {
+            haramainAdultTickets = max(1, trip.adults)
+            haramainChildTickets = max(0, trip.children)
+        }
+        haramainAdultTickets = min(max(1, haramainAdultTickets), max(1, trip.adults))
+        haramainChildTickets = min(max(0, haramainChildTickets), max(0, trip.children))
+    }
+
+    func setHaramainFareClass(_ fareClass: HaramainFareClass) {
+        guard haramainFareClass != fareClass else { return }
+        haramainFareClass = fareClass
+        if haramainTrainSelected {
+            transferSelectionConfirmed = false
+            quote = nil
+        }
+    }
+
+    func setHaramainAdultTickets(_ value: Int) {
+        let resolved = min(max(1, value), max(1, trip.adults))
+        guard haramainAdultTickets != resolved else { return }
+        haramainAdultTickets = resolved
+        if haramainTrainSelected {
+            transferSelectionConfirmed = false
+            quote = nil
+        }
+    }
+
+    func setHaramainChildTickets(_ value: Int) {
+        let resolved = min(max(0, value), max(0, trip.children))
+        guard haramainChildTickets != resolved else { return }
+        haramainChildTickets = resolved
+        if haramainTrainSelected {
+            transferSelectionConfirmed = false
+            quote = nil
+        }
     }
 
     func confirmTransferSelection() {
@@ -423,14 +466,24 @@ final class JourneyStore: ObservableObject {
     func resetTransferSelection() {
         selectedTransferVehicle = nil
         haramainTrainSelected = false
+        haramainFareClass = .business
+        haramainAdultTickets = 0
+        haramainChildTickets = 0
         transferSelectionConfirmed = false
     }
 
+    var haramainTicketCount: Int {
+        max(0, haramainAdultTickets) + max(0, haramainChildTickets)
+    }
+
     var haramainTrainAddOnUsd: Decimal {
-        LocalPackagePricingEngine.haramainPublicAddOnEstimateUsd(
-            travelers: trip.travelerCount,
-            tier: trip.packageTier
-        )
+        guard trip.scope == .makkahAndMadinah else { return 0 }
+        let count = haramainTicketCount > 0 ? haramainTicketCount : max(1, trip.adults + trip.children)
+        return haramainFareClass.publicSeatPriceUsd * Decimal(count)
+    }
+
+    var selectedTransferUpgradeUsd: Decimal {
+        (selectedTransferVehicle ?? recommendedTransferVehicle()).publicUpgradeUsd(for: trip.scope)
     }
 
 
@@ -596,7 +649,8 @@ final class JourneyStore: ObservableObject {
                     makkahHotel: makkah,
                     madinahHotel: madinah,
                     includeHaramainTrain: haramainTrainSelected,
-                    transferVehicle: selectedTransferVehicle
+                    transferVehicle: selectedTransferVehicle,
+                    haramainPublicAddOnUsd: haramainTrainAddOnUsd
                 )
                 output[offer.id] = preview.pricePerPerson
             }
@@ -711,7 +765,8 @@ final class JourneyStore: ObservableObject {
                 makkahHotel: makkah,
                 madinahHotel: madinah,
                 includeHaramainTrain: haramainTrainSelected,
-                transferVehicle: selectedTransferVehicle
+                transferVehicle: selectedTransferVehicle,
+                haramainPublicAddOnUsd: haramainTrainAddOnUsd
             )
             errorMessage = nil
         } catch {

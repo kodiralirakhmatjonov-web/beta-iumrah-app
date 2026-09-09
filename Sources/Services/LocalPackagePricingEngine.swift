@@ -37,10 +37,9 @@ enum LocalPackagePricingEngine {
     /// choice in the transfer flow and does not change the base package allocation.
     static let transferPerPackageUsd = Decimal(300)
 
-    /// Haramain is no longer bundled by package tier. It is an explicit optional
-    /// hybrid-route add-on selected by the pilgrim on the transfer screen.
-    static let haramainSarPerTraveller = Decimal(300)
-    static let sarPerUsd = Decimal(string: "3.75")!
+    /// Haramain and VIP are explicit customer-facing add-ons selected on the
+    /// transfer screen. Their displayed deltas are added exactly to the public
+    /// package total and do not expose supplier component pricing.
     static let sedanCapacity = 3
 
     /// Expedia-style flight pricing contract:
@@ -60,7 +59,8 @@ enum LocalPackagePricingEngine {
         makkahHotel: LocalHotelPriceComponent,
         madinahHotel: LocalHotelPriceComponent?,
         includeHaramainTrain: Bool = false,
-        transferVehicle: TransferVehicleKind? = nil
+        transferVehicle: TransferVehicleKind? = nil,
+        haramainPublicAddOnUsd: Decimal = 0
     ) throws -> PackageQuote {
         let travelers = max(1, trip.travelerCount)
         let transferCapacity = transferVehicle?.passengerCapacity ?? sedanCapacity
@@ -79,23 +79,28 @@ enum LocalPackagePricingEngine {
         let includeMadinah = trip.scope == .makkahAndMadinah
         let transfer = transferPerPackageUsd
         let usesTrain = includeMadinah && includeHaramainTrain
-        let intercity = usesTrain ? haramainAddOnUsd(travelers: travelers) : 0
         let guide = includeMadinah ? accompanimentWithMadinahPerGroupUsd : accompanimentMakkahOnlyPerGroupUsd
         let ziyarat = makkahZiyaratPerGroupUsd + (includeMadinah ? madinahZiyaratPerGroupUsd : 0)
 
-        let totalCost = flights + hotels + visa + meals + transfer + intercity + guide + ziyarat
+        let totalCost = flights + hotels + visa + meals + transfer + guide + ziyarat
         guard totalCost > 0 else { throw LocalPricingError.invalidComponents }
 
         let markupRate = packageMarkupRate(for: trip.packageTier)
         let baseSelling = totalCost + totalCost * markupRate
-        let calculatedSelling = baseSelling / (1 - paymentFeeRate)
-        let perPerson = roundPublic(calculatedSelling / Decimal(travelers))
-        let total = perPerson * Decimal(travelers)
+        let calculatedBaseSelling = baseSelling / (1 - paymentFeeRate)
+        let roundedBasePerPerson = roundPublic(calculatedBaseSelling / Decimal(travelers))
+        let roundedBaseTotal = roundedBasePerPerson * Decimal(travelers)
+        let vehicleUpgrade = (transferVehicle ?? .carnival).publicUpgradeUsd(for: trip.scope)
+        let trainAddOn = usesTrain ? max(0, haramainPublicAddOnUsd) : 0
+        let publicAddOns = vehicleUpgrade + trainAddOn
+        let total = roundedBaseTotal + publicAddOns
+        let perPerson = total / Decimal(travelers)
+        let calculatedSelling = calculatedBaseSelling + publicAddOns
         let quoteId = "local-\(UUID().uuidString.lowercased())"
         let markupAmount = totalCost * markupRate
-        let paymentFeeAmount = calculatedSelling - baseSelling
+        let paymentFeeAmount = calculatedBaseSelling - baseSelling
         let roundingDifference = total - calculatedSelling
-        let estimatedProfit = total - totalCost - paymentFeeAmount
+        let estimatedProfit = roundedBaseTotal - totalCost - paymentFeeAmount
 
         var components: [GeneratorPricingComponent] = [
             .init(
@@ -113,8 +118,11 @@ enum LocalPackagePricingEngine {
             .init(code: "meals", label: "Питание", supplierCostUsd: meals),
             .init(code: "transfers", label: transferVehicle.map { "Трансфер · \($0.modelName)" } ?? "Трансферы", supplierCostUsd: transfer),
         ])
-        if intercity > 0 {
-            components.append(.init(code: "haramain_train_addon", label: "Поезд Haramain · доп. опция", supplierCostUsd: intercity))
+        if vehicleUpgrade > 0 {
+            components.append(.init(code: "vip_transfer_upgrade", label: "GMC Yukon · VIP upgrade (+$750 public)", supplierCostUsd: 0))
+        }
+        if trainAddOn > 0 {
+            components.append(.init(code: "haramain_train_addon", label: "Поезд Haramain · public add-on +$\(trainAddOn)", supplierCostUsd: 0))
         }
         components.append(.init(code: "accompaniment", label: "Сопровождение", supplierCostUsd: guide))
         components.append(.init(code: "ziyarat_makkah", label: "Зиярат в Мекке", supplierCostUsd: makkahZiyaratPerGroupUsd))
@@ -220,7 +228,7 @@ enum LocalPackagePricingEngine {
         let markupAmount = totalCost * markupRate
         let paymentFeeAmount = calculatedSelling - baseSelling
         let roundingDifference = total - calculatedSelling
-        let estimatedProfit = total - totalCost - paymentFeeAmount
+        let estimatedProfit = roundedBaseTotal - totalCost - paymentFeeAmount
 
         var components: [GeneratorPricingComponent] = [
             .init(code: "flight_open_jaw", label: "Авиаперелёт Ташкент — Медина / Джидда — Ташкент", supplierCostUsd: flights),
@@ -284,20 +292,6 @@ enum LocalPackagePricingEngine {
 
     static func packageMarkupRate(for tier: PackageTier) -> Decimal {
         tier == .luxury ? luxuryPackageMarkupRate : standardPackageMarkupRate
-    }
-
-    static func haramainAddOnUsd(travelers: Int) -> Decimal {
-        (haramainSarPerTraveller / sarPerUsd) * Decimal(max(1, travelers))
-    }
-
-    /// Customer-facing estimated package delta for the optional train. Raw supplier
-    /// component pricing stays internal; this uses the same tier markup, payment fee
-    /// and public per-pilgrim rounding as the package itself.
-    static func haramainPublicAddOnEstimateUsd(travelers: Int, tier: PackageTier) -> Decimal {
-        let travelers = max(1, travelers)
-        let supplier = haramainAddOnUsd(travelers: travelers)
-        let selling = (supplier + supplier * packageMarkupRate(for: tier)) / (1 - paymentFeeRate)
-        return roundPublic(selling / Decimal(travelers)) * Decimal(travelers)
     }
 
     private static func groupFare(_ amount: Decimal, scope: FlightFareScope, travelers: Int) throws -> Decimal {

@@ -38,4 +38,27 @@ enum TransferVehicleKind: String, Codable, CaseIterable, Identifiable, Hashable 
         case .yukon: return 5
         }
     }
+
+    /// Customer-facing upgrade delta. The standard transfer allocation remains in
+    /// every package; only the VIP Yukon changes the public package total.
+    func publicUpgradeUsd(for scope: JourneyScope) -> Decimal {
+        guard self == .yukon, scope == .makkahAndMadinah else { return 0 }
+        return Decimal(750)
+    }
+}
+
+enum HaramainFareClass: String, Codable, CaseIterable, Identifiable, Hashable {
+    case economy
+    case business
+
+    var id: String { rawValue }
+
+    /// Public package add-on per occupied seat. These are customer-facing package
+    /// deltas rather than supplier-cost disclosures.
+    var publicSeatPriceUsd: Decimal {
+        switch self {
+        case .economy: return Decimal(150)
+        case .business: return Decimal(200)
+        }
+    }
 }

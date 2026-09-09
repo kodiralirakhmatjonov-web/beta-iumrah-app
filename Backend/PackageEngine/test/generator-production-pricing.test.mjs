@@ -23,6 +23,8 @@ const tripBuilder = fs.readFileSync(new URL('Sources/Views/Trip/TripBuilderView.
 const hotelDetail = fs.readFileSync(new URL('Sources/Views/Hotels/HotelDetailView.swift', root), 'utf8');
 const localization = fs.readFileSync(new URL('Sources/Core/AppLocalization.swift', root), 'utf8');
 const careExplanation = fs.readFileSync(new URL('Sources/Views/Package/UmrahCarePackageExplanationView.swift', root), 'utf8');
+const transferModels = fs.readFileSync(new URL('Sources/Models/TransferModels.swift', root), 'utf8');
+const transferView = fs.readFileSync(new URL('Sources/Views/Package/TransferSelectionView.swift', root), 'utf8');
 
 // Hotel source of truth is Business' fresh catalog rate, expressed only as USD / room / night.
 assert.match(hotelModels, /let nightlyUSD: Double\?/);
@@ -83,6 +85,24 @@ assert.match(localPricing, /includeHaramainTrain: Bool = false/);
 assert.match(localPricing, /haramain_train_addon/);
 assert.ok(!localPricing.includes('localWithTrainPerSedanUsd'));
 assert.ok(!localPricing.includes('roadWithMadinahPerSedanUsd'));
+
+
+// Transfer V2 contract: Carnival is the default match, a 30-second MapKit search
+// precedes selection, Yukon is an exact +$750 VIP public upgrade, and Haramain
+// offers $150 Economy / $200 Business seats with explicit ticket counts.
+assert.match(journey, /func recommendedTransferVehicle\(\) -> TransferVehicleKind \{[\s\S]*\.carnival/);
+assert.match(transferModels, /guard self == \.yukon, scope == \.makkahAndMadinah else \{ return 0 \}/);
+assert.match(transferModels, /return Decimal\(750\)/);
+assert.match(transferModels, /case \.economy: return Decimal\(150\)/);
+assert.match(transferModels, /case \.business: return Decimal\(200\)/);
+assert.match(transferView, /private let searchDuration = 30/);
+assert.match(transferView, /import MapKit/);
+assert.match(transferView, /TransferLiveSearchMap/);
+assert.match(transferView, /showsTraffic: true/);
+assert.match(transferView, /RadialGradient/);
+assert.match(transferView, /currentPriceText: currentPackagePriceTitle/);
+assert.match(transferView, /HaramainPhotoGallery/);
+assert.match(localPricing, /let publicAddOns = vehicleUpgrade \+ trainAddOn/);
 
 // Exact component report remains synchronized into iumrah Business.
 assert.match(localPricing, /GeneratorPricingSnapshot/);

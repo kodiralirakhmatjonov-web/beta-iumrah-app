@@ -377,11 +377,13 @@ struct FinalPackageView: View {
     }
 
     private var haramainIncludedSubtitle: String {
+        let fare = journey.haramainFareClass == .business ? "Business" : "Economy"
+        let tickets = max(1, journey.haramainTicketCount)
         switch settings.language {
-        case .russian: return "Быстрый участок Мекка ↔ Медина добавлен"
-        case .english: return "Fast Makkah ↔ Madinah segment added"
-        case .uzbek: return "Makka ↔ Madina tezkor qismi qo‘shildi"
-        case .uzbekCyrillic: return "Макка ↔ Мадина тезкор қисми қўшилди"
+        case .russian: return "Мекка ↔ Медина · \(fare) · \(tickets) бил."
+        case .english: return "Makkah ↔ Madinah · \(fare) · \(tickets) tickets"
+        case .uzbek: return "Makka ↔ Madina · \(fare) · \(tickets) chipta"
+        case .uzbekCyrillic: return "Макка ↔ Мадина · \(fare) · \(tickets) чипта"
         }
     }
 
