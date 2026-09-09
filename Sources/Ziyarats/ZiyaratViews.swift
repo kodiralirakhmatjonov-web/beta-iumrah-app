@@ -37,6 +37,7 @@ struct ZiyaratJourneyView: View {
     @State private var panelLevel: ZiyaratPanelLevel = .compact
     @GestureState private var panelDrag: CGFloat = 0
     @State private var closing = false
+    @Namespace private var glassNamespace
 
     private var orderedPlaces: [ZiyaratPlace] {
         route.places.sorted { $0.routeOrder < $1.routeOrder }
@@ -61,8 +62,10 @@ struct ZiyaratJourneyView: View {
 
                 if panelVisible && !welcomeVisible {
                     panelDrawer(in: proxy)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                         .zIndex(15)
+
+                    ziyaratsSystemTabBar(in: proxy)
+                        .zIndex(18)
                 }
 
                 if welcomeVisible {
@@ -158,23 +161,39 @@ struct ZiyaratJourneyView: View {
     private var mapChrome: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
-                IumrahGlassIconButton(
+                ZiyaratNativeGlassIconButton(
                     systemName: "xmark",
-                    size: 48,
-                    fontSize: 17,
-                    accessibilityLabel: closeLabel
-                ) {
-                    closeZiyarats()
-                }
+                    accessibilityLabel: closeLabel,
+                    action: closeZiyarats
+                )
 
                 Spacer()
 
-                IumrahGlassGroup(spacing: 10) {
+                if #available(iOS 26.0, *) {
+                    GlassEffectContainer(spacing: 10) {
+                        VStack(spacing: 10) {
+                            ZiyaratNativeGlassIconButton(
+                                systemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
+                                foreground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
+                                accessibilityLabel: mapModeLabel
+                            ) {
+                                selectedPlace = nil
+                                activeTab = .map
+                                setPanel(.card)
+                            }
+
+                            ZiyaratNativeGlassIconButton(
+                                systemName: "scope",
+                                accessibilityLabel: fitRouteLabel
+                            ) {
+                                fitEntireRoute(animated: true)
+                            }
+                        }
+                    }
+                } else {
                     VStack(spacing: 10) {
-                        IumrahGlassIconButton(
+                        ZiyaratNativeGlassIconButton(
                             systemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
-                            size: 48,
-                            fontSize: 16.5,
                             foreground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
                             accessibilityLabel: mapModeLabel
                         ) {
@@ -183,10 +202,8 @@ struct ZiyaratJourneyView: View {
                             setPanel(.card)
                         }
 
-                        IumrahGlassIconButton(
+                        ZiyaratNativeGlassIconButton(
                             systemName: "scope",
-                            size: 48,
-                            fontSize: 16.5,
                             accessibilityLabel: fitRouteLabel
                         ) {
                             fitEntireRoute(animated: true)
@@ -202,28 +219,31 @@ struct ZiyaratJourneyView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .opacity(isExpandedPanel ? 0 : 1)
         .allowsHitTesting(!isExpandedPanel && !welcomeVisible)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: isExpandedPanel)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isExpandedPanel)
         .zIndex(10)
     }
 
-    // MARK: Floating lower panel
+    // MARK: Native Ziyarats chrome
 
+    /// The panel keeps one fixed layout size and moves vertically, like a UIKit sheet.
+    /// We do not resize/re-layout the image-heavy body on every drag frame.
     private func panelDrawer(in proxy: GeometryProxy) -> some View {
-        let metrics = ZiyaratPanelMetrics(containerHeight: proxy.size.height)
-        let targetHeight = metrics.height(for: panelLevel)
-        let liveHeight = metrics.rubberBandedHeight(targetHeight - panelDrag)
-        let bodyProgress = metrics.bodyProgress(for: liveHeight)
-        let showBody = liveHeight > metrics.compactHeight + 18
+        let tabBarClearance = ZiyaratSystemTabBar.preferredHeight - 2
+        let metrics = ZiyaratPanelMetrics(containerHeight: max(420, proxy.size.height - tabBarClearance + 8))
+        let targetVisibleHeight = metrics.height(for: panelLevel)
+        let liveVisibleHeight = metrics.rubberBandedHeight(targetVisibleHeight - panelDrag)
+        let yOffset = metrics.fullHeight - liveVisibleHeight
+        let bodyProgress = metrics.bodyProgress(for: liveVisibleHeight)
 
-        return VStack(spacing: 0) {
+        let panel = VStack(spacing: 0) {
             ZStack {
                 Rectangle()
                     .fill(.clear)
-                    .frame(height: 22)
+                    .frame(height: 28)
 
                 Capsule()
-                    .fill(Color.secondary.opacity(isCompactPanel ? 0.0 : 0.38))
-                    .frame(width: 34, height: 4)
+                    .fill(Color.secondary.opacity(0.40))
+                    .frame(width: 36, height: 5)
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -233,40 +253,64 @@ struct ZiyaratJourneyView: View {
             }
             .gesture(panelGesture(metrics: metrics))
 
-            if showBody {
-                panelBody
-                    .id(panelContentID)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .opacity(bodyProgress)
-                    .allowsHitTesting(bodyProgress > 0.92)
-                    .transition(.opacity)
-
-                Divider()
-                    .opacity(0.28 * bodyProgress)
-            } else {
-                Spacer(minLength: 0)
-            }
-
-            panelTabBar
+            panelBody
+                .id(panelContentID)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .opacity(bodyProgress)
+                .allowsHitTesting(panelLevel != .compact && bodyProgress > 0.88)
+                .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: liveHeight)
-        .iumrahGlass(
-            in: RoundedRectangle(cornerRadius: 30, style: .continuous),
-            allowsStaticGlass: true,
-            chrome: true
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .frame(height: metrics.fullHeight)
+        .contentShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+
+        return Group {
+            if #available(iOS 26.0, *) {
+                panel
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .glassEffectID("ziyarats-panel", in: glassNamespace)
+                    .glassEffectTransition(.materialize)
+            } else {
+                // Older iOS gets a solid adaptive surface, never a fake blur/material.
+                panel
+                    .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 32, style: .continuous)
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
+                    }
+            }
+        }
         .padding(.horizontal, 7)
-        .padding(.bottom, 5)
+        .padding(.bottom, tabBarClearance)
+        .offset(y: yOffset)
         .transaction { transaction in
-            // While the finger is moving the surface must track 1:1. Animation is
-            // applied only after release in setPanel(_:).
             if panelDrag != 0 { transaction.animation = nil }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: activeTab)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectedPlace?.id)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: activeTab)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: selectedPlace?.id)
         .accessibilityElement(children: .contain)
+    }
+
+    private func ziyaratsSystemTabBar(in proxy: GeometryProxy) -> some View {
+        let safeBottom = proxy.safeAreaInsets.bottom
+        return ZiyaratSystemTabBar(
+            selection: activeTab,
+            items: ZiyaratPanelTab.allCases.map { tab in
+                .init(tab: tab, title: tabTitle(tab), systemImage: tab.icon)
+            },
+            onSelection: { tab, reselected in
+                if reselected {
+                    selectTab(tab)
+                } else {
+                    selectTab(tab)
+                }
+            }
+        )
+        .frame(height: ZiyaratSystemTabBar.preferredHeight + safeBottom)
+        .padding(.horizontal, 5)
+        .padding(.bottom, -safeBottom)
+        .ignoresSafeArea(edges: .bottom)
+        .allowsHitTesting(!welcomeVisible)
     }
 
     private var panelContentID: String {
@@ -275,16 +319,16 @@ struct ZiyaratJourneyView: View {
     }
 
     private func panelGesture(metrics: ZiyaratPanelMetrics) -> some Gesture {
-        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+        DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .updating($panelDrag) { value, state, _ in
-                guard abs(value.translation.height) >= abs(value.translation.width) * 0.72 else { return }
+                guard abs(value.translation.height) >= abs(value.translation.width) * 0.62 else { return }
                 state = value.translation.height
             }
             .onEnded { value in
-                guard abs(value.translation.height) >= abs(value.translation.width) * 0.72 else { return }
-                let current = metrics.height(for: panelLevel)
-                let projected = current - value.predictedEndTranslation.height
-                let target = metrics.level(forProjectedHeight: projected, current: panelLevel)
+                guard abs(value.translation.height) >= abs(value.translation.width) * 0.62 else { return }
+                let currentVisibleHeight = metrics.height(for: panelLevel)
+                let projectedVisibleHeight = currentVisibleHeight - value.predictedEndTranslation.height
+                let target = metrics.level(forProjectedHeight: projectedVisibleHeight, current: panelLevel)
                 if target != panelLevel { IumrahHaptics.selection() }
                 setPanel(target)
             }
@@ -300,7 +344,7 @@ struct ZiyaratJourneyView: View {
                     language: settings.language,
                     onClose: {
                         IumrahHaptics.selection()
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                             self.selectedPlace = nil
                         }
                         fitEntireRoute(animated: true)
@@ -317,33 +361,6 @@ struct ZiyaratJourneyView: View {
                 }
             }
         }
-    }
-
-    private var panelTabBar: some View {
-        HStack(spacing: 2) {
-            ForEach(ZiyaratPanelTab.allCases) { tab in
-                Button {
-                    selectTab(tab)
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 19, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
-                            .symbolRenderingMode(.hierarchical)
-                        Text(tabTitle(tab))
-                            .font(.system(size: 11, weight: activeTab == tab && selectedPlace == nil ? .semibold : .regular))
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(activeTab == tab && selectedPlace == nil ? Color(uiColor: .systemBlue) : Color.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 61)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(activeTab == tab && selectedPlace == nil ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 6)
     }
 
     // MARK: Panel pages
@@ -756,8 +773,9 @@ struct ZiyaratJourneyView: View {
         )
     }
 
+    @ViewBuilder
     private var emptyOverlay: some View {
-        VStack(spacing: 8) {
+        let content = VStack(spacing: 8) {
             Image(systemName: "map")
                 .font(.title2)
             Text(noPlacesTitle).font(.headline)
@@ -767,11 +785,18 @@ struct ZiyaratJourneyView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(18)
-        .iumrahGlass(
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous),
-            allowsStaticGlass: true,
-            chrome: true
-        )
+
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        } else {
+            content
+                .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
+                }
+        }
     }
 
     // MARK: Localized UI copy
@@ -858,9 +883,9 @@ private struct ZiyaratPanelMetrics {
     let fullHeight: CGFloat
 
     init(containerHeight: CGFloat) {
-        compactHeight = 88
-        cardHeight = min(388, max(334, containerHeight * 0.46))
-        fullHeight = max(cardHeight + 150, containerHeight - 8)
+        compactHeight = 0
+        cardHeight = min(372, max(316, containerHeight * 0.43))
+        fullHeight = max(cardHeight + 170, containerHeight - 6)
     }
 
     func height(for level: ZiyaratPanelLevel) -> CGFloat {
@@ -873,7 +898,7 @@ private struct ZiyaratPanelMetrics {
 
     func bodyProgress(for height: CGFloat) -> Double {
         let distance = max(1, cardHeight - compactHeight)
-        return Double(min(1, max(0, (height - compactHeight - 8) / min(92, distance))))
+        return Double(min(1, max(0, (height - 18) / min(108, distance))))
     }
 
     func rubberBandedHeight(_ proposed: CGFloat) -> CGFloat {
@@ -931,6 +956,132 @@ private enum ZiyaratPanelTab: String, CaseIterable, Identifiable {
     }
 }
 
+
+private struct ZiyaratNativeGlassIconButton: View {
+    let systemName: String
+    var foreground: Color? = nil
+    var accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Button {
+                    IumrahHaptics.selection()
+                    action()
+                } label: {
+                    Image(systemName: systemName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(foreground ?? Color.primary)
+                        .frame(width: 46, height: 46)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+            } else {
+                Button {
+                    IumrahHaptics.selection()
+                    action()
+                } label: {
+                    Image(systemName: systemName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(foreground ?? Color.primary)
+                        .frame(width: 46, height: 46)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+/// A real UIKit tab bar. On iOS 26 the system owns the Liquid Glass compositor,
+/// selection lens, touch response, haptics, and accessibility. No custom blur,
+/// material, opacity or painted tab background is applied here.
+private struct ZiyaratSystemTabBar: UIViewRepresentable {
+    static let preferredHeight: CGFloat = 62
+
+    struct Item: Equatable {
+        let tab: ZiyaratPanelTab
+        let title: String
+        let systemImage: String
+    }
+
+    let selection: ZiyaratPanelTab
+    let items: [Item]
+    let onSelection: (ZiyaratPanelTab, Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> UITabBar {
+        let tabBar = UITabBar(frame: .zero)
+        tabBar.delegate = context.coordinator
+        tabBar.isTranslucent = true
+        tabBar.tintColor = .systemBlue
+        tabBar.unselectedItemTintColor = .secondaryLabel
+        tabBar.itemPositioning = .fill
+        configure(tabBar)
+        return tabBar
+    }
+
+    func updateUIView(_ tabBar: UITabBar, context: Context) {
+        context.coordinator.parent = self
+        configure(tabBar)
+    }
+
+    private func configure(_ tabBar: UITabBar) {
+        if tabBar.items?.count != items.count {
+            tabBar.items = items.enumerated().map { index, item in
+                let barItem = UITabBarItem(
+                    title: item.title,
+                    image: UIImage(systemName: item.systemImage),
+                    selectedImage: UIImage(systemName: item.systemImage)
+                )
+                barItem.tag = index
+                return barItem
+            }
+        } else {
+            for (index, item) in items.enumerated() {
+                guard let barItem = tabBar.items?[safe: index] else { continue }
+                barItem.title = item.title
+                barItem.image = UIImage(systemName: item.systemImage)
+                barItem.selectedImage = UIImage(systemName: item.systemImage)
+                barItem.tag = index
+            }
+        }
+
+        if let index = items.firstIndex(where: { $0.tab == selection }),
+           let selected = tabBar.items?[safe: index],
+           tabBar.selectedItem !== selected {
+            tabBar.selectedItem = selected
+        }
+    }
+
+    final class Coordinator: NSObject, UITabBarDelegate {
+        var parent: ZiyaratSystemTabBar
+
+        init(parent: ZiyaratSystemTabBar) {
+            self.parent = parent
+        }
+
+        func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+            guard let model = parent.items[safe: item.tag] else { return }
+            let reselected = parent.selection == model.tab
+            parent.onSelection(model.tab, reselected)
+        }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
 private enum ZiyaratMapMode: Equatable {
     case standard
     case satellite
@@ -984,7 +1135,9 @@ private struct ZiyaratMapPin: View {
                     .lineLimit(1)
                     .padding(.horizontal, 11)
                     .frame(height: 31)
-                    .iumrahGlass(in: Capsule(), allowsStaticGlass: true, chrome: true)
+                    .background(Color(uiColor: .systemBackground), in: Capsule())
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 0.7))
+                    .shadow(color: .black.opacity(0.10), radius: 8, y: 3)
                     .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
 

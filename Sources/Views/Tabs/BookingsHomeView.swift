@@ -64,697 +64,6 @@ struct BookingsHomeView: View {
         }
     }
 
-    // MARK: - Active booking
-
-    private func activeBookingHub(_ session: StoredBookingSession) -> some View {
-        ScrollView(showsIndicators: false) {
-            LazyVStack(spacing: 0) {
-                IumrahRootPageTitle(
-                    title: L10n.text("tab_booking", settings.language),
-                    showsMakkahTime: true,
-                    usesBrandLogo: true
-                )
-                .padding(.bottom, 30)
-
-                bookingIdentity(session)
-                    .padding(.bottom, 38)
-
-                bookingProgress(session)
-                    .padding(.bottom, 38)
-
-                tripPlanPreview(session)
-                    .padding(.bottom, 34)
-
-                tripManagement(session)
-                    .padding(.bottom, bookings.sessions.count > 1 ? 36 : 12)
-
-                if bookings.sessions.count > 1 {
-                    otherTrips(excluding: session.id)
-                        .padding(.bottom, 12)
-                }
-
-                if let deleteError {
-                    Text(deleteError)
-                        .font(.footnote)
-                        .foregroundStyle(Color(uiColor: .systemRed))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .background(Color(uiColor: .systemRed).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .padding(.top, 8)
-                }
-            }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 44)
-        }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
-        .animation(.snappy(duration: 0.34), value: session.effectiveStatus)
-    }
-
-    /// The top deliberately avoids another large card. Like the reference flow,
-    /// hierarchy comes from whitespace and typography before the process begins.
-    private func bookingIdentity(_ session: StoredBookingSession) -> some View {
-        VStack(spacing: 17) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(Color.iumrahRaisedBackground)
-                    .frame(width: 94, height: 94)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
-                    }
-
-                Image(systemName: "suitcase.fill")
-                    .font(.system(size: 34, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityHidden(true)
-
-            VStack(spacing: 7) {
-                Text(activeEyebrow)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .tracking(-0.9)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.76)
-                    .lineLimit(1)
-
-                Text("\(L10n.date(session.booking.input.startDate, settings.language)) – \(L10n.date(session.booking.input.endDate, settings.language))")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            HStack(spacing: 8) {
-                identityPill(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
-                identityPill(pilgrimCountText(session.booking.input.travelers.totalPeople), systemName: "person.2.fill")
-            }
-
-            if let name = session.travelerName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
-                Text(name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func identityPill(_ text: String, systemName: String? = nil) -> some View {
-        HStack(spacing: 6) {
-            if let systemName {
-                Image(systemName: systemName)
-                    .font(.system(size: 11, weight: .semibold))
-            }
-            Text(text)
-        }
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 11)
-        .frame(height: 31)
-        .background(Color.iumrahRaisedBackground, in: Capsule())
-    }
-
-    // MARK: - Booking progress
-
-    private func bookingProgress(_ session: StoredBookingSession) -> some View {
-        let stages = progressStages
-        let current = progressIndex(for: session.effectiveStatus)
-        let isCancelled = session.effectiveStatus.uppercased() == "CANCELLED"
-
-        return VStack(alignment: .leading, spacing: 18) {
-            sectionHeader(
-                title: statusTitle,
-                trailing: isCancelled ? cancelledText : progressCounter(current: current, total: stages.count)
-            )
-
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(stages.enumerated()), id: \.offset) { index, stage in
-                    processStep(
-                        stage,
-                        index: index,
-                        current: current,
-                        isLast: index == stages.count - 1,
-                        session: session,
-                        isCancelled: isCancelled
-                    )
-                }
-            }
-        }
-    }
-
-    private func processStep(
-        _ stage: BookingProgressStage,
-        index: Int,
-        current: Int,
-        isLast: Bool,
-        session: StoredBookingSession,
-        isCancelled: Bool
-    ) -> some View {
-        let completed = isCancelled ? index == 0 : index < current
-        let active = index == current
-        let future = index > current
-        let effectiveStage = isCancelled && active ? cancelledStage : stage
-        let nodeColor = active
-            ? IumrahBookingStatusVisual.color(for: session.effectiveStatus)
-            : (completed ? Color(uiColor: .systemGreen) : Color(uiColor: .secondaryLabel).opacity(0.62))
-        let lineColor = completed
-            ? Color(uiColor: .systemGreen).opacity(0.36)
-            : Color.primary.opacity(0.12)
-
-        return HStack(alignment: .top, spacing: 17) {
-            ZStack {
-                Circle()
-                    .fill(completed || active ? nodeColor : Color.iumrahPageBackground)
-                    .frame(width: 25, height: 25)
-                    .overlay {
-                        if future {
-                            Circle()
-                                .strokeBorder(Color(uiColor: .secondaryLabel).opacity(0.52), lineWidth: 1.6)
-                        }
-                    }
-
-                if completed {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                } else if active {
-                    Circle()
-                        .fill(activeNodeForeground(for: session.effectiveStatus))
-                        .frame(width: 7, height: 7)
-                }
-            }
-            .frame(width: 26, height: 25, alignment: .top)
-
-            VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(effectiveStage.title)
-                        .font(.system(size: active ? 18 : 17, weight: active ? .bold : .semibold, design: .rounded))
-                        .foregroundStyle(future ? Color(uiColor: .secondaryLabel) : Color.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    if index == 0, let created = createdDateText(session.booking.createdAt) {
-                        Text(created)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    } else if active {
-                        Text(effectiveStage.activeSubtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                if active {
-                    activeStageCard(session, stage: effectiveStage)
-                        .padding(.top, 4)
-                        .padding(.bottom, 18)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, isLast ? 0 : 13)
-        }
-        .overlay(alignment: .topLeading) {
-            if !isLast {
-                Rectangle()
-                    .fill(lineColor)
-                    .frame(width: 1)
-                    .padding(.top, 25)
-                    .offset(x: 12.5)
-                    .allowsHitTesting(false)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private func activeStageCard(_ session: StoredBookingSession, stage: BookingProgressStage) -> some View {
-        let tint = IumrahBookingStatusVisual.color(for: session.effectiveStatus)
-
-        return VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(tint)
-                        .frame(width: 34, height: 34)
-                    Image(systemName: IumrahBookingStatusVisual.symbol(for: session.effectiveStatus))
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(activeNodeForeground(for: session.effectiveStatus))
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(stage.cardTitle)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .tracking(-0.25)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(stage.cardBody)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-            }
-
-            Divider()
-                .overlay(Color.primary.opacity(0.05))
-
-            VStack(spacing: 13) {
-                progressFact(title: routeTitle, value: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
-                progressFact(title: dateTitle, value: "\(L10n.date(session.booking.input.startDate, settings.language)) – \(L10n.date(session.booking.input.endDate, settings.language))")
-                if !session.booking.hotelNames.makkah.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    progressFact(title: hotelTitle, value: session.booking.hotelNames.makkah)
-                }
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(priceTitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    PackagePriceView(amount: Decimal(session.booking.perPilgrimUsd), currency: "USD", showsPerPerson: false)
-                }
-
-                Spacer(minLength: 12)
-
-                Text(pilgrimCountText(session.booking.input.travelers.totalPeople))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-
-            NavigationLink {
-                BookingDetailView(bookingID: session.id)
-            } label: {
-                HStack(spacing: 10) {
-                    Text(activeActionTitle(for: session.effectiveStatus))
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                }
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
-                .padding(.horizontal, 17)
-                .frame(height: 53)
-                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(18)
-        .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.iumrahCardBackground)
-                .overlay {
-                    LinearGradient(
-                        colors: [tint.opacity(0.13), tint.opacity(0.025), Color.clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(tint.opacity(0.22), lineWidth: 0.8)
-        }
-    }
-
-    private func progressFact(title: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 74, alignment: .leading)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var cancelledStage: BookingProgressStage {
-        BookingProgressStage(
-            title: localized("Бронирование отменено", "Booking cancelled", "Bron bekor qilindi", "Брон бекор қилинди"),
-            activeSubtitle: localized("Поездка остановлена", "The trip has been stopped", "Safar to‘xtatildi", "Сафар тўхтатилди"),
-            cardTitle: localized("Бронирование отменено", "Booking cancelled", "Bron bekor qilindi", "Брон бекор қилинди"),
-            cardBody: localized("Откройте бронирование, чтобы посмотреть сохранённые детали поездки и доступные действия.", "Open the booking to review the saved trip details and available actions.", "Saqlangan safar tafsilotlari va mavjud amallarni ko‘rish uchun bronni oching.", "Сақланган сафар тафсилотлари ва мавжуд амалларни кўриш учун бронни очинг.")
-        )
-    }
-
-    private var progressStages: [BookingProgressStage] {
-        [
-            BookingProgressStage(
-                title: createdTitle,
-                activeSubtitle: createdSubtitle,
-                cardTitle: createdTitle,
-                cardBody: createdSubtitle
-            ),
-            BookingProgressStage(
-                title: availabilityTitle,
-                activeSubtitle: availabilitySubtitle,
-                cardTitle: availabilityCardTitle,
-                cardBody: availabilityCardBody
-            ),
-            BookingProgressStage(
-                title: paymentStageTitle,
-                activeSubtitle: paymentStageSubtitle,
-                cardTitle: paymentCardTitle,
-                cardBody: paymentCardBody
-            ),
-            BookingProgressStage(
-                title: confirmedStageTitle,
-                activeSubtitle: confirmedStageSubtitle,
-                cardTitle: confirmedCardTitle,
-                cardBody: confirmedCardBody
-            ),
-            BookingProgressStage(
-                title: documentsStageTitle,
-                activeSubtitle: documentsStageSubtitle,
-                cardTitle: documentsCardTitle,
-                cardBody: documentsCardBody
-            ),
-            BookingProgressStage(
-                title: inTripStageTitle,
-                activeSubtitle: inTripStageSubtitle,
-                cardTitle: inTripCardTitle,
-                cardBody: inTripCardBody
-            ),
-            BookingProgressStage(
-                title: completedStageTitle,
-                activeSubtitle: completedStageSubtitle,
-                cardTitle: completedCardTitle,
-                cardBody: completedCardBody
-            )
-        ]
-    }
-
-    private func progressIndex(for status: String) -> Int {
-        switch status.uppercased() {
-        case "NEW", "AVAILABILITY_CHECK": return 1
-        case "PAYMENT_PENDING": return 2
-        case "PAID", "BOOKING_CONFIRMED": return 3
-        case "DOCUMENTS_READY", "READY_TO_TRAVEL": return 4
-        case "IN_TRIP": return 5
-        case "COMPLETED": return 6
-        case "CANCELLED": return 1
-        default: return 1
-        }
-    }
-
-    private func progressCounter(current: Int, total: Int) -> String {
-        localized("\(current + 1) из \(total)", "\(current + 1) of \(total)", "\(current + 1) / \(total)", "\(current + 1) / \(total)")
-    }
-
-    private func activeNodeForeground(for status: String) -> Color {
-        switch IumrahBookingStatusVisual.role(for: status) {
-        case .waiting, .warning, .rating:
-            return Color.black.opacity(0.78)
-        default:
-            return .white
-        }
-    }
-
-    // MARK: - Trip plan preview
-
-    private func tripPlanPreview(_ session: StoredBookingSession) -> some View {
-        let items = previewItineraryItems(session)
-
-        return VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: tripPlanTitle, trailing: nil)
-
-            VStack(spacing: 0) {
-                if items.isEmpty {
-                    Text(tripPlanEmptyText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
-                        .padding(.horizontal, 17)
-                } else {
-                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                        tripPlanRow(item)
-                        if index < items.count - 1 {
-                            Divider()
-                                .padding(.leading, 56)
-                        }
-                    }
-                }
-
-                Divider()
-                    .padding(.leading, 17)
-
-                NavigationLink {
-                    BookingDetailView(bookingID: session.id)
-                } label: {
-                    HStack {
-                        Text(openFullPlanTitle)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 17)
-                    .frame(height: 54)
-                }
-                .buttonStyle(.plain)
-            }
-            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 25, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
-            }
-        }
-    }
-
-    private func tripPlanRow(_ item: BookingItineraryItem) -> some View {
-        HStack(alignment: .top, spacing: 13) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.iumrahRaisedBackground)
-                    .frame(width: 39, height: 39)
-                Image(systemName: safeIcon(item.icon))
-                    .font(.system(size: 15, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Text(compactDate(item.dateLocal))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(item.title)
-                        .font(.subheadline.weight(.bold))
-                        .lineLimit(2)
-                }
-
-                if !item.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(item.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                if !item.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(item.location)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 17)
-        .padding(.vertical, 14)
-    }
-
-    private func previewItineraryItems(_ session: StoredBookingSession) -> [BookingItineraryItem] {
-        let remote = bookings.itineraries[session.id] ?? []
-        let source: [BookingItineraryItem]
-        let distinctRemoteDays = Set(remote.map(\.dateLocal)).count
-        if distinctRemoteDays >= 2 {
-            source = remote.sorted { lhs, rhs in
-                if lhs.dateLocal == rhs.dateLocal { return lhs.sortOrder < rhs.sortOrder }
-                return lhs.dateLocal < rhs.dateLocal
-            }
-        } else {
-            source = BookingItineraryPlanner.make(booking: session.booking, language: settings.language)
-        }
-
-        guard !source.isEmpty else { return [] }
-        let today = Self.riyadhDayFormatter.string(from: Date())
-        let upcoming = source.filter { $0.dateLocal >= today }
-        if !upcoming.isEmpty { return Array(upcoming.prefix(3)) }
-        return Array(source.suffix(3))
-    }
-
-    // MARK: - Management
-
-    private func tripManagement(_ session: StoredBookingSession) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: manageSectionTitle, trailing: nil)
-
-            VStack(spacing: 0) {
-                NavigationLink {
-                    BookingDetailView(bookingID: session.id)
-                } label: {
-                    managementRow(icon: "slider.horizontal.3", title: manageTitle, subtitle: manageSubtitle)
-                }
-                .buttonStyle(.plain)
-
-                managementDivider
-
-                NavigationLink {
-                    BookingChatView(bookingID: session.id)
-                } label: {
-                    managementRow(icon: "person.badge.plus", title: addPilgrimTitle, subtitle: addPilgrimSubtitle)
-                }
-                .buttonStyle(.plain)
-
-                managementDivider
-
-                Button {
-                    showZiyarats = true
-                } label: {
-                    managementRow(icon: "map", title: ziyaratsBookingTitle, subtitle: ziyaratsBookingSubtitle)
-                }
-                .buttonStyle(.plain)
-
-                managementDivider
-
-                Button {
-                    startNewTrip()
-                } label: {
-                    managementRow(icon: "plus", title: newUmrahTitle, subtitle: newUmrahSubtitle)
-                }
-                .buttonStyle(.plain)
-            }
-            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 25, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
-            }
-        }
-    }
-
-    private var managementDivider: some View {
-        Divider().padding(.leading, 65)
-    }
-
-    private func managementRow(icon: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 13) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.iumrahRaisedBackground)
-                    .frame(width: 38, height: 38)
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.primary)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 14)
-        .frame(minHeight: 64)
-        .contentShape(Rectangle())
-    }
-
-    // MARK: - Other trips
-
-    private func otherTrips(excluding bookingID: String) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: otherTripsTitle, trailing: nil)
-
-            VStack(spacing: 10) {
-                ForEach(bookings.sessions.filter { $0.id != bookingID }) { session in
-                    NavigationLink {
-                        BookingDetailView(bookingID: session.id)
-                    } label: {
-                        compactBookingCard(session)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingDeleteID = session.id
-                        } label: {
-                            Label(L10n.text("booking_delete", settings.language), systemImage: "trash")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func compactBookingCard(_ session: StoredBookingSession) -> some View {
-        HStack(alignment: .center, spacing: 13) {
-            Circle()
-                .fill(IumrahBookingStatusVisual.color(for: session.effectiveStatus))
-                .frame(width: 10, height: 10)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
-                        .font(.subheadline.weight(.bold))
-                    Text(session.displayBookingNumber)
-                        .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-
-                Text(L10n.status(session.effectiveStatus, settings.language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                if let name = session.travelerName, !name.isEmpty {
-                    Text(name)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer(minLength: 10)
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(formatPrice(session.booking.perPilgrimUsd))
-                    .font(.subheadline.weight(.bold))
-                Text(L10n.date(session.booking.input.startDate, settings.language))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 15)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
-        }
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    // MARK: - Empty state
-
     private var emptyBookingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
@@ -770,6 +79,315 @@ struct BookingsHomeView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
+    }
+
+    private func activeBookingHub(_ session: StoredBookingSession) -> some View {
+        ZStack {
+            Image("MakkahBackground")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .ignoresSafeArea()
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.55), Color.black.opacity(0.18), Color.black.opacity(0.34)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    IumrahRootPageTitle(
+                        title: L10n.text("tab_booking", settings.language),
+                        showsMakkahTime: true,
+                        lightStyle: true,
+                        usesBrandLogo: true
+                    )
+
+                    activeBookingOverview(session)
+                    statusProgressCard(session)
+                    BookingItineraryCalendarView(
+                        bookingID: session.id,
+                        startDate: session.booking.input.startDate,
+                        endDate: session.booking.input.endDate,
+                        booking: session.booking
+                    )
+                    ziyaratsBookingCard
+                    tripActions(session)
+
+                    if bookings.sessions.count > 1 {
+                        otherTrips(excluding: session.id)
+                    }
+
+                    if let deleteError {
+                        Text(deleteError)
+                            .font(.footnote)
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 42)
+            }
+        }
+    }
+
+    private func activeBookingOverview(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 17) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(activeEyebrow)
+                        .font(.caption.weight(.bold))
+                        .tracking(0.9)
+                        .foregroundStyle(.secondary)
+                    Text(L10n.status(session.effectiveStatus, settings.language))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .tracking(-0.5)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 10)
+                IumrahIconBadge(
+                    systemName: statusIcon(session.effectiveStatus),
+                    role: statusRole(session.effectiveStatus),
+                    size: 48,
+                    symbolSize: 19,
+                    shape: .circle
+                )
+            }
+
+            if let name = session.travelerName, !name.isEmpty {
+                Text(name)
+                    .font(.headline)
+            }
+
+            Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
+                .font(.caption.monospaced().weight(.bold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Color.iumrahRaisedBackground, in: Capsule())
+
+            VStack(spacing: 11) {
+                overviewRow(icon: "airplane", title: routeTitle, value: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
+                overviewRow(icon: "calendar", title: dateTitle, value: "\(L10n.date(session.booking.input.startDate, settings.language)) – \(L10n.date(session.booking.input.endDate, settings.language))")
+                if !session.booking.hotelNames.makkah.isEmpty {
+                    overviewRow(icon: "building.2.fill", title: hotelTitle, value: session.booking.hotelNames.makkah)
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(priceTitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    PackagePriceView(amount: Decimal(session.booking.perPilgrimUsd), currency: "USD")
+                }
+                Spacer()
+                Text("\(session.booking.input.travelers.totalPeople)")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(Color.iumrahRaisedBackground, in: Capsule())
+                    .overlay(alignment: .leading) {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .offset(x: -22)
+                    }
+            }
+
+            NavigationLink {
+                BookingDetailView(bookingID: session.id)
+            } label: {
+                HStack {
+                    Text(openBookingTitle)
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.headline)
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .padding(.horizontal, 18)
+                .frame(height: 54)
+                .background(Color.iumrahPrimaryButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .background(Color.iumrahPhotoCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+    }
+
+    private func statusProgressCard(_ session: StoredBookingSession) -> some View {
+        let stages = ["AVAILABILITY_CHECK", "PAYMENT_PENDING", "BOOKING_CONFIRMED", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"]
+        let current = stages.firstIndex(of: session.effectiveStatus.uppercased()) ?? 0
+
+        return VStack(alignment: .leading, spacing: 14) {
+            Text(statusTitle)
+                .font(.system(size: 23, weight: .bold, design: .rounded))
+
+            VStack(spacing: 9) {
+                ForEach(Array(stages.enumerated()), id: \.offset) { index, stage in
+                    HStack(spacing: 12) {
+                        IumrahIconBadge(
+                            systemName: index < current ? "checkmark" : (index == current ? "circle.fill" : "circle"),
+                            role: index < current ? IumrahBookingStatusVisual.role(for: stages[index]) : (index == current ? IumrahBookingStatusVisual.role(for: stage) : .neutral),
+                            size: 30,
+                            symbolSize: index == current ? 8 : 11,
+                            cornerRadius: 15,
+                            shape: .circle
+                        )
+
+                        Text(L10n.status(stage, settings.language))
+                            .font(.subheadline.weight(index == current ? .bold : .semibold))
+                            .foregroundStyle(index > current ? .secondary : .primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+        .padding(19)
+        .background(Color.iumrahPhotoCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 20, y: 9)
+    }
+
+    private var ziyaratsBookingCard: some View {
+        Button { showZiyarats = true } label: {
+            ZStack(alignment: .bottomLeading) {
+                Image("ZiyaratQuba5")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 190)
+                    .clipped()
+                LinearGradient(colors: [.clear, .black.opacity(0.76)], startPoint: .top, endPoint: .bottom)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("iumrah Ziyarats")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.82))
+                    Text(ziyaratsBookingTitle)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .tracking(-0.4)
+                        .foregroundStyle(.white)
+                    HStack {
+                        Label(ziyaratsBookingSubtitle, systemImage: "map.fill")
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.82))
+                }
+                .padding(17)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 190)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7))
+            .shadow(color: .black.opacity(0.18), radius: 22, y: 10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var ziyaratsBookingTitle: String { localized("Зияраты Медины", "Medina Ziyarat", "Madina ziyorati", "Мадина зиёрати") }
+    private var ziyaratsBookingSubtitle: String { localized("Открыть маршрут и места", "Open route and places", "Yo‘nalish va joylarni ochish", "Йўналиш ва жойларни очиш") }
+
+    private func tripActions(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(actionsTitle)
+                .font(.system(size: 23, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                Button {
+                    startNewTrip()
+                } label: {
+                    actionCard(icon: "moon.stars.fill", title: newUmrahTitle, subtitle: newUmrahSubtitle)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    startNewTrip()
+                } label: {
+                    actionCard(icon: "plus.circle.fill", title: addTripTitle, subtitle: addTripSubtitle)
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    BookingChatView(bookingID: session.id)
+                } label: {
+                    actionCard(icon: "person.badge.plus", title: addPilgrimTitle, subtitle: addPilgrimSubtitle)
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    BookingDetailView(bookingID: session.id)
+                } label: {
+                    actionCard(icon: "slider.horizontal.3", title: manageTitle, subtitle: manageSubtitle)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func actionCard(icon: String, title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            IumrahIconBadge(systemName: icon, size: 42, symbolSize: 19, cornerRadius: 14)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .padding(16)
+        .background(Color.iumrahPhotoCardBackground, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+    }
+
+    private func otherTrips(excluding bookingID: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(otherTripsTitle)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+
+            ForEach(bookings.sessions.filter { $0.id != bookingID }) { session in
+                NavigationLink {
+                    BookingDetailView(bookingID: session.id)
+                } label: {
+                    bookingCard(session)
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        pendingDeleteID = session.id
+                    } label: {
+                        Label(L10n.text("booking_delete", settings.language), systemImage: "trash")
+                    }
+                }
+            }
+        }
     }
 
     private var builderHero: some View {
@@ -802,6 +420,56 @@ struct BookingsHomeView: View {
         .iumrahMarketingCard()
     }
 
+    private func bookingCard(_ session: StoredBookingSession) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.travelerName ?? L10n.text("booking_your_trip", settings.language))
+                        .font(.headline)
+                    Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
+                        .font(.caption.monospaced().weight(.bold))
+                        .foregroundStyle(IumrahIconRole.booking.color)
+                    Text(L10n.status(session.effectiveStatus, settings.language))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                IumrahIconBadge(
+                    systemName: statusIcon(session.effectiveStatus),
+                    role: statusRole(session.effectiveStatus),
+                    size: 38,
+                    symbolSize: 16,
+                    shape: .circle
+                )
+            }
+
+            Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Color.iumrahRaisedBackground)
+                .clipShape(Capsule())
+
+            if !session.booking.hotelNames.makkah.isEmpty {
+                HStack(spacing: 7) {
+                    IumrahInlineIcon(systemName: "building.2", role: .hotel, size: 13)
+                    Text(session.booking.hotelNames.makkah)
+                }
+                .font(.subheadline)
+            }
+
+            HStack {
+                Text(L10n.date(session.booking.input.startDate, settings.language))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                PackagePriceView(amount: Decimal(session.booking.perPilgrimUsd), currency: "USD")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .iumrahCard()
+    }
+
     private var noBookingsCard: some View {
         HStack(spacing: 14) {
             IumrahIconBadge(systemName: "suitcase", role: .booking, size: 46, symbolSize: 20, shape: .circle)
@@ -817,20 +485,19 @@ struct BookingsHomeView: View {
         .iumrahCard()
     }
 
-    // MARK: - Shared helpers
-
-    private func sectionHeader(title: String, trailing: String?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .tracking(-0.35)
-            Spacer(minLength: 8)
-            if let trailing {
-                Text(trailing)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+    private func overviewRow(icon: String, title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IumrahIconBadge(systemName: icon, size: 34, symbolSize: 14, cornerRadius: 17, shape: .circle)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Text(value).font(.subheadline.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
         }
+    }
+
+    private func statusRole(_ status: String) -> IumrahIconRole {
+        IumrahBookingStatusVisual.role(for: status)
     }
 
     private func startNewTrip() {
@@ -850,159 +517,23 @@ struct BookingsHomeView: View {
         }
     }
 
-    private func safeIcon(_ value: String) -> String {
-        let icon = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return icon.isEmpty ? "calendar" : icon
-    }
-
-    private func compactDate(_ raw: String) -> String {
-        guard let date = Self.dayParser.date(from: raw) else { return raw }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
-        formatter.dateFormat = "d MMM"
-        return formatter.string(from: date)
-    }
-
-    private func createdDateText(_ raw: String) -> String? {
-        guard let date = Self.isoDate(raw) else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
-        formatter.dateFormat = "d MMM · HH:mm"
-        return formatter.string(from: date)
-    }
-
-    private func formatPrice(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-        formatter.groupingSeparator = " "
-        let value = formatter.string(from: NSNumber(value: amount)) ?? String(Int(amount.rounded()))
-        return "\(value) $"
-    }
-
-    private func pilgrimCountText(_ count: Int) -> String {
-        switch settings.language {
-        case .russian:
-            let mod10 = count % 10
-            let mod100 = count % 100
-            if mod10 == 1 && mod100 != 11 { return "\(count) паломник" }
-            if (2...4).contains(mod10) && !(12...14).contains(mod100) { return "\(count) паломника" }
-            return "\(count) паломников"
-        case .english:
-            return count == 1 ? "1 pilgrim" : "\(count) pilgrims"
-        case .uzbek:
-            return "\(count) ziyoratchi"
-        case .uzbekCyrillic:
-            return "\(count) зиёратчи"
-        }
-    }
-
-    private func activeActionTitle(for status: String) -> String {
-        switch status.uppercased() {
-        case "PAYMENT_PENDING":
-            return localized("Продолжить", "Continue", "Davom etish", "Давом этиш")
-        case "READY_TO_TRAVEL", "DOCUMENTS_READY":
-            return localized("Открыть документы", "Open documents", "Hujjatlarni ochish", "Ҳужжатларни очиш")
-        case "IN_TRIP":
-            return localized("Открыть поездку", "Open trip", "Safarni ochish", "Сафарни очиш")
-        default:
-            return openBookingTitle
-        }
-    }
-
-    private static func isoDate(_ raw: String) -> Date? {
-        if let date = isoFormatterFractional.date(from: raw) { return date }
-        return isoFormatter.date(from: raw)
-    }
-
-    private static let isoFormatterFractional: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let isoFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    private static let dayParser: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
-
-    private static let riyadhDayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Riyadh")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
-
-    // MARK: - Copy
-
-    private var activeEyebrow: String { localized("Ваша Umrah", "Your Umrah", "Sizning Umrangiz", "Сизнинг Умрангиз") }
+    private var activeEyebrow: String { localized("Активная поездка", "Active trip", "Faol safar", "Фаол сафар") }
     private var routeTitle: String { localized("Маршрут", "Route", "Yo‘nalish", "Йўналиш") }
     private var dateTitle: String { localized("Даты", "Dates", "Sanalar", "Саналар") }
-    private var hotelTitle: String { localized("Отель", "Hotel", "Mehmonxona", "Меҳмонхона") }
+    private var hotelTitle: String { localized("Отель в Мекке", "Makkah hotel", "Makkadagi mehmonxona", "Маккадаги меҳмонхона") }
     private var priceTitle: String { localized("На паломника", "Per pilgrim", "Bir ziyoratchiga", "Бир зиёратчига") }
     private var openBookingTitle: String { localized("Открыть бронирование", "Open booking", "Bronni ochish", "Бронни очиш") }
     private var statusTitle: String { localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати") }
-    private var cancelledText: String { localized("Отменено", "Cancelled", "Bekor qilingan", "Бекор қилинган") }
-
-    private var createdTitle: String { localized("Пакет создан", "Package created", "Paket yaratildi", "Пакет яратилди") }
-    private var createdSubtitle: String { localized("Поездка добавлена в iumrah", "Trip added to iumrah", "Safar iumrah'ga qo‘shildi", "Сафар iumrah'га қўшилди") }
-
-    private var availabilityTitle: String { localized("Проверка наличия", "Availability check", "Mavjudlik tekshiruvi", "Мавжудлик текшируви") }
-    private var availabilitySubtitle: String { localized("Подтверждаем перелёт, отель и услуги", "Confirming flight, hotel and services", "Parvoz, mehmonxona va xizmatlar tasdiqlanmoqda", "Парвоз, меҳмонхона ва хизматлар тасдиқланмоқда") }
-    private var availabilityCardTitle: String { localized("Проверяем ваш пакет", "Checking your package", "Paketingiz tekshirilmoqda", "Пакетингиз текширилмоқда") }
-    private var availabilityCardBody: String { localized("iumrah подтверждает выбранные позиции. Пока от вас ничего не требуется.", "iumrah is confirming the selected items. No action is required from you yet.", "iumrah tanlangan xizmatlarni tasdiqlamoqda. Hozircha sizdan hech narsa talab qilinmaydi.", "iumrah танланган хизматларни тасдиқламоқда. Ҳозирча сиздан ҳеч нарса талаб қилинмайди.") }
-
-    private var paymentStageTitle: String { localized("Оплата и данные паломников", "Payment and pilgrim details", "To‘lov va ziyoratchi ma’lumotlari", "Тўлов ва зиёратчи маълумотлари") }
-    private var paymentStageSubtitle: String { localized("Наличие подтверждено · требуется действие", "Availability confirmed · action required", "Mavjudlik tasdiqlandi · amal kerak", "Мавжудлик тасдиқланди · амал керак") }
-    private var paymentCardTitle: String { localized("Наличие подтверждено", "Availability confirmed", "Mavjudlik tasdiqlandi", "Мавжудлик тасдиқланди") }
-    private var paymentCardBody: String { localized("Проверьте данные паломников и перейдите к оплате, чтобы закрепить бронирование.", "Review pilgrim details and continue to payment to secure the booking.", "Bronni mustahkamlash uchun ziyoratchilar ma’lumotlarini tekshiring va to‘lovga o‘ting.", "Бронни мустаҳкамлаш учун зиёратчилар маълумотларини текширинг ва тўловга ўтинг.") }
-
-    private var confirmedStageTitle: String { localized("Бронирование подтверждено", "Booking confirmed", "Bron tasdiqlandi", "Брон тасдиқланди") }
-    private var confirmedStageSubtitle: String { localized("Позиции закреплены за вами", "Your trip components are secured", "Safar xizmatlari siz uchun band qilindi", "Сафар хизматлари сиз учун банд қилинди") }
-    private var confirmedCardTitle: String { confirmedStageTitle }
-    private var confirmedCardBody: String { localized("Перелёт, проживание и выбранные услуги закреплены. Все детали доступны внутри бронирования.", "Flight, stay and selected services are secured. Full details are available inside the booking.", "Parvoz, yashash va tanlangan xizmatlar band qilindi. Barcha tafsilotlar bron ichida mavjud.", "Парвоз, яшаш ва танланган хизматлар банд қилинди. Барча тафсилотлар брон ичида мавжуд.") }
-
-    private var documentsStageTitle: String { localized("Документы готовы", "Documents ready", "Hujjatlar tayyor", "Ҳужжатлар тайёр") }
-    private var documentsStageSubtitle: String { localized("Всё готово к поездке", "Everything is ready for travel", "Safar uchun hammasi tayyor", "Сафар учун ҳаммаси тайёр") }
-    private var documentsCardTitle: String { localized("Готово к поездке", "Ready to travel", "Safarga tayyor", "Сафарга тайёр") }
-    private var documentsCardBody: String { localized("Проверьте билеты, бронирования и документы перед выездом.", "Review tickets, reservations and travel documents before departure.", "Jo‘nashdan oldin chiptalar, bronlar va hujjatlarni tekshiring.", "Жўнашдан олдин чипталар, бронлар ва ҳужжатларни текширинг.") }
-
-    private var inTripStageTitle: String { localized("Паломник в поездке", "Pilgrim in trip", "Ziyoratchi safarda", "Зиёратчи сафарда") }
-    private var inTripStageSubtitle: String { localized("iumrah сопровождает вашу поездку", "iumrah is accompanying your trip", "iumrah safaringizga hamroh", "iumrah сафарингизга ҳамроҳ") }
-    private var inTripCardTitle: String { localized("Ваша Umrah идёт", "Your Umrah is underway", "Umrangiz davom etmoqda", "Умрангиз давом этмоқда") }
-    private var inTripCardBody: String { localized("Маршрут, отель, расписание и помощь iumrah остаются под рукой на протяжении поездки.", "Your route, hotel, schedule and iumrah support stay close throughout the trip.", "Yo‘nalish, mehmonxona, jadval va iumrah yordami safar davomida doimo yoningizda.", "Йўналиш, меҳмонхона, жадвал ва iumrah ёрдами сафар давомида доимо ёнингизда.") }
-
-    private var completedStageTitle: String { localized("Поездка завершена", "Trip completed", "Safar yakunlandi", "Сафар якунланди") }
-    private var completedStageSubtitle: String { localized("История поездки сохранена", "Your trip history is saved", "Safar tarixi saqlandi", "Сафар тарихи сақланди") }
-    private var completedCardTitle: String { completedStageTitle }
-    private var completedCardBody: String { localized("Бронирование и история поездки останутся доступны в iumrah.", "The booking and trip history remain available in iumrah.", "Bron va safar tarixi iumrah'da saqlanadi.", "Брон ва сафар тарихи iumrah'да сақланади.") }
-
-    private var tripPlanTitle: String { localized("План поездки", "Trip plan", "Safar rejasi", "Сафар режаси") }
-    private var tripPlanEmptyText: String { localized("События поездки появятся после подтверждения деталей.", "Trip events will appear after the details are confirmed.", "Tafsilotlar tasdiqlangach safar voqealari paydo bo‘ladi.", "Тафсилотлар тасдиқлангач сафар воқеалари пайдо бўлади.") }
-    private var openFullPlanTitle: String { localized("Открыть полное расписание", "Open full schedule", "To‘liq jadvalni ochish", "Тўлиқ жадвални очиш") }
-
-    private var manageSectionTitle: String { localized("Управление поездкой", "Trip management", "Safarni boshqarish", "Сафарни бошқариш") }
-    private var newUmrahTitle: String { localized("Новая Umrah", "New Umrah", "Yangi Umra", "Янги Умра") }
+    private var actionsTitle: String { localized("Действия", "Actions", "Amallar", "Амаллар") }
+    private var newUmrahTitle: String { localized("Новая Умра", "New Umrah", "Yangi Umra", "Янги Умра") }
     private var newUmrahSubtitle: String { localized("Собрать новый пакет", "Build a new package", "Yangi paket tuzish", "Янги пакет тузиш") }
+    private var addTripTitle: String { localized("Добавить поездку", "Add trip", "Safar qo‘shish", "Сафар қўшиш") }
+    private var addTripSubtitle: String { localized("Отдельное бронирование", "Separate booking", "Alohida bron", "Алоҳида брон") }
     private var addPilgrimTitle: String { localized("Добавить паломника", "Add pilgrim", "Ziyoratchi qo‘shish", "Зиёратчи қўшиш") }
     private var addPilgrimSubtitle: String { localized("Запрос через iumrah Care", "Request via iumrah Care", "iumrah Care orqali so‘rov", "iumrah Care орқали сўров") }
-    private var manageTitle: String { localized("Управлять бронированием", "Manage booking", "Bronni boshqarish", "Бронни бошқариш") }
-    private var manageSubtitle: String { localized("Отели, данные, услуги и документы", "Hotels, details, services and documents", "Mehmonxona, ma’lumotlar, xizmatlar va hujjatlar", "Меҳмонхона, маълумотлар, хизматлар ва ҳужжатлар") }
+    private var manageTitle: String { localized("Управлять поездкой", "Manage trip", "Safarni boshqarish", "Сафарни бошқариш") }
+    private var manageSubtitle: String { localized("Отели, данные и услуги", "Hotels, details and services", "Mehmonxona va xizmatlar", "Меҳмонхона ва хизматлар") }
     private var otherTripsTitle: String { localized("Другие поездки", "Other trips", "Boshqa safarlar", "Бошқа сафарлар") }
-    private var ziyaratsBookingTitle: String { localized("Зияраты", "Ziyarat", "Ziyorat", "Зиёрат") }
-    private var ziyaratsBookingSubtitle: String { localized("Маршрут и места посещения", "Route and places to visit", "Yo‘nalish va tashrif joylari", "Йўналиш ва ташриф жойлари") }
 
     private func localized(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
@@ -1012,11 +543,4 @@ struct BookingsHomeView: View {
         case .uzbekCyrillic: return uzCy
         }
     }
-}
-
-private struct BookingProgressStage {
-    let title: String
-    let activeSubtitle: String
-    let cardTitle: String
-    let cardBody: String
 }
