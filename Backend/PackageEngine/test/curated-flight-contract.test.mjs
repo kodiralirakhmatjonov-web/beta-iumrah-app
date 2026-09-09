@@ -52,12 +52,22 @@ test('public recommendations support origin-wide JED/MED discovery and bypass st
     curated.indexOf('export async function curatedCalendarRows')
   );
   assert.match(publicBlock, /umrah_origin/);
-  assert.match(publicBlock, /journey_role = 'outbound'/);
+  assert.match(publicBlock, /inbound_origin IS NULL AND outbound_origin = \?/);
   assert.match(publicBlock, /outbound_destination IN \('JED', 'MED'\)/);
-  assert.match(publicBlock, /journey_role = 'return'/);
-  assert.match(publicBlock, /outbound_origin IN \('JED', 'MED'\)/);
-  assert.match(publicBlock, /journey_role = 'complete'/);
+  assert.match(publicBlock, /inbound_origin IS NULL AND outbound_origin IN \('JED', 'MED'\)/);
+  assert.match(publicBlock, /inbound_origin IS NOT NULL AND outbound_origin = \?/);
+  assert.match(publicBlock, /canonicalOfferType/);
+  assert.match(publicBlock, /canonicalJourneyRole/);
   assert.match(publicBlock, /"no-store"/);
+});
+
+test('legacy one-leg rows are repaired instead of inheriting paired/complete schema defaults', () => {
+  assert.match(curated, /function canonicalOfferType/);
+  assert.match(curated, /if \(itinerary\.legs\.length === 1\) return "one_way"/);
+  assert.match(curated, /function canonicalJourneyRole/);
+  assert.match(curated, /storedRole === "outbound" \|\| storedRole === "return"/);
+  assert.match(curated, /originIsSaudi && !destinationIsSaudi/);
+  assert.match(curated, /SELECT id, itinerary_json, offer_type, journey_role, fingerprint/);
 });
 
 

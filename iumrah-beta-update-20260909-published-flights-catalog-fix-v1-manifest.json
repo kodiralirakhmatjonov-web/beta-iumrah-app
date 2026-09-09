@@ -1,0 +1,27 @@
+{
+  "name": "iumrah Beta published flight catalog visibility fix v1",
+  "date": "2026-09-09",
+  "root": "beta-iumrah-app-main",
+  "reason": "Repair legacy one-way curated rows misclassified by D1 schema defaults and make public recommendation discovery use structural itinerary shape so every eligible published direct flight remains visible to Beta.",
+  "files": [
+    {
+      "path": "Backend/PackageEngine/src/curated-flights.ts",
+      "bytes": 31541,
+      "sha256": "287f6623bdfc83a0ac65a988b457f760846b3d5c43780a86ec4a96a9ff3f0e4d"
+    },
+    {
+      "path": "Backend/PackageEngine/test/curated-flight-contract.test.mjs",
+      "bytes": 4645,
+      "sha256": "4cac80fe3019349c945244f7c817ba224e1a07475a5296a74a49a920456e0c26"
+    },
+    {
+      "path": "Backend/PackageEngine/test/runtime-production.runtime.mjs",
+      "bytes": 37979,
+      "sha256": "c1d7d95b94cfade8d84aa1583c53d8564b3d329cefac3e312ceecab6f9601608"
+    }
+  ],
+  "validation": [
+    "npm test",
+    "npm run typecheck"
+  ]
+}

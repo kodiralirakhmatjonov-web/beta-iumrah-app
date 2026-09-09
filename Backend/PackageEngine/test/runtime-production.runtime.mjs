@@ -650,7 +650,7 @@ function curatedSaveDb() {
         values: [],
         bind(...values) { this.values = values; return this; },
         async all() {
-          if (normalized.includes('FROM curated_flight_offers WHERE fingerprint IS NULL')) return { results: [] };
+          if (normalized.includes('FROM curated_flight_offers WHERE fingerprint IS NULL') || normalized.includes('SELECT id, itinerary_json, offer_type, journey_role, fingerprint FROM curated_flight_offers LIMIT 1000')) return { results: [] };
           throw new Error(`Unexpected curated all SQL: ${normalized}`);
         },
         async first() {

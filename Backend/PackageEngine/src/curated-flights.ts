@@ -136,6 +136,33 @@ function normalizeJourneyRole(value: unknown, offerType: CuratedOfferType): Cura
   return offerType === "one_way" ? "outbound" : "complete";
 }
 
+function canonicalOfferType(itinerary: CuratedItinerary, stored?: unknown): CuratedOfferType {
+  // A single physical leg is always a one-way product. Older D1 rows received
+  // the schema default `paired_one_way` when offer typing was introduced, which
+  // made valid published one-way flights disappear from the customer catalogue.
+  if (itinerary.legs.length === 1) return "one_way";
+  return normalizeOfferType(stored ?? itinerary.offer_type, itinerary.legs.length);
+}
+
+function canonicalJourneyRole(itinerary: CuratedItinerary, offerType: CuratedOfferType, stored?: unknown): CuratedJourneyRole {
+  if (offerType !== "one_way") return "complete";
+
+  const itineraryRole = safeText(itinerary.journey_role, 40).toLowerCase();
+  if (itineraryRole === "outbound" || itineraryRole === "return") return itineraryRole;
+
+  const storedRole = safeText(stored, 40).toLowerCase();
+  // `complete` was the legacy column default, so it is not trustworthy for a
+  // one-leg row. Explicit outbound/return values remain authoritative.
+  if (storedRole === "outbound" || storedRole === "return") return storedRole;
+
+  const leg = itinerary.legs[0];
+  const originIsSaudi = leg.origin === "JED" || leg.origin === "MED";
+  const destinationIsSaudi = leg.destination === "JED" || leg.destination === "MED";
+  if (originIsSaudi && !destinationIsSaudi) return "return";
+  if (!originIsSaudi && destinationIsSaudi) return "outbound";
+  return "outbound";
+}
+
 function curatedFingerprint(itinerary: CuratedItinerary): string {
   const offerType = normalizeOfferType(itinerary.offer_type, itinerary.legs.length);
   const journeyRole = normalizeJourneyRole(itinerary.journey_role, offerType);
@@ -227,16 +254,22 @@ export async function ensureCuratedFlightSchema(db: D1Like): Promise<void> {
     try { await db.prepare(statement).run(); } catch { /* already present */ }
   }
 
-  const backfill = await db.prepare(`SELECT id, itinerary_json, offer_type, journey_role
-    FROM curated_flight_offers WHERE fingerprint IS NULL OR fingerprint = '' LIMIT 300`)
-    .all<{ id: string; itinerary_json: string; offer_type: CuratedOfferType; journey_role: CuratedJourneyRole }>();
+  // Repair legacy classifications as well as missing fingerprints. When the
+  // columns were first added, D1 filled old rows with paired_one_way/complete.
+  // That default is invalid for one-leg offers and caused Business to show rows
+  // that the public endpoint silently excluded.
+  const backfill = await db.prepare(`SELECT id, itinerary_json, offer_type, journey_role, fingerprint
+    FROM curated_flight_offers LIMIT 1000`)
+    .all<{ id: string; itinerary_json: string; offer_type: CuratedOfferType; journey_role: CuratedJourneyRole; fingerprint: string | null }>();
   for (const row of backfill.results ?? []) {
     const itinerary = normalizeItinerary(parseJSON<unknown>(row.itinerary_json, null));
     if (!itinerary) continue;
-    itinerary.offer_type = normalizeOfferType(row.offer_type ?? itinerary.offer_type, itinerary.legs.length);
-    itinerary.journey_role = normalizeJourneyRole(row.journey_role ?? itinerary.journey_role, itinerary.offer_type);
+    itinerary.offer_type = canonicalOfferType(itinerary, row.offer_type);
+    itinerary.journey_role = canonicalJourneyRole(itinerary, itinerary.offer_type, row.journey_role);
+    const fingerprint = curatedFingerprint(itinerary);
+    if (row.offer_type === itinerary.offer_type && row.journey_role === itinerary.journey_role && row.fingerprint === fingerprint) continue;
     await db.prepare(`UPDATE curated_flight_offers SET offer_type=?, journey_role=?, fingerprint=? WHERE id=?`)
-      .bind(itinerary.offer_type, itinerary.journey_role, curatedFingerprint(itinerary), row.id).run();
+      .bind(itinerary.offer_type, itinerary.journey_role, fingerprint, row.id).run();
   }
 
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_curated_flight_route_dates
@@ -416,9 +449,9 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
       WHERE published = 1
         AND outbound_date BETWEEN ? AND ?
         AND (
-          (journey_role = 'outbound' AND outbound_origin = ? AND outbound_destination IN ('JED', 'MED'))
-          OR (journey_role = 'return' AND outbound_origin IN ('JED', 'MED') AND outbound_destination = ?)
-          OR (journey_role = 'complete' AND outbound_origin = ? AND inbound_destination = ?)
+          (inbound_origin IS NULL AND outbound_origin = ? AND outbound_destination IN ('JED', 'MED'))
+          OR (inbound_origin IS NULL AND outbound_origin IN ('JED', 'MED') AND outbound_destination = ?)
+          OR (inbound_origin IS NOT NULL AND outbound_origin = ? AND inbound_destination = ?)
         )
       ORDER BY priority ASC, per_traveler_fare ASC, outbound_date ASC
       LIMIT 300`)
@@ -448,8 +481,10 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
   }
 
   const recommendations = (result.results ?? []).map((row) => {
-    const itinerary = parseJSON<CuratedItinerary | null>(row.itinerary_json, null);
+    const itinerary = normalizeItinerary(parseJSON<unknown>(row.itinerary_json, null));
     if (!itinerary) return null;
+    const offerType = canonicalOfferType(itinerary, row.offer_type);
+    const journeyRole = canonicalJourneyRole(itinerary, offerType, row.journey_role);
     return {
       id: row.id,
       outboundDate: row.outbound_date,
@@ -463,8 +498,8 @@ export async function publicCuratedFlightRecommendations(url: URL, db: D1Like | 
       inbound: itinerary.legs[1] ?? null,
       nonstop: itinerary.legs.every((leg) => leg.stops === 0),
       recommendationLabel: "iumrah recommends",
-      offerType: row.offer_type,
-      journeyRole: row.journey_role,
+      offerType,
+      journeyRole,
     };
   }).filter((value): value is NonNullable<typeof value> => value !== null);
 
