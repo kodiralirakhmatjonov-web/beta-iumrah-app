@@ -537,8 +537,11 @@ struct FinalPackageView: View {
 
             HStack(spacing: 8) {
                 bookingDetailChip(icon: "airplane.circle", text: offer.stops == 0 ? directFlightTitle : "\(offer.stops) stop")
-                if let cabin = offer.cabinClass?.nilIfBlank {
-                    bookingDetailChip(icon: "seat.recline.normal", text: cabin)
+                if let rawCabin = offer.cabinClass {
+                    let cabin = rawCabin.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !cabin.isEmpty {
+                        bookingDetailChip(icon: "seat.recline.normal", text: cabin)
+                    }
                 }
                 if let checked = offer.baggage?.checked {
                     bookingDetailChip(icon: "suitcase.fill", text: "\(checked) kg")
