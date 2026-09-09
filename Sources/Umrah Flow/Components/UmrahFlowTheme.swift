@@ -44,35 +44,86 @@ struct UmrahFlowPalette {
 
 struct UmrahFlowBackground: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var palette: UmrahFlowPalette {
         colorScheme == .dark ? .dark : .light
     }
 
     var body: some View {
-        ZStack {
-            palette.background
+        GeometryReader { proxy in
+            TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 / 6.0 : 1.0 / 20.0)) { timeline in
+                let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+                let radius = max(proxy.size.width, proxy.size.height) * 0.95
 
-            LinearGradient(
-                colors: [
-                    palette.backgroundSecondary.opacity(colorScheme == .dark ? 0.54 : 0.84),
-                    palette.background.opacity(0)
-                ],
-                startPoint: .top,
-                endPoint: .center
-            )
+                ZStack {
+                    palette.background
 
-            RadialGradient(
-                colors: [
-                    (colorScheme == .dark ? Color.white : Color.black).opacity(colorScheme == .dark ? 0.025 : 0.018),
-                    .clear
-                ],
-                center: .topTrailing,
-                startRadius: 8,
-                endRadius: 310
-            )
+                    LinearGradient(
+                        colors: colorScheme == .dark
+                            ? [
+                                Color.black.opacity(0.66),
+                                palette.backgroundSecondary.opacity(0.42),
+                                Color.black.opacity(0.48)
+                            ]
+                            : [
+                                palette.backgroundSecondary.opacity(0.92),
+                                palette.background,
+                                palette.backgroundSecondary.opacity(0.72)
+                            ],
+                        startPoint: UnitPoint(
+                            x: 0.05 + sin(time * 0.045) * 0.04,
+                            y: 0.02
+                        ),
+                        endPoint: UnitPoint(
+                            x: 0.95 + cos(time * 0.040) * 0.04,
+                            y: 0.98
+                        )
+                    )
+
+                    // One restrained violet field moves very slowly through the
+                    // background. It should be felt, not watched.
+                    RadialGradient(
+                        colors: colorScheme == .dark
+                            ? [
+                                Color(red: 0.30, green: 0.10, blue: 0.48).opacity(0.24),
+                                Color(red: 0.18, green: 0.06, blue: 0.30).opacity(0.10),
+                                .clear
+                            ]
+                            : [
+                                Color(red: 0.48, green: 0.30, blue: 0.72).opacity(0.075),
+                                Color(red: 0.48, green: 0.30, blue: 0.72).opacity(0.025),
+                                .clear
+                            ],
+                        center: UnitPoint(
+                            x: 0.50 + sin(time * 0.052 + 0.8) * 0.17,
+                            y: 0.48 + cos(time * 0.047 + 1.9) * 0.14
+                        ),
+                        startRadius: 0,
+                        endRadius: radius
+                    )
+
+                    if colorScheme == .dark {
+                        RadialGradient(
+                            colors: [
+                                Color.black.opacity(0.34),
+                                Color.black.opacity(0.12),
+                                .clear
+                            ],
+                            center: UnitPoint(
+                                x: 0.40 + cos(time * 0.039 + 2.4) * 0.18,
+                                y: 0.20 + sin(time * 0.043 + 1.2) * 0.10
+                            ),
+                            startRadius: 0,
+                            endRadius: radius * 0.72
+                        )
+                    }
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+            }
         }
         .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 }
 
