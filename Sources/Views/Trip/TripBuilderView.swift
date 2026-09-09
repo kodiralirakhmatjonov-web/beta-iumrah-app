@@ -985,8 +985,7 @@ struct TripBuilderView: View {
 
     private var curatedOutboundFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
-            recommendation.effectiveOfferType == "one_way" &&
-            recommendation.effectiveJourneyRole == "outbound" &&
+            recommendation.inbound == nil &&
             recommendation.outbound.origin == journey.trip.originCode &&
             recommendation.outbound.destination == journey.trip.outboundDestinationCode
         }
@@ -994,8 +993,7 @@ struct TripBuilderView: View {
 
     private var curatedReturnFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
-            recommendation.effectiveOfferType == "one_way" &&
-            recommendation.effectiveJourneyRole == "return" &&
+            recommendation.inbound == nil &&
             recommendation.outbound.origin == journey.trip.returnOriginCode &&
             recommendation.outbound.destination == journey.trip.originCode
         }
@@ -1007,8 +1005,7 @@ struct TripBuilderView: View {
 
     private var curatedRoundTripFlights: [CuratedFlightRecommendation] {
         curatedFlights.filter { recommendation in
-            guard recommendation.effectiveJourneyRole == "complete",
-                  let inbound = recommendation.inbound else { return false }
+            guard let inbound = recommendation.inbound else { return false }
             return recommendation.outbound.origin == journey.trip.originCode
                 && recommendation.outbound.destination == journey.trip.outboundDestinationCode
                 && inbound.origin == journey.trip.returnOriginCode

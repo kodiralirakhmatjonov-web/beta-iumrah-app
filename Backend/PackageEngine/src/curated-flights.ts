@@ -137,9 +137,8 @@ function normalizeJourneyRole(value: unknown, offerType: CuratedOfferType): Cura
 }
 
 function canonicalOfferType(itinerary: CuratedItinerary, stored?: unknown): CuratedOfferType {
-  // A single physical leg is always a one-way product. Older D1 rows received
-  // the schema default `paired_one_way` when offer typing was introduced, which
-  // made valid published one-way flights disappear from the customer catalogue.
+  // Physical structure wins over legacy/default metadata. One leg cannot be a
+  // paired product, even if an older D1 row was backfilled with paired_one_way.
   if (itinerary.legs.length === 1) return "one_way";
   return normalizeOfferType(stored ?? itinerary.offer_type, itinerary.legs.length);
 }
@@ -147,25 +146,25 @@ function canonicalOfferType(itinerary: CuratedItinerary, stored?: unknown): Cura
 function canonicalJourneyRole(itinerary: CuratedItinerary, offerType: CuratedOfferType, stored?: unknown): CuratedJourneyRole {
   if (offerType !== "one_way") return "complete";
 
+  const leg = itinerary.legs[0];
+  const originIsUmrahAirport = leg.origin === "JED" || leg.origin === "MED";
+  const destinationIsUmrahAirport = leg.destination === "JED" || leg.destination === "MED";
+
+  // For the public Umrah catalogue, the physical route is authoritative. This
+  // also repairs rows that were incorrectly saved as outbound by the old default.
+  if (!originIsUmrahAirport && destinationIsUmrahAirport) return "outbound";
+  if (originIsUmrahAirport && !destinationIsUmrahAirport) return "return";
+
   const itineraryRole = safeText(itinerary.journey_role, 40).toLowerCase();
   if (itineraryRole === "outbound" || itineraryRole === "return") return itineraryRole;
-
   const storedRole = safeText(stored, 40).toLowerCase();
-  // `complete` was the legacy column default, so it is not trustworthy for a
-  // one-leg row. Explicit outbound/return values remain authoritative.
   if (storedRole === "outbound" || storedRole === "return") return storedRole;
-
-  const leg = itinerary.legs[0];
-  const originIsSaudi = leg.origin === "JED" || leg.origin === "MED";
-  const destinationIsSaudi = leg.destination === "JED" || leg.destination === "MED";
-  if (originIsSaudi && !destinationIsSaudi) return "return";
-  if (!originIsSaudi && destinationIsSaudi) return "outbound";
   return "outbound";
 }
 
 function curatedFingerprint(itinerary: CuratedItinerary): string {
-  const offerType = normalizeOfferType(itinerary.offer_type, itinerary.legs.length);
-  const journeyRole = normalizeJourneyRole(itinerary.journey_role, offerType);
+  const offerType = canonicalOfferType(itinerary, itinerary.offer_type);
+  const journeyRole = canonicalJourneyRole(itinerary, offerType, itinerary.journey_role);
   const legs = itinerary.legs.map((leg) => [
     leg.airline_code.toUpperCase(),
     leg.flight_number.toUpperCase().replace(/\s+/g, ""),
@@ -254,10 +253,9 @@ export async function ensureCuratedFlightSchema(db: D1Like): Promise<void> {
     try { await db.prepare(statement).run(); } catch { /* already present */ }
   }
 
-  // Repair legacy classifications as well as missing fingerprints. When the
-  // columns were first added, D1 filled old rows with paired_one_way/complete.
-  // That default is invalid for one-leg offers and caused Business to show rows
-  // that the public endpoint silently excluded.
+  // Reconcile every existing row, not only rows with a missing fingerprint. Old
+  // deployments could persist one-way return legs as outbound and one-leg offers
+  // as paired_one_way; both states are invisible to parts of the customer UI.
   const backfill = await db.prepare(`SELECT id, itinerary_json, offer_type, journey_role, fingerprint
     FROM curated_flight_offers LIMIT 1000`)
     .all<{ id: string; itinerary_json: string; offer_type: CuratedOfferType; journey_role: CuratedJourneyRole; fingerprint: string | null }>();
@@ -635,7 +633,7 @@ export async function resolvePublicCuratedFlightRecommendation(request: Request,
 
   if (completeID) {
     const row = await publishedRow(db, completeID);
-    if (!row || row.journey_role !== "complete") return json({ ok: false, error: "CURATED_FLIGHT_NOT_FOUND" }, 404);
+    if (!row) return json({ ok: false, error: "CURATED_FLIGHT_NOT_FOUND" }, 404);
     const itinerary = normalizeItinerary(parseJSON<unknown>(row.itinerary_json, null));
     if (!itinerary || itinerary.legs.length !== 2) return json({ ok: false, error: "INVALID_CURATED_ITINERARY" }, 409);
     outboundLeg = itinerary.legs[0];
@@ -648,13 +646,20 @@ export async function resolvePublicCuratedFlightRecommendation(request: Request,
       publishedRow(db, outboundID),
       publishedRow(db, returnID),
     ]);
-    if (!outboundRow || !returnRow || outboundRow.journey_role !== "outbound" || returnRow.journey_role !== "return") {
+    if (!outboundRow || !returnRow) {
       return json({ ok: false, error: "CURATED_FLIGHT_NOT_FOUND" }, 404);
     }
     const outboundItinerary = normalizeItinerary(parseJSON<unknown>(outboundRow.itinerary_json, null));
     const returnItinerary = normalizeItinerary(parseJSON<unknown>(returnRow.itinerary_json, null));
     if (!outboundItinerary || !returnItinerary || outboundItinerary.legs.length !== 1 || returnItinerary.legs.length !== 1) {
       return json({ ok: false, error: "INVALID_CURATED_ITINERARY" }, 409);
+    }
+    const outboundType = canonicalOfferType(outboundItinerary, outboundRow.offer_type);
+    const outboundRole = canonicalJourneyRole(outboundItinerary, outboundType, outboundRow.journey_role);
+    const returnType = canonicalOfferType(returnItinerary, returnRow.offer_type);
+    const returnRole = canonicalJourneyRole(returnItinerary, returnType, returnRow.journey_role);
+    if (outboundType !== "one_way" || returnType !== "one_way" || outboundRole !== "outbound" || returnRole !== "return") {
+      return json({ ok: false, error: "CURATED_FLIGHT_NOT_FOUND" }, 404);
     }
     if (outboundRow.currency.toUpperCase() !== returnRow.currency.toUpperCase()) {
       return json({ ok: false, error: "CURATED_CURRENCY_MISMATCH" }, 409);

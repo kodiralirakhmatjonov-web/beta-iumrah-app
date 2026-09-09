@@ -1,0 +1,20 @@
+{
+  "name": "Published flights catalog fix v2",
+  "date": "2026-09-09",
+  "scope": [
+    "Canonicalize one-way direction from the physical route instead of stale D1 journey_role defaults",
+    "Make public recommendation lookup select published inventory structurally",
+    "Make selection resolver tolerate and repair legacy role metadata",
+    "Make iOS client classify cards by actual legs instead of server journey_role",
+    "Add iOS fallback to the already-public storefront flight board if recommendations are empty or unavailable"
+  ],
+  "required_after_apply": [
+    "Run Deploy iumrah Package Engine",
+    "Build iumrah Beta / TestFlight because client Swift files changed"
+  ],
+  "validation": {
+    "package_engine_contract_tests": "31/31 passed",
+    "package_engine_runtime_tests": "18/18 passed",
+    "typescript_typecheck": "passed"
+  }
+}

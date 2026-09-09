@@ -73,20 +73,114 @@ final class CuratedFlightRecommendationService {
         let start = calendar.startOfDay(for: from)
         let end = calendar.date(byAdding: .day, value: max(1, min(days, 365)), to: start) ?? start
 
-        let response: CuratedFlightRecommendationsResponse = try await api.get(
-            "/api/package/flights/recommendations",
-            query: [
-                URLQueryItem(name: "umrah_origin", value: trip.originCode.uppercased()),
-                URLQueryItem(name: "from", value: Self.requestDay(start)),
-                URLQueryItem(name: "to", value: Self.requestDay(end))
-            ],
-            timeoutInterval: 10
-        )
+        let fromKey = Self.requestDay(start)
+        let toKey = Self.requestDay(end)
 
-        guard response.ok else { return [] }
-        // Keep the server order: staff priority first, then the lowest hidden
-        // supplier fare. The customer sees no fare, only the best-ranked cards.
-        return response.recommendations.filter { $0.nonstop }
+        do {
+            let response: CuratedFlightRecommendationsResponse = try await api.get(
+                "/api/package/flights/recommendations",
+                query: [
+                    URLQueryItem(name: "umrah_origin", value: trip.originCode.uppercased()),
+                    URLQueryItem(name: "from", value: fromKey),
+                    URLQueryItem(name: "to", value: toKey)
+                ],
+                timeoutInterval: 10
+            )
+
+            if response.ok {
+                let direct = response.recommendations.filter { $0.nonstop }
+                if !direct.isEmpty { return direct }
+            }
+        } catch {
+            // Fall through to the second public D1 view. This is deliberate: an
+            // older Package Engine deployment must not turn 50 Business-published
+            // flights into an empty client catalogue.
+        }
+
+        return try await storefrontFallback(
+            origin: trip.originCode.uppercased(),
+            fromKey: fromKey,
+            toKey: toKey
+        )
+    }
+
+    private func storefrontFallback(origin: String, fromKey: String, toKey: String) async throws -> [CuratedFlightRecommendation] {
+        let board = try await HotelStorefrontService().flightBoard(origin: origin)
+        guard board.ok else { return [] }
+
+        return board.options.compactMap { option in
+            let outboundDate = String(option.outbound.departureAt.prefix(10))
+            guard outboundDate >= fromKey, outboundDate <= toKey else { return nil }
+
+            let inboundDate = option.inbound.map { String($0.departureAt.prefix(10)) }
+            let outbound = Self.curatedLeg(option.outbound)
+            let inbound = option.inbound.map(Self.curatedLeg)
+            let isOneWay = inbound == nil
+
+            let role: String
+            if isOneWay {
+                if option.outbound.origin.uppercased() == origin {
+                    role = "outbound"
+                } else if option.outbound.destination.uppercased() == origin {
+                    role = "return"
+                } else {
+                    return nil
+                }
+            } else {
+                role = "complete"
+            }
+
+            let codes = [option.outbound.airlineCode, option.inbound?.airlineCode]
+                .compactMap { value -> String? in
+                    guard let value else { return nil }
+                    let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return clean.isEmpty ? nil : clean
+                }
+            let names = [option.outbound.airline, option.inbound?.airline]
+                .compactMap { value -> String? in
+                    guard let value else { return nil }
+                    let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return clean.isEmpty ? nil : clean
+                }
+            let numbers = [option.outbound.flightNumber, option.inbound?.flightNumber]
+                .compactMap { value -> String? in
+                    guard let value else { return nil }
+                    let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return clean.isEmpty ? nil : clean
+                }
+
+            return CuratedFlightRecommendation(
+                id: option.id,
+                outboundDate: outboundDate,
+                inboundDate: inboundDate,
+                cabinClass: option.outbound.cabinClass,
+                airlineCodes: Array(Set(codes)),
+                airlineNames: Array(Set(names)),
+                flightNumbers: numbers,
+                observedAt: option.observedAt,
+                outbound: outbound,
+                inbound: inbound,
+                nonstop: option.outbound.stops == 0 && (option.inbound?.stops ?? 0) == 0,
+                recommendationLabel: "iumrah recommends",
+                offerType: isOneWay ? "one_way" : "paired_one_way",
+                journeyRole: role
+            )
+        }
+    }
+
+    private static func curatedLeg(_ leg: StorefrontFlightLeg) -> CuratedFlightRecommendation.Leg {
+        CuratedFlightRecommendation.Leg(
+            airline: leg.airline,
+            flightNumber: leg.flightNumber,
+            airlineCode: leg.airlineCode,
+            origin: leg.origin,
+            destination: leg.destination,
+            departureAt: leg.departureAt,
+            arrivalAt: leg.arrivalAt,
+            durationMinutes: leg.durationMinutes,
+            stops: leg.stops,
+            cabinClass: leg.cabinClass
+        )
     }
 
     /// Resolves the already-selected published direct flight into the same verified

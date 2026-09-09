@@ -446,8 +446,7 @@ struct FlightDateCalendarView: View {
 
     private var completeRecommendations: [CuratedFlightRecommendation] {
         publishedFlights.filter { recommendation in
-            guard recommendation.effectiveJourneyRole == "complete",
-                  let inbound = recommendation.inbound else { return false }
+            guard let inbound = recommendation.inbound else { return false }
             return recommendation.outbound.origin == trip.originCode &&
                 recommendation.outbound.destination == trip.outboundDestinationCode &&
                 inbound.origin == trip.returnOriginCode &&
@@ -458,8 +457,7 @@ struct FlightDateCalendarView: View {
 
     private var oneWayOutboundRecommendations: [CuratedFlightRecommendation] {
         publishedFlights.filter { recommendation in
-            recommendation.effectiveOfferType == "one_way" &&
-            recommendation.effectiveJourneyRole == "outbound" &&
+            recommendation.inbound == nil &&
             recommendation.outbound.origin == trip.originCode &&
             recommendation.outbound.destination == trip.outboundDestinationCode
         }
@@ -467,8 +465,7 @@ struct FlightDateCalendarView: View {
 
     private var oneWayReturnRecommendations: [CuratedFlightRecommendation] {
         publishedFlights.filter { recommendation in
-            recommendation.effectiveOfferType == "one_way" &&
-            recommendation.effectiveJourneyRole == "return" &&
+            recommendation.inbound == nil &&
             recommendation.outbound.origin == trip.returnOriginCode &&
             recommendation.outbound.destination == trip.originCode
         }
