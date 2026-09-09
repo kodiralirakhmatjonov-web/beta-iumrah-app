@@ -228,7 +228,7 @@ enum LocalPackagePricingEngine {
         let markupAmount = totalCost * markupRate
         let paymentFeeAmount = calculatedSelling - baseSelling
         let roundingDifference = total - calculatedSelling
-        let estimatedProfit = roundedBaseTotal - totalCost - paymentFeeAmount
+        let estimatedProfit = total - totalCost - paymentFeeAmount
 
         var components: [GeneratorPricingComponent] = [
             .init(code: "flight_open_jaw", label: "Авиаперелёт Ташкент — Медина / Джидда — Ташкент", supplierCostUsd: flights),
