@@ -82,21 +82,39 @@ struct IumrahFlowProgress: View {
 
 // MARK: - Generator ambient rail
 
-/// Decorative generator motion that lives in the otherwise empty navigation-title
-/// area. The progress card below remains the authoritative step indicator; this
-/// rail only gives the five-step package builder a calm, living system identity.
+/// A large, tactile carousel that lives in the otherwise empty generator
+/// navigation-title area. It is intentionally independent from the progress
+/// card below: the progress card communicates completion, while this rail gives
+/// the active generator context a calm, living identity.
 private struct GeneratorAmbientRail: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let stage: TripProgressStage
 
     @State private var activeIndex = 0
+    @State private var dragTranslation: CGFloat = 0
     @State private var glowBreath = false
+    @State private var resetGeneration = 0
+
+    private let itemSpacing: CGFloat = 82
 
     private struct Item: Identifiable {
         let id: String
         let symbol: String
         let role: IumrahIconRole
+        let isResting: Bool
+
+        init(
+            id: String,
+            symbol: String,
+            role: IumrahIconRole,
+            isResting: Bool = false
+        ) {
+            self.id = id
+            self.symbol = symbol
+            self.role = role
+            self.isResting = isResting
+        }
     }
 
     var body: some View {
@@ -104,42 +122,103 @@ private struct GeneratorAmbientRail: View {
             ambientGlow
 
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                let distance = signedDistance(for: index)
-                let magnitude = abs(distance)
+                let phase = continuousDistance(for: index)
+                let magnitude = abs(phase)
 
-                if magnitude <= 2 {
+                if magnitude <= 2.15 {
                     iconTile(item, magnitude: magnitude)
                         .scaleEffect(scale(for: magnitude))
                         .opacity(opacity(for: magnitude))
                         .blur(radius: blur(for: magnitude))
-                        .offset(x: CGFloat(distance) * 54, y: magnitude == 0 ? -1 : 1)
-                        .zIndex(Double(3 - magnitude))
+                        .offset(
+                            x: phase * itemSpacing,
+                            y: verticalOffset(for: magnitude)
+                        )
+                        .zIndex(Double(4) - Double(magnitude))
                 }
             }
         }
-        .frame(width: 194, height: 50)
-        .clipped()
+        .frame(width: 286, height: 88)
         .contentShape(Rectangle())
-        .allowsHitTesting(false)
+        .clipped()
+        // Drop the larger carousel slightly below the visual center of the
+        // inline navigation bar without changing the page layout below it.
+        .offset(y: 8)
+        .gesture(carouselGesture)
         .accessibilityHidden(true)
         .task(id: stage.rawValue) {
-            activeIndex = 0
+            let target = restingIndex
+            activeIndex = target
+            dragTranslation = 0
+            resetGeneration = 0
             glowBreath = false
 
             guard !reduceMotion else { return }
 
-            withAnimation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
                 glowBreath = true
             }
 
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 1_850_000_000)
-                guard !Task.isCancelled else { break }
-                withAnimation(.spring(response: 0.72, dampingFraction: 0.88, blendDuration: 0.12)) {
-                    activeIndex = (activeIndex + 1) % items.count
+            // One calm presentation lap on entry, then park on the icon that
+            // represents the current generator context. There is no perpetual
+            // auto-scrolling after this sequence.
+            try? await Task.sleep(nanoseconds: 260_000_000)
+            guard !Task.isCancelled else { return }
+
+            for step in 1...items.count {
+                try? await Task.sleep(nanoseconds: 205_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.spring(response: 0.50, dampingFraction: 0.86, blendDuration: 0.08)) {
+                    activeIndex = wrapped(target + step)
                 }
             }
         }
+        .task(id: resetGeneration) {
+            guard resetGeneration > 0 else { return }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.spring(response: 0.62, dampingFraction: 0.86, blendDuration: 0.10)) {
+                activeIndex = restingIndex
+                dragTranslation = 0
+            }
+        }
+    }
+
+    private var carouselGesture: some Gesture {
+        DragGesture(minimumDistance: 7, coordinateSpace: .local)
+            .onChanged { value in
+                // Keep vertical page gestures natural. The rail only claims a
+                // gesture once the movement is clearly horizontal.
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                dragTranslation = value.translation.width
+            }
+            .onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else {
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.06)) {
+                        dragTranslation = 0
+                    }
+                    resetGeneration &+= 1
+                    return
+                }
+
+                let projected = value.predictedEndTranslation.width
+                let rawSteps = Int((-projected / itemSpacing).rounded())
+                let steps = min(max(rawSteps, -2), 2)
+
+                if steps != 0 {
+                    IumrahHaptics.selection()
+                }
+
+                withAnimation(.spring(response: 0.46, dampingFraction: 0.84, blendDuration: 0.08)) {
+                    activeIndex = wrapped(activeIndex + steps)
+                    dragTranslation = 0
+                }
+
+                // Every manual play session is temporary: one second after the
+                // finger leaves the rail, return to the generator's real context.
+                resetGeneration &+= 1
+            }
     }
 
     private var ambientGlow: some View {
@@ -147,37 +226,57 @@ private struct GeneratorAmbientRail: View {
             .fill(
                 RadialGradient(
                     colors: [
-                        activeItem.role.color.opacity(0.30),
-                        activeItem.role.color.opacity(0.10),
+                        activeItem.role.color.opacity(0.34),
+                        activeItem.role.color.opacity(0.13),
                         .clear
                     ],
                     center: .center,
-                    startRadius: 1,
-                    endRadius: 54
+                    startRadius: 2,
+                    endRadius: 78
                 )
             )
-            .frame(width: glowBreath ? 116 : 94, height: glowBreath ? 28 : 22)
-            .blur(radius: 9)
-            .opacity(glowBreath ? 0.92 : 0.66)
-            .offset(y: 16)
-            .animation(.easeInOut(duration: 0.65), value: activeIndex)
+            .frame(width: glowBreath ? 176 : 148, height: glowBreath ? 44 : 34)
+            .blur(radius: 15)
+            .opacity(glowBreath ? 0.94 : 0.72)
+            .offset(y: 29)
+            .animation(.easeInOut(duration: 0.58), value: activeIndex)
+            .allowsHitTesting(false)
     }
 
-    private func iconTile(_ item: Item, magnitude: Int) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.iumrahCardBackground)
+    private func iconTile(_ item: Item, magnitude: CGFloat) -> some View {
+        let emphasis = max(0, 1 - min(magnitude, 1))
+
+        return ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.iumrahCardBackground.opacity(0.72 + (0.26 * Double(emphasis))))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(
+                            Color.primary.opacity(0.025 + (0.03 * Double(emphasis))),
+                            lineWidth: 0.75
+                        )
+                }
+                .shadow(
+                    color: item.role.color.opacity(0.12 * Double(emphasis)),
+                    radius: 14 * emphasis,
+                    x: 0,
+                    y: 7 * emphasis
+                )
 
             Image(systemName: item.symbol)
-                .font(.system(size: magnitude == 0 ? 18 : 16, weight: .semibold))
+                .font(.system(size: 34, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(item.role.color)
         }
-        .frame(width: 40, height: 40)
+        .frame(width: 72, height: 72)
+    }
+
+    private var restingIndex: Int {
+        items.firstIndex(where: \.isResting) ?? 0
     }
 
     private var activeItem: Item {
-        items[min(max(activeIndex, 0), items.count - 1)]
+        items[wrapped(activeIndex)]
     }
 
     private var items: [Item] {
@@ -186,13 +285,15 @@ private struct GeneratorAmbientRail: View {
             return [
                 Item(id: "trip-flight", symbol: "airplane.departure", role: .travel),
                 Item(id: "trip-location", symbol: "mappin.and.ellipse", role: .location),
-                Item(id: "trip-calendar", symbol: "calendar", role: .calendar),
+                // The trip screen contains the date choice, so the carousel
+                // settles on the calendar after its one-time presentation lap.
+                Item(id: "trip-calendar", symbol: "calendar", role: .calendar, isResting: true),
                 Item(id: "trip-guests", symbol: "person.2.fill", role: .profile),
                 Item(id: "trip-bag", symbol: "suitcase.fill", role: .booking)
             ]
         case .hotel:
             return [
-                Item(id: "hotel-building", symbol: "building.2.fill", role: .hotel),
+                Item(id: "hotel-building", symbol: "building.2.fill", role: .hotel, isResting: true),
                 Item(id: "hotel-bed", symbol: "bed.double.fill", role: .hotel),
                 Item(id: "hotel-location", symbol: "mappin.and.ellipse", role: .location),
                 Item(id: "hotel-rating", symbol: "star.fill", role: .rating),
@@ -200,7 +301,7 @@ private struct GeneratorAmbientRail: View {
             ]
         case .flight:
             return [
-                Item(id: "flight-departure", symbol: "airplane.departure", role: .travel),
+                Item(id: "flight-departure", symbol: "airplane.departure", role: .travel, isResting: true),
                 Item(id: "flight-time", symbol: "clock.fill", role: .waiting),
                 Item(id: "flight-bag", symbol: "suitcase.fill", role: .booking),
                 Item(id: "flight-route", symbol: "arrow.left.arrow.right", role: .accent),
@@ -208,7 +309,7 @@ private struct GeneratorAmbientRail: View {
             ]
         case .transfer:
             return [
-                Item(id: "transfer-car", symbol: "car.side.fill", role: .transfer),
+                Item(id: "transfer-car", symbol: "car.side.fill", role: .transfer, isResting: true),
                 Item(id: "transfer-map", symbol: "map.fill", role: .location),
                 Item(id: "transfer-guests", symbol: "person.2.fill", role: .profile),
                 Item(id: "transfer-bag", symbol: "suitcase.fill", role: .booking),
@@ -216,7 +317,7 @@ private struct GeneratorAmbientRail: View {
             ]
         case .ready:
             return [
-                Item(id: "ready-seal", symbol: "checkmark.seal.fill", role: .success),
+                Item(id: "ready-seal", symbol: "checkmark.seal.fill", role: .success, isResting: true),
                 Item(id: "ready-document", symbol: "doc.text.fill", role: .document),
                 Item(id: "ready-payment", symbol: "creditcard.fill", role: .payment),
                 Item(id: "ready-care", symbol: "heart.fill", role: .care),
@@ -225,36 +326,47 @@ private struct GeneratorAmbientRail: View {
         }
     }
 
+    private func continuousDistance(for index: Int) -> CGFloat {
+        let base = CGFloat(signedDistance(for: index))
+        return base + (dragTranslation / itemSpacing)
+    }
+
     private func signedDistance(for index: Int) -> Int {
         let count = items.count
-        let direct = index - activeIndex
+        let normalizedActive = wrapped(activeIndex)
+        let direct = index - normalizedActive
         let forwardWrap = direct + count
         let backwardWrap = direct - count
         return [direct, forwardWrap, backwardWrap].min { abs($0) < abs($1) } ?? direct
     }
 
-    private func scale(for magnitude: Int) -> CGFloat {
-        switch magnitude {
-        case 0: return 1.08
-        case 1: return 0.82
-        default: return 0.66
-        }
+    private func wrapped(_ index: Int) -> Int {
+        let count = max(items.count, 1)
+        return ((index % count) + count) % count
     }
 
-    private func opacity(for magnitude: Int) -> Double {
-        switch magnitude {
-        case 0: return 1
-        case 1: return 0.42
-        default: return 0.08
+    private func scale(for magnitude: CGFloat) -> CGFloat {
+        if magnitude <= 1 {
+            return 1.06 - (0.25 * magnitude)
         }
+        return max(0.60, 0.81 - (0.18 * (magnitude - 1)))
     }
 
-    private func blur(for magnitude: Int) -> CGFloat {
-        switch magnitude {
-        case 0: return 0
-        case 1: return 1.35
-        default: return 3.6
+    private func opacity(for magnitude: CGFloat) -> Double {
+        if magnitude <= 1 {
+            return 1.0 - (0.44 * Double(magnitude))
         }
+        return max(0.12, 0.56 - (0.34 * Double(magnitude - 1)))
+    }
+
+    private func blur(for magnitude: CGFloat) -> CGFloat {
+        if magnitude <= 0.35 { return 0 }
+        if magnitude <= 1 { return 2.2 * magnitude }
+        return min(6.4, 2.2 + ((magnitude - 1) * 3.2))
+    }
+
+    private func verticalOffset(for magnitude: CGFloat) -> CGFloat {
+        min(4.5, magnitude * 2.4)
     }
 }
 
