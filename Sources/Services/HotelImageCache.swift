@@ -78,20 +78,30 @@ struct HotelCachedImage: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: contentMode == .fill ? .fill : .fit)
-            } else {
-                Color.iumrahRaisedBackground
-                    .overlay {
-                        Image(systemName: placeholderSystemName)
-                            .font(.system(size: 25, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
+        GeometryReader { proxy in
+            ZStack {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: contentMode == .fill ? .fill : .fit)
+                        // A panoramic source image must never define the SwiftUI
+                        // layout width. The parent card owns the viewport; the photo
+                        // is rendered inside that exact viewport and cropped there.
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                } else {
+                    Color.iumrahRaisedBackground
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .overlay {
+                            Image(systemName: placeholderSystemName)
+                                .font(.system(size: 25, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
         }
+        .clipped()
         .task(id: rawURL) {
             guard let url = AppConfig.absoluteURL(rawURL) else {
                 image = nil

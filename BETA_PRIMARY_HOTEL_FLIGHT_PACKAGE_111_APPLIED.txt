@@ -1,0 +1,33 @@
+iumrah Beta update 111 — Primary Hotel + photo viewport + flight package pricing
+Date: 2026-09-10
+
+This update is designed for the current beta repository after:
+- iumrah-beta-update-20260910-flight-catalog-route-filter-v1.zip
+- iumrah-beta-update-20260910-hotel-meals-v1.zip
+
+Changes:
+1. Generator Primary Hotel
+   - Resolves the iumrah Business Primary Hotel editorial slot before factual-star fallback.
+   - Merges common Madinah/Medina/Madina spellings instead of stopping on one city spelling.
+   - Package Engine normalizes city aliases in primary_hotels and hotel catalog lookup.
+
+2. Hotel image layout safety
+   - Panoramic/wide source images are rendered inside the parent viewport and clipped.
+   - Primary Hotel screen owns an exact screen-derived content width.
+   - Shared hotel cards, final package hotel image, and booking hotel thumbnail use the constrained cached image renderer.
+
+3. Hotels > Flights filters
+   - Adds From / To airport filters from the actually published catalogue.
+   - Keeps the full published catalogue; no client-side 10/12-row truncation.
+
+4. Package price on every eligible flight row
+   - Pairs a one-way publication with the complementary Saudi leg 4–8 days away.
+   - Prefers a pair closest to 7 days; cheaper fare breaks equal-distance ties.
+   - TAS→MED pairs with JED→TAS; TAS→JED pairs with MED→TAS (same rule for other origins).
+   - Uses Nawazi Hotel (Makkah) + Mihrab Tayyiba (Madinah) nightly rates from the hotel catalogue.
+   - Runs the same LocalPackagePricingEngine as Generator for one pilgrim, including the existing fixed services, markup, payment fee and public rounding.
+   - Raw ticket-only fare is not used as the headline price. If no valid 4–8-day pair exists, the card reports package unavailable instead of inventing a total.
+
+Required after apply:
+- Deploy iumrah Package Engine (generator-components.ts changed).
+- Build iumrah Beta / TestFlight.

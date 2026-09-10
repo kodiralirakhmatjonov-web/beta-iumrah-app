@@ -18,44 +18,53 @@ struct PrimaryHotelView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 22) {
-                IumrahFlowProgress(stage: .hotel)
-                heading
-                hotelContent
+        GeometryReader { viewport in
+            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
 
-                if journey.packageFlightPath == .publishedDirect {
-                    Button {
-                        Task { await continuePublishedDirectPackage() }
-                    } label: {
-                        HStack(spacing: 9) {
-                            if isPreparingPublishedPackage { ProgressView().tint(.white) }
-                            Text(publishedContinueTitle)
-                            if !isPreparingPublishedPackage { Image(systemName: "arrow.right") }
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 22) {
+                    IumrahFlowProgress(stage: .hotel)
+                    heading
+                    hotelContent
+
+                    if journey.packageFlightPath == .publishedDirect {
+                        Button {
+                            Task { await continuePublishedDirectPackage() }
+                        } label: {
+                            HStack(spacing: 9) {
+                                if isPreparingPublishedPackage { ProgressView().tint(.white) }
+                                Text(publishedContinueTitle)
+                                if !isPreparingPublishedPackage { Image(systemName: "arrow.right") }
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(IumrahPrimaryButtonStyle())
-                    .disabled(!canContinue || isPreparingPublishedPackage)
-                    .opacity(canContinue && !isPreparingPublishedPackage ? 1 : 0.42)
-                } else {
-                    NavigationLink {
-                        OutboundFlightView()
-                    } label: {
-                        HStack(spacing: 9) {
-                            Text(FlowCopy.text(.continueToFlights, settings.language))
-                            Image(systemName: "arrow.right")
+                        .buttonStyle(IumrahPrimaryButtonStyle())
+                        .disabled(!canContinue || isPreparingPublishedPackage)
+                        .opacity(canContinue && !isPreparingPublishedPackage ? 1 : 0.42)
+                    } else {
+                        NavigationLink {
+                            OutboundFlightView()
+                        } label: {
+                            HStack(spacing: 9) {
+                                Text(FlowCopy.text(.continueToFlights, settings.language))
+                                Image(systemName: "arrow.right")
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(IumrahPrimaryButtonStyle())
+                        .disabled(!canContinue)
+                        .opacity(canContinue ? 1 : 0.42)
                     }
-                    .buttonStyle(IumrahPrimaryButtonStyle())
-                    .disabled(!canContinue)
-                    .opacity(canContinue ? 1 : 0.42)
                 }
+                // A vertical ScrollView does not hard-clamp child intrinsic width.
+                // Own the exact viewport width here so a panoramic hotel photo can
+                // never widen the card or shift the whole hotel step horizontally.
+                .frame(width: contentWidth, alignment: .leading)
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 44)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 44)
+            .frame(width: viewport.size.width)
         }
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .hotel)
@@ -288,6 +297,7 @@ struct PrimaryHotelView: View {
             .padding(.top, 14)
             .padding(.bottom, 18)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
@@ -493,20 +503,10 @@ struct PrimaryHotelView: View {
     }
 
     private func hotelImage(_ hotel: HotelSummary) -> some View {
-        AsyncImage(url: AppConfig.absoluteURL(hotel.coverImageURL)) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().scaledToFill()
-            case .empty:
-                ZStack { Color.iumrahRaisedBackground; ProgressView() }
-            default:
-                ZStack {
-                    Color.iumrahRaisedBackground
-                    Image(systemName: "building.2")
-                        .font(.system(size: 42, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-            }
+        GeometryReader { proxy in
+            HotelCachedImage(rawURL: hotel.coverImageURL)
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
         }
         .frame(maxWidth: .infinity)
         .clipped()

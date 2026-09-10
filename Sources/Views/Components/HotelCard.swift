@@ -8,25 +8,11 @@ struct HotelCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             ZStack(alignment: .topLeading) {
-                AsyncImage(url: AppConfig.absoluteURL(hotel.coverImageURL)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    case .failure:
-                        placeholder
-                    case .empty:
-                        ZStack {
-                            Rectangle().fill(.quaternary)
-                            ProgressView()
-                        }
-                    @unknown default:
-                        placeholder
-                    }
-                }
-                .frame(height: 210)
-                .frame(maxWidth: .infinity)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                HotelCachedImage(rawURL: hotel.coverImageURL)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 210)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
 
                 if let badge {
                     Text(badge)

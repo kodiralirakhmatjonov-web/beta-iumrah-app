@@ -571,16 +571,10 @@ struct FinalPackageView: View {
 
     private func hotelExpandedContent(_ hotel: HotelSummary, cityLabel: String, roomName: String?) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            AsyncImage(url: AppConfig.absoluteURL(hotel.coverImageURL)) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    ZStack {
-                        LinearGradient(colors: [Color.iumrahRaisedBackground, Color.iumrahPageBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        Image(systemName: "building.2.fill").font(.system(size: 34)).foregroundStyle(.secondary)
-                    }
-                }
+            GeometryReader { proxy in
+                HotelCachedImage(rawURL: hotel.coverImageURL, placeholderSystemName: "building.2.fill")
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
             }
             .frame(maxWidth: .infinity)
             .frame(height: 150)

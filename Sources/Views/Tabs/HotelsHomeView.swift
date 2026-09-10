@@ -8,6 +8,8 @@ struct HotelsHomeView: View {
     @State private var board: HotelsShowcaseBoard = .hotels
     @State private var selectedHotel: HotelSummary?
     @State private var carePresented = false
+    @State private var flightOriginFilter: String? = nil
+    @State private var flightDestinationFilter: String? = nil
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -127,6 +129,38 @@ struct HotelsHomeView: View {
 
     // MARK: - Flights
 
+    private var flightOptions: [StorefrontFlightOption] {
+        storefront.flightBoard?.options ?? []
+    }
+
+    private var flightOrigins: [String] {
+        var values = Set(flightOptions.map { $0.outbound.origin.uppercased() })
+        for option in flightOptions {
+            if let inbound = option.inbound { values.insert(inbound.origin.uppercased()) }
+        }
+        return values.sorted()
+    }
+
+    private var flightDestinations: [String] {
+        var values = Set(flightOptions.map { $0.outbound.destination.uppercased() })
+        for option in flightOptions {
+            if let inbound = option.inbound { values.insert(inbound.destination.uppercased()) }
+        }
+        return values.sorted()
+    }
+
+    private var filteredFlightOptions: [StorefrontFlightOption] {
+        flightOptions.filter { option in
+            var legs = [option.outbound]
+            if let inbound = option.inbound { legs.append(inbound) }
+            return legs.contains { leg in
+                let originMatches = flightOriginFilter.map { leg.origin.caseInsensitiveCompare($0) == .orderedSame } ?? true
+                let destinationMatches = flightDestinationFilter.map { leg.destination.caseInsensitiveCompare($0) == .orderedSame } ?? true
+                return originMatches && destinationMatches
+            }
+        }
+    }
+
     private var flightsBoard: some View {
         VStack(alignment: .leading, spacing: 24) {
             ShowcaseHero(
@@ -136,22 +170,162 @@ struct HotelsHomeView: View {
                 note: L10n.text("hotel_storefront_flights_hero_note", settings.language)
             )
 
-            if let baseline = storefront.baseline {
-                SectionHeader(L10n.text("hotel_storefront_package_baseline", settings.language), eyebrow: L10n.text("hotel_storefront_recommends", settings.language), subtitle: nil)
-                StorefrontBaselineFlightCard(baseline: baseline, language: settings.language)
-            }
+            if !flightOptions.isEmpty {
+                SectionHeader(
+                    L10n.text("hotel_storefront_published_flights", settings.language),
+                    eyebrow: L10n.text("hotel_storefront_current", settings.language),
+                    subtitle: nil
+                )
 
-            if let options = storefront.flightBoard?.options, !options.isEmpty {
-                SectionHeader(L10n.text("hotel_storefront_published_flights", settings.language), eyebrow: L10n.text("hotel_storefront_current", settings.language), subtitle: nil)
-                LazyVStack(spacing: 12) {
-                    ForEach(options) { option in
-                        StorefrontFlightOptionCard(option: option, language: settings.language)
+                flightAirportFilters
+
+                if filteredFlightOptions.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "airplane.circle")
+                            .font(.system(size: 28, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        Text(noFlightsForFilterText)
+                            .font(.subheadline.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                        Text(changeAirportFilterText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 130)
+                    .iumrahCard()
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(filteredFlightOptions) { option in
+                            StorefrontFlightOptionCard(
+                                option: option,
+                                packagePreview: storefront.packagePreview(for: option),
+                                isCalculating: storefront.isLoading,
+                                language: settings.language
+                            )
+                        }
                     }
                 }
             } else if storefront.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 120)
             }
+        }
+    }
+
+    private var flightAirportFilters: some View {
+        HStack(spacing: 10) {
+            airportFilterMenu(
+                title: fromAirportText,
+                selection: flightOriginFilter,
+                values: flightOrigins
+            ) { value in
+                flightOriginFilter = value
+                IumrahHaptics.selection()
+            }
+
+            airportFilterMenu(
+                title: toAirportText,
+                selection: flightDestinationFilter,
+                values: flightDestinations
+            ) { value in
+                flightDestinationFilter = value
+                IumrahHaptics.selection()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func airportFilterMenu(
+        title: String,
+        selection: String?,
+        values: [String],
+        onSelect: @escaping (String?) -> Void
+    ) -> some View {
+        Menu {
+            Button(allAirportsText) { onSelect(nil) }
+            Divider()
+            ForEach(values, id: \.self) { value in
+                Button {
+                    onSelect(value)
+                } label: {
+                    if selection == value {
+                        Label(value, systemImage: "checkmark")
+                    } else {
+                        Text(value)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title.uppercased())
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Text(selection ?? allAirportsText)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var fromAirportText: String {
+        switch settings.language {
+        case .russian: return "Откуда"
+        case .english: return "From"
+        case .uzbek: return "Qayerdan"
+        case .uzbekCyrillic: return "Қаердан"
+        }
+    }
+
+    private var toAirportText: String {
+        switch settings.language {
+        case .russian: return "Куда"
+        case .english: return "To"
+        case .uzbek: return "Qayerga"
+        case .uzbekCyrillic: return "Қаерга"
+        }
+    }
+
+    private var allAirportsText: String {
+        switch settings.language {
+        case .russian: return "Все"
+        case .english: return "All"
+        case .uzbek: return "Barchasi"
+        case .uzbekCyrillic: return "Барчаси"
+        }
+    }
+
+    private var noFlightsForFilterText: String {
+        switch settings.language {
+        case .russian: return "По этому маршруту нет опубликованных рейсов"
+        case .english: return "No published flights for this route"
+        case .uzbek: return "Bu yo‘nalishda e’lon qilingan reyslar yo‘q"
+        case .uzbekCyrillic: return "Бу йўналишда эълон қилинган рейслар йўқ"
+        }
+    }
+
+    private var changeAirportFilterText: String {
+        switch settings.language {
+        case .russian: return "Измените аэропорт отправления или прибытия."
+        case .english: return "Change the departure or arrival airport."
+        case .uzbek: return "Jo‘nash yoki yetib borish aeroportini o‘zgartiring."
+        case .uzbekCyrillic: return "Жўнаш ёки етиб бориш аэропортини ўзгартиринг."
         }
     }
 
@@ -415,84 +589,25 @@ private struct HotelStorefrontCollage: View {
     }
 }
 
-private struct StorefrontBaselineFlightCard: View {
-    let baseline: StorefrontFlightBaseline
-    let language: AppSettingsStore.Language
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            routeRow(leg: baseline.outbound, direction: L10n.text("hotel_storefront_outbound", language))
-            Divider()
-            routeRow(leg: baseline.inbound, direction: L10n.text("hotel_storefront_return", language))
-            Divider()
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("hotel_storefront_package_baseline", language))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(String(format: "$%.0f", baseline.perTravelerFareUsd))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                }
-                Spacer()
-                Text(L10n.text("hotel_storefront_round_trip", language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-            }
-        }
-        .iumrahCard()
-    }
-
-    private func routeRow(leg: StorefrontFlightLeg, direction: String) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            IumrahIconBadge(systemName: "airplane", role: .travel, size: 42, symbolSize: 18, cornerRadius: 14)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(direction.uppercased())
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                Text("\(leg.origin) → \(leg.destination)")
-                    .font(.headline)
-                Text("\(leg.airline) · \(leg.flightNumber)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(clock(leg.departureAt))
-                    .font(.headline.monospacedDigit())
-                Text(day(leg.departureAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(L10n.text("hotel_storefront_direct", language))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(IumrahIconRole.success.color)
-            }
-        }
-    }
-}
-
 private struct StorefrontFlightOptionCard: View {
     let option: StorefrontFlightOption
+    let packagePreview: StorefrontFlightPackagePreview?
+    let isCalculating: Bool
     let language: AppSettingsStore.Language
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(routeTitle)
                         .font(.headline)
                     Text(airlineTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(String(format: "$%.0f", option.perTravelerFare))
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text(L10n.text("hotel_storefront_per_pilgrim", language))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                Spacer(minLength: 8)
+                packagePrice
             }
 
             HStack(spacing: 12) {
@@ -503,11 +618,55 @@ private struct StorefrontFlightOptionCard: View {
                 }
             }
 
+            if let packagePreview {
+                HStack(spacing: 6) {
+                    Image(systemName: "shippingbox.fill")
+                        .font(.caption2.weight(.bold))
+                    Text(packageRouteText(packagePreview))
+                        .lineLimit(2)
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            }
+
             Label(L10n.text("hotel_storefront_published_direct", language), systemImage: "checkmark.seal.fill")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
         .iumrahCard()
+    }
+
+    @ViewBuilder
+    private var packagePrice: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            if let packagePreview {
+                Text(money(packagePreview.pricePerPerson))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text(packagePerPersonText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+            } else if isCalculating {
+                ProgressView()
+                    .controlSize(.small)
+                Text(calculatingPackageText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+            } else {
+                Text("—")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(packageUnavailableText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: 132, alignment: .trailing)
     }
 
     private var routeTitle: String {
@@ -530,8 +689,51 @@ private struct StorefrontFlightOptionCard: View {
             Text("\(clock(leg.departureAt))  \(leg.origin) → \(leg.destination)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func money(_ value: Decimal) -> String {
+        String(format: "$%.0f", NSDecimalNumber(decimal: value).doubleValue)
+    }
+
+    private func packageRouteText(_ preview: StorefrontFlightPackagePreview) -> String {
+        let route = "\(preview.outbound.origin) → \(preview.outbound.destination) + \(preview.inbound.origin) → \(preview.inbound.destination)"
+        switch language {
+        case .russian: return "Пакет: \(route) · \(preview.totalNights) ноч."
+        case .english: return "Package: \(route) · \(preview.totalNights) nights"
+        case .uzbek: return "Paket: \(route) · \(preview.totalNights) tun"
+        case .uzbekCyrillic: return "Пакет: \(route) · \(preview.totalNights) тун"
+        }
+    }
+
+    private var packagePerPersonText: String {
+        switch language {
+        case .russian: return "пакет · 1 человек"
+        case .english: return "package · 1 person"
+        case .uzbek: return "paket · 1 kishi"
+        case .uzbekCyrillic: return "пакет · 1 киши"
+        }
+    }
+
+    private var calculatingPackageText: String {
+        switch language {
+        case .russian: return "Считаем пакет"
+        case .english: return "Calculating package"
+        case .uzbek: return "Paket hisoblanmoqda"
+        case .uzbekCyrillic: return "Пакет ҳисобланмоқда"
+        }
+    }
+
+    private var packageUnavailableText: String {
+        switch language {
+        case .russian: return "нет пары 4–8 дней"
+        case .english: return "no 4–8 day pair"
+        case .uzbek: return "4–8 kunlik juftlik yo‘q"
+        case .uzbekCyrillic: return "4–8 кунлик жуфтлик йўқ"
+        }
     }
 }
 

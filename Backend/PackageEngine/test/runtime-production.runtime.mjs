@@ -39,6 +39,17 @@ test('curated Primary Hotel resolves from Business-approved last-known/manual-pr
   assert.equal('basePriceUsd' in body, false);
 });
 
+test('Primary Hotel canonicalizes Medina/Madina aliases before querying Business curation', async () => {
+  const env = { HOTELS_DB: hotelDb({ curated: { position: 1, hotel_id: 'madinah-5', stars: 5, city: 'Medina' } }) };
+  for (const alias of ['Medina', 'Madina', 'Medinah', 'Al Medina', 'Al Madina']) {
+    const response = await curatedPrimaryHotel(new URL(`https://iumrah.app/api/package/primary-hotel?stars=5&city=${encodeURIComponent(alias)}&tier=luxury`), env);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.hotelId, 'madinah-5');
+    assert.equal(body.city, 'Madinah');
+  }
+});
+
 test('catalog fallback can select a Business-approved priced hotel without returning supplier price data', async () => {
   const env = { HOTELS_DB: hotelDb({ fallback: { id: 'catalog-3', stars: 3, city: 'Makkah' } }) };
   const response = await curatedPrimaryHotel(new URL('https://iumrah.app/api/package/primary-hotel?stars=3&city=Makkah&tier=standard'), env);

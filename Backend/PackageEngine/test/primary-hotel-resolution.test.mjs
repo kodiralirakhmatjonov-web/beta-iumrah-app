@@ -16,6 +16,11 @@ assert.match(source, /COALESCE\(hpo\.nightly_price_usd, hp\.nightly_price_usd\) 
 assert.match(source, /COALESCE\(hpo\.nightly_price_usd, hp\.nightly_price_usd\) > 0/);
 assert.doesNotMatch(source, /hp\.expires_at > \?3/);
 assert.match(source, /pricingMode: "catalog48h"/);
+assert.match(source, /function canonicalCity/);
+assert.match(source, /"madinah", "medina", "madina", "medinah"/);
+assert.match(source, /NORMALIZED_CITY_SQL/);
+assert.match(source, /LOWER\(TRIM\(%COLUMN%\)\)/);
+
 assert.ok(!source.includes('package_primary_hotels'), 'Primary Hotel resolver must not depend on package_primary_hotels');
 assert.ok(!source.includes('base_price_usd'), 'Primary Hotel selection must not return a synthetic/configured price');
 console.log('last-known/manual-priced primary_hotels recommendation contract OK');

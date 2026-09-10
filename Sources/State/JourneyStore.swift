@@ -84,8 +84,12 @@ final class JourneyStore: ObservableObject {
             // could incorrectly become completely empty.
             hotels = all
             if selectedHotel == nil {
-                let primaryCandidates = all.filter { $0.stars == trip.packageTier.primaryHotelStars }
-                selectedHotel = await resolvedPrimaryHotel(from: primaryCandidates, city: "Makkah")
+                // `primary_hotels.star_category` is the generator/editorial category.
+                // Do not pre-filter by the property's factual star rating before
+                // resolving the Business Primary Hotel: a curated Luxury slot may
+                // legitimately point to a hotel whose catalog `stars` metadata is
+                // missing or differs from the editorial category.
+                selectedHotel = await resolvedPrimaryHotel(from: all, city: "Makkah")
                     ?? primaryHotelCandidate(from: all)
             }
         } catch {
@@ -109,7 +113,11 @@ final class JourneyStore: ObservableObject {
         // The Business catalogue has historically used several spellings for
         // Madinah. Merge them instead of stopping after the first non-empty alias;
         // otherwise valid hotels stored under another spelling disappear.
-        let aliases = ["Madinah", "Medina", "Al Madinah", "Madinah Al Munawwarah", "Al Madinah Al Munawwarah"]
+        let aliases = [
+            "Madinah", "Medina", "Madina", "Medinah",
+            "Al Madinah", "Al Medina",
+            "Madinah Al Munawwarah", "Al Madinah Al Munawwarah"
+        ]
         var merged: [String: HotelSummary] = [:]
         var lastError: Error?
 
@@ -129,8 +137,10 @@ final class JourneyStore: ObservableObject {
         madinahHotels = all
 
         if selectedMadinahHotel == nil, !all.isEmpty {
-            let primaryCandidates = all.filter { $0.stars == trip.packageTier.primaryHotelStars }
-            selectedMadinahHotel = await resolvedPrimaryHotel(from: primaryCandidates, cityAliases: aliases)
+            // Resolve the Business Primary Hotel against the complete Madinah
+            // catalogue. `star_category` is editorial and must not be reduced to
+            // `HotelSummary.stars` before the server's selected hotel ID is matched.
+            selectedMadinahHotel = await resolvedPrimaryHotel(from: all, cityAliases: aliases)
                 ?? primaryHotelCandidate(from: all)
         }
 

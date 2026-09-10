@@ -1,0 +1,107 @@
+{
+  "name": "iumrah Beta Primary Hotel + viewport-safe hotel media + flight package prices v1",
+  "date": "2026-09-10",
+  "based_on": "beta-iumrah-app-main 5(5).zip + flight-catalog-route-filter-v1 + hotel-meals-v1",
+  "purpose": "Restore Luxury/Madinah Primary Hotel selection, prevent panoramic hotel images from widening SwiftUI cards, add airport filters, and show a one-person complete Umrah package price for eligible published flights.",
+  "flight_package_contract": {
+    "pair_window_days": [
+      4,
+      8
+    ],
+    "preferred_gap_days": 7,
+    "makkah_hotel": "Nawazi Hotel",
+    "madinah_hotel": "Mihrab Tayyiba",
+    "travellers": 1,
+    "tier": "standard",
+    "route_geometry": "origin→MED pairs JED→origin; origin→JED pairs MED→origin",
+    "pricing_engine": "LocalPackagePricingEngine"
+  },
+  "files": [
+    {
+      "path": "BETA_PRIMARY_HOTEL_FLIGHT_PACKAGE_111_APPLIED.txt",
+      "bytes": 1930,
+      "sha256": "0b74f2077ecf494240dfa96ab0ef035abfa573abe707776707ecbb44627dcf31"
+    },
+    {
+      "path": "Backend/PackageEngine/src/generator-components.ts",
+      "bytes": 5330,
+      "sha256": "ab4ccb44494955fd1a3edf6a0c2ea0950c6694f861067b9ff47a6da2fb95f547"
+    },
+    {
+      "path": "Backend/PackageEngine/test/client-hotel-flight-package-contract.test.mjs",
+      "bytes": 4624,
+      "sha256": "8db8ae676143697b6af075152fa6b64263dfef5e400336f0153c97c4cb81911d"
+    },
+    {
+      "path": "Backend/PackageEngine/test/primary-hotel-resolution.test.mjs",
+      "bytes": 1754,
+      "sha256": "80744f0c0fe1e77f409c5245fa58a9808257517abe2b1c5ed44e47d1df4372ca"
+    },
+    {
+      "path": "Backend/PackageEngine/test/runtime-production.runtime.mjs",
+      "bytes": 38919,
+      "sha256": "525fa70452064a5c28f62092d1afe088fda91b18fd4ac7febc559fde67ec21d2"
+    },
+    {
+      "path": "Sources/Core/AppLocalization.swift",
+      "bytes": 183272,
+      "sha256": "bd4c86ea302f2961120aa5fd5b1c7841b0d53a3d7fa99e79de5896c2490af267"
+    },
+    {
+      "path": "Sources/Models/HotelStorefrontModels.swift",
+      "bytes": 3079,
+      "sha256": "606e208043d641a148a00847233c16e99eb9576cc029da8b7f6b86fe088385a8"
+    },
+    {
+      "path": "Sources/Services/HotelImageCache.swift",
+      "bytes": 4505,
+      "sha256": "ae88fd78284dc08fa55cc6abad9927c764065f2b283e150ce1601cbc9b7fff2f"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 28237,
+      "sha256": "01b14c8a2cd8491d335f8078d72367c03e91326cac21734d6b33c8e9bf6d5a50"
+    },
+    {
+      "path": "Sources/State/JourneyStore.swift",
+      "bytes": 37727,
+      "sha256": "645800a631c18243129a49eff12e2123cc66c83c376eab2daaf2c9eb9c68a1a7"
+    },
+    {
+      "path": "Sources/Views/Booking/BookingDetailView.swift",
+      "bytes": 74611,
+      "sha256": "e13abd8d7d52a0737e261d99d055d0e27cbb3bfad37995238134e70789515cca"
+    },
+    {
+      "path": "Sources/Views/Components/HotelCard.swift",
+      "bytes": 2308,
+      "sha256": "6dce25e5332afb1a6c466228d1857afb97eec6ce7f872908f29fc23d8f2da0cf"
+    },
+    {
+      "path": "Sources/Views/Hotels/PrimaryHotelView.swift",
+      "bytes": 22142,
+      "sha256": "bb509dfcebdaa3ddf39f1ea12de897add9e40c331551536e06a20f86789aa965"
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "bytes": 53713,
+      "sha256": "dba29966308ead7200375baa6e9bf25eff1de8ec2193556f11f5fdaca1eb7324"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 34325,
+      "sha256": "7b1a17f958cd4b849b26ab3655b29e86396199fa4caeb875e1089a3e32c8733d"
+    }
+  ],
+  "validation": {
+    "swift_parse": "passed for complete Sources tree",
+    "typescript_typecheck": "passed",
+    "package_engine_contract_tests": "36/36 passed",
+    "package_engine_runtime_tests": "19/19 passed before packaging",
+    "safe_apply_simulation": "passed from beta-iumrah-app-main 5(5).zip after flight-catalog-route-filter-v1 + hotel-meals-v1"
+  },
+  "required_after_apply": [
+    "Deploy iumrah Package Engine",
+    "Build iumrah Beta / TestFlight"
+  ]
+}

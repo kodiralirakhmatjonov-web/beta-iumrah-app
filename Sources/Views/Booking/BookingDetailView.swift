@@ -726,21 +726,12 @@ struct BookingDetailView: View {
 
         return VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .center, spacing: 14) {
-                ZStack {
-                    AsyncImage(url: AppConfig.absoluteURL(snapshot?.coverImageURL)) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        default:
-                            ZStack {
-                                Color.iumrahRaisedBackground
-                                Image(systemName: role == .madinah ? "moon.stars.fill" : "building.2.fill")
-                                    .font(.system(size: 24, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
+                HotelCachedImage(
+                    rawURL: snapshot?.coverImageURL,
+                    placeholderSystemName: role == .madinah ? "moon.stars.fill" : "building.2.fill"
+                )
                 .frame(width: 82, height: 82)
+                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {

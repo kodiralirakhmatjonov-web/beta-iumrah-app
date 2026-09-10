@@ -73,6 +73,24 @@ struct StorefrontFlightBoardResponse: Codable, Hashable {
     let options: [StorefrontFlightOption]
 }
 
+/// A customer-facing package price attached to one published flight row.
+/// The row itself may be one-way; the preview pairs it with the complementary
+/// published Saudi leg 4...8 days away and prices the complete Umrah package
+/// for one pilgrim with the fixed storefront hotels.
+struct StorefrontFlightPackagePreview: Hashable {
+    let pricePerPerson: Decimal
+    let totalPackagePrice: Decimal
+    let outboundOptionID: String
+    let returnOptionID: String
+    let outbound: StorefrontFlightLeg
+    let inbound: StorefrontFlightLeg
+    let totalNights: Int
+    let makkahNights: Int
+    let madinahNights: Int
+    let makkahHotelName: String
+    let madinahHotelName: String
+}
+
 struct HotelStorefrontQuote: Hashable {
     let tier: PackageTier
     let packageQuote: PackageQuote
