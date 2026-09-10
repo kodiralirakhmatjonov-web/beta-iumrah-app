@@ -1,5 +1,6 @@
 import AuthenticationServices
 import Foundation
+import GoogleSignInSwift
 import SwiftUI
 
 struct IumrahAccountSecurityView: View {
@@ -20,6 +21,7 @@ struct IumrahAccountSecurityView: View {
     @State private var isTerminatingOthers = false
     @State private var appleNonce = ""
     @State private var isLinkingApple = false
+    @State private var isLinkingGoogle = false
     @State private var showingEmailSheet = false
 
     var body: some View {
@@ -32,6 +34,7 @@ struct IumrahAccountSecurityView: View {
                     primaryDeviceCard(overview)
                     emailCard(overview)
                     appleCard(overview)
+                    googleCard(overview)
                     sessionsCard(overview)
                 } else if isLoading {
                     ProgressView()
@@ -267,7 +270,59 @@ struct IumrahAccountSecurityView: View {
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                 .frame(height: 54)
                 .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                .disabled(!value.currentDeviceIsPrimary || isLinkingApple)
+                .disabled(!value.currentDeviceIsPrimary || isLinkingApple || isLinkingGoogle)
+                .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
+
+                if !value.currentDeviceIsPrimary {
+                    Label(
+                        tr("Only the primary device can connect a new sign-in method.", "Новый способ входа может подключить только основное устройство.", "Yangi kirish usulini faqat asosiy qurilma ulashi mumkin.", "Янги кириш усулини фақат асосий қурилма улаши мумкин."),
+                        systemImage: "lock.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func googleCard(_ value: IumrahSecurityOverview) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle(icon: "person.crop.circle.badge.checkmark", title: "Sign in with Google", tint: .blue)
+
+            if value.google?.linked == true {
+                statusRow(
+                    icon: "checkmark.circle.fill",
+                    title: tr("Google is connected", "Google подключён", "Google ulangan", "Google уланган"),
+                    detail: tr(
+                        "Google signs in to this same iumrah ID — no second account is created.",
+                        "Google выполняет вход в этот же iumrah ID — второй аккаунт не создаётся.",
+                        "Google aynan shu iumrah ID’ga kiradi — ikkinchi akkaunt yaratilmaydi.",
+                        "Google айнан шу iumrah ID’га киради — иккинчи аккаунт яратилмайди."
+                    ),
+                    tint: Color.iumrahCareLight
+                )
+            } else {
+                Text(tr(
+                    "Connect Google to ID \(value.iumrahID). After that you can sign in without typing the six-digit ID or password.",
+                    "Подключите Google к ID \(value.iumrahID). После этого можно входить без ввода шестизначного ID и пароля.",
+                    "Google’ni \(value.iumrahID) ID’ga ulang. Shundan keyin olti xonali ID va parolsiz kirishingiz mumkin.",
+                    "Google’ни \(value.iumrahID) ID’га уланг. Шундан кейин олти хонали ID ва паролсиз киришингиз мумкин."
+                ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                GoogleSignInButton(
+                    scheme: colorScheme == .dark ? .dark : .light,
+                    style: .wide,
+                    state: (!value.currentDeviceIsPrimary || isLinkingGoogle || isLinkingApple) ? .disabled : .normal
+                ) {
+                    connectGoogle()
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
 
                 if !value.currentDeviceIsPrimary {
@@ -516,10 +571,10 @@ struct IumrahAccountSecurityView: View {
     private var privacyNote: some View {
         Label(
             tr(
-                "Email, Apple and your six-digit iumrah ID are secure keys to one account — never separate profiles.",
-                "Почта, Apple и шестизначный iumrah ID являются защищёнными ключами к одному аккаунту, а не отдельными профилями.",
-                "Email, Apple va olti xonali iumrah ID bitta akkauntning xavfsiz kalitlaridir — alohida profillar emas.",
-                "Email, Apple ва олти хонали iumrah ID битта аккаунтнинг хавфсиз калитларидир — алоҳида профиллар эмас."
+                "Email, Apple, Google and your six-digit iumrah ID are secure keys to one account — never separate profiles.",
+                "Почта, Apple, Google и шестизначный iumrah ID являются защищёнными ключами к одному аккаунту, а не отдельными профилями.",
+                "Email, Apple, Google va olti xonali iumrah ID bitta akkauntning xavfsiz kalitlaridir — alohida profillar emas.",
+                "Email, Apple, Google ва олти хонали iumrah ID битта аккаунтнинг хавфсиз калитларидир — алоҳида профиллар эмас."
             ),
             systemImage: "hand.raised.fill"
         )
@@ -721,6 +776,26 @@ struct IumrahAccountSecurityView: View {
         }
     }
 
+    private func connectGoogle() {
+        guard let overview, overview.currentDeviceIsPrimary, !isLinkingGoogle, !isLinkingApple else { return }
+        isLinkingGoogle = true
+        errorMessage = nil
+        Task { @MainActor in
+            defer { isLinkingGoogle = false }
+            do {
+                let credential = try await IumrahGoogleSignInSupport.signIn()
+                _ = try await account.linkGoogle(credential)
+                await load()
+                IumrahHaptics.success()
+            } catch where IumrahGoogleSignInSupport.isCancellation(error) {
+                errorMessage = nil
+            } catch {
+                errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+                IumrahHaptics.error()
+            }
+        }
+    }
+
     private func sessionDisplayName(_ session: IumrahSecuritySession) -> String {
         let name = session.deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
         let model = session.model.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -899,6 +974,36 @@ enum IumrahAccountSecurityCopy {
             ru = "Подтверждение Apple устарело. Попробуйте ещё раз."
             uz = "Apple tasdig‘i eskirgan. Qayta urinib ko‘ring."
             cyrl = "Apple тасдиғи эскирган. Қайта уриниб кўринг."
+        case "GOOGLE_ACCOUNT_EMAIL_REQUIRED":
+            en = "Google did not provide a verified email. Try Google again or sign in with email or iumrah ID."
+            ru = "Google не предоставил подтверждённую почту. Повторите вход через Google или войдите по почте либо iumrah ID."
+            uz = "Google tasdiqlangan email bermadi. Google orqali qayta urinib ko‘ring yoki email yoxud iumrah ID bilan kiring."
+            cyrl = "Google тасдиқланган email бермади. Google орқали қайта уриниб кўринг ёки email ёхуд iumrah ID билан киринг."
+        case "GOOGLE_ID_CONNECTED_TO_ANOTHER_ACCOUNT":
+            en = "This Google account is already connected to another iumrah ID."
+            ru = "Этот Google-аккаунт уже подключён к другому iumrah ID."
+            uz = "Bu Google akkaunti boshqa iumrah ID’ga ulangan."
+            cyrl = "Бу Google аккаунти бошқа iumrah ID’га уланган."
+        case "GOOGLE_ID_ALREADY_CONNECTED":
+            en = "A different Google account is already connected to this iumrah account."
+            ru = "К этому аккаунту iumrah уже подключён другой Google-аккаунт."
+            uz = "Bu iumrah akkauntiga boshqa Google akkaunti ulangan."
+            cyrl = "Бу iumrah аккаунтига бошқа Google аккаунти уланган."
+        case "GOOGLE_EMAIL_CONNECTED_TO_ANOTHER_ACCOUNT":
+            en = "The email verified by Google already belongs to another iumrah account."
+            ru = "Подтверждённая Google почта уже принадлежит другому аккаунту iumrah."
+            uz = "Google tasdiqlagan email boshqa iumrah akkauntiga tegishli."
+            cyrl = "Google тасдиқлаган email бошқа iumrah аккаунтига тегишли."
+        case "GOOGLE_TOKEN_INVALID", "GOOGLE_TOKEN_REPLAYED":
+            en = "Google authorization expired. Please try again."
+            ru = "Подтверждение Google устарело. Попробуйте ещё раз."
+            uz = "Google tasdig‘i eskirgan. Qayta urinib ko‘ring."
+            cyrl = "Google тасдиғи эскирган. Қайта уриниб кўринг."
+        case "GOOGLE_AUTH_NOT_CONFIGURED":
+            en = "Google Sign-In is not configured for this build yet."
+            ru = "Вход через Google ещё не настроен для этой сборки."
+            uz = "Google orqali kirish bu build uchun hali sozlanmagan."
+            cyrl = "Google орқали кириш бу build учун ҳали созланмаган."
         case "EMAIL_INVALID":
             en = "Enter a valid email address."
             ru = "Введите корректный адрес электронной почты."

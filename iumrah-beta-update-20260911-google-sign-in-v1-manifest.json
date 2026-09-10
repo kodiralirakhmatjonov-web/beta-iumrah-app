@@ -1,0 +1,110 @@
+{
+  "name": "iumrah Beta — Sign in with Google v1",
+  "date": "2026-09-11",
+  "base_zip": "beta-iumrah-app-main 6(5).zip",
+  "scope": "Add Google as a second external identity provider without replacing or refactoring Sign in with Apple.",
+  "architecture_invariants": [
+    "Six-digit iumrah ID remains the canonical account identifier.",
+    "Google and Apple both return the existing iumrah account/session contract.",
+    "Google linking from Account Security is primary-device-only.",
+    "Verified Google email resolves an existing canonical account before creating a new one.",
+    "Google ID tokens are verified by Package Engine and protected against replay.",
+    "Existing iumrahapp URL scheme is preserved."
+  ],
+  "configuration_placeholders": [
+    "__GOOGLE_IOS_CLIENT_ID__",
+    "__GOOGLE_REVERSED_IOS_CLIENT_ID__",
+    "__GOOGLE_SERVER_CLIENT_ID__"
+  ],
+  "validation": {
+    "info_plist_lint": "pass",
+    "swift_parse_all_sources": "pass",
+    "package_engine_typescript_typecheck": "pass",
+    "account_security_contract_tests": "10/10 pass",
+    "migration_sqlite_syntax": "pass",
+    "full_package_engine_suite_note": "The uploaded source already has 6 unrelated Flights/Storefront failures; the Google patch does not modify those modules or hide those failures.",
+    "xcode_build": "not_run_in_linux_environment"
+  },
+  "implementation_files": [
+    {
+      "path": "project.yml",
+      "bytes": 2278,
+      "sha256": "28e977107ca632ae77666da02e410b2117e75ea9727efc8f8eb49777a552e422"
+    },
+    {
+      "path": "Resources/Info.plist",
+      "bytes": 4185,
+      "sha256": "8aa4eb5abf1b463ad884836ffe59320ecfe2016af1203a2b5d23bedb51fbcf43"
+    },
+    {
+      "path": "Sources/App/IumrahAppDelegate.swift",
+      "bytes": 2124,
+      "sha256": "ca3300d450cd86e8b119be5eafc0359b7f6a33e79b78eb5647ea1d95e24d9364"
+    },
+    {
+      "path": "Sources/Core/IumrahGoogleSignInSupport.swift",
+      "bytes": 5779,
+      "sha256": "0c19840c3214e3eb2951890bfbfceffc018b5edbb62b3fc6237253074b7184d5"
+    },
+    {
+      "path": "Sources/Models/IumrahAccountModels.swift",
+      "bytes": 9076,
+      "sha256": "87f1fb865fbd7e0facf895a2af18b99d9ab5970a66f284c46f94ea259a7924c9"
+    },
+    {
+      "path": "Sources/Services/IumrahAccountService.swift",
+      "bytes": 9424,
+      "sha256": "d93bc762fd7f5dde42d55c7e4982b958ced7604bbb91ca94e820f28f0df07f09"
+    },
+    {
+      "path": "Sources/State/IumrahAccountStore.swift",
+      "bytes": 10283,
+      "sha256": "e0de4ab08c93b97f74a63b3ee0da9d01a769ddb8ca18d197e20969f8d4767b9a"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 57218,
+      "sha256": "b4776232a1ab8e89e837b5cafcce3c6774fcd3cd6f8dddf4d70207a20bd26dbb"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
+      "bytes": 54134,
+      "sha256": "ab0e7199456ec57c05b83aeb2e5cf518df2746958727264052ad5cb1ee4e59a0"
+    },
+    {
+      "path": "Backend/PackageEngine/src/env.ts",
+      "bytes": 426,
+      "sha256": "1ccb8c46b963ade424d64184dfda0fbb97c2bce0ac8f7f6255c9a328341db0ac"
+    },
+    {
+      "path": "Backend/PackageEngine/src/client-account-security.ts",
+      "bytes": 71053,
+      "sha256": "feb06e9798605366a8ee0cea31a36a25aa75c32b378052dca312c75b7d3a339d"
+    },
+    {
+      "path": "Backend/PackageEngine/wrangler.template.jsonc",
+      "bytes": 1512,
+      "sha256": "cae946209242605a7a4a9fa7cf91c7db655329ab592d30206e126fd937eb8da7"
+    },
+    {
+      "path": "Backend/PackageEngine/migrations/0006_package_primary_hotels.sql",
+      "bytes": 10526,
+      "sha256": "828fae09befd4eb5c256f7474a0eac4c42bf8acfaed1c6e077d98f8585d69d3d"
+    },
+    {
+      "path": "Backend/PackageEngine/test/client-account-security-contract.test.mjs",
+      "bytes": 4889,
+      "sha256": "9bf447a87cc5c3037b8cedbb07ea826f4f9e61738e5e456fd3c39e52a75add10"
+    },
+    {
+      "path": "GOOGLE_SIGNIN_SETUP.md",
+      "bytes": 3500,
+      "sha256": "1a880842afe4cac40c392d57f30c1359609b71a4abd580bfee162422408ba102"
+    },
+    {
+      "path": "BETA_GOOGLE_SIGN_IN_115_APPLIED.txt",
+      "bytes": 818,
+      "sha256": "96a25f2a22683e3b61d3217f3c71207b26ff8edcf9241b60570276b2b3cf73fc"
+    }
+  ]
+}

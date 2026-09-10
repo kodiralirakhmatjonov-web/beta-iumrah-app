@@ -4,6 +4,7 @@ export type Env = {
   IGNAV_API_KEY?: string;
   IGNAV_MONTHLY_REQUEST_BUDGET?: string;
   APPLE_BUNDLE_ID?: string;
+  GOOGLE_SERVER_CLIENT_ID?: string;
   RESEND_API_KEY?: string;
   ACCOUNT_EMAIL_FROM?: string;
   ACCOUNT_EMAIL_REPLY_TO?: string;

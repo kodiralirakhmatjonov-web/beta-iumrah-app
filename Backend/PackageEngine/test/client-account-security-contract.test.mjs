@@ -57,3 +57,33 @@ test("Apple can resolve or create one canonical account without duplicating iden
   assert.match(source, /INSERT INTO iumrah_client_apple_links\(apple_subject,pilgrim_id,linked_at,last_used_at\)/);
   assert.match(source, /UPDATE iumrah_client_devices SET is_primary=1/);
 });
+
+test("Google is a unique external key for the same canonical pilgrim id", () => {
+  assert.match(migration, /google_subject TEXT PRIMARY KEY/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS iumrah_client_google_links/);
+  assert.match(source, /iumrah_client_google_links/);
+  assert.doesNotMatch(migration, /CREATE TABLE[^;]*google[^;]*password/si);
+});
+
+test("Google identity tokens are verified server-side, nonce-bound and cannot be replayed", () => {
+  assert.match(source, /https:\/\/www\.googleapis\.com\/oauth2\/v3\/certs/);
+  assert.match(source, /claims\.iss !== "https:\/\/accounts\.google\.com"/);
+  assert.match(source, /claims\.iss !== "accounts\.google\.com"/);
+  assert.match(source, /!audiences\.includes\(configuredAudience\)/);
+  assert.match(source, /claims\.nonce !== nonce/);
+  assert.match(source, /GOOGLE_TOKEN_REPLAYED/);
+});
+
+test("Google sign-in resolves verified email to one canonical account and returns the normal session", () => {
+  assert.match(source, /GOOGLE_ACCOUNT_EMAIL_REQUIRED/);
+  assert.match(source, /FROM iumrah_client_account_emails e/);
+  assert.match(source, /INSERT INTO iumrah_client_google_links\(google_subject,pilgrim_id,linked_at,last_used_at\)/);
+  assert.match(source, /google_account_created/);
+  assert.match(source, /google_sign_in/);
+});
+
+test("security overview reports Google and Apple as independent keys to the same account", () => {
+  assert.match(source, /google: \{ linked: Boolean\(google\), linkedAt: google\?\.linked_at \?\? null \}/);
+  assert.match(source, /apple: \{ linked: Boolean\(apple\), linkedAt: apple\?\.linked_at \?\? null \}/);
+});
+

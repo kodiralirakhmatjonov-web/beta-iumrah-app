@@ -47,6 +47,17 @@ type AppleClaims = {
   email_verified?: boolean | string;
 };
 
+type GoogleClaims = {
+  iss?: string;
+  aud?: string | string[];
+  exp?: number;
+  iat?: number;
+  sub?: string;
+  nonce?: string;
+  email?: string;
+  email_verified?: boolean | string;
+};
+
 class RouteError extends Error {
   constructor(readonly code: string, readonly status = 400) {
     super(code);
@@ -59,6 +70,7 @@ const SESSION_DAYS = 90;
 const CODE_TTL_MINUTES = 10;
 const MAX_CODE_ATTEMPTS = 5;
 let appleKeyCache: { expiresAt: number; keys: JsonWebKey[] } | null = null;
+let googleKeyCache: { expiresAt: number; keys: JsonWebKey[] } | null = null;
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -409,6 +421,9 @@ async function securityOverview(db: D1Like, auth: DeviceAuth) {
   const apple = await db.prepare(
     "SELECT linked_at FROM iumrah_client_apple_links WHERE pilgrim_id=?1 LIMIT 1",
   ).bind(auth.pilgrimID).first<{ linked_at: string }>();
+  const google = await db.prepare(
+    "SELECT linked_at FROM iumrah_client_google_links WHERE pilgrim_id=?1 LIMIT 1",
+  ).bind(auth.pilgrimID).first<{ linked_at: string }>();
   const accountEmail = await db.prepare(
     `SELECT email_display,verified_at FROM iumrah_client_account_emails
      WHERE pilgrim_id=?1 LIMIT 1`,
@@ -423,6 +438,7 @@ async function securityOverview(db: D1Like, auth: DeviceAuth) {
       ? { email: accountEmail.email_display, verifiedAt: accountEmail.verified_at }
       : null,
     apple: { linked: Boolean(apple), linkedAt: apple?.linked_at ?? null },
+    google: { linked: Boolean(google), linkedAt: google?.linked_at ?? null },
     sessions,
   };
 }
@@ -566,6 +582,97 @@ async function consumeAppleAssertion(db: D1Like, identityToken: string) {
   if (existing) throw new RouteError("APPLE_TOKEN_REPLAYED", 409);
   await db.prepare(
     "INSERT INTO iumrah_client_apple_assertions(token_hash,used_at) VALUES(?1,?2)",
+  ).bind(digest, new Date().toISOString()).run();
+}
+
+function parseGoogleJWT(identityToken: string) {
+  const pieces = identityToken.split(".");
+  if (pieces.length !== 3) throw new RouteError("GOOGLE_TOKEN_INVALID", 401);
+  try {
+    const header = JSON.parse(new TextDecoder().decode(decodeBase64URL(pieces[0]))) as { alg?: string; kid?: string };
+    const claims = JSON.parse(new TextDecoder().decode(decodeBase64URL(pieces[1]))) as GoogleClaims;
+    return { pieces, header, claims };
+  } catch {
+    throw new RouteError("GOOGLE_TOKEN_INVALID", 401);
+  }
+}
+
+async function googleKeys(forceRefresh = false) {
+  if (!forceRefresh && googleKeyCache && googleKeyCache.expiresAt > Date.now()) return googleKeyCache.keys;
+  const response = await fetch("https://www.googleapis.com/oauth2/v3/certs", {
+    headers: { accept: "application/json" },
+  });
+  if (!response.ok) throw new RouteError("GOOGLE_VERIFICATION_UNAVAILABLE", 503);
+  const payload = await response.json() as { keys?: JsonWebKey[] };
+  if (!Array.isArray(payload.keys) || !payload.keys.length) {
+    throw new RouteError("GOOGLE_VERIFICATION_UNAVAILABLE", 503);
+  }
+  const cacheControl = response.headers.get("cache-control") ?? "";
+  const maxAgeMatch = cacheControl.match(/(?:^|[,\s])max-age=(\d+)/i);
+  const maxAgeSeconds = maxAgeMatch ? Math.max(60, Math.min(Number(maxAgeMatch[1]), 86_400)) : 6 * 60 * 60;
+  googleKeyCache = { keys: payload.keys, expiresAt: Date.now() + maxAgeSeconds * 1000 };
+  return payload.keys;
+}
+
+async function verifyGoogleIdentity(identityToken: unknown, rawNonce: unknown, serverClientID: string) {
+  const configuredAudience = cleanText(serverClientID, 512);
+  if (!configuredAudience || configuredAudience.startsWith("__GOOGLE_")) {
+    throw new RouteError("GOOGLE_AUTH_NOT_CONFIGURED", 503);
+  }
+  const token = cleanText(identityToken, 12_000);
+  const nonce = cleanText(rawNonce, 256);
+  if (!token || nonce.length < 32) throw new RouteError("GOOGLE_TOKEN_INVALID", 401);
+  const { pieces, header, claims } = parseGoogleJWT(token);
+  if (header.alg !== "RS256" || !header.kid) throw new RouteError("GOOGLE_TOKEN_INVALID", 401);
+  let keys = await googleKeys();
+  let keyData = keys.find((item) => (item as JsonWebKey & { kid?: string }).kid === header.kid);
+  if (!keyData) {
+    keys = await googleKeys(true);
+    keyData = keys.find((item) => (item as JsonWebKey & { kid?: string }).kid === header.kid);
+  }
+  if (!keyData) throw new RouteError("GOOGLE_SIGNING_KEY_NOT_FOUND", 503);
+  const key = await crypto.subtle.importKey(
+    "jwk",
+    keyData,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
+  const verified = await crypto.subtle.verify(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    decodeBase64URL(pieces[2]),
+    new TextEncoder().encode(`${pieces[0]}.${pieces[1]}`),
+  );
+  const now = Math.floor(Date.now() / 1000);
+  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!verified
+      || (claims.iss !== "https://accounts.google.com" && claims.iss !== "accounts.google.com")
+      || !audiences.includes(configuredAudience)
+      || typeof claims.exp !== "number" || claims.exp <= now
+      || typeof claims.iat !== "number" || claims.iat > now + 120
+      || !claims.sub || claims.sub.length > 255
+      || claims.nonce !== nonce) {
+    throw new RouteError("GOOGLE_TOKEN_INVALID", 401);
+  }
+  return {
+    token,
+    subject: claims.sub,
+    email: normalizeEmail(claims.email),
+    emailVerified: claims.email_verified === true || claims.email_verified === "true",
+  };
+}
+
+async function consumeGoogleAssertion(db: D1Like, identityToken: string) {
+  const digest = await sha256Hex(identityToken);
+  await db.prepare("DELETE FROM iumrah_client_google_assertions WHERE used_at<?1")
+    .bind(new Date(Date.now() - 30 * 86_400_000).toISOString()).run();
+  const existing = await db.prepare(
+    "SELECT token_hash FROM iumrah_client_google_assertions WHERE token_hash=?1 LIMIT 1",
+  ).bind(digest).first<{ token_hash: string }>();
+  if (existing) throw new RouteError("GOOGLE_TOKEN_REPLAYED", 409);
+  await db.prepare(
+    "INSERT INTO iumrah_client_google_assertions(token_hash,used_at) VALUES(?1,?2)",
   ).bind(digest, new Date().toISOString()).run();
 }
 
@@ -1108,6 +1215,177 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
 }
 
 
+async function linkGoogle(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  const payload = await request.json().catch(() => null) as {
+    identityToken?: unknown;
+    nonce?: unknown;
+  } | null;
+  const google = await verifyGoogleIdentity(
+    payload?.identityToken,
+    payload?.nonce,
+    env.GOOGLE_SERVER_CLIENT_ID ?? "",
+  );
+  await consumeGoogleAssertion(db, google.token);
+  const subjectOwner = await db.prepare(
+    "SELECT pilgrim_id FROM iumrah_client_google_links WHERE google_subject=?1 LIMIT 1",
+  ).bind(google.subject).first<{ pilgrim_id: number }>();
+  if (subjectOwner && Number(subjectOwner.pilgrim_id) !== auth.pilgrimID) {
+    throw new RouteError("GOOGLE_ID_CONNECTED_TO_ANOTHER_ACCOUNT", 409);
+  }
+  const accountLink = await db.prepare(
+    "SELECT google_subject FROM iumrah_client_google_links WHERE pilgrim_id=?1 LIMIT 1",
+  ).bind(auth.pilgrimID).first<{ google_subject: string }>();
+  if (accountLink && accountLink.google_subject !== google.subject) {
+    throw new RouteError("GOOGLE_ID_ALREADY_CONNECTED", 409);
+  }
+  if (google.emailVerified && validEmail(google.email)) {
+    const emailOwner = await db.prepare(
+      "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE email_normalized=?1 LIMIT 1",
+    ).bind(google.email).first<{ pilgrim_id: number }>();
+    if (emailOwner && Number(emailOwner.pilgrim_id) !== auth.pilgrimID) {
+      throw new RouteError("GOOGLE_EMAIL_CONNECTED_TO_ANOTHER_ACCOUNT", 409);
+    }
+  }
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO iumrah_client_google_links(google_subject,pilgrim_id,linked_at,last_used_at)
+     VALUES(?1,?2,?3,?3)
+     ON CONFLICT(google_subject) DO UPDATE SET last_used_at=excluded.last_used_at`,
+  ).bind(google.subject, auth.pilgrimID, now).run();
+  if (google.emailVerified && validEmail(google.email)) {
+    const currentEmail = await db.prepare(
+      "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE pilgrim_id=?1 LIMIT 1",
+    ).bind(auth.pilgrimID).first<{ pilgrim_id: number }>();
+    if (!currentEmail) await linkVerifiedEmail(db, auth.pilgrimID, google.email, google.email);
+  }
+  await audit(db, auth.pilgrimID, "google_id_linked", auth.sessionID, auth.sessionID);
+  return json({ ok: true, googleLinked: true, iumrahID: String(auth.pilgrimID).padStart(6, "0") });
+}
+
+async function signInWithGoogle(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    identityToken?: unknown;
+    nonce?: unknown;
+    device?: unknown;
+  } | null;
+  const google = await verifyGoogleIdentity(
+    payload?.identityToken,
+    payload?.nonce,
+    env.GOOGLE_SERVER_CLIENT_ID ?? "",
+  );
+  await consumeGoogleAssertion(db, google.token);
+  let row = await db.prepare(
+    `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+     FROM iumrah_client_google_links g
+     INNER JOIN pilgrims p ON p.id=g.pilgrim_id
+     INNER JOIN iumrah_accounts account ON account.pilgrim_id=p.id
+     WHERE g.google_subject=?1 LIMIT 1`,
+  ).bind(google.subject).first<PilgrimRow>();
+  let createdAccount = false;
+  if (!row) {
+    if (!google.emailVerified || !validEmail(google.email)) {
+      throw new RouteError("GOOGLE_ACCOUNT_EMAIL_REQUIRED", 409);
+    }
+    const existingEmail = await db.prepare(
+      `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+       FROM iumrah_client_account_emails e
+       INNER JOIN pilgrims p ON p.id=e.pilgrim_id
+       INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+       WHERE e.email_normalized=?1 LIMIT 1`,
+    ).bind(google.email).first<PilgrimRow>();
+    if (existingEmail) {
+      row = existingEmail;
+    } else {
+      const now = new Date().toISOString();
+      const created = await db.prepare(
+        `INSERT INTO pilgrims(email,created_at,updated_at)
+         VALUES(?1,?2,?2)
+         RETURNING id,first_name,last_name,display_name,phone,email,telegram,whatsapp`,
+      ).bind(google.email, now).first<PilgrimRow>();
+      if (!created) throw new RouteError("GOOGLE_ACCOUNT_CREATION_FAILED", 503);
+      try {
+        await linkVerifiedEmail(db, Number(created.id), google.email, google.email);
+        const salt = randomToken(18);
+        const inaccessiblePassword = randomToken(48);
+        const passwordHash = await passwordDigest(inaccessiblePassword, salt, PASSWORD_ITERATIONS);
+        await db.prepare(
+          `INSERT INTO iumrah_accounts(
+             pilgrim_id,password_salt,password_hash,password_iterations,activated_at,password_updated_at
+           ) VALUES(?1,?2,?3,?4,?5,?5)`,
+        ).bind(Number(created.id), salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+        row = created;
+        createdAccount = true;
+      } catch (error) {
+        await db.prepare("DELETE FROM pilgrims WHERE id=?1").bind(Number(created.id)).run().catch(() => undefined);
+        const racedOwner = await db.prepare(
+          `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+           FROM iumrah_client_account_emails e
+           INNER JOIN pilgrims p ON p.id=e.pilgrim_id
+           INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+           WHERE e.email_normalized=?1 LIMIT 1`,
+        ).bind(google.email).first<PilgrimRow>();
+        if (!racedOwner) throw error;
+        row = racedOwner;
+      }
+    }
+    try {
+      const now = new Date().toISOString();
+      await db.prepare(
+        `INSERT INTO iumrah_client_google_links(google_subject,pilgrim_id,linked_at,last_used_at)
+         VALUES(?1,?2,?3,?3)`,
+      ).bind(google.subject, Number(row.id), now).run();
+    } catch (error) {
+      const linkedOwner = await db.prepare(
+        `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+         FROM iumrah_client_google_links g
+         INNER JOIN pilgrims p ON p.id=g.pilgrim_id
+         WHERE g.google_subject=?1 LIMIT 1`,
+      ).bind(google.subject).first<PilgrimRow>();
+      if (linkedOwner) {
+        row = linkedOwner;
+        createdAccount = false;
+      } else {
+        const accountLink = await db.prepare(
+          "SELECT google_subject FROM iumrah_client_google_links WHERE pilgrim_id=?1 LIMIT 1",
+        ).bind(Number(row.id)).first<{ google_subject: string }>();
+        if (accountLink) throw new RouteError("GOOGLE_ID_ALREADY_CONNECTED", 409);
+        throw error;
+      }
+    }
+  }
+  const device = parseDevice(payload?.device);
+  const session = await createAccountSession(db, Number(row.id));
+  const auth: AccountAuth = { pilgrimID: Number(row.id), tokenHash: session.tokenHash, pilgrim: row };
+  let sessionID: string;
+  try {
+    sessionID = await bindCurrentSession(db, auth, device, request);
+  } catch (error) {
+    await db.prepare("UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2")
+      .bind(new Date().toISOString(), session.tokenHash).run();
+    throw error;
+  }
+  if (createdAccount) {
+    await db.prepare(
+      `UPDATE iumrah_client_devices SET is_primary=1
+       WHERE pilgrim_id=?1 AND installation_id=?2`,
+    ).bind(Number(row.id), device.installationID).run();
+  }
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE iumrah_client_google_links SET last_used_at=?1 WHERE google_subject=?2")
+    .bind(now, google.subject).run();
+  await db.prepare("UPDATE iumrah_accounts SET last_login_at=?1 WHERE pilgrim_id=?2")
+    .bind(now, Number(row.id)).run();
+  await audit(db, Number(row.id), createdAccount ? "google_account_created" : "google_sign_in", sessionID, sessionID);
+  return json({
+    ok: true,
+    account: accountProfile(row),
+    session: { token: session.token, expiresAt: session.expiresAt },
+  });
+}
+
+
 function friendGiftCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const bytes = new Uint8Array(9);
@@ -1367,6 +1645,12 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/apple/sign-in") {
       return await signInWithApple(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/google/link") {
+      return await linkGoogle(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/google/sign-in") {
+      return await signInWithGoogle(request, env, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/email/start") {
       return await startEmailVerification(request, env, db);

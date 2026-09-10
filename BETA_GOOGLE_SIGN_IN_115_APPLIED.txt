@@ -1,0 +1,17 @@
+iumrah Beta — Google Sign-In 115
+Date: 2026-09-11
+
+Adds Sign in with Google as a second external identity provider using the existing canonical iumrah ID account architecture.
+
+Scope:
+- official GoogleSignIn + GoogleSignInSwift SPM dependency
+- Google OAuth redirect handling without replacing the existing iumrahapp URL scheme
+- nonce-bound Google ID-token handoff to Package Engine
+- server-side Google JWT signature / issuer / audience / expiry / nonce verification
+- replay protection and one-to-one Google subject ↔ canonical pilgrim mapping
+- same iumrah session/profile flow as Sign in with Apple
+- primary-device-only Google linking inside Account Security
+- Google connection status in Security UI
+- migration and contract tests
+
+OAuth credential placeholders are intentional. See GOOGLE_SIGNIN_SETUP.md.

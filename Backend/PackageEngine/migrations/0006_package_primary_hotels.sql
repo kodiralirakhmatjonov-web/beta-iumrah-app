@@ -100,6 +100,24 @@ CREATE TABLE IF NOT EXISTS iumrah_client_apple_assertions (
 CREATE INDEX IF NOT EXISTS idx_iumrah_client_apple_assertions_used
 ON iumrah_client_apple_assertions(used_at);
 
+-- Google `sub` follows the exact same canonical-account invariant as Apple:
+-- one verified external subject can point to one pilgrim, and one pilgrim can
+-- have at most one Google subject linked.
+CREATE TABLE IF NOT EXISTS iumrah_client_google_links (
+  google_subject TEXT PRIMARY KEY,
+  pilgrim_id INTEGER NOT NULL UNIQUE,
+  linked_at TEXT NOT NULL,
+  last_used_at TEXT NOT NULL,
+  FOREIGN KEY (pilgrim_id) REFERENCES pilgrims(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS iumrah_client_google_assertions (
+  token_hash TEXT PRIMARY KEY,
+  used_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_iumrah_client_google_assertions_used
+ON iumrah_client_google_assertions(used_at);
+
 -- A verified email is an alternate credential for the same canonical pilgrim.
 -- Profile email text is not trusted for login until this table contains the
 -- verified, normalized address. One address and one pilgrim can each appear once.
