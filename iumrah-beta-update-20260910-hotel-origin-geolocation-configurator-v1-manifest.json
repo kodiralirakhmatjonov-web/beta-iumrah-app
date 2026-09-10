@@ -1,0 +1,30 @@
+{
+  "name": "iumrah-beta-update-20260910-hotel-origin-geolocation-configurator-v1",
+  "base": "beta-iumrah-app-main(20260910-154135).zip",
+  "changes": [
+    "Shared departure-airport field in Trip Builder and Hotels tab",
+    "Automatic nearest-airport detection using iOS When-In-Use location permission",
+    "Hotel storefront flight baseline follows selected/detected origin instead of hardcoded TAS",
+    "Regional return fallback to TAS when no compatible return to the departure city exists",
+    "Hotel package duration follows the compatible published outbound/return pair when available",
+    "Hotel package tier mapping: <=3 stars Standard, 4 stars Comfort, >=5 stars Luxury",
+    "Hotel cards and Hotel Detail use the same single automatic package quote",
+    "All user-facing iumrah Package System wording changed to iumrah Configurator"
+  ],
+  "files": [
+    "Sources/Services/DepartureAirportLocationResolver.swift",
+    "Sources/Views/Airports/AirportSelectorButton.swift",
+    "Sources/Services/HotelStorefrontService.swift",
+    "Sources/State/HotelStorefrontStore.swift",
+    "Sources/Views/Tabs/HotelsHomeView.swift",
+    "Sources/Views/Hotels/HotelDetailView.swift",
+    "Sources/Views/Home/IumrahBackendSystemView.swift",
+    "Sources/Core/AppLocalization.swift",
+    "Resources/Info.plist"
+  ],
+  "validation": {
+    "swift_parse_all_sources": true,
+    "info_plist_lint": true,
+    "zip_integrity": true
+  }
+}

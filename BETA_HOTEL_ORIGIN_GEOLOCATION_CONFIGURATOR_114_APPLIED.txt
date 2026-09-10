@@ -1,0 +1,3 @@
+iumrah Beta update 114
+Hotel origin + geolocation + automatic tier pricing + iumrah Configurator naming
+Base: beta-iumrah-app-main(20260910-154135).zip

@@ -5,49 +5,82 @@ struct AirportSelectorButton: View {
     @Binding var airport: Airport?
     @Binding var fallbackCode: String
     @State private var isPresented = false
+    @StateObject private var locator = DepartureAirportLocationResolver()
 
     var body: some View {
-        Button {
-            isPresented = true
-            IumrahHaptics.soft()
-        } label: {
-            HStack(spacing: 13) {
-                IumrahIconBadge(
-                    systemName: "airplane.departure",
-                    role: .travel,
-                    size: 38,
-                    symbolSize: 17,
-                    shape: .circle
-                )
+        HStack(spacing: 0) {
+            Button {
+                isPresented = true
+                IumrahHaptics.soft()
+            } label: {
+                HStack(spacing: 13) {
+                    IumrahIconBadge(
+                        systemName: "airplane.departure",
+                        role: .travel,
+                        size: 38,
+                        symbolSize: 17,
+                        shape: .circle
+                    )
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("airport_title", settings.language))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let airport {
-                        Text(airport.compactTitle)
-                            .font(.headline)
-                        Text(airport.name)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.text("airport_title", settings.language))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        if let airport {
+                            Text(airport.compactTitle)
+                                .font(.headline)
+                            Text(airport.name)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        } else {
+                            Text(fallbackCode.isEmpty ? L10n.text("airport_search_title", settings.language) : fallbackCode.uppercased())
+                                .font(.headline)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                locate()
+                IumrahHaptics.soft()
+            } label: {
+                Group {
+                    if locator.isLocating {
+                        ProgressView()
+                            .controlSize(.small)
                     } else {
-                        Text(fallbackCode.isEmpty ? L10n.text("airport_search_title", settings.language) : fallbackCode.uppercased())
-                            .font(.headline)
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 15, weight: .semibold))
                     }
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
+                .frame(width: 42, height: 42)
+                .contentShape(Circle())
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.text("airport_title", settings.language))
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
         .sheet(isPresented: $isPresented) {
             AirportPickerView(selection: $airport, fallbackCode: $fallbackCode)
+        }
+        .task {
+            // The default TAS value is only a safe fallback. Until a concrete Airport
+            // object exists, ask iOS once for location and resolve the nearest airport.
+            if airport == nil { locate() }
+        }
+    }
+
+    private func locate() {
+        locator.locateNearestAirport { resolved in
+            airport = resolved
+            fallbackCode = resolved.iata.uppercased()
+            IumrahHaptics.success()
         }
     }
 }

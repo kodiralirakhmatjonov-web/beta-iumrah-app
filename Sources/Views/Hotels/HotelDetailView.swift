@@ -27,7 +27,6 @@ struct HotelDetailView: View {
     @State private var isSavingSelection = false
     @State private var roomImageIndices: [String: Int] = [:]
     @State private var selectionError: String?
-    @State private var storefrontTier: PackageTier = .standard
     @State private var carePresented = false
 
     private let service = HotelCatalogService()
@@ -106,6 +105,7 @@ struct HotelDetailView: View {
         }
         .task {
             await storefront.prepareIfNeeded()
+            await storefront.updateDepartureAirport(journey.trip.originCode)
             await load()
             await loadRoomCategories()
         }
@@ -236,14 +236,15 @@ struct HotelDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Picker(L10n.text("hotel_storefront_section", settings.language), selection: $storefrontTier) {
-                Text(PackageTier.standard.title(settings.language)).tag(PackageTier.standard)
-                Text(PackageTier.luxury.title(settings.language)).tag(PackageTier.luxury)
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption.weight(.semibold))
+                Text("iumrah Configurator · \(storefront.automaticTier(for: hotel).title(settings.language))")
+                    .font(.caption.weight(.semibold))
             }
-            .pickerStyle(.segmented)
-            .onChange(of: storefrontTier) { _, _ in IumrahHaptics.selection() }
+            .foregroundStyle(.secondary)
 
-            if let quote = storefront.quote(for: hotel, tier: storefrontTier) {
+            if let quote = storefront.automaticQuote(for: hotel) {
                 HStack(alignment: .lastTextBaseline, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(money(quote.packageQuote.pricePerPerson))
@@ -271,7 +272,7 @@ struct HotelDetailView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    packageFact(icon: "airplane", text: "TAS → MED   ·   JED → TAS")
+                    packageFact(icon: "airplane", text: storefrontRouteText)
                     packageFact(
                         icon: "building.2.fill",
                         text: L10n.format("hotel_detail_nights_fmt", settings.language, hotel.name, quote.hotelNights)
@@ -280,15 +281,6 @@ struct HotelDetailView: View {
                     packageFact(icon: "heart.fill", text: "iumrah Care")
                 }
 
-                if storefrontTier == .standard {
-                    Button {
-                        storefrontTier = .luxury
-                        IumrahHaptics.selection()
-                    } label: {
-                        Label(L10n.text("hotel_detail_upgrade_luxury", settings.language), systemImage: "sparkles")
-                    }
-                    .buttonStyle(IumrahSecondaryButtonStyle())
-                }
             } else {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -311,6 +303,14 @@ struct HotelDetailView: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
         }
+    }
+
+    private var storefrontRouteText: String {
+        if let baseline = storefront.baseline {
+            return "\(baseline.outbound.origin.uppercased()) → \(baseline.outbound.destination.uppercased())   ·   \(baseline.inbound.origin.uppercased()) → \(baseline.inbound.destination.uppercased())"
+        }
+        let origin = journey.trip.originCode.uppercased()
+        return "\(origin) → MED   ·   JED → \(origin)"
     }
 
     private func packageFact(icon: String, text: String) -> some View {

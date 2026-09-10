@@ -67,7 +67,7 @@ struct HotelStorefrontService {
             throw LocalPricingError.missingHotelPrice(hotel.city)
         }
 
-        let nights = max(1, catalog.nights ?? fallbackNights(for: hotel.city))
+        let nights = max(1, packageNights(from: baseline) ?? catalog.nights ?? fallbackNights(for: hotel.city))
         let rooms = max(1, catalog.rooms ?? 1)
         let travelers = max(1, baseline.travelers)
         let nightlyDecimal = Decimal(nightly)
@@ -118,9 +118,19 @@ struct HotelStorefrontService {
 
         async let outboundRequest = calendarLeg(origin: origin, destination: "MED", from: start, to: end)
         async let inboundRequest = calendarLeg(origin: "JED", destination: origin, from: start, to: end)
-        let (outboundRows, inboundRows) = try await (outboundRequest, inboundRequest)
+        let (outboundRows, directInboundRows) = try await (outboundRequest, inboundRequest)
 
-        guard let outbound = bestUSD(outboundRows), let inbound = bestUSD(inboundRows) else { return nil }
+        guard let outbound = bestUSD(outboundRows) else { return nil }
+
+        var returnDestination = origin
+        var inbound = bestCompatibleReturn(directInboundRows, after: outbound.outboundDate)
+        if inbound == nil, origin.uppercased() != "TAS" {
+            let fallbackRows = try await calendarLeg(origin: "JED", destination: "TAS", from: start, to: end)
+            inbound = bestCompatibleReturn(fallbackRows, after: outbound.outboundDate)
+            returnDestination = "TAS"
+        }
+
+        guard let inbound else { return nil }
         let fare = outbound.minPerTravelerFare + inbound.minPerTravelerFare
         guard fare.isFinite, fare > 0 else { return nil }
 
@@ -132,7 +142,7 @@ struct HotelStorefrontService {
         )
         let inboundLeg = syntheticLeg(
             origin: "JED",
-            destination: origin,
+            destination: returnDestination,
             date: inbound.outboundDate,
             label: "Published flight"
         )
@@ -170,6 +180,33 @@ struct HotelStorefrontService {
         return response.observations.isEmpty ? response.suggestions : response.observations
     }
 
+    private func bestCompatibleReturn(_ rows: [FlightFareCalendarEntry], after outboundDay: String) -> FlightFareCalendarEntry? {
+        guard let departure = Self.day.date(from: outboundDay) else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        return rows
+            .filter { row in
+                guard row.currency.uppercased() == "USD",
+                      row.minPerTravelerFare.isFinite,
+                      row.minPerTravelerFare > 0,
+                      let date = Self.day.date(from: row.outboundDate),
+                      let gap = calendar.dateComponents([.day], from: departure, to: date).day else { return false }
+                return (4...15).contains(gap)
+            }
+            .min { lhs, rhs in
+                let lhsDate = Self.day.date(from: lhs.outboundDate) ?? .distantFuture
+                let rhsDate = Self.day.date(from: rhs.outboundDate) ?? .distantFuture
+                let lhsGap = calendar.dateComponents([.day], from: departure, to: lhsDate).day ?? 99
+                let rhsGap = calendar.dateComponents([.day], from: departure, to: rhsDate).day ?? 99
+                let lhsDistance = abs(lhsGap - 7)
+                let rhsDistance = abs(rhsGap - 7)
+                if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
+                if lhsDate != rhsDate { return lhsDate < rhsDate }
+                return lhs.minPerTravelerFare < rhs.minPerTravelerFare
+            }
+    }
+
     private func bestUSD(_ rows: [FlightFareCalendarEntry]) -> FlightFareCalendarEntry? {
         rows
             .filter { $0.currency.uppercased() == "USD" && $0.minPerTravelerFare.isFinite && $0.minPerTravelerFare > 0 }
@@ -204,6 +241,22 @@ struct HotelStorefrontService {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    private func packageNights(from baseline: StorefrontFlightBaseline) -> Int? {
+        guard let arrivalDay = travelDay(baseline.outbound.arrivalAt),
+              let returnDay = travelDay(baseline.inbound.departureAt),
+              returnDay > arrivalDay else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        guard let days = calendar.dateComponents([.day], from: arrivalDay, to: returnDay).day, days > 0 else { return nil }
+        return min(15, max(1, days))
+    }
+
+    private func travelDay(_ value: String) -> Date? {
+        let day = String(value.prefix(10))
+        guard day.count == 10 else { return nil }
+        return Self.day.date(from: day)
+    }
 
     private func fallbackNights(for city: String) -> Int {
         city.lowercased().contains("mad") ? 2 : 5

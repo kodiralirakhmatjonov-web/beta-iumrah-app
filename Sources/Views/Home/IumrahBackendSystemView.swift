@@ -91,7 +91,7 @@ private enum IumrahBackendCopy {
         switch language {
         case .russian:
             switch key {
-            case .homeEyebrow: return "iumrah Package System"
+            case .homeEyebrow: return "iumrah Configurator"
             case .homeTitle: return "Вся поездка — в одной системе"
             case .homeBody: return "Авиабилеты, отели, трансфер, гид, eSIM, расчёты и оплата работают как одно бронирование."
             case .homeCTA: return "Как работает iumrah"
@@ -105,13 +105,13 @@ private enum IumrahBackendCopy {
             case .onePaymentBody: return "Пользователь оплачивает поездку как единый пакет."
             case .oneJourneyBody: return "Статусы и сервисы живут в одном маршруте."
             case .underHood: return "Что происходит под капотом"
-            case .underHoodBody: return "iumrah Package System связывает поставщиков и внутренние сервисы, нормализует заказы, собирает стоимость и возвращает клиентскому приложению один понятный результат."
+            case .underHoodBody: return "iumrah Configurator связывает поставщиков и внутренние сервисы, нормализует заказы, собирает стоимость и возвращает клиентскому приложению один понятный результат."
             case .finalTitle: return "Не восемь отдельных заказов. Один iumrah Booking."
             case .finalBody: return "Система скрывает сложность инфраструктуры и оставляет паломнику только то, что ему действительно нужно для поездки."
             }
         case .english:
             switch key {
-            case .homeEyebrow: return "iumrah Package System"
+            case .homeEyebrow: return "iumrah Configurator"
             case .homeTitle: return "Your whole trip, one system"
             case .homeBody: return "Flights, hotels, transfer, guide, eSIM, pricing and payment work as one booking."
             case .homeCTA: return "See how iumrah works"
@@ -125,13 +125,13 @@ private enum IumrahBackendCopy {
             case .onePaymentBody: return "The pilgrim pays for the trip as one package."
             case .oneJourneyBody: return "Statuses and services live in one itinerary."
             case .underHood: return "What happens under the hood"
-            case .underHoodBody: return "iumrah Package System connects providers and internal services, normalizes orders, calculates the package and returns one clear result to the client app."
+            case .underHoodBody: return "iumrah Configurator connects providers and internal services, normalizes orders, calculates the package and returns one clear result to the client app."
             case .finalTitle: return "Not eight separate orders. One iumrah Booking."
             case .finalBody: return "The system hides infrastructure complexity and leaves the pilgrim with only what matters for the journey."
             }
         case .uzbek:
             switch key {
-            case .homeEyebrow: return "iumrah Package System"
+            case .homeEyebrow: return "iumrah Configurator"
             case .homeTitle: return "Butun safar — bitta tizimda"
             case .homeBody: return "Aviachiptalar, mehmonxonalar, transfer, gid, eSIM, hisob-kitob va to‘lov bitta booking sifatida ishlaydi."
             case .homeCTA: return "iumrah qanday ishlaydi"
@@ -145,13 +145,13 @@ private enum IumrahBackendCopy {
             case .onePaymentBody: return "Ziyoratchi safarni yagona paket sifatida to‘laydi."
             case .oneJourneyBody: return "Statuslar va xizmatlar bitta marshrutda yashaydi."
             case .underHood: return "Tizim ichida nima sodir bo‘ladi"
-            case .underHoodBody: return "iumrah Package System provayderlar va ichki servislarni bog‘laydi, buyurtmalarni bir formatga keltiradi, narxni hisoblaydi va ilovaga bitta aniq natija qaytaradi."
+            case .underHoodBody: return "iumrah Configurator provayderlar va ichki servislarni bog‘laydi, buyurtmalarni bir formatga keltiradi, narxni hisoblaydi va ilovaga bitta aniq natija qaytaradi."
             case .finalTitle: return "Sakkizta alohida buyurtma emas. Bitta iumrah Booking."
             case .finalBody: return "Tizim murakkab infratuzilmani yashiradi va ziyoratchiga safar uchun kerak bo‘lgan narsalarnigina qoldiradi."
             }
         case .uzbekCyrillic:
             switch key {
-            case .homeEyebrow: return "iumrah Package System"
+            case .homeEyebrow: return "iumrah Configurator"
             case .homeTitle: return "Бутун сафар — битта тизимда"
             case .homeBody: return "Авиачипталар, меҳмонхоналар, трансфер, гид, eSIM, ҳисоб-китоб ва тўлов битта booking сифатида ишлайди."
             case .homeCTA: return "iumrah қандай ишлайди"
@@ -165,7 +165,7 @@ private enum IumrahBackendCopy {
             case .onePaymentBody: return "Зиёратчи сафарни ягона пакет сифатида тўлайди."
             case .oneJourneyBody: return "Статуслар ва хизматлар битта маршрутда яшайди."
             case .underHood: return "Тизим ичида нима содир бўлади"
-            case .underHoodBody: return "iumrah Package System провайдерлар ва ички сервисларни боғлайди, буюртмаларни бир форматга келтиради, нархни ҳисоблайди ва иловага битта аниқ натижа қайтаради."
+            case .underHoodBody: return "iumrah Configurator провайдерлар ва ички сервисларни боғлайди, буюртмаларни бир форматга келтиради, нархни ҳисоблайди ва иловага битта аниқ натижа қайтаради."
             case .finalTitle: return "Саккизта алоҳида буюртма эмас. Битта iumrah Booking."
             case .finalBody: return "Тизим мураккаб инфратузилмани яширади ва зиёратчига сафар учун керак бўлган нарсаларнигина қолдиради."
             }
@@ -402,7 +402,7 @@ struct IumrahBackendSystemPresentationView: View {
             }
             .ignoresSafeArea()
         )
-        .navigationTitle("iumrah Package System")
+        .navigationTitle("iumrah Configurator")
         .navigationBarTitleDisplayMode(.inline)
         .iumrahInternalNavigation()
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -498,7 +498,7 @@ private struct IumrahBackendNetworkView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("iumrah Package System")
+        .accessibilityLabel("iumrah Configurator")
     }
 
     private func modulePoints(in size: CGSize) -> [CGPoint] {

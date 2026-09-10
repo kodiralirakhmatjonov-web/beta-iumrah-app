@@ -8,7 +8,9 @@ final class HotelStorefrontStore: ObservableObject {
     @Published private(set) var details: [String: HotelDetail] = [:]
     @Published private(set) var flightBoard: StorefrontFlightBoardResponse?
     @Published private(set) var standardQuotes: [String: HotelStorefrontQuote] = [:]
+    @Published private(set) var comfortQuotes: [String: HotelStorefrontQuote] = [:]
     @Published private(set) var luxuryQuotes: [String: HotelStorefrontQuote] = [:]
+    @Published private(set) var departureOriginCode = "TAS"
     @Published private(set) var flightPackagePreviews: [String: StorefrontFlightPackagePreview] = [:]
     @Published private(set) var isLoading = false
     @Published private(set) var hasPrepared = false
@@ -29,7 +31,25 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     var allHotels: [HotelSummary] { makkahHotels + madinahHotels }
-    var baseline: StorefrontFlightBaseline? { flightBoard?.baseline }
+    var baseline: StorefrontFlightBaseline? {
+        guard let board = flightBoard else { return nil }
+        if let pair = preferredHotelPackagePair(in: board.options) {
+            return storefrontBaseline(from: pair)
+        }
+        return board.baseline
+    }
+
+    func automaticTier(for hotel: HotelSummary) -> PackageTier {
+        switch hotel.stars ?? 3 {
+        case 5...: return .luxury
+        case 4: return .comfort
+        default: return .standard
+        }
+    }
+
+    func automaticQuote(for hotel: HotelSummary) -> HotelStorefrontQuote? {
+        quote(for: hotel, tier: automaticTier(for: hotel))
+    }
 
     func prepareIfNeeded() async {
         if hasPrepared { return }
@@ -66,7 +86,30 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     func quote(for hotel: HotelSummary, tier: PackageTier = .standard) -> HotelStorefrontQuote? {
-        tier == .luxury ? luxuryQuotes[hotel.id] : standardQuotes[hotel.id]
+        switch tier {
+        case .luxury: return luxuryQuotes[hotel.id]
+        case .comfort: return comfortQuotes[hotel.id]
+        case .economy, .standard: return standardQuotes[hotel.id]
+        }
+    }
+
+    func updateDepartureAirport(_ code: String) async {
+        let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard normalized.count == 3 else { return }
+        guard normalized != departureOriginCode || flightBoard?.origin.uppercased() != normalized || baseline == nil else { return }
+
+        departureOriginCode = normalized
+        do {
+            let board = try await storefront.resilientFlightBoard(origin: normalized)
+            flightBoard = board
+            rebuildQuotes()
+            rebuildFlightPackagePreviews()
+            hasPrepared = !allHotels.isEmpty && baseline != nil && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty)
+            errorMessage = nil
+            persistDiskSnapshot()
+        } catch {
+            errorMessage = L10n.error(error, .russian)
+        }
     }
 
     func packagePreview(for option: StorefrontFlightOption) -> StorefrontFlightPackagePreview? {
@@ -240,7 +283,7 @@ final class HotelStorefrontStore: ObservableObject {
 
         // A completed catalogue + baseline preparation should not rerun on every
         // tab appearance. Pull-to-refresh remains available for an explicit retry.
-        hasPrepared = !allHotels.isEmpty && baseline != nil && !standardQuotes.isEmpty
+        hasPrepared = !allHotels.isEmpty && baseline != nil && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty)
 
         if allHotels.isEmpty {
             if let error = hotelErrors.first {
@@ -280,7 +323,7 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     private func flightBoardResult() async -> Result<StorefrontFlightBoardResponse, Error> {
-        do { return .success(try await storefront.resilientFlightBoard(origin: "TAS")) }
+        do { return .success(try await storefront.resilientFlightBoard(origin: departureOriginCode)) }
         catch { return .failure(error) }
     }
 
@@ -308,17 +351,22 @@ final class HotelStorefrontStore: ObservableObject {
         }
 
         var standard: [String: HotelStorefrontQuote] = [:]
+        var comfort: [String: HotelStorefrontQuote] = [:]
         var luxury: [String: HotelStorefrontQuote] = [:]
         for hotel in allHotels {
             let price = bestFreshPrice(for: hotel)
             if let quote = try? storefront.quote(hotel: hotel, tier: .standard, baseline: baseline, price: price) {
                 standard[hotel.id] = quote
             }
+            if let quote = try? storefront.quote(hotel: hotel, tier: .comfort, baseline: baseline, price: price) {
+                comfort[hotel.id] = quote
+            }
             if let quote = try? storefront.quote(hotel: hotel, tier: .luxury, baseline: baseline, price: price) {
                 luxury[hotel.id] = quote
             }
         }
         standardQuotes = standard
+        comfortQuotes = comfort
         luxuryQuotes = luxury
     }
 
@@ -387,7 +435,43 @@ final class HotelStorefrontStore: ObservableObject {
         let farePerPersonUSD: Decimal
         let observedAt: String
         let durationDays: Int
+        let travelerCount: Int
         let kind: StorefrontUmrahPackageKind
+    }
+
+    private func preferredHotelPackagePair(in options: [StorefrontFlightOption]) -> FlightPackagePair? {
+        let origin = departureOriginCode.uppercased()
+        let anchors = options
+            .filter { option in
+                isPackageAnchor(option) && option.outbound.origin.uppercased() == origin
+            }
+            .sorted { lhs, rhs in
+                let lhsDay = stableTravelDay(lhs.outbound.departureAt) ?? .distantFuture
+                let rhsDay = stableTravelDay(rhs.outbound.departureAt) ?? .distantFuture
+                if lhsDay != rhsDay { return lhsDay < rhsDay }
+                if lhs.priority != rhs.priority { return lhs.priority < rhs.priority }
+                return lhs.perTravelerFare < rhs.perTravelerFare
+            }
+
+        for option in anchors {
+            if let pair = packagePair(forOutbound: option, among: options) { return pair }
+        }
+        return nil
+    }
+
+    private func storefrontBaseline(from pair: FlightPackagePair) -> StorefrontFlightBaseline {
+        StorefrontFlightBaseline(
+            mode: "iumrah_configurator_published_pair",
+            travelers: pair.travelerCount,
+            currency: "USD",
+            perTravelerFareUsd: NSDecimalNumber(decimal: pair.farePerPersonUSD).doubleValue,
+            totalFareUsd: NSDecimalNumber(decimal: pair.farePerPersonUSD * Decimal(pair.travelerCount)).doubleValue,
+            outboundOfferID: pair.outboundOptionID,
+            inboundOfferID: pair.returnOptionID,
+            outbound: pair.outbound,
+            inbound: pair.inbound,
+            observedAt: pair.observedAt
+        )
     }
 
     private func isPackageAnchor(_ option: StorefrontFlightOption) -> Bool {
@@ -420,6 +504,7 @@ final class HotelStorefrontStore: ObservableObject {
                 farePerPersonUSD: Decimal(option.perTravelerFare),
                 observedAt: option.observedAt,
                 durationDays: gap,
+                travelerCount: max(1, option.travelerCount),
                 kind: kind
             )
         }
@@ -465,6 +550,7 @@ final class HotelStorefrontStore: ObservableObject {
             farePerPersonUSD: Decimal(outboundOption.perTravelerFare) + Decimal(returnOption.perTravelerFare),
             observedAt: max(outboundOption.observedAt, returnOption.observedAt),
             durationDays: gap,
+            travelerCount: max(1, outboundOption.travelerCount),
             kind: kind
         )
     }
@@ -858,6 +944,7 @@ final class HotelStorefrontStore: ObservableObject {
         madinahHotels = snapshot.madinahHotels
         details = Dictionary(uniqueKeysWithValues: snapshot.hotelDetails.map { ($0.id, $0) })
         flightBoard = snapshot.flightBoard
+        departureOriginCode = snapshot.flightBoard?.origin.uppercased() ?? "TAS"
         rebuildQuotes()
         rebuildFlightPackagePreviews()
         // Disk data renders immediately, then the app refreshes prices/flight baseline
