@@ -1,6 +1,25 @@
 import Foundation
 import Combine
 
+struct PackageTierComparisonOption: Identifiable, Hashable {
+    let tier: PackageTier
+    let quote: PackageQuote?
+    let makkahHotel: HotelSummary?
+    let madinahHotel: HotelSummary?
+    let unavailableReason: String?
+
+    var id: String { tier.rawValue }
+    var isAvailable: Bool { quote != nil && makkahHotel != nil }
+}
+
+private struct PackageTierComparisonFlightContext {
+    let pricingOffer: FlightOffer
+    let outboundOffer: FlightOffer
+    let inboundOffer: FlightOffer?
+    let journeyFareUsd: Decimal
+    let fareScope: FlightFareScope
+}
+
 @MainActor
 final class JourneyStore: ObservableObject {
     @Published var trip = TripDraft()
@@ -814,6 +833,360 @@ final class JourneyStore: ObservableObject {
             quote = nil
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Builds the four customer-facing package levels for the final review carousel.
+    /// The selected flight itinerary, dates, travelers and explicit transfer/Haramain
+    /// choices stay fixed. Only the package hotel pair and tier pricing policy change.
+    ///
+    /// Hotel rates come from the server-maintained iumrah Business catalog. For
+    /// Comfort/Luxury comparison cards, paid lunch/dinner allocations are intentionally
+    /// disabled: the hotel breakfast remains included at zero extra allocation.
+    func buildPackageTierComparisons() async -> [PackageTierComparisonOption] {
+        let currentTier = trip.packageTier
+        let currentOption = PackageTierComparisonOption(
+            tier: currentTier,
+            quote: quote,
+            makkahHotel: selectedHotel,
+            madinahHotel: selectedMadinahHotel,
+            unavailableReason: quote == nil ? "CURRENT_QUOTE_UNAVAILABLE" : nil
+        )
+
+        guard let context = await packageTierComparisonFlightContext() else {
+            return PackageTier.allCases.map { tier in
+                if tier == currentTier { return currentOption }
+                return PackageTierComparisonOption(
+                    tier: tier, quote: nil, makkahHotel: nil, madinahHotel: nil,
+                    unavailableReason: "FLIGHT_PRICE_UNAVAILABLE"
+                )
+            }
+        }
+
+        let makkahCatalog = await comparisonMakkahCatalog()
+        let madinahCatalog: [HotelSummary]
+        if trip.scope == .makkahAndMadinah {
+            madinahCatalog = await comparisonMadinahCatalog()
+        } else {
+            madinahCatalog = []
+        }
+
+        var output: [PackageTierComparisonOption] = []
+        for tier in PackageTier.allCases {
+            if tier == currentTier, currentOption.isAvailable {
+                output.append(currentOption)
+                continue
+            }
+
+            let option = await makePackageTierComparisonOption(
+                tier: tier,
+                flight: context,
+                makkahCatalog: makkahCatalog,
+                madinahCatalog: madinahCatalog
+            )
+            output.append(option)
+        }
+        return output
+    }
+
+    /// Applies an explicitly selected carousel level without touching the verified
+    /// flights or the transfer choices. This keeps the final-review interaction
+    /// reversible and prevents a tier swipe from silently changing the booking.
+    func applyPackageTierComparison(_ option: PackageTierComparisonOption) {
+        guard let comparisonQuote = option.quote,
+              let makkahHotel = option.makkahHotel else { return }
+        if trip.scope == .makkahAndMadinah, option.madinahHotel == nil { return }
+
+        var updatedTrip = trip
+        updatedTrip.packageTier = option.tier
+        updatedTrip.hotelStars = option.tier.primaryHotelStars
+        if option.tier == .comfort || option.tier == .luxury {
+            updatedTrip.mealSelection = PackageMealSelection(
+                makkahLunch: false,
+                makkahDinner: false,
+                madinahDinner: false
+            )
+        } else {
+            updatedTrip.mealSelection = nil
+        }
+        trip = updatedTrip
+
+        selectedHotel = makkahHotel
+        selectedRoom = nil
+        selectedRoomCategory = nil
+        selectedMadinahHotel = option.madinahHotel
+        selectedMadinahRoom = nil
+        selectedMadinahRoomCategory = nil
+
+        // The comparison quote already uses the accepted D1 room-night rates for
+        // the exact trip nights. Clear only the old selected-hotel cache snapshot.
+        cancelHotelPricePrefetch()
+        hotelPriceSnapshot = nil
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+        (flightService as? AutomaticFlightSearchService)?.invalidateHotelPrices()
+
+        quote = comparisonQuote
+        errorMessage = nil
+    }
+
+    private func packageTierComparisonFlightContext() async -> PackageTierComparisonFlightContext? {
+        guard let outbound = selectedOutbound, outbound.isVerifiedForBooking else { return nil }
+
+        let inbound: FlightOffer?
+        let pricingOffer: FlightOffer
+        if trip.isRoundTripFlight {
+            guard let value = selectedInbound,
+                  value.isVerifiedForBooking,
+                  returnOffer(value, matches: outbound),
+                  value.fareAmount != nil,
+                  value.fareScope != nil else { return nil }
+            inbound = value
+            pricingOffer = value
+        } else {
+            guard outbound.fareAmount != nil, outbound.fareScope != nil else { return nil }
+            inbound = nil
+            pricingOffer = outbound
+        }
+
+        guard let rawFare = pricingOffer.fareAmount, let fareScope = pricingOffer.fareScope else { return nil }
+        guard let journeyFareUsd = try? await LocalFXRateService.shared.usd(rawFare, currency: pricingOffer.currency) else { return nil }
+
+        return PackageTierComparisonFlightContext(
+            pricingOffer: pricingOffer,
+            outboundOffer: outbound,
+            inboundOffer: inbound,
+            journeyFareUsd: journeyFareUsd,
+            fareScope: fareScope
+        )
+    }
+
+    private func makePackageTierComparisonOption(
+        tier: PackageTier,
+        flight: PackageTierComparisonFlightContext,
+        makkahCatalog: [HotelSummary],
+        madinahCatalog: [HotelSummary]
+    ) async -> PackageTierComparisonOption {
+        guard let makkahHotel = await comparisonHotel(for: tier, city: "Makkah", catalog: makkahCatalog) else {
+            return PackageTierComparisonOption(
+                tier: tier, quote: nil, makkahHotel: nil, madinahHotel: nil,
+                unavailableReason: "MAKKAH_PRIMARY_HOTEL_UNAVAILABLE"
+            )
+        }
+
+        let madinahHotel: HotelSummary?
+        if trip.scope == .makkahAndMadinah {
+            guard let resolved = await comparisonHotel(for: tier, city: "Madinah", catalog: madinahCatalog) else {
+                return PackageTierComparisonOption(
+                    tier: tier, quote: nil, makkahHotel: makkahHotel, madinahHotel: nil,
+                    unavailableReason: "MADINAH_PRIMARY_HOTEL_UNAVAILABLE"
+                )
+            }
+            madinahHotel = resolved
+        } else {
+            madinahHotel = nil
+        }
+
+        guard let makkahNightly = await comparisonNightlyUsd(for: makkahHotel) else {
+            return PackageTierComparisonOption(
+                tier: tier, quote: nil, makkahHotel: makkahHotel, madinahHotel: madinahHotel,
+                unavailableReason: "MAKKAH_PRICE_UNAVAILABLE"
+            )
+        }
+
+        let madinahNightly: Decimal?
+        if let madinahHotel {
+            guard let value = await comparisonNightlyUsd(for: madinahHotel) else {
+                return PackageTierComparisonOption(
+                    tier: tier, quote: nil, makkahHotel: makkahHotel, madinahHotel: madinahHotel,
+                    unavailableReason: "MADINAH_PRICE_UNAVAILABLE"
+                )
+            }
+            madinahNightly = value
+        } else {
+            madinahNightly = nil
+        }
+
+        var comparisonTrip = trip
+        comparisonTrip.packageTier = tier
+        comparisonTrip.hotelStars = tier.primaryHotelStars
+        if tier == .comfort || tier == .luxury {
+            comparisonTrip.mealSelection = PackageMealSelection(
+                makkahLunch: false,
+                makkahDinner: false,
+                madinahDinner: false
+            )
+        } else {
+            comparisonTrip.mealSelection = nil
+        }
+
+        let windows = TripStayPlanner.windows(for: comparisonTrip, calendar: Calendar(identifier: .gregorian))
+        let rooms = max(1, comparisonTrip.rooms)
+        let makkahComponent = LocalHotelPriceComponent(
+            nightlyUsd: makkahNightly,
+            nights: windows.makkah.nights,
+            rooms: rooms,
+            hotelId: makkahHotel.id,
+            roomId: nil,
+            source: "iumrah-business-catalog-comparison"
+        )
+
+        let madinahComponent: LocalHotelPriceComponent?
+        if let madinahHotel, let madinahWindow = windows.madinah, let madinahNightly {
+            madinahComponent = LocalHotelPriceComponent(
+                nightlyUsd: madinahNightly,
+                nights: madinahWindow.nights,
+                rooms: rooms,
+                hotelId: madinahHotel.id,
+                roomId: nil,
+                source: "iumrah-business-catalog-comparison"
+            )
+        } else {
+            madinahComponent = nil
+        }
+
+        do {
+            let comparisonQuote = try LocalPackagePricingEngine.calculate(
+                trip: comparisonTrip,
+                journeyFareUsd: flight.journeyFareUsd,
+                journeyFareScope: flight.fareScope,
+                pricingOffer: flight.pricingOffer,
+                outboundOffer: flight.outboundOffer,
+                inboundOffer: flight.inboundOffer,
+                makkahHotel: makkahComponent,
+                madinahHotel: madinahComponent,
+                includeHaramainTrain: haramainTrainSelected,
+                transferVehicle: selectedTransferVehicle,
+                haramainPublicAddOnUsd: haramainTrainAddOnUsd
+            )
+            return PackageTierComparisonOption(
+                tier: tier,
+                quote: comparisonQuote,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                unavailableReason: nil
+            )
+        } catch {
+            return PackageTierComparisonOption(
+                tier: tier, quote: nil, makkahHotel: makkahHotel, madinahHotel: madinahHotel,
+                unavailableReason: "PACKAGE_PRICE_UNAVAILABLE"
+            )
+        }
+    }
+
+    private func comparisonMakkahCatalog() async -> [HotelSummary] {
+        if !hotels.isEmpty { return hotels }
+        return (try? await hotelService.listHotels(city: "Makkah")) ?? []
+    }
+
+    private func comparisonMadinahCatalog() async -> [HotelSummary] {
+        if !madinahHotels.isEmpty { return madinahHotels }
+
+        let aliases = [
+            "Madinah", "Medina", "Madina", "Medinah",
+            "Al Madinah", "Al Medina",
+            "Madinah Al Munawwarah", "Al Madinah Al Munawwarah"
+        ]
+        var merged: [String: HotelSummary] = [:]
+        for city in aliases {
+            if let values = try? await hotelService.listHotels(city: city) {
+                for hotel in values { merged[hotel.id] = hotel }
+            }
+        }
+        return Array(merged.values)
+    }
+
+    private func comparisonHotel(for tier: PackageTier, city: String, catalog: [HotelSummary]) async -> HotelSummary? {
+        if let policy = comparisonHotelPolicy(for: tier, city: city) {
+            // Standard / Comfort / Luxury comparison is intentionally deterministic:
+            // these are the concrete hotels agreed for the final-page price ladder.
+            // Do not silently substitute another same-star property, because then
+            // the displayed upgrade delta would no longer represent the product.
+            return fixedComparisonHotel(
+                in: catalog,
+                preferredNames: policy.preferredNames,
+                requiredTokenGroups: policy.requiredTokenGroups
+            )
+        }
+
+        // Economy intentionally follows the Business Primary Hotels 2★ slot first,
+        // then the 1★ Super Economy slot, as its concrete hotel remains Business-led.
+        let requestedStars = [2, 1]
+        for stars in requestedStars {
+            if let resolved = try? await packageEngine.primaryHotel(tier: tier, stars: stars, city: city),
+               let hotel = catalog.first(where: { $0.id == resolved.hotelId }) {
+                return hotel
+            }
+        }
+
+        for stars in requestedStars {
+            if let priced = catalog.first(where: { $0.stars == stars && $0.price?.isUsableForPackage == true }) {
+                return priced
+            }
+            if let any = catalog.first(where: { $0.stars == stars }) { return any }
+        }
+        return nil
+    }
+
+    private func comparisonNightlyUsd(for hotel: HotelSummary) async -> Decimal? {
+        if let value = decimalNightlyUsd(hotel.price) { return value }
+        guard let detail = try? await hotelService.hotelDetail(id: hotel.id) else { return nil }
+        return decimalNightlyUsd(detail.price)
+    }
+
+    private func decimalNightlyUsd(_ price: HotelCatalogPrice?) -> Decimal? {
+        guard let price, price.isUsableForPackage,
+              let amount = price.nightlyUSD, amount.isFinite, amount > 0 else { return nil }
+        return NSDecimalNumber(value: amount).decimalValue
+    }
+
+    private func comparisonHotelPolicy(
+        for tier: PackageTier,
+        city: String
+    ) -> (preferredNames: [String], requiredTokenGroups: [[String]])? {
+        let isMadinah = city.caseInsensitiveCompare("Madinah") == .orderedSame
+        switch (tier, isMadinah) {
+        case (.standard, false):
+            return (["Nawazi Hotel", "Nawazi Watheer Hotel"], [["nawazi"]])
+        case (.standard, true), (.comfort, true):
+            return (["Mihrab Tayyiba", "Mihrab Tayba", "Mihrab Taiba"], [["mihrab"], ["tayyiba", "tayba", "taiba"]])
+        case (.comfort, false):
+            return (["Shohada Hotel", "Al Shohada Hotel", "Shuhada Hotel", "Al Shuhada Hotel"], [["shohada", "shuhada"]])
+        case (.luxury, false):
+            return (["Address Jabal Omar Makkah", "Address Jabal Omar", "Jabal Omar Address"], [["address"], ["jabal"], ["omar", "umar"]])
+        case (.luxury, true):
+            return (["Pullman Zamzam Madina", "Pullman Zamzam Madinah", "Pullman Zamzam"], [["pullman"], ["zamzam", "zam zam"]])
+        case (.economy, _):
+            return nil
+        }
+    }
+
+    private func fixedComparisonHotel(
+        in catalog: [HotelSummary],
+        preferredNames: [String],
+        requiredTokenGroups: [[String]]
+    ) -> HotelSummary? {
+        let preferred = preferredNames.map(normalizedHotelComparisonText)
+        if let exact = catalog.first(where: { preferred.contains(normalizedHotelComparisonText($0.name)) }) {
+            return exact
+        }
+
+        return catalog.first { hotel in
+            let normalized = normalizedHotelComparisonText(hotel.name)
+            return requiredTokenGroups.allSatisfy { alternatives in
+                alternatives.contains { token in normalized.contains(normalizedHotelComparisonText(token)) }
+            }
+        }
+    }
+
+    private func normalizedHotelComparisonText(_ value: String) -> String {
+        let folded = value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+        let scalars = folded.unicodeScalars.map { scalar -> Character in
+            CharacterSet.alphanumerics.contains(scalar) ? Character(String(scalar)) : " "
+        }
+        return String(scalars)
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+            .lowercased()
     }
 
     private func returnOffer(_ inbound: FlightOffer, matches outbound: FlightOffer) -> Bool {

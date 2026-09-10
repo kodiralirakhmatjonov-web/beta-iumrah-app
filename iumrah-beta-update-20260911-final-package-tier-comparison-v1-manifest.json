@@ -1,0 +1,59 @@
+{
+  "name": "iumrah Beta final package tier comparison carousel v1",
+  "date": "2026-09-11",
+  "root": "beta-iumrah-app-main",
+  "reason": "Turn the final pre-booking price card into an explicit Economy/Standard/Comfort/Luxury comparison carousel while preserving the verified flight itinerary and the existing package-pricing architecture.",
+  "pricing_contract": {
+    "fixed": [
+      "selected verified flight itinerary and authoritative fare",
+      "trip dates",
+      "traveler and room counts",
+      "explicit transfer and Haramain choices",
+      "existing service pricing rules"
+    ],
+    "recalculated": [
+      "Makkah hotel nights",
+      "Madinah hotel nights",
+      "tier markup"
+    ],
+    "hotels": {
+      "economy": "Business Primary Hotel 2★, then existing 1★ fallback",
+      "standard": "Makkah Nawazi; Madinah Mihrab Tayba/Tayyiba/Taiba",
+      "comfort": "Makkah Shohada/Shuhada; Madinah Mihrab Tayba/Tayyiba/Taiba",
+      "luxury": "Makkah Address Jabal Omar; Madinah Pullman Zamzam"
+    },
+    "meals": "Comfort/Luxury comparison variants price breakfast only; paid Makkah lunch/dinner and Madinah dinner are disabled.",
+    "markup": "Luxury 35%; Economy/Standard/Comfort retain 25%.",
+    "transfer": "No automatic GMC Yukon upgrade is introduced by Luxury comparison."
+  },
+  "files": [
+    {
+      "path": "Sources/State/JourneyStore.swift",
+      "bytes": 53325,
+      "sha256": "4ba189e477a41c20c2773f13b483b08d1b8fe341115a8177f8a0fd853b79e383"
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "bytes": 85494,
+      "sha256": "5f7a4daad4fe5680add547a685736a9df1ab749aa636bed04e5bb4eefa5b09f6"
+    },
+    {
+      "path": "Backend/PackageEngine/test/final-package-tier-comparison-contract.test.mjs",
+      "bytes": 4512,
+      "sha256": "ee06cc721be9b0a1c2900119fd1ed2964d91c6133d77d1270ced1e7f1b52dcbd"
+    },
+    {
+      "path": "BETA_FINAL_PACKAGE_TIER_COMPARISON_115_APPLIED.txt",
+      "bytes": 3247,
+      "sha256": "4c6363cb166d362e4e5bd9d1a2087ba8b9c2b3a164e34710f4500b23b7afe383"
+    }
+  ],
+  "validation": [
+    "Swift frontend syntax parse passed for all 191 Swift files.",
+    "PackageEngine TypeScript typecheck passed.",
+    "Focused final-package comparison + production-pricing tests passed 6/6.",
+    "Full PackageEngine test suite retains exactly the same six pre-existing unrelated storefront-contract failures as the supplied original ZIP; original: 35 pass / 6 fail, modified: 39 pass / 6 fail because four new comparison tests pass.",
+    "Patch ZIP CRC validation and safe-extraction simulation performed during packaging.",
+    "Full SwiftUI/Xcode/TestFlight compilation requires macOS/Xcode or the repository iOS CI workflow."
+  ]
+}

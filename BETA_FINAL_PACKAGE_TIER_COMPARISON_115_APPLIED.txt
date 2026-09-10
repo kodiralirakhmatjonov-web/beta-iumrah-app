@@ -1,0 +1,32 @@
+iumrah Beta update 115 — Final Package tier comparison carousel
+Date: 2026-09-11
+
+Implemented:
+- Final booking-review screen now exposes Economy / Standard / Comfort / Luxury as a horizontal, view-aligned carousel.
+- The currently selected package opens centered; neighboring package cards remain partially visible to invite comparison.
+- Swiping only previews a level. The booking changes only after an explicit “Choose” action, so a swipe cannot silently mutate the package.
+- Every available card shows the whole-package price, price per traveler, traveler count, positioning copy, concrete benefits, and the price delta versus the currently selected package.
+- Added an iumrah recommendation block and a compact “What changes” comparison for Makkah hotel, Madinah hotel, stay level and meals.
+- Existing expandable “What is included” booking details remain directly below the comparison experience.
+- Booking CTA is now sticky at the bottom and always reflects the actually selected package tier and total.
+- A clear note states that the already-selected flight itinerary and travel dates remain fixed during package-level comparison.
+
+Comparison pricing contract:
+- Reuses the exact verified flight selections and their existing authoritative fare; it never searches or substitutes another flight while comparing tiers.
+- Reuses the exact trip dates, travelers, room count, transfer selection, Haramain choice and the rest of the existing pricing architecture.
+- Recalculates hotel cost as the Business-catalog nightly USD rate × actual city nights × room count.
+- Standard 3★: Makkah = Nawazi Hotel / Nawazi Watheer naming variant; Madinah = Mihrab Tayyiba / Tayba / Taiba naming variant.
+- Comfort 4★: Makkah = Shohada / Shuhada naming variant; Madinah = Mihrab Tayyiba / Tayba / Taiba naming variant.
+- Luxury 5★: Makkah = Address Jabal Omar; Madinah = Pullman Zamzam.
+- Named Standard / Comfort / Luxury hotels are deterministic. If the agreed hotel is unavailable in the catalog, the comparison card is unavailable instead of silently swapping in another same-star hotel.
+- Economy resolves Business Primary Hotel 2★ first, then the existing 1★ Super Economy fallback.
+- Comfort and Luxury comparison pricing includes breakfast at zero extra allocation and does not add paid Makkah lunch/dinner or Madinah dinner.
+- Luxury keeps the existing 35% package markup. Economy / Standard / Comfort retain the existing 25% markup.
+- Luxury comparison does not automatically add GMC Yukon. Transfer/Haramain remain the user’s already-selected explicit configuration and existing package pricing rules.
+
+Validation performed in this environment:
+- Swift parser passed all 191 Swift source files.
+- PackageEngine TypeScript typecheck passed.
+- Focused tier-comparison + production-pricing contract tests passed: 6/6.
+- The supplied repository’s full PackageEngine suite already contains 6 unrelated failing storefront contract assertions; the untouched original ZIP reproduces the same 6 failures (35 pass / 6 fail), while this update adds 4 passing comparison tests and does not add a new failure category.
+- Full SwiftUI/Xcode/TestFlight compilation still requires macOS/Xcode or the repository’s iOS CI workflow.
