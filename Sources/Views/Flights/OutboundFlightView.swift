@@ -36,10 +36,10 @@ struct OutboundFlightView: View {
         Group {
             if hasVerifiedResults {
                 resultsView
-                    .iumrahInternalNavigation(progress: .flight)
+                    .iumrahInternalNavigation(progress: .flight, showsGeneratorAmbient: true)
             } else if !isSearching && !isInitialLoading {
                 searchGate
-                    .iumrahInternalNavigation(progress: .flight)
+                    .iumrahInternalNavigation(progress: .flight, showsGeneratorAmbient: true)
             } else {
                 FlightSearchImmersiveView(state: .searching, liveStatus: searchStatus)
             }

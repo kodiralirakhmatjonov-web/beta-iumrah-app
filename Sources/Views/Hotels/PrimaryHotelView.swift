@@ -67,7 +67,7 @@ struct PrimaryHotelView: View {
             .frame(width: viewport.size.width)
         }
         .background(Color.iumrahPageBackground)
-        .iumrahInternalNavigation(progress: .hotel)
+        .iumrahInternalNavigation(progress: .hotel, showsGeneratorAmbient: true)
         .task {
             if journey.hotels.isEmpty { await journey.loadMakkahHotels() }
             if requiresMadinah, journey.madinahHotels.isEmpty { await journey.loadMadinahHotels() }

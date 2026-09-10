@@ -60,7 +60,7 @@ struct TransferSelectionView: View {
         }
         .background(pageBackground.ignoresSafeArea())
         .animation(.easeInOut(duration: 0.48), value: isVIP)
-        .iumrahInternalNavigation(progress: .transfer)
+        .iumrahInternalNavigation(progress: .transfer, showsGeneratorAmbient: true)
         .navigationDestination(isPresented: $showFinalPackage) {
             FinalPackageView()
         }

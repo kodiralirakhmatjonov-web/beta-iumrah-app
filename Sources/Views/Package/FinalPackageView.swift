@@ -84,7 +84,7 @@ struct FinalPackageView: View {
             .padding(.bottom, 48)
         }
         .background(Color.iumrahPageBackground)
-        .iumrahInternalNavigation(progress: .ready)
+        .iumrahInternalNavigation(progress: .ready, showsGeneratorAmbient: true)
         .task {
             if !journey.hasFinalGeneratorQuote { await recalculatePrice(forceHotelRefresh: false) }
             await push.refreshAndRegisterIfAllowed()
