@@ -97,6 +97,8 @@ private struct GeneratorAmbientRail: View {
     @State private var resetGeneration = 0
 
     private let itemSpacing: CGFloat = 82
+    private let railWidth: CGFloat = 312
+    private let railHeight: CGFloat = 100
 
     private struct Item: Identifiable {
         let id: String
@@ -119,31 +121,16 @@ private struct GeneratorAmbientRail: View {
 
     var body: some View {
         ZStack {
+            containerSurface
             ambientGlow
-
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                let phase = continuousDistance(for: index)
-                let magnitude = abs(phase)
-
-                if magnitude <= 2.15 {
-                    iconTile(item, magnitude: magnitude)
-                        .scaleEffect(scale(for: magnitude))
-                        .opacity(opacity(for: magnitude))
-                        .blur(radius: blur(for: magnitude))
-                        .offset(
-                            x: phase * itemSpacing,
-                            y: verticalOffset(for: magnitude)
-                        )
-                        .zIndex(Double(4) - Double(magnitude))
-                }
-            }
+            iconStrip
         }
-        .frame(width: 286, height: 88)
-        .contentShape(Rectangle())
-        .clipped()
-        // Drop the larger carousel slightly below the visual center of the
-        // inline navigation bar without changing the page layout below it.
-        .offset(y: 8)
+        .frame(width: railWidth, height: railHeight)
+        .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        // Keep the whole ambient rail inside the navigation bar's own bounds.
+        // The toolbar remains pinned while the generator content scrolls, and
+        // the rail no longer relies on an offset that can be clipped by UIKit.
+        .padding(.vertical, 2)
         .gesture(carouselGesture)
         .accessibilityHidden(true)
         .task(id: stage.rawValue) {
@@ -183,6 +170,61 @@ private struct GeneratorAmbientRail: View {
                 dragTranslation = 0
             }
         }
+    }
+
+    private var containerSurface: some View {
+        RoundedRectangle(cornerRadius: 34, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .fill(Color.iumrahCardBackground.opacity(0.20))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.045), lineWidth: 0.75)
+            }
+            .shadow(color: Color.black.opacity(0.035), radius: 14, x: 0, y: 7)
+            .allowsHitTesting(false)
+    }
+
+    private var iconStrip: some View {
+        ZStack {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                let phase = continuousDistance(for: index)
+                let magnitude = abs(phase)
+
+                if magnitude <= 2.25 {
+                    iconTile(item, magnitude: magnitude)
+                        .scaleEffect(scale(for: magnitude))
+                        .opacity(opacity(for: magnitude))
+                        .blur(radius: blur(for: magnitude))
+                        .offset(
+                            x: phase * itemSpacing,
+                            y: verticalOffset(for: magnitude)
+                        )
+                        .zIndex(Double(4) - Double(magnitude))
+                }
+            }
+        }
+        .frame(width: railWidth - 8, height: railHeight - 6)
+        // Fade the outer icons gradually instead of hard-clipping them at the
+        // rail bounds. This preserves the depth effect during manual swipes.
+        .mask(edgeFadeMask)
+    }
+
+    private var edgeFadeMask: some View {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0.00),
+                .init(color: .black.opacity(0.45), location: 0.055),
+                .init(color: .black, location: 0.14),
+                .init(color: .black, location: 0.86),
+                .init(color: .black.opacity(0.45), location: 0.945),
+                .init(color: .clear, location: 1.00)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 
     private var carouselGesture: some Gesture {
@@ -226,19 +268,20 @@ private struct GeneratorAmbientRail: View {
             .fill(
                 RadialGradient(
                     colors: [
-                        activeItem.role.color.opacity(0.34),
-                        activeItem.role.color.opacity(0.13),
+                        activeItem.role.color.opacity(0.30),
+                        activeItem.role.color.opacity(0.12),
+                        activeItem.role.color.opacity(0.035),
                         .clear
                     ],
                     center: .center,
-                    startRadius: 2,
-                    endRadius: 78
+                    startRadius: 1,
+                    endRadius: 118
                 )
             )
-            .frame(width: glowBreath ? 176 : 148, height: glowBreath ? 44 : 34)
-            .blur(radius: 15)
-            .opacity(glowBreath ? 0.94 : 0.72)
-            .offset(y: 29)
+            .frame(width: glowBreath ? 236 : 208, height: glowBreath ? 62 : 52)
+            .blur(radius: 18)
+            .opacity(glowBreath ? 0.88 : 0.68)
+            .offset(y: 24)
             .animation(.easeInOut(duration: 0.58), value: activeIndex)
             .allowsHitTesting(false)
     }
