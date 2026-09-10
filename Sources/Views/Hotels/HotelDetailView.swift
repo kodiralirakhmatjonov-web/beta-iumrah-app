@@ -28,6 +28,7 @@ struct HotelDetailView: View {
     @State private var roomImageIndices: [String: Int] = [:]
     @State private var selectionError: String?
     @State private var carePresented = false
+    @State private var selectedConfiguratorPreview: StorefrontFlightPackagePreview?
 
     private let service = HotelCatalogService()
     private let packageEngine = RemotePackageEngineClient()
@@ -116,6 +117,9 @@ struct HotelDetailView: View {
         .sheet(isPresented: $carePresented) {
             HotelCareContactSheet()
                 .environmentObject(settings)
+        }
+        .navigationDestination(item: $selectedConfiguratorPreview) { preview in
+            StorefrontUmrahPackageDetailView(preview: preview, entry: .hotelFirst(hotelID: hotel.id))
         }
     }
 
@@ -295,6 +299,28 @@ struct HotelDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                guard let preview = storefront.hotelConfiguratorPreview(for: hotel) else {
+                    IumrahHaptics.error()
+                    return
+                }
+                IumrahHaptics.selection()
+                selectedConfiguratorPreview = preview
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "slider.horizontal.3")
+                    Text(changePackageTitle)
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(IumrahSecondaryButtonStyle())
+            .disabled(storefront.hotelConfiguratorPreview(for: hotel) == nil)
+            .opacity(storefront.hotelConfiguratorPreview(for: hotel) == nil ? 0.45 : 1)
         }
         .padding(18)
         .background(Color.iumrahCardBackground)
@@ -302,6 +328,15 @@ struct HotelDetailView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
+        }
+    }
+
+    private var changePackageTitle: String {
+        switch settings.language {
+        case .russian: return "Изменить пакет"
+        case .english: return "Customize package"
+        case .uzbek: return "Paketni o‘zgartirish"
+        case .uzbekCyrillic: return "Пакетни ўзгартириш"
         }
     }
 

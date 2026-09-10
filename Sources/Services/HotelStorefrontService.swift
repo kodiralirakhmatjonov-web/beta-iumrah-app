@@ -69,7 +69,7 @@ struct HotelStorefrontService {
 
         let nights = max(1, packageNights(from: baseline) ?? catalog.nights ?? fallbackNights(for: hotel.city))
         let rooms = max(1, catalog.rooms ?? 1)
-        let travelers = max(1, baseline.travelers)
+        let travelers = 2
         let nightlyDecimal = Decimal(nightly)
         let fareDecimal = Decimal(baseline.perTravelerFareUsd)
         let packageQuote = try LocalPackagePricingEngine.calculateStorefrontPreview(

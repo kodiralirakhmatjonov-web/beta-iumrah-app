@@ -1,0 +1,2 @@
+iumrah Beta — Hotel First Configurator v2
+Includes v1 hotel-origin/geolocation changes plus the shared Hotel First configurator, default two-pilgrim storefront pricing, editable published flights with hidden-fare deltas, rooms/travelers and optional Madinah route order.

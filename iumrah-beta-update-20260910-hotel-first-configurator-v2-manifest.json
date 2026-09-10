@@ -1,0 +1,82 @@
+{
+  "update": "iumrah Beta — Hotel First Configurator v2",
+  "based_on": "beta-iumrah-app-main(20260910-154135).zip",
+  "includes_previous_update": "hotel-origin-geolocation-configurator-v1",
+  "apply": "overlay at repository root, preserving paths",
+  "validation": [
+    "191 Swift source files parsed successfully with swiftc -frontend -parse",
+    "Resources/Info.plist passed plutil -lint",
+    "ZIP integrity verified with unzip -t"
+  ],
+  "highlights": [
+    "Rename iumrah Hotel Space to iumrah Hotels across the four UI languages",
+    "Hotel storefront quotes use 2 pilgrims by default and show per-person + package-for-two totals",
+    "Hotel cards show Flight + hotel + iumrah Services",
+    "Hotel detail opens the existing shared iumrah Configurator in Hotel First context",
+    "Pilgrims and room count remain editable in the shared package screen",
+    "Outbound and return published flights can be changed independently in full-height pickers",
+    "Flight picker keeps supplier fares hidden and shows only +/− delta versus the currently included flight",
+    "Departure airport is prefilled from the existing geolocation-aware airport selector and remains editable",
+    "Matching route flights appear first; Other current flights appear afterward",
+    "Adding Madinah first asks which Saudi city comes first (MED or JED), then reselects/reprices flights",
+    "Madinah can later be removed or route order changed in the same configurator",
+    "3-star and below = Standard, 4-star = Comfort, 5-star = Luxury remains automatic"
+  ],
+  "files": [
+    {
+      "path": "BETA_HOTEL_FIRST_CONFIGURATOR_V2_APPLIED.txt",
+      "bytes": 273,
+      "sha256": "58f62dfb16c61be6d816966921c05c80835ac550a2e7deabdc268b1ba08e778c"
+    },
+    {
+      "path": "Resources/Info.plist",
+      "bytes": 3778,
+      "sha256": "0041c3ca583c5a1fccede6f6c78cf64f9d9169c6b8e90c2b587e3eb69b4a9d65"
+    },
+    {
+      "path": "Sources/Core/AppLocalization.swift",
+      "bytes": 184441,
+      "sha256": "4604fe4706f48f0f386b01c196acaa6c0229e3c70c46bfef61c31fe061f5288b"
+    },
+    {
+      "path": "Sources/Models/HotelStorefrontModels.swift",
+      "bytes": 4810,
+      "sha256": "e64cfa99d94f78ff2b76e5aecdcf179a9bd5d556f520cba91a85e60bc61e162f"
+    },
+    {
+      "path": "Sources/Services/DepartureAirportLocationResolver.swift",
+      "bytes": 4781,
+      "sha256": "bc0386a4e1434e7f8fbd5c07c44b8c5a7df5980430b5041bc9961a245eb4d59e"
+    },
+    {
+      "path": "Sources/Services/HotelStorefrontService.swift",
+      "bytes": 11652,
+      "sha256": "d069eea716ddc447e5261a5070c3bad94ea7ba6e0a9804940d6cfcf42b704cb6"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 48729,
+      "sha256": "c483f6833985eb1a92d515c1a57d7780a789d652af821122e66c5da0bcb0ee19"
+    },
+    {
+      "path": "Sources/Views/Airports/AirportSelectorButton.swift",
+      "bytes": 3243,
+      "sha256": "e3548413658d82bd0fd37650c0ef6fd9ba4e166b04e283e7adff2ef7fb4f6361"
+    },
+    {
+      "path": "Sources/Views/Home/IumrahBackendSystemView.swift",
+      "bytes": 35120,
+      "sha256": "bada021c2941eefd2b77760a28c98ce1f9e76e655e7022c4e9c8df79de0d1086"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "bytes": 71728,
+      "sha256": "7d0a42444df331b99fa7febd7ef7e860e2b985e5a86b43f9099ab988ff29101f"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 143601,
+      "sha256": "d17772ba45b54673fb4f41644ece2fd2b09a34b99b7c8ca184bdfa5f12ad5b37"
+    }
+  ]
+}

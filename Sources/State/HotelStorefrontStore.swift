@@ -116,6 +116,140 @@ final class HotelStorefrontStore: ObservableObject {
         flightPackagePreviews[option.id]
     }
 
+    /// Creates the hotel-first entry point for the shared iumrah Configurator.
+    /// The selected hotel is the fixed starting component; flights, pilgrims,
+    /// rooms and Madinah can then be changed on the same package screen.
+    func hotelConfiguratorPreview(for hotel: HotelSummary) -> StorefrontFlightPackagePreview? {
+        guard let quote = automaticQuote(for: hotel),
+              let baseline else { return nil }
+
+        let duration = tripGapDays(outbound: baseline.outbound, inbound: baseline.inbound) ?? quote.hotelNights
+        let packageHotel = storefrontPackageHotel(hotel, nights: quote.hotelNights)
+        return StorefrontFlightPackagePreview(
+            pricePerPerson: quote.packageQuote.pricePerPerson,
+            totalPackagePrice: quote.packageQuote.totalPackagePrice,
+            flightFarePerPersonUSD: Decimal(baseline.perTravelerFareUsd),
+            fareObservedAt: baseline.observedAt,
+            outboundOptionID: baseline.outboundOfferID,
+            returnOptionID: baseline.inboundOfferID,
+            outbound: baseline.outbound,
+            inbound: baseline.inbound,
+            durationDays: max(1, duration),
+            totalNights: quote.hotelNights,
+            makkahNights: quote.hotelNights,
+            madinahNights: 0,
+            kind: .hotelFirstMakkah,
+            tier: automaticTier(for: hotel),
+            hotels: [packageHotel],
+            packageQuote: quote.packageQuote
+        )
+    }
+
+    func defaultMadinahHotel(for tier: PackageTier) -> HotelSummary? {
+        let stars = tier.primaryHotelStars
+        let exact = madinahHotels.filter { ($0.stars ?? 0) == stars && nightlyUSD(for: $0) != nil }
+        if let hotel = exact.first { return hotel }
+        return madinahHotels.first(where: { nightlyUSD(for: $0) != nil })
+    }
+
+    /// Published one-way inventory used by the package flight changer. Matching
+    /// route rows are shown first; the remainder is exposed under "Other current
+    /// flights" without ever revealing the supplier fare itself.
+    func configurableFlightChoices(
+        direction: FlightDirection,
+        trip: TripDraft
+    ) -> (primary: [StorefrontConfiguratorFlightChoice], other: [StorefrontConfiguratorFlightChoice]) {
+        let options = flightBoard?.options ?? []
+        let all = options.compactMap { option -> StorefrontConfiguratorFlightChoice? in
+            guard option.inbound == nil,
+                  option.currency.caseInsensitiveCompare("USD") == .orderedSame,
+                  option.perTravelerFare.isFinite,
+                  option.perTravelerFare > 0 else { return nil }
+
+            let leg = option.outbound
+            switch direction {
+            case .outbound:
+                guard !isSaudi(leg.origin), isSaudi(leg.destination) else { return nil }
+            case .inbound:
+                guard isSaudi(leg.origin), !isSaudi(leg.destination) else { return nil }
+            }
+            return StorefrontConfiguratorFlightChoice(
+                id: option.id,
+                leg: leg,
+                farePerTravelerUSD: Decimal(option.perTravelerFare),
+                observedAt: option.observedAt
+            )
+        }
+
+        let origin = trip.originCode.uppercased()
+        let expectedSaudi = direction == .outbound ? trip.outboundDestinationCode.uppercased() : trip.returnOriginCode.uppercased()
+
+        let hasExactInbound = direction == .inbound && all.contains { choice in
+            choice.leg.origin.uppercased() == expectedSaudi && choice.leg.destination.uppercased() == origin
+        }
+
+        func isPrimary(_ choice: StorefrontConfiguratorFlightChoice) -> Bool {
+            switch direction {
+            case .outbound:
+                return choice.leg.origin.uppercased() == origin && choice.leg.destination.uppercased() == expectedSaudi
+            case .inbound:
+                let destination = choice.leg.destination.uppercased()
+                let preferredDestination = hasExactInbound ? origin : (origin == "TAS" ? origin : "TAS")
+                return choice.leg.origin.uppercased() == expectedSaudi && destination == preferredDestination
+            }
+        }
+
+        func sorted(_ values: [StorefrontConfiguratorFlightChoice]) -> [StorefrontConfiguratorFlightChoice] {
+            values.sorted { lhs, rhs in
+                if lhs.leg.departureAt != rhs.leg.departureAt { return lhs.leg.departureAt < rhs.leg.departureAt }
+                if lhs.farePerTravelerUSD != rhs.farePerTravelerUSD { return lhs.farePerTravelerUSD < rhs.farePerTravelerUSD }
+                return lhs.id < rhs.id
+            }
+        }
+
+        let primary = sorted(all.filter(isPrimary))
+        let ids = Set(primary.map(\.id))
+        let relatedOther = all.filter { choice in
+            guard !ids.contains(choice.id) else { return false }
+            switch direction {
+            case .outbound:
+                return choice.leg.origin.uppercased() == origin
+            case .inbound:
+                let destination = choice.leg.destination.uppercased()
+                return destination == origin || (origin != "TAS" && destination == "TAS")
+            }
+        }
+        return (primary, sorted(relatedOther))
+    }
+
+    func publishedFarePerTraveler(optionID: String) -> Decimal? {
+        guard let option = flightBoard?.options.first(where: { $0.id == optionID }),
+              option.currency.caseInsensitiveCompare("USD") == .orderedSame,
+              option.perTravelerFare.isFinite,
+              option.perTravelerFare > 0 else { return nil }
+        let fare = Decimal(option.perTravelerFare)
+        // Complete rows do not expose per-leg component fares. Splitting is only a
+        // neutral display baseline until the pilgrim chooses independent one-way legs.
+        return option.inbound == nil ? fare : fare / 2
+    }
+
+    func bookingFlightOffer(
+        for choice: StorefrontConfiguratorFlightChoice,
+        direction: FlightDirection
+    ) -> FlightOffer? {
+        guard let departure = isoDate(choice.leg.departureAt),
+              let arrival = isoDate(choice.leg.arrivalAt) else { return nil }
+        return syntheticOffer(
+            id: choice.id,
+            leg: choice.leg,
+            direction: direction,
+            departure: departure,
+            arrival: arrival,
+            fare: choice.farePerTravelerUSD,
+            observedAt: choice.observedAt
+        )
+    }
+
     /// Rebuilds the exact package quote used by the Flights Scanner checkout after
     /// the pilgrim changes traveler count, room selection or transfer class.
     /// Supplier/component values stay internal; the caller only receives PackageQuote.
@@ -128,11 +262,17 @@ final class HotelStorefrontStore: ObservableObject {
         madinahRoomID: String?,
         transferVehicle: TransferVehicleKind?,
         includeHaramainTrain: Bool = false,
-        haramainPublicAddOnUsd: Decimal = 0
+        haramainPublicAddOnUsd: Decimal = 0,
+        journeyFarePerPersonUSD: Decimal? = nil,
+        outboundOffer selectedOutboundOffer: FlightOffer? = nil,
+        inboundOffer selectedInboundOffer: FlightOffer? = nil
     ) -> PackageQuote? {
-        guard preview.flightFarePerPersonUSD > 0,
-              let offers = bookingFlightOffers(for: preview),
+        let resolvedFare = journeyFarePerPersonUSD ?? preview.flightFarePerPersonUSD
+        guard resolvedFare > 0,
+              let previewOffers = bookingFlightOffers(for: preview),
               let makkahNightly = nightlyUSD(for: makkahHotel) else { return nil }
+        let outboundOffer = selectedOutboundOffer ?? previewOffers.outbound
+        let inboundOffer = selectedInboundOffer ?? previewOffers.inbound
 
         let windows = TripStayPlanner.windows(for: trip, calendar: storefrontCalendar)
         let makkah = LocalHotelPriceComponent(
@@ -161,11 +301,11 @@ final class HotelStorefrontStore: ObservableObject {
 
         return try? LocalPackagePricingEngine.calculate(
             trip: trip,
-            journeyFareUsd: preview.flightFarePerPersonUSD,
+            journeyFareUsd: resolvedFare,
             journeyFareScope: .perPassenger,
-            pricingOffer: offers.inbound,
-            outboundOffer: offers.outbound,
-            inboundOffer: offers.inbound,
+            pricingOffer: inboundOffer,
+            outboundOffer: outboundOffer,
+            inboundOffer: inboundOffer,
             makkahHotel: makkah,
             madinahHotel: madinah,
             includeHaramainTrain: includeHaramainTrain,
@@ -696,6 +836,11 @@ final class HotelStorefrontStore: ObservableObject {
             trip.scope = .makkahAndMadinah
             trip.packageTier = .standard
             trip.hotelStars = PackageTier.standard.primaryHotelStars
+
+        case .hotelFirstMakkah:
+            // This kind is created only by hotelConfiguratorPreview(for:), never by
+            // the flight-first pair builder. Keep the shared enum exhaustive here.
+            return nil
         }
 
         guard let makkahNightly = nightlyUSD(for: makkahHotel) else { return nil }

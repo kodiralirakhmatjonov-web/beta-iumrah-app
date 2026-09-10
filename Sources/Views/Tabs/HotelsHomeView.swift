@@ -83,7 +83,7 @@ struct HotelsHomeView: View {
         VStack(alignment: .leading, spacing: 24) {
             ShowcaseHero(
                 asset: "IumrahHotelsShowcaseHero",
-                title: "iumrah Hotel Space",
+                title: "iumrah Hotels",
                 description: L10n.text("hotel_storefront_hero_body", settings.language),
                 note: L10n.text("hotel_storefront_hero_note", settings.language)
             )
@@ -814,10 +814,10 @@ private struct StorefrontFlightOptionCard: View {
 
     private func packageScopeText(_ preview: StorefrontFlightPackagePreview) -> String {
         switch (preview.kind, language) {
-        case (.makkahComfortShort, .russian): return "Только Мекка"
-        case (.makkahComfortShort, .english): return "Makkah only"
-        case (.makkahComfortShort, .uzbek): return "Faqat Makka"
-        case (.makkahComfortShort, .uzbekCyrillic): return "Фақат Макка"
+        case (.makkahComfortShort, .russian), (.hotelFirstMakkah, .russian): return "Только Мекка"
+        case (.makkahComfortShort, .english), (.hotelFirstMakkah, .english): return "Makkah only"
+        case (.makkahComfortShort, .uzbek), (.hotelFirstMakkah, .uzbek): return "Faqat Makka"
+        case (.makkahComfortShort, .uzbekCyrillic), (.hotelFirstMakkah, .uzbekCyrillic): return "Фақат Макка"
         case (.makkahMadinahStandard, .russian): return "Мекка + Медина"
         case (.makkahMadinahStandard, .english): return "Makkah + Madinah"
         case (.makkahMadinahStandard, .uzbek): return "Makka + Madina"
@@ -877,7 +877,20 @@ private struct PackageHotelSelectionTarget: Identifiable, Hashable {
     var id: String { "\(role.rawValue)::\(hotel.id)" }
 }
 
-private struct StorefrontUmrahPackageDetailView: View {
+enum StorefrontConfiguratorEntry: Hashable {
+    case flightFirst
+    case hotelFirst(hotelID: String)
+}
+
+private enum StorefrontFlightPickerSheetKind: String, Identifiable {
+    case outbound
+    case inbound
+
+    var id: String { rawValue }
+    var direction: FlightDirection { self == .outbound ? .outbound : .inbound }
+}
+
+struct StorefrontUmrahPackageDetailView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
     @EnvironmentObject private var journey: JourneyStore
@@ -885,6 +898,7 @@ private struct StorefrontUmrahPackageDetailView: View {
     @ObservedObject private var push = PushNotificationManager.shared
 
     let preview: StorefrontFlightPackagePreview
+    var entry: StorefrontConfiguratorEntry = .flightFirst
 
     @State private var heroImageIndex = 0
     @State private var isPrepared = false
@@ -895,6 +909,13 @@ private struct StorefrontUmrahPackageDetailView: View {
     @State private var isSubmitting = false
     @State private var bookingError: String?
     @State private var createdBookingID: String?
+    @State private var flightPickerSheet: StorefrontFlightPickerSheetKind?
+    @State private var selectedOutboundChoice: StorefrontConfiguratorFlightChoice?
+    @State private var selectedInboundChoice: StorefrontConfiguratorFlightChoice?
+    @State private var initialOutboundFare: Decimal?
+    @State private var initialInboundFare: Decimal?
+    @State private var suppressQuoteRefresh = false
+    @State private var showMadinahFirstCityPicker = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -903,11 +924,29 @@ private struct StorefrontUmrahPackageDetailView: View {
                 overviewCard
 
                 SectionHeader(flightsTitle, eyebrow: "iumrah Flights Scanner", subtitle: nil)
-                PackageFlightLegDetailCard(leg: preview.outbound, direction: outboundTitle, language: settings.language)
-                PackageFlightLegDetailCard(leg: preview.inbound, direction: returnTitle, language: settings.language)
+                PackageFlightLegDetailCard(
+                    leg: currentOutboundLeg,
+                    direction: outboundTitle,
+                    language: settings.language,
+                    actionTitle: changeTitle
+                ) {
+                    flightPickerSheet = .outbound
+                }
+                PackageFlightLegDetailCard(
+                    leg: currentInboundLeg,
+                    direction: returnTitle,
+                    language: settings.language,
+                    actionTitle: changeTitle
+                ) {
+                    flightPickerSheet = .inbound
+                }
+
+                if isHotelFirst {
+                    hotelFirstRouteCard
+                }
 
                 SectionHeader(hotelsTitle, eyebrow: "iumrah Hotels", subtitle: nil)
-                ForEach(preview.hotels) { hotel in
+                ForEach(displayPackageHotels) { hotel in
                     PackageHotelDetailCard(
                         hotel: hotel,
                         selectedRoomName: selectedRoomName(for: hotel),
@@ -958,7 +997,7 @@ private struct StorefrontUmrahPackageDetailView: View {
             prepareBookingJourneyIfNeeded()
         }
         .onChange(of: journey.trip) { _, _ in
-            guard isPrepared else { return }
+            guard isPrepared, !suppressQuoteRefresh else { return }
             refreshQuote()
         }
         .navigationDestination(item: $selectedHotelTarget) { target in
@@ -991,6 +1030,31 @@ private struct StorefrontUmrahPackageDetailView: View {
                 Task { await createBooking() }
             }
             .environmentObject(settings)
+        }
+        .sheet(item: $flightPickerSheet) { sheet in
+            PackageFlightPickerSheet(
+                direction: sheet.direction,
+                currentAirport: journey.trip.originAirport,
+                currentOriginCode: journey.trip.originCode,
+                referenceFare: sheet.direction == .outbound ? resolvedOutboundFare : resolvedInboundFare,
+                selectedOptionID: sheet.direction == .outbound ? selectedOutboundOptionID : selectedInboundOptionID
+            ) { choice, airport, originCode in
+                applyFlightChoice(choice, direction: sheet.direction, airport: airport, originCode: originCode)
+            }
+            .environmentObject(settings)
+            .environmentObject(storefront)
+            .environmentObject(journey)
+        }
+        .confirmationDialog(
+            firstCityQuestionTitle,
+            isPresented: $showMadinahFirstCityPicker,
+            titleVisibility: .visible
+        ) {
+            Button(firstMadinahTitle) { addMadinahToHotelPackage(firstCity: .madinah) }
+            Button(firstJeddahTitle) { addMadinahToHotelPackage(firstCity: .jeddah) }
+            Button(cancelTitle, role: .cancel) {}
+        } message: {
+            Text(firstCityQuestionBody)
         }
     }
 
@@ -1025,11 +1089,11 @@ private struct StorefrontUmrahPackageDetailView: View {
                 .allowsHitTesting(false)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("iumrah Package", systemImage: "shippingbox.fill")
+                    Label("iumrah Configurator", systemImage: "slider.horizontal.3")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.white.opacity(0.9))
 
-                    Text("\(preview.outbound.origin) → \(preview.outbound.destination) · \(preview.inbound.origin) → \(preview.inbound.destination)")
+                    Text("\(currentOutboundLeg.origin) → \(currentOutboundLeg.destination) · \(currentInboundLeg.origin) → \(currentInboundLeg.destination)")
                         .font(.system(size: 25, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(2)
@@ -1083,12 +1147,131 @@ private struct StorefrontUmrahPackageDetailView: View {
         return hotel.coverImageURL.map { [$0] } ?? []
     }
 
+    private var isHotelFirst: Bool {
+        if case .hotelFirst = entry { return true }
+        return false
+    }
+
+    private var selectedOutboundOptionID: String {
+        selectedOutboundChoice?.id ?? preview.outboundOptionID
+    }
+
+    private var selectedInboundOptionID: String {
+        selectedInboundChoice?.id ?? preview.returnOptionID
+    }
+
+    private var resolvedOutboundFare: Decimal {
+        selectedOutboundChoice?.farePerTravelerUSD ?? initialOutboundFare ?? (preview.flightFarePerPersonUSD / 2)
+    }
+
+    private var resolvedInboundFare: Decimal {
+        selectedInboundChoice?.farePerTravelerUSD ?? initialInboundFare ?? (preview.flightFarePerPersonUSD / 2)
+    }
+
+    private var currentJourneyFarePerPerson: Decimal {
+        let value = resolvedOutboundFare + resolvedInboundFare
+        return value > 0 ? value : preview.flightFarePerPersonUSD
+    }
+
+    private var currentOutboundLeg: StorefrontFlightLeg {
+        selectedOutboundChoice?.leg ?? preview.outbound
+    }
+
+    private var currentInboundLeg: StorefrontFlightLeg {
+        selectedInboundChoice?.leg ?? preview.inbound
+    }
+
+    private var currentDurationDays: Int {
+        guard let outbound = parseStorefrontISO(currentOutboundLeg.departureAt),
+              let inbound = parseStorefrontISO(currentInboundLeg.departureAt) else { return preview.durationDays }
+        let calendar = Calendar(identifier: .gregorian)
+        return max(1, calendar.dateComponents([.day], from: calendar.startOfDay(for: outbound), to: calendar.startOfDay(for: inbound)).day ?? preview.durationDays)
+    }
+
+    private var displayPackageHotels: [StorefrontPackageHotel] {
+        guard isPrepared, let makkah = journey.selectedHotel else { return preview.hotels }
+        let stay = TripStayPlanner.breakdown(for: journey.trip)
+        var result = [packageHotelSummary(makkah, nights: stay.makkahNights)]
+        if journey.trip.scope == .makkahAndMadinah,
+           let madinah = journey.selectedMadinahHotel,
+           stay.madinahNights > 0 {
+            result.append(packageHotelSummary(madinah, nights: stay.madinahNights))
+        }
+        return result
+    }
+
+    private func packageHotelSummary(_ hotel: HotelSummary, nights: Int) -> StorefrontPackageHotel {
+        StorefrontPackageHotel(
+            id: hotel.id,
+            name: hotel.name,
+            city: hotel.city,
+            stars: hotel.stars,
+            coverImageURL: storefront.previewImages(for: hotel, limit: 1).first ?? hotel.coverImageURL,
+            nights: max(1, nights)
+        )
+    }
+
+    private var hotelFirstRouteCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: "map.fill", role: .location, size: 44, symbolSize: 17, cornerRadius: 14)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(routeConfiguratorTitle)
+                        .font(.headline)
+                    Text(journey.trip.scope == .makkahAndMadinah ? makkahMadinahRouteSubtitle : makkahOnlyRouteSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            if journey.trip.scope == .makkahAndMadinah {
+                Divider()
+                Text(firstCityTitle)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                Picker(firstCityTitle, selection: Binding(
+                    get: { journey.trip.arrivalAirport },
+                    set: { setFirstSaudiCity($0) }
+                )) {
+                    Text(firstJeddahTitle).tag(SaudiArrivalAirport.jeddah)
+                    Text(firstMadinahTitle).tag(SaudiArrivalAirport.madinah)
+                }
+                .pickerStyle(.segmented)
+
+                Button(removeMadinahTitle) {
+                    removeMadinahFromHotelPackage()
+                }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    showMadinahFirstCityPicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text(addMadinahTitle)
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                    }
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
+            }
+        }
+        .iumrahCard()
+    }
+
     private var overviewCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 IumrahIconBadge(systemName: "airplane.departure", role: .travel, size: 46, symbolSize: 18, cornerRadius: 15)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("\(preview.durationDays) \(daysWord) · \(scopeTitle)")
+                    Text("\(currentDurationDays) \(daysWord) · \(scopeTitle)")
                         .font(.headline)
                     Text(preview.tier.title(settings.language))
                         .font(.subheadline)
@@ -1097,7 +1280,7 @@ private struct StorefrontUmrahPackageDetailView: View {
                 Spacer()
             }
 
-            if preview.usesTashkentReturnFallback {
+            if usesTashkentReturnFallback {
                 Divider()
                 Label(returnFallbackText, systemImage: "arrow.triangle.turn.up.right.diamond.fill")
                     .font(.caption.weight(.semibold))
@@ -1153,7 +1336,7 @@ private struct StorefrontUmrahPackageDetailView: View {
 
             Divider().padding(.leading, 54)
             serviceRow(icon: "mappin.and.ellipse", title: makkahZiyaratTitle, subtitle: nil, role: .location)
-            if preview.kind == .makkahMadinahStandard {
+            if journey.trip.scope == .makkahAndMadinah {
                 Divider().padding(.leading, 54)
                 serviceRow(icon: "mappin.circle.fill", title: madinahZiyaratTitle, subtitle: nil, role: .location)
             }
@@ -1330,7 +1513,7 @@ private struct StorefrontUmrahPackageDetailView: View {
               journey.selectedHotel != nil,
               journey.selectedOutbound != nil,
               journey.selectedInbound != nil else { return false }
-        if preview.kind == .makkahMadinahStandard, journey.selectedMadinahHotel == nil { return false }
+        if journey.trip.scope == .makkahAndMadinah, journey.selectedMadinahHotel == nil { return false }
         return true
     }
 
@@ -1375,8 +1558,15 @@ private struct StorefrontUmrahPackageDetailView: View {
             return
         }
 
+        let initialScope: JourneyScope
+        if isHotelFirst {
+            initialScope = .makkahOnly
+        } else {
+            initialScope = preview.kind == .makkahComfortShort ? .makkahOnly : .makkahAndMadinah
+        }
+
         let madinahHotel: HotelSummary?
-        if preview.kind == .makkahMadinahStandard {
+        if initialScope == .makkahAndMadinah {
             guard let packageHotel = preview.hotels.first(where: { isMadinahCity($0.city) }),
                   let resolved = storefront.hotel(id: packageHotel.id) else {
                 bookingError = packagePreparationErrorText
@@ -1387,24 +1577,40 @@ private struct StorefrontUmrahPackageDetailView: View {
             madinahHotel = nil
         }
 
+        let preservedAirport = journey.trip.originAirport?.iata.uppercased() == preview.outbound.origin.uppercased()
+            ? journey.trip.originAirport
+            : nil
+
         var trip = TripDraft()
         trip.origin = preview.outbound.origin.uppercased()
-        trip.originAirport = nil
+        trip.originAirport = preservedAirport
         trip.arrivalAirport = preview.outbound.destination.uppercased() == "MED" ? .madinah : .jeddah
         trip.departureDate = Calendar.current.startOfDay(for: outboundDeparture)
         trip.saudiArrivalDate = Calendar.current.startOfDay(for: outboundArrival)
         trip.returnDate = Calendar.current.startOfDay(for: returnDeparture)
         trip.flexibility = .exact
-        trip.adults = 1
+        trip.adults = isHotelFirst ? 2 : 1
         trip.children = 0
         trip.infants = 0
         trip.rooms = 1
         trip.hotelStars = preview.tier.primaryHotelStars
         trip.packageTier = preview.tier
         trip.mealSelection = nil
-        trip.scope = preview.kind == .makkahComfortShort ? .makkahOnly : .makkahAndMadinah
+        trip.scope = initialScope
         trip.flightTripType = .roundTrip
 
+        initialOutboundFare = storefront.publishedFarePerTraveler(optionID: preview.outboundOptionID)
+        initialInboundFare = storefront.publishedFarePerTraveler(optionID: preview.returnOptionID)
+        if preview.outboundOptionID == preview.returnOptionID {
+            initialOutboundFare = preview.flightFarePerPersonUSD / 2
+            initialInboundFare = preview.flightFarePerPersonUSD / 2
+        } else if let outbound = initialOutboundFare, initialInboundFare == nil {
+            initialInboundFare = max(0, preview.flightFarePerPersonUSD - outbound)
+        } else if let inbound = initialInboundFare, initialOutboundFare == nil {
+            initialOutboundFare = max(0, preview.flightFarePerPersonUSD - inbound)
+        }
+
+        suppressQuoteRefresh = true
         journey.resetAfterTripChange()
         journey.trip = trip
         journey.packageFlightPath = .publishedDirect
@@ -1428,7 +1634,13 @@ private struct StorefrontUmrahPackageDetailView: View {
         journey.errorMessage = nil
         heroImageIndex = 0
         isPrepared = true
-        refreshQuote()
+        suppressQuoteRefresh = false
+
+        // Hotel cards and the hotel detail use the same two-person storefront quote.
+        // Preserve that exact number on first open; subsequent edits recalculate live.
+        if !isHotelFirst {
+            refreshQuote()
+        }
     }
 
     @MainActor
@@ -1445,7 +1657,10 @@ private struct StorefrontUmrahPackageDetailView: View {
             madinahRoomID: journey.selectedMadinahRoom?.id ?? journey.selectedMadinahRoomCategory?.id,
             transferVehicle: journey.selectedTransferVehicle,
             includeHaramainTrain: journey.haramainTrainSelected,
-            haramainPublicAddOnUsd: journey.haramainTrainAddOnUsd
+            haramainPublicAddOnUsd: journey.haramainTrainAddOnUsd,
+            journeyFarePerPersonUSD: currentJourneyFarePerPerson,
+            outboundOffer: journey.selectedOutbound,
+            inboundOffer: journey.selectedInbound
         )
 
         if let quote {
@@ -1457,6 +1672,168 @@ private struct StorefrontUmrahPackageDetailView: View {
     }
 
     @MainActor
+    private func applyFlightChoice(
+        _ choice: StorefrontConfiguratorFlightChoice,
+        direction: FlightDirection,
+        airport: Airport?,
+        originCode: String
+    ) {
+        guard let offer = storefront.bookingFlightOffer(for: choice, direction: direction) else {
+            bookingError = priceRefreshErrorText
+            IumrahHaptics.error()
+            return
+        }
+
+        suppressQuoteRefresh = true
+        journey.selectedPublishedCompleteID = nil
+
+        switch direction {
+        case .outbound:
+            let selectedOrigin = choice.leg.origin.uppercased()
+            journey.trip.origin = selectedOrigin
+            journey.trip.originAirport = airport?.iata.uppercased() == selectedOrigin ? airport : nil
+            if choice.leg.destination.uppercased() == "MED" {
+                journey.trip.arrivalAirport = .madinah
+            } else if choice.leg.destination.uppercased() == "JED" {
+                journey.trip.arrivalAirport = .jeddah
+            }
+            if let departure = parseStorefrontISO(choice.leg.departureAt) {
+                journey.trip.departureDate = Calendar.current.startOfDay(for: departure)
+            }
+            if let arrival = parseStorefrontISO(choice.leg.arrivalAt) {
+                journey.trip.saudiArrivalDate = Calendar.current.startOfDay(for: arrival)
+            }
+            journey.selectedOutbound = offer
+            journey.selectedPublishedOutboundID = choice.id
+            selectedOutboundChoice = choice
+
+            // Keep the package valid after an outbound change. If the old return no
+            // longer matches the selected route/window, choose the nearest published
+            // compatible return automatically; the pilgrim can still change it next.
+            if !currentReturnStillCompatible() {
+                selectBestReturnForCurrentRoute()
+            }
+
+        case .inbound:
+            if let departure = parseStorefrontISO(choice.leg.departureAt) {
+                journey.trip.returnDate = Calendar.current.startOfDay(for: departure)
+            }
+            journey.selectedInbound = offer
+            journey.selectedPublishedReturnID = choice.id
+            selectedInboundChoice = choice
+        }
+
+        suppressQuoteRefresh = false
+        refreshQuote()
+        IumrahHaptics.selection()
+    }
+
+    private func currentReturnStillCompatible() -> Bool {
+        let leg = currentInboundLeg
+        let origin = journey.trip.originCode.uppercased()
+        let expectedSaudi = journey.trip.returnOriginCode.uppercased()
+        let destination = leg.destination.uppercased()
+        let destinationMatches = destination == origin || (origin != "TAS" && destination == "TAS")
+        guard leg.origin.uppercased() == expectedSaudi, destinationMatches else { return false }
+        guard let arrival = journey.trip.saudiArrivalDate,
+              let returnDate = parseStorefrontISO(leg.departureAt) else { return true }
+        let gap = Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: arrival),
+            to: Calendar.current.startOfDay(for: returnDate)
+        ).day ?? 0
+        return (2...15).contains(gap)
+    }
+
+    @MainActor
+    private func selectBestReturnForCurrentRoute() {
+        let choices = storefront.configurableFlightChoices(direction: .inbound, trip: journey.trip)
+        let candidates = (choices.primary + choices.other).filter(isCompatibleReturnChoice)
+        guard let choice = candidates.first,
+              let offer = storefront.bookingFlightOffer(for: choice, direction: .inbound) else { return }
+        selectedInboundChoice = choice
+        journey.selectedInbound = offer
+        journey.selectedPublishedReturnID = choice.id
+        if let departure = parseStorefrontISO(choice.leg.departureAt) {
+            journey.trip.returnDate = Calendar.current.startOfDay(for: departure)
+        }
+    }
+
+    private func isCompatibleReturnChoice(_ choice: StorefrontConfiguratorFlightChoice) -> Bool {
+        guard let arrival = journey.trip.saudiArrivalDate,
+              let departure = parseStorefrontISO(choice.leg.departureAt) else { return true }
+        let gap = Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: arrival),
+            to: Calendar.current.startOfDay(for: departure)
+        ).day ?? 0
+        return (2...15).contains(gap)
+    }
+
+    @MainActor
+    private func addMadinahToHotelPackage(firstCity: SaudiArrivalAirport) {
+        guard let hotel = storefront.defaultMadinahHotel(for: journey.trip.packageTier) else {
+            bookingError = madinahUnavailableText
+            IumrahHaptics.error()
+            return
+        }
+        suppressQuoteRefresh = true
+        journey.trip.scope = .makkahAndMadinah
+        journey.trip.arrivalAirport = firstCity
+        journey.selectedMadinahHotel = hotel
+        journey.selectedMadinahRoom = nil
+        journey.selectedMadinahRoomCategory = nil
+        selectBestFlightsForCurrentRouteOrder()
+        suppressQuoteRefresh = false
+        refreshQuote()
+        IumrahHaptics.success()
+    }
+
+    @MainActor
+    private func removeMadinahFromHotelPackage() {
+        suppressQuoteRefresh = true
+        journey.trip.scope = .makkahOnly
+        journey.trip.arrivalAirport = .jeddah
+        journey.selectedMadinahHotel = nil
+        journey.selectedMadinahRoom = nil
+        journey.selectedMadinahRoomCategory = nil
+        selectBestFlightsForCurrentRouteOrder()
+        suppressQuoteRefresh = false
+        refreshQuote()
+        IumrahHaptics.selection()
+    }
+
+    @MainActor
+    private func setFirstSaudiCity(_ airport: SaudiArrivalAirport) {
+        guard journey.trip.scope == .makkahAndMadinah else { return }
+        suppressQuoteRefresh = true
+        journey.trip.arrivalAirport = airport
+        selectBestFlightsForCurrentRouteOrder()
+        suppressQuoteRefresh = false
+        refreshQuote()
+        IumrahHaptics.selection()
+    }
+
+    @MainActor
+    private func selectBestFlightsForCurrentRouteOrder() {
+        let outboundChoices = storefront.configurableFlightChoices(direction: .outbound, trip: journey.trip)
+        if let outbound = outboundChoices.primary.first,
+           let offer = storefront.bookingFlightOffer(for: outbound, direction: .outbound) {
+            selectedOutboundChoice = outbound
+            journey.selectedOutbound = offer
+            journey.selectedPublishedOutboundID = outbound.id
+            journey.selectedPublishedCompleteID = nil
+            if let departure = parseStorefrontISO(outbound.leg.departureAt) {
+                journey.trip.departureDate = Calendar.current.startOfDay(for: departure)
+            }
+            if let arrival = parseStorefrontISO(outbound.leg.arrivalAt) {
+                journey.trip.saudiArrivalDate = Calendar.current.startOfDay(for: arrival)
+            }
+        }
+        selectBestReturnForCurrentRoute()
+    }
+
+    @MainActor
     private func createBooking() async {
         guard !isSubmitting,
               let hotel = journey.selectedHotel,
@@ -1464,7 +1841,7 @@ private struct StorefrontUmrahPackageDetailView: View {
               let inbound = journey.selectedInbound,
               let quote = journey.quote else { return }
 
-        if preview.kind == .makkahMadinahStandard, journey.selectedMadinahHotel == nil { return }
+        if journey.trip.scope == .makkahAndMadinah, journey.selectedMadinahHotel == nil { return }
 
         isSubmitting = true
         bookingError = nil
@@ -1486,7 +1863,7 @@ private struct StorefrontUmrahPackageDetailView: View {
                 roomCategory: journey.selectedRoomCategory,
                 madinahRoom: journey.selectedMadinahRoom,
                 madinahRoomCategory: journey.selectedMadinahRoomCategory,
-                intercityTransport: preview.kind == .makkahMadinahStandard
+                intercityTransport: journey.trip.scope == .makkahAndMadinah
                     ? (journey.haramainTrainSelected ? .haramainTrain : .road)
                     : nil,
                 outbound: outbound,
@@ -1527,31 +1904,35 @@ private struct StorefrontUmrahPackageDetailView: View {
     private var outboundTitle: String { tr("Туда", "Outbound", "Borish", "Бориш") }
     private var returnTitle: String { tr("Обратно", "Return", "Qaytish", "Қайтиш") }
     private var scopeTitle: String {
-        preview.kind == .makkahComfortShort
+        journey.trip.scope == .makkahOnly
             ? tr("Только Мекка", "Makkah only", "Faqat Makka", "Фақат Макка")
             : tr("Мекка + Медина", "Makkah + Madinah", "Makka + Madina", "Макка + Мадина")
     }
     private var daysWord: String { tr("дней", "days", "kun", "кун") }
+    private var usesTashkentReturnFallback: Bool {
+        currentOutboundLeg.origin.uppercased() != "TAS" && currentInboundLeg.destination.uppercased() == "TAS"
+    }
+
     private var returnFallbackText: String {
         tr(
-            "Для этого пакета обратный рейс приходит в Ташкент, потому что подходящего возврата в \(preview.outbound.origin) в выбранном диапазоне нет.",
-            "This package returns to Tashkent because no suitable flight back to \(preview.outbound.origin) is available in the package window.",
-            "Bu paket Toshkentga qaytadi, chunki paket oralig‘ida \(preview.outbound.origin) ga mos qaytish reysi topilmadi.",
-            "Бу пакет Тошкентга қайтади, чунки пакет оралиғида \(preview.outbound.origin) га мос қайтиш рейси топилмади."
+            "Для этого пакета обратный рейс приходит в Ташкент, потому что подходящего возврата в \(currentOutboundLeg.origin) в выбранном диапазоне нет.",
+            "This package returns to Tashkent because no suitable flight back to \(currentOutboundLeg.origin) is available in the package window.",
+            "Bu paket Toshkentga qaytadi, chunki paket oralig‘ida \(currentOutboundLeg.origin) ga mos qaytish reysi topilmadi.",
+            "Бу пакет Тошкентга қайтади, чунки пакет оралиғида \(currentOutboundLeg.origin) га мос қайтиш рейси топилмади."
         )
     }
     private var visaTitle: String { tr("Туристическая виза", "Tourist visa", "Turistik viza", "Туристик виза") }
     private var visaSummary: String { tr("eVisa · 1 год · многократный въезд · до 90 дней", "eVisa · 1 year · multiple entry · up to 90 days", "eVisa · 1 yil · ko‘p martalik kirish · 90 kungacha", "eVisa · 1 йил · кўп марталик кириш · 90 кунгача") }
     private var transferTitle: String {
-        preview.kind == .makkahComfortShort
+        journey.trip.scope == .makkahOnly
             ? tr("Аэропортовый трансфер", "Airport transfer", "Aeroport transferi", "Аэропорт трансфери")
             : tr("Трансферы и переезд между городами", "Transfers and intercity journey", "Transferlar va shaharlararo yo‘l", "Трансферлар ва шаҳарлараро йўл")
     }
     private var mealsTitle: String { tr("Питание", "Meals", "Ovqatlanish", "Овқатланиш") }
     private var mealsSummary: String {
-        preview.kind == .makkahComfortShort
-            ? tr("Мекка · 3 раза в день включено", "Makkah · 3 meals a day included", "Makka · kuniga 3 mahal kiritilgan", "Макка · кунига 3 маҳал киритилган")
-            : tr("Мекка · 3 раза в день · Медина · 2 раза в день", "Makkah · 3 meals/day · Madinah · 2 meals/day", "Makka · kuniga 3 mahal · Madina · kuniga 2 mahal", "Макка · кунига 3 маҳал · Мадина · кунига 2 маҳал")
+        journey.trip.scope == .makkahOnly
+            ? tr("Мекка · питание включено по категории пакета", "Makkah · meals follow the package category", "Makka · ovqatlanish paket toifasiga muvofiq", "Макка · овқатланиш пакет тоифасига мувофиқ")
+            : tr("Мекка + Медина · питание по категории пакета", "Makkah + Madinah · meals follow the package category", "Makka + Madina · ovqatlanish paket toifasiga muvofiq", "Макка + Мадина · овқатланиш пакет тоифасига мувофиқ")
     }
     private var guideTitle: String { tr("iumrah Guide · сопровождение", "iumrah Guide · personal assistance", "iumrah Guide · shaxsiy hamrohlik", "iumrah Guide · шахсий ҳамроҳлик") }
     private var guideSummary: String { tr("От встречи в аэропорту до вашего вылета", "From airport arrival until your departure", "Aeroportda kutib olishdan jo‘nab ketishingizgacha", "Аэропортда кутиб олишдан жўнаб кетишингизгача") }
@@ -1566,6 +1947,19 @@ private struct StorefrontUmrahPackageDetailView: View {
         return tr("за \(count) чел.", "for \(count) travelers", "\(count) kishi uchun", "\(count) киши учун")
     }
     private var travelersBody: String { tr("Добавьте тех, кто едет с вами. Итоговая цена пакета пересчитается автоматически.", "Add the people traveling with you. The package total recalculates automatically.", "Siz bilan safar qiladiganlarni qo‘shing. Paketning umumiy narxi avtomatik qayta hisoblanadi.", "Сиз билан сафар қиладиганларни қўшинг. Пакетнинг умумий нархи автоматик қайта ҳисобланади.") }
+    private var changeTitle: String { tr("Изменить", "Change", "O‘zgartirish", "Ўзгартириш") }
+    private var routeConfiguratorTitle: String { tr("Маршрут поездки", "Trip route", "Safar yo‘nalishi", "Сафар йўналиши") }
+    private var makkahOnlyRouteSubtitle: String { tr("Сейчас пакет собран только для Мекки", "The package currently covers Makkah only", "Hozir paket faqat Makka uchun", "Ҳозир пакет фақат Макка учун") }
+    private var makkahMadinahRouteSubtitle: String { tr("Мекка и Медина включены в один маршрут", "Makkah and Madinah are included in one route", "Makka va Madina bitta yo‘nalishga qo‘shilgan", "Макка ва Мадина битта йўналишга қўшилган") }
+    private var firstCityTitle: String { tr("Первый город", "First city", "Birinchi shahar", "Биринчи шаҳар") }
+    private var firstCityQuestionTitle: String { tr("С какого города начать?", "Which city first?", "Qaysi shahardan boshlaysiz?", "Қайси шаҳардан бошлайсиз?") }
+    private var firstCityQuestionBody: String { tr("iumrah Configurator перестроит перелёты, ночи и маршрут пакета под выбранный порядок.", "iumrah Configurator will rebuild the flights, nights and package route for the selected order.", "iumrah Configurator tanlangan tartib bo‘yicha reyslar, tunlar va paket yo‘nalishini qayta hisoblaydi.", "iumrah Configurator танланган тартиб бўйича рейслар, тунлар ва пакет йўналишини қайта ҳисоблайди.") }
+    private var firstJeddahTitle: String { tr("Джидда · JED", "Jeddah · JED", "Jidda · JED", "Жидда · JED") }
+    private var firstMadinahTitle: String { tr("Медина · MED", "Madinah · MED", "Madina · MED", "Мадина · MED") }
+    private var addMadinahTitle: String { tr("Добавить Медину", "Add Madinah", "Madinani qo‘shish", "Мадинани қўшиш") }
+    private var removeMadinahTitle: String { tr("Убрать Медину из пакета", "Remove Madinah from package", "Madinani paketdan olib tashlash", "Мадинани пакетдан олиб ташлаш") }
+    private var cancelTitle: String { tr("Отмена", "Cancel", "Bekor qilish", "Бекор қилиш") }
+    private var madinahUnavailableText: String { tr("Сейчас нет подходящего опубликованного отеля в Медине для этой категории.", "No suitable published Madinah hotel is available for this category right now.", "Hozir bu toifa uchun Madinada mos e’lon qilingan mehmonxona yo‘q.", "Ҳозир бу тоифа учун Мадинада мос эълон қилинган меҳмонхона йўқ.") }
     private var chooseRoomTitle: String { tr("Выбрать комнату", "Choose a room", "Xona tanlash", "Хона танлаш") }
     private var bookTripTitle: String { tr("Забронировать поездку", "Book this trip", "Safarni bron qilish", "Сафарни брон қилиш") }
     private var bookingInProgressTitle: String { tr("Создаём бронирование…", "Creating booking…", "Bron yaratilmoqda…", "Брон яратилмоқда…") }
@@ -1575,57 +1969,379 @@ private struct StorefrontUmrahPackageDetailView: View {
     private var hotelUnavailableText: String { tr("Карточка этого отеля временно недоступна.", "This hotel page is temporarily unavailable.", "Bu mehmonxona sahifasi vaqtincha mavjud emas.", "Бу меҳмонхона саҳифаси вақтинча мавжуд эмас.") }
 }
 
+private struct PackageFlightPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var storefront: HotelStorefrontStore
+    @EnvironmentObject private var journey: JourneyStore
+
+    let direction: FlightDirection
+    let referenceFare: Decimal
+    let selectedOptionID: String
+    let onSelect: (StorefrontConfiguratorFlightChoice, Airport?, String) -> Void
+
+    @State private var draftAirport: Airport?
+    @State private var draftOriginCode: String
+
+    init(
+        direction: FlightDirection,
+        currentAirport: Airport?,
+        currentOriginCode: String,
+        referenceFare: Decimal,
+        selectedOptionID: String,
+        onSelect: @escaping (StorefrontConfiguratorFlightChoice, Airport?, String) -> Void
+    ) {
+        self.direction = direction
+        self.referenceFare = referenceFare
+        self.selectedOptionID = selectedOptionID
+        self.onSelect = onSelect
+        _draftAirport = State(initialValue: currentAirport)
+        _draftOriginCode = State(initialValue: currentOriginCode.uppercased())
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(airportSectionTitle)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+
+                        AirportSelectorButton(
+                            airport: $draftAirport,
+                            fallbackCode: $draftOriginCode
+                        )
+
+                        Text(airportHint)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.bottom, 6)
+
+                    if !primaryChoices.isEmpty {
+                        sectionTitle(primarySectionTitle)
+                        ForEach(primaryChoices) { choice in
+                            choiceCard(choice)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(noExactFlightsTitle, systemImage: "airplane.circle")
+                                .font(.headline)
+                            Text(noExactFlightsBody)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .iumrahCard()
+                    }
+
+                    if !otherChoices.isEmpty {
+                        sectionTitle(otherFlightsTitle)
+                            .padding(.top, 6)
+                        ForEach(otherChoices) { choice in
+                            choiceCard(choice)
+                        }
+                    }
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 12)
+                .padding(.bottom, 34)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle(navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(doneTitle) { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    @ViewBuilder
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.title3.weight(.bold))
+            .padding(.top, 2)
+    }
+
+    private func choiceCard(_ choice: StorefrontConfiguratorFlightChoice) -> some View {
+        PackageFlightChoiceCard(
+            choice: choice,
+            deltaText: deltaText(for: choice),
+            isSelected: choice.id == selectedOptionID,
+            language: settings.language
+        ) {
+            let code = resolvedOriginCode
+            onSelect(choice, draftAirport, code)
+            dismiss()
+        }
+    }
+
+    private var configuredTrip: TripDraft {
+        var trip = journey.trip
+        let code = resolvedOriginCode
+        trip.origin = code
+        trip.originAirport = draftAirport?.iata.uppercased() == code ? draftAirport : nil
+        return trip
+    }
+
+    private var availableChoices: (primary: [StorefrontConfiguratorFlightChoice], other: [StorefrontConfiguratorFlightChoice]) {
+        let result = storefront.configurableFlightChoices(direction: direction, trip: configuredTrip)
+        return (
+            result.primary.filter(isDateCompatible),
+            result.other.filter(isDateCompatible)
+        )
+    }
+
+    private var primaryChoices: [StorefrontConfiguratorFlightChoice] { availableChoices.primary }
+    private var otherChoices: [StorefrontConfiguratorFlightChoice] { availableChoices.other }
+
+    private var resolvedOriginCode: String {
+        let code = (draftAirport?.iata ?? draftOriginCode)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        return code.count == 3 ? code : journey.trip.originCode.uppercased()
+    }
+
+    private func isDateCompatible(_ choice: StorefrontConfiguratorFlightChoice) -> Bool {
+        guard let departure = parseStorefrontISO(choice.leg.departureAt) else { return true }
+        let calendar = Calendar.current
+
+        switch direction {
+        case .outbound:
+            // Published rows can contain multiple future departures. Keep the complete
+            // airport-specific list, but never offer a leg that has already departed.
+            return departure >= calendar.startOfDay(for: Date())
+
+        case .inbound:
+            guard let arrival = journey.trip.saudiArrivalDate else { return true }
+            let gap = calendar.dateComponents(
+                [.day],
+                from: calendar.startOfDay(for: arrival),
+                to: calendar.startOfDay(for: departure)
+            ).day ?? 0
+            return (2...15).contains(gap)
+        }
+    }
+
+    private func deltaText(for choice: StorefrontConfiguratorFlightChoice) -> String {
+        if choice.id == selectedOptionID { return selectedTitle }
+        let delta = NSDecimalNumber(decimal: choice.farePerTravelerUSD - referenceFare).doubleValue
+        if abs(delta) < 0.5 { return noChangeTitle }
+        let amount = Int(abs(delta).rounded())
+        return delta > 0 ? "+$\(amount)" : "−$\(amount)"
+    }
+
+    private var navigationTitle: String {
+        direction == .outbound
+            ? tr("Изменить перелёт туда", "Change outbound flight", "Borish reysini o‘zgartirish", "Бориш рейсини ўзгартириш")
+            : tr("Изменить обратный рейс", "Change return flight", "Qaytish reysini o‘zgartirish", "Қайтиш рейсини ўзгартириш")
+    }
+
+    private var airportSectionTitle: String { tr("Аэропорт вылета", "Departure airport", "Jo‘nash aeroporti", "Жўнаш аэропорти") }
+    private var airportHint: String { tr(
+        "Сначала показаны опубликованные рейсы для выбранного аэропорта. Цена билета скрыта — iumrah Configurator показывает только изменение итоговой стоимости.",
+        "Published flights for the selected airport are shown first. The ticket fare stays hidden — iumrah Configurator shows only the change to the package price.",
+        "Avval tanlangan aeroport uchun e’lon qilingan reyslar ko‘rsatiladi. Chipta narxi yashirin — iumrah Configurator faqat paket narxidagi farqni ko‘rsatadi.",
+        "Аввал танланган аэропорт учун эълон қилинган рейслар кўрсатилади. Чипта нархи яширин — iumrah Configurator фақат пакет нархидаги фарқни кўрсатади."
+    ) }
+    private var primarySectionTitle: String { tr("Подходящие рейсы", "Matching flights", "Mos reyslar", "Мос рейслар") }
+    private var otherFlightsTitle: String { tr("Другие актуальные билеты", "Other current flights", "Boshqa dolzarb chiptalar", "Бошқа долзарб чипталар") }
+    private var noExactFlightsTitle: String { tr("Подходящих рейсов пока нет", "No matching flights yet", "Mos reyslar hozircha yo‘q", "Мос рейслар ҳозирча йўқ") }
+    private var noExactFlightsBody: String { tr(
+        "Ниже показаны другие актуальные варианты для этого аэропорта, если они доступны.",
+        "Other current options for this airport are shown below when available.",
+        "Quyida ushbu aeroport uchun boshqa dolzarb variantlar mavjud bo‘lsa ko‘rsatiladi.",
+        "Қуйида ушбу аэропорт учун бошқа долзарб вариантлар мавжуд бўлса кўрсатилади."
+    ) }
+    private var selectedTitle: String { tr("Выбран", "Selected", "Tanlangan", "Танланган") }
+    private var noChangeTitle: String { tr("Без доплаты", "No extra cost", "Qo‘shimcha to‘lovsiz", "Қўшимча тўловсиз") }
+    private var doneTitle: String { tr("Готово", "Done", "Tayyor", "Тайёр") }
+
+    private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCy
+        }
+    }
+}
+
+private struct PackageFlightChoiceCard: View {
+    let choice: StorefrontConfiguratorFlightChoice
+    let deltaText: String
+    let isSelected: Bool
+    let language: AppSettingsStore.Language
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button {
+            IumrahHaptics.selection()
+            onSelect()
+        } label: {
+            HStack(spacing: 14) {
+                AirlineLogoView(airlineCode: choice.leg.airlineCode, size: 54)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        Text("\(choice.leg.origin) → \(choice.leg.destination)")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        if choice.leg.stops == 0 {
+                            Text(directTitle)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 4)
+                                .background(Color.iumrahRaisedBackground, in: Capsule())
+                        }
+                    }
+
+                    Text("\(choice.leg.airline) · \(choice.leg.flightNumber)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text("\(localizedDay(choice.leg.departureAt)) · \(clock(choice.leg.departureAt))")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 7) {
+                    Text(deltaText)
+                        .font(.subheadline.monospacedDigit().weight(.bold))
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
+
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(isSelected ? IumrahIconRole.success.color : .tertiary)
+                }
+            }
+            .padding(16)
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(isSelected ? 0.13 : 0.055), lineWidth: isSelected ? 1.1 : 0.7)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func localizedDay(_ value: String) -> String {
+        guard let date = parseStorefrontISO(value) else { return String(value.prefix(10)) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language.localeIdentifier)
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: date)
+    }
+
+    private var directTitle: String {
+        switch language {
+        case .russian: return "прямой"
+        case .english: return "direct"
+        case .uzbek: return "to‘g‘ri"
+        case .uzbekCyrillic: return "тўғри"
+        }
+    }
+}
+
 private struct PackageFlightLegDetailCard: View {
     let leg: StorefrontFlightLeg
     let direction: String
     let language: AppSettingsStore.Language
+    let actionTitle: String?
+    let onChange: (() -> Void)?
     @State private var expanded = false
+
+    init(
+        leg: StorefrontFlightLeg,
+        direction: String,
+        language: AppSettingsStore.Language,
+        actionTitle: String? = nil,
+        onChange: (() -> Void)? = nil
+    ) {
+        self.leg = leg
+        self.direction = direction
+        self.language = language
+        self.actionTitle = actionTitle
+        self.onChange = onChange
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Button {
-                withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
-                    expanded.toggle()
-                }
-                IumrahHaptics.selection()
-            } label: {
-                HStack(spacing: 14) {
-                    AirlineLogoView(airlineCode: leg.airlineCode, size: 50)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(direction.uppercased())
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.secondary)
-                        Text("\(leg.origin) → \(leg.destination)")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Text("\(leg.airline) \(leg.flightNumber)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Text("\(day(leg.departureAt)) · \(clock(leg.departureAt))")
-                            .font(.caption.monospacedDigit().weight(.semibold))
-                            .foregroundStyle(.primary)
+            HStack(spacing: 10) {
+                Button {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                        expanded.toggle()
                     }
+                    IumrahHaptics.selection()
+                } label: {
+                    HStack(spacing: 14) {
+                        AirlineLogoView(airlineCode: leg.airlineCode, size: 50)
 
-                    Spacer(minLength: 6)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(direction.uppercased())
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.secondary)
+                            Text("\(leg.origin) → \(leg.destination)")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("\(leg.airline) \(leg.flightNumber)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Text("\(day(leg.departureAt)) · \(clock(leg.departureAt))")
+                                .font(.caption.monospacedDigit().weight(.semibold))
+                                .foregroundStyle(.primary)
+                        }
 
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Image(systemName: "airplane")
-                            .font(.headline)
-                            .foregroundStyle(IumrahIconRole.travel.color)
-                        Text(directText)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                            .rotationEffect(.degrees(expanded ? 180 : 0))
+                        Spacer(minLength: 4)
+
+                        VStack(alignment: .trailing, spacing: 6) {
+                            Image(systemName: "airplane")
+                                .font(.headline)
+                                .foregroundStyle(IumrahIconRole.travel.color)
+                            Text(directText)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                                .rotationEffect(.degrees(expanded ? 180 : 0))
+                        }
                     }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+
+                if let actionTitle, let onChange {
+                    Button {
+                        IumrahHaptics.selection()
+                        onChange()
+                    } label: {
+                        Text(actionTitle)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 11)
+                            .frame(height: 34)
+                            .background(Color.iumrahRaisedBackground, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
 
             if expanded {
                 Divider().padding(.vertical, 14)

@@ -52,6 +52,18 @@ struct StorefrontFlightOption: Codable, Identifiable, Hashable {
     let baggage: StorefrontFlightBaggage?
 }
 
+
+
+/// One independently selectable published one-way leg inside iumrah Configurator.
+/// The supplier fare remains internal; the UI exposes only the difference versus
+/// the leg already included in the package.
+struct StorefrontConfiguratorFlightChoice: Hashable, Identifiable {
+    let id: String
+    let leg: StorefrontFlightLeg
+    let farePerTravelerUSD: Decimal
+    let observedAt: String
+}
+
 struct StorefrontFlightBaseline: Codable, Hashable {
     let mode: String
     let travelers: Int
@@ -80,6 +92,9 @@ struct StorefrontFlightBoardResponse: Codable, Hashable {
 enum StorefrontUmrahPackageKind: String, Hashable {
     case makkahComfortShort
     case makkahMadinahStandard
+    /// Hotel-first configurator starts from one concrete Makkah hotel. Madinah can
+    /// be added later without duplicating the package screen.
+    case hotelFirstMakkah
 }
 
 struct StorefrontPackageHotel: Hashable, Identifiable {
