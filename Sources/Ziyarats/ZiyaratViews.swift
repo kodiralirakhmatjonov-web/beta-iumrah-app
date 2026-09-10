@@ -5,9 +5,9 @@ import UIKit
 // MARK: - iumrah Ziyarats
 //
 // Map-first experience inspired by Apple Maps / Find My. The map stays behind a
-// system presentation sheet. iOS owns the sheet detents, drag physics and the
-// nested TabView/UITabBarController, so the navigation chrome adopts the native
-// iOS 26 Liquid Glass implementation instead of a simulated drawer or tab bar.
+// single system presentation sheet. iOS owns the sheet detents, drag physics,
+// corner treatment and Liquid Glass surface. Ziyarats navigation is laid directly
+// on that one system surface, avoiding a second tab-bar glass layer.
 
 struct ZiyaratJourneyView: View {
     @Environment(\.dismiss) private var dismiss
@@ -36,7 +36,7 @@ struct ZiyaratJourneyView: View {
     @State private var panelDetent: PresentationDetent = Self.cardDetent
     @State private var closing = false
 
-    private static let compactDetent: PresentationDetent = .height(96)
+    private static let compactDetent: PresentationDetent = .height(108)
     private static let cardDetent: PresentationDetent = .fraction(0.44)
 
     private var orderedPlaces: [ZiyaratPlace] {
@@ -92,15 +92,11 @@ struct ZiyaratJourneyView: View {
             guard let selectedPlace else { return }
             focus(on: selectedPlace, animated: true)
         }
-        .onChange(of: activeTab) { oldValue, newValue in
-            handleNativeTabChange(from: oldValue, to: newValue)
-        }
         .sheet(isPresented: $panelVisible) {
             nativeZiyaratsSheet
                 .presentationDetents([Self.compactDetent, Self.cardDetent, .large], selection: $panelDetent)
-                .presentationDragIndicator(.visible)
-                .presentationContentInteraction(.resizes)
-                .presentationBackgroundInteraction(.enabled(upThrough: .large))
+                .presentationDragIndicator(isCompactPanel ? .hidden : .visible)
+                .presentationBackgroundInteraction(.enabled(upThrough: Self.cardDetent))
                 .interactiveDismissDisabled(true)
         }
     }
@@ -172,50 +168,24 @@ struct ZiyaratJourneyView: View {
 
                 Spacer()
 
-                if #available(iOS 26.0, *) {
-                    GlassEffectContainer(spacing: 10) {
-                        VStack(spacing: 10) {
-                            ZiyaratNativeGlassIconButton(
-                                systemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
-                                foreground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
-                                accessibilityLabel: mapModeLabel
-                            ) {
-                                selectedPlace = nil
-                                activeTab = .map
-                                setPanel(.card)
-                            }
-
-                            ZiyaratNativeGlassIconButton(
-                                systemName: "scope",
-                                accessibilityLabel: fitRouteLabel
-                            ) {
-                                fitEntireRoute(animated: true)
-                            }
-                        }
+                ZiyaratNativeMapControlGroup(
+                    primarySystemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
+                    primaryForeground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
+                    primaryAccessibilityLabel: mapModeLabel,
+                    primaryAction: {
+                        selectedPlace = nil
+                        activeTab = .map
+                        setPanel(.card)
+                    },
+                    secondarySystemName: "location.viewfinder",
+                    secondaryAccessibilityLabel: fitRouteLabel,
+                    secondaryAction: {
+                        fitEntireRoute(animated: true)
                     }
-                } else {
-                    VStack(spacing: 10) {
-                        ZiyaratNativeGlassIconButton(
-                            systemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
-                            foreground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
-                            accessibilityLabel: mapModeLabel
-                        ) {
-                            selectedPlace = nil
-                            activeTab = .map
-                            setPanel(.card)
-                        }
-
-                        ZiyaratNativeGlassIconButton(
-                            systemName: "scope",
-                            accessibilityLabel: fitRouteLabel
-                        ) {
-                            fitEntireRoute(animated: true)
-                        }
-                    }
-                }
+                )
             }
-            .padding(.horizontal, 15)
-            .padding(.top, 6)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
 
             Spacer(minLength: 0)
         }
@@ -228,56 +198,59 @@ struct ZiyaratJourneyView: View {
 
     // MARK: Native Ziyarats chrome
 
-    /// This is a real system sheet containing a real SwiftUI TabView.
-    /// iOS owns the sheet drag physics, detent snapping, tab bar, selection lens,
-    /// touch response and Liquid Glass rendering. There is no custom drawer,
-    /// no UIViewRepresentable tab bar, and no simulated material in this layer.
+    /// The system sheet is the one and only Liquid Glass surface.
+    /// The four Ziyarats destinations live directly on that surface instead of
+    /// embedding another TabView/UITabBar inside the sheet. This removes the
+    /// double-layer "glass inside glass" effect and makes the compact detent
+    /// itself become the Ziyarats navigation bar, like Apple's map-first apps.
     private var nativeZiyaratsSheet: some View {
-        Group {
-            if #available(iOS 18.0, *) {
-                TabView(selection: $activeTab) {
-                    Tab(tabTitle(.journey), systemImage: ZiyaratPanelTab.journey.icon, value: ZiyaratPanelTab.journey) {
-                        nativeSheetPage { journeyPanel }
-                    }
-                    Tab(tabTitle(.places), systemImage: ZiyaratPanelTab.places.icon, value: ZiyaratPanelTab.places) {
-                        nativeSheetPage { placesTabContent }
-                    }
-                    Tab(tabTitle(.route), systemImage: ZiyaratPanelTab.route.icon, value: ZiyaratPanelTab.route) {
-                        nativeSheetPage { routePanel }
-                    }
-                    Tab(tabTitle(.map), systemImage: ZiyaratPanelTab.map.icon, value: ZiyaratPanelTab.map) {
-                        nativeSheetPage { mapPanel }
-                    }
-                }
-            } else {
-                TabView(selection: $activeTab) {
-                    nativeSheetPage { journeyPanel }
-                        .tabItem { Label(tabTitle(.journey), systemImage: ZiyaratPanelTab.journey.icon) }
-                        .tag(ZiyaratPanelTab.journey)
-                    nativeSheetPage { placesTabContent }
-                        .tabItem { Label(tabTitle(.places), systemImage: ZiyaratPanelTab.places.icon) }
-                        .tag(ZiyaratPanelTab.places)
-                    nativeSheetPage { routePanel }
-                        .tabItem { Label(tabTitle(.route), systemImage: ZiyaratPanelTab.route.icon) }
-                        .tag(ZiyaratPanelTab.route)
-                    nativeSheetPage { mapPanel }
-                        .tabItem { Label(tabTitle(.map), systemImage: ZiyaratPanelTab.map.icon) }
-                        .tag(ZiyaratPanelTab.map)
+        NavigationStack {
+            Group {
+                if isCompactPanel {
+                    Color.clear
+                        .accessibilityHidden(true)
+                } else {
+                    currentPanelContent
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                ZiyaratSheetNavigationBar(
+                    activeTab: activeTab,
+                    title: tabTitle,
+                    onSelect: activateTab
+                )
+            }
+            .navigationTitle(selectedPlace.map { stopCounterTitle($0) } ?? "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if selectedPlace != nil && !isCompactPanel {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(role: .cancel, action: closeSelectedPlace) {
+                            Image(systemName: "xmark")
+                        }
+                        .accessibilityLabel(closePlaceLabel)
+                    }
+                }
+            }
+            .toolbar(selectedPlace != nil && !isCompactPanel ? .visible : .hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
-        // Intentionally no .background(.material), .glassEffect(), UITabBarAppearance,
-        // or custom tab-bar container here. Compiling with the iOS 26 SDK lets the
-        // native TabView/UITabBarController adopt Liquid Glass automatically.
+        // Intentionally no .presentationBackground(.material), no custom blur,
+        // and no nested TabView. iOS 26 renders this partial-height sheet with
+        // the native Liquid Glass presentation surface.
     }
 
     @ViewBuilder
-    private func nativeSheetPage<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        if isCompactPanel {
-            Color.clear
-                .accessibilityHidden(true)
-        } else {
-            content()
+    private var currentPanelContent: some View {
+        switch activeTab {
+        case .journey:
+            journeyPanel
+        case .places:
+            placesTabContent
+        case .route:
+            routePanel
+        case .map:
+            mapPanel
         }
     }
 
@@ -286,14 +259,8 @@ struct ZiyaratJourneyView: View {
         if let selectedPlace {
             ZiyaratPlacePanelContent(
                 place: selectedPlace,
-                totalStops: orderedPlaces.count,
                 expanded: isExpandedPanel,
                 language: settings.language,
-                onClose: {
-                    IumrahHaptics.selection()
-                    self.selectedPlace = nil
-                    fitEntireRoute(animated: true)
-                },
                 onExpand: { setPanel(.full) },
                 onOpenMaps: { openInMaps(selectedPlace) }
             )
@@ -302,15 +269,16 @@ struct ZiyaratJourneyView: View {
         }
     }
 
-    private func handleNativeTabChange(from oldValue: ZiyaratPanelTab, to newValue: ZiyaratPanelTab) {
-        guard panelVisible else { return }
+    private func activateTab(_ tab: ZiyaratPanelTab) {
         IumrahHaptics.selection()
 
-        if newValue != .places {
+        if tab != .places {
             selectedPlace = nil
         }
 
-        switch newValue {
+        activeTab = tab
+
+        switch tab {
         case .map:
             setPanel(.compact)
         case .route:
@@ -319,6 +287,24 @@ struct ZiyaratJourneyView: View {
         case .journey, .places:
             if isCompactPanel { setPanel(.card) }
         }
+    }
+
+    private func closeSelectedPlace() {
+        guard selectedPlace != nil else { return }
+        IumrahHaptics.selection()
+        selectedPlace = nil
+        activeTab = .places
+        if isExpandedPanel { setPanel(.card) }
+        fitEntireRoute(animated: true)
+    }
+
+    private func stopCounterTitle(_ place: ZiyaratPlace) -> String {
+        localized(
+            "Остановка \(place.routeOrder) из \(max(orderedPlaces.count, 1))",
+            "Stop \(place.routeOrder) of \(max(orderedPlaces.count, 1))",
+            "\(place.routeOrder) / \(max(orderedPlaces.count, 1)) bekat",
+            "\(place.routeOrder) / \(max(orderedPlaces.count, 1)) бекат"
+        )
     }
 
     // MARK: Panel pages
@@ -376,8 +362,8 @@ struct ZiyaratJourneyView: View {
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: true))
             }
             .padding(.horizontal, 18)
-            .padding(.top, 4)
-            .padding(.bottom, 18)
+            .padding(.top, 22)
+            .padding(.bottom, 24)
         }
     }
 
@@ -404,8 +390,8 @@ struct ZiyaratJourneyView: View {
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.top, 4)
-            .padding(.bottom, 18)
+            .padding(.top, 22)
+            .padding(.bottom, 24)
         }
     }
 
@@ -445,8 +431,8 @@ struct ZiyaratJourneyView: View {
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: true))
             }
             .padding(.horizontal, 18)
-            .padding(.top, 4)
-            .padding(.bottom, 18)
+            .padding(.top, 22)
+            .padding(.bottom, 24)
         }
     }
 
@@ -490,8 +476,8 @@ struct ZiyaratJourneyView: View {
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: false))
             }
             .padding(.horizontal, 18)
-            .padding(.top, 4)
-            .padding(.bottom, 18)
+            .padding(.top, 22)
+            .padding(.bottom, 24)
         }
     }
 
@@ -759,6 +745,7 @@ struct ZiyaratJourneyView: View {
     private var fitRouteLabel: String { localized("Показать весь маршрут", "Fit entire route", "Butun yo‘nalishni ko‘rsatish", "Бутун йўналишни кўрсатиш") }
     private var mapModeLabel: String { localized("Режим карты", "Map mode", "Xarita rejimi", "Харита режими") }
     private var closeLabel: String { localized("Закрыть", "Close", "Yopish", "Ёпиш") }
+    private var closePlaceLabel: String { localized("Закрыть место", "Close place", "Joy ma’lumotini yopish", "Жой маълумотини ёпиш") }
     private var noPlacesTitle: String { localized("Пока нет мест", "No places yet", "Hozircha joylar yo‘q", "Ҳозирча жойлар йўқ") }
     private var noPlacesSubtitle: String { localized("Опубликованные в iumrah Business точки появятся здесь автоматически.", "Places published in iumrah Business will appear here automatically.", "iumrah Business’da chop etilgan joylar bu yerda avtomatik paydo bo‘ladi.", "iumrah Business’да чоп этилган жойлар бу ерда автоматик пайдо бўлади.") }
 
@@ -846,29 +833,123 @@ private struct ZiyaratNativeGlassIconButton: View {
                     action()
                 } label: {
                     Image(systemName: systemName)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(foreground ?? Color.primary)
-                        .frame(width: 46, height: 46)
+                        .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
+                .controlSize(.large)
             } else {
                 Button {
                     IumrahHaptics.selection()
                     action()
                 } label: {
                     Image(systemName: systemName)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(foreground ?? Color.primary)
-                        .frame(width: 46, height: 46)
+                        .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
+                .controlSize(.large)
             }
         }
         .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private struct ZiyaratNativeMapControlGroup: View {
+    let primarySystemName: String
+    var primaryForeground: Color? = nil
+    let primaryAccessibilityLabel: String
+    let primaryAction: () -> Void
+
+    let secondarySystemName: String
+    let secondaryAccessibilityLabel: String
+    let secondaryAction: () -> Void
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                controls
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+            } else {
+                controls
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+            }
+        }
+    }
+
+    private var controls: some View {
+        VStack(spacing: 0) {
+            Button {
+                IumrahHaptics.selection()
+                primaryAction()
+            } label: {
+                Image(systemName: primarySystemName)
+                    .font(.system(size: 19, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(primaryForeground ?? Color.primary)
+                    .frame(width: 52, height: 50)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(primaryAccessibilityLabel)
+
+            Divider()
+                .padding(.horizontal, 13)
+
+            Button {
+                IumrahHaptics.selection()
+                secondaryAction()
+            } label: {
+                Image(systemName: secondarySystemName)
+                    .font(.system(size: 19, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.primary)
+                    .frame(width: 52, height: 50)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(secondaryAccessibilityLabel)
+        }
+    }
+}
+
+private struct ZiyaratSheetNavigationBar: View {
+    let activeTab: ZiyaratPanelTab
+    let title: (ZiyaratPanelTab) -> String
+    let onSelect: (ZiyaratPanelTab) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(ZiyaratPanelTab.allCases) { tab in
+                Button {
+                    onSelect(tab)
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 21, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
+
+                        Text(title(tab))
+                            .font(.caption2.weight(activeTab == tab ? .semibold : .regular))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                    }
+                    .foregroundStyle(activeTab == tab ? Color(uiColor: .systemBlue) : Color.primary.opacity(0.78))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(activeTab == tab ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
+        .padding(.bottom, 2)
     }
 }
 
@@ -1114,10 +1195,8 @@ private struct ZiyaratRouteStepRow: View {
 
 private struct ZiyaratPlacePanelContent: View {
     let place: ZiyaratPlace
-    let totalStops: Int
     let expanded: Bool
     let language: AppSettingsStore.Language
-    let onClose: () -> Void
     let onExpand: () -> Void
     let onOpenMaps: () -> Void
 
@@ -1129,8 +1208,7 @@ private struct ZiyaratPlacePanelContent: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 16) {
-                placeToolbar
+            VStack(alignment: .leading, spacing: 18) {
                 gallery
                 placeHeader
                 metadata
@@ -1172,25 +1250,8 @@ private struct ZiyaratPlacePanelContent: View {
                 .modifier(ZiyaratNativeCapsuleButtonModifier(prominent: true))
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, 18)
-        }
-    }
-
-    private var placeToolbar: some View {
-        HStack {
-            Text(localized("Остановка \(place.routeOrder) из \(max(totalStops, 1))", "Stop \(place.routeOrder) of \(max(totalStops, 1))", "\(place.routeOrder) / \(max(totalStops, 1)) bekat", "\(place.routeOrder) / \(max(totalStops, 1)) бекат"))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 30, height: 30)
-                    .background(Color.iumrahRaisedBackground, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(localized("Закрыть место", "Close place", "Joy ma’lumotini yopish", "Жой маълумотини ёпиш"))
+            .padding(.top, 16)
+            .padding(.bottom, 28)
         }
     }
 
