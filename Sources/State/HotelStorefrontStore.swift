@@ -162,7 +162,7 @@ final class HotelStorefrontStore: ObservableObject {
         } else if baseline == nil {
             // Do not hide hotels. This message is shown only in the package-price
             // placeholder and helps distinguish pricing availability from catalog data.
-            errorMessage = "Обновляем опубликованные рейсы для расчёта пакета."
+            errorMessage = "iumrah Flights Scanner обновляет рейсы для расчёта пакета."
         }
     }
 
@@ -239,41 +239,54 @@ final class HotelStorefrontStore: ObservableObject {
         return details[hotel.id]?.price ?? hotel.price
     }
 
-    // MARK: - Published-flight package prices
+    // MARK: - iumrah Flights Scanner package composition
 
-    /// Hotels > Flights never exposes a component ticket fare as the headline price.
-    /// Every eligible publication is attached to a complete 4...8-day Umrah journey
-    /// and sent through the exact same LocalPackagePricingEngine used by Generator.
+    /// The flight storefront is a package surface, not a raw fare board.
+    /// Uzbekistan → Saudi Arabia rows are package anchors. The scanner pairs each
+    /// anchor with a Saudi Arabia → Uzbekistan return and mirrors the same composed
+    /// package price onto that return row. Raw ticket prices stay internal.
     private func rebuildFlightPackagePreviews() {
-        guard let board = flightBoard,
-              let makkahHotel = fixedStorefrontHotel(
-                in: makkahHotels,
-                preferredNames: ["Nawazi Hotel", "Nawazi Watheer Hotel"],
-                requiredTokenGroups: [["nawazi"]]
-              ),
-              let madinahHotel = fixedStorefrontHotel(
-                in: madinahHotels,
-                preferredNames: ["Mihrab Tayyiba", "Mihrab Tayba", "Mihrab Taiba"],
-                requiredTokenGroups: [["mihrab"], ["tayyiba", "tayba", "taiba"]]
-              ),
-              let makkahNightly = nightlyUSD(for: makkahHotel),
-              let madinahNightly = nightlyUSD(for: madinahHotel) else {
+        guard let board = flightBoard else {
             flightPackagePreviews = [:]
             return
         }
 
+        let standardMakkahHotel = fixedStorefrontHotel(
+            in: makkahHotels,
+            preferredNames: ["Nawazi Hotel", "Nawazi Watheer Hotel"],
+            requiredTokenGroups: [["nawazi"]]
+        )
+        let standardMadinahHotel = fixedStorefrontHotel(
+            in: madinahHotels,
+            preferredNames: ["Mihrab Tayyiba", "Mihrab Tayba", "Mihrab Taiba"],
+            requiredTokenGroups: [["mihrab"], ["tayyiba", "tayba", "taiba"]]
+        )
+        let comfortMakkahHotel = fixedStorefrontHotel(
+            in: makkahHotels,
+            preferredNames: ["Shohada Hotel", "Al Shohada Hotel", "Shuhada Hotel", "Al Shuhada Hotel"],
+            requiredTokenGroups: [["shohada", "shuhada"]]
+        )
+
         var output: [String: StorefrontFlightPackagePreview] = [:]
-        for option in board.options {
-            guard let pair = packagePair(for: option, among: board.options),
+
+        // Only outbound Uzbekistan → Saudi rows create packages. Saudi → Uzbekistan
+        // rows receive the price of the first package that actually uses that leg.
+        // This prevents the same return flight from independently inventing a second price.
+        for option in board.options where isPackageAnchor(option) {
+            guard let pair = packagePair(forOutbound: option, among: board.options),
                   let preview = makePackagePreview(
                     pair: pair,
-                    makkahHotel: makkahHotel,
-                    madinahHotel: madinahHotel,
-                    makkahNightly: makkahNightly,
-                    madinahNightly: madinahNightly
+                    standardMakkahHotel: standardMakkahHotel,
+                    standardMadinahHotel: standardMadinahHotel,
+                    comfortMakkahHotel: comfortMakkahHotel
                   ) else { continue }
+
             output[option.id] = preview
+            if pair.returnOptionID != option.id, output[pair.returnOptionID] == nil {
+                output[pair.returnOptionID] = preview
+            }
         }
+
         flightPackagePreviews = output
     }
 
@@ -284,119 +297,184 @@ final class HotelStorefrontStore: ObservableObject {
         let inbound: StorefrontFlightLeg
         let farePerPersonUSD: Decimal
         let observedAt: String
+        let durationDays: Int
+        let kind: StorefrontUmrahPackageKind
+    }
+
+    private func isPackageAnchor(_ option: StorefrontFlightOption) -> Bool {
+        let origin = option.outbound.origin.uppercased()
+        let destination = option.outbound.destination.uppercased()
+        return !isSaudi(origin) && isSaudi(destination)
     }
 
     private func packagePair(
-        for option: StorefrontFlightOption,
+        forOutbound option: StorefrontFlightOption,
         among all: [StorefrontFlightOption]
     ) -> FlightPackagePair? {
-        guard option.currency.caseInsensitiveCompare("USD") == .orderedSame else { return nil }
+        guard option.currency.caseInsensitiveCompare("USD") == .orderedSame,
+              option.perTravelerFare.isFinite,
+              option.perTravelerFare > 0,
+              isPackageAnchor(option) else { return nil }
 
-        if let inbound = option.inbound {
-            guard isSaudi(option.outbound.destination),
-                  complementarySaudiAirport(for: option.outbound.destination) == inbound.origin.uppercased(),
-                  inbound.destination.uppercased() == option.outbound.origin.uppercased(),
-                  let gap = tripGapDays(outbound: option.outbound, inbound: inbound),
-                  (4...8).contains(gap),
-                  option.perTravelerFare.isFinite,
-                  option.perTravelerFare > 0 else { return nil }
+        // A staff row may already contain both directions. Keep it authoritative when
+        // it satisfies the same scanner rules as two one-way publications.
+        if let inbound = option.inbound,
+           let gap = tripGapDays(outbound: option.outbound, inbound: inbound),
+           isSaudi(inbound.origin),
+           isAllowedReturnDestination(inbound.destination, for: option.outbound.origin),
+           let kind = packageKind(outbound: option.outbound, inbound: inbound, gapDays: gap) {
             return FlightPackagePair(
                 outboundOptionID: option.id,
                 returnOptionID: option.id,
                 outbound: option.outbound,
                 inbound: inbound,
                 farePerPersonUSD: Decimal(option.perTravelerFare),
-                observedAt: option.observedAt
+                observedAt: option.observedAt,
+                durationDays: gap,
+                kind: kind
             )
         }
 
-        let leg = option.outbound
-        let origin = leg.origin.uppercased()
-        let destination = leg.destination.uppercased()
+        guard option.inbound == nil else { return nil }
 
-        if !isSaudi(origin), isSaudi(destination) {
-            guard let returnOrigin = complementarySaudiAirport(for: destination),
-                  let candidate = bestComplementaryOneWay(
-                    among: all,
-                    origin: returnOrigin,
-                    destination: origin,
-                    relativeTo: leg,
-                    candidateIsAfter: true
-                  ) else { return nil }
-            return FlightPackagePair(
-                outboundOptionID: option.id,
-                returnOptionID: candidate.id,
-                outbound: leg,
-                inbound: candidate.outbound,
-                farePerPersonUSD: Decimal(option.perTravelerFare) + Decimal(candidate.perTravelerFare),
-                observedAt: max(option.observedAt, candidate.observedAt)
-            )
+        let preferredDestination = option.outbound.origin.uppercased()
+        if let candidate = bestReturnOneWay(
+            for: option.outbound,
+            among: all,
+            returnDestination: preferredDestination
+        ) {
+            return oneWayPair(outboundOption: option, returnOption: candidate)
         }
 
-        if isSaudi(origin), !isSaudi(destination) {
-            guard let outboundDestination = complementarySaudiAirport(for: origin),
-                  let candidate = bestComplementaryOneWay(
-                    among: all,
-                    origin: destination,
-                    destination: outboundDestination,
-                    relativeTo: leg,
-                    candidateIsAfter: false
-                  ) else { return nil }
-            return FlightPackagePair(
-                outboundOptionID: candidate.id,
-                returnOptionID: option.id,
-                outbound: candidate.outbound,
-                inbound: leg,
-                farePerPersonUSD: Decimal(option.perTravelerFare) + Decimal(candidate.perTravelerFare),
-                observedAt: max(option.observedAt, candidate.observedAt)
-            )
+        // Regional departures may legitimately return to Tashkent when no matching
+        // flight to the original city exists inside the valid package window.
+        if preferredDestination != "TAS",
+           let fallback = bestReturnOneWay(
+            for: option.outbound,
+            among: all,
+            returnDestination: "TAS"
+           ) {
+            return oneWayPair(outboundOption: option, returnOption: fallback)
         }
 
         return nil
     }
 
-    private func bestComplementaryOneWay(
+    private func oneWayPair(
+        outboundOption: StorefrontFlightOption,
+        returnOption: StorefrontFlightOption
+    ) -> FlightPackagePair? {
+        guard let gap = tripGapDays(outbound: outboundOption.outbound, inbound: returnOption.outbound),
+              let kind = packageKind(outbound: outboundOption.outbound, inbound: returnOption.outbound, gapDays: gap) else {
+            return nil
+        }
+        return FlightPackagePair(
+            outboundOptionID: outboundOption.id,
+            returnOptionID: returnOption.id,
+            outbound: outboundOption.outbound,
+            inbound: returnOption.outbound,
+            farePerPersonUSD: Decimal(outboundOption.perTravelerFare) + Decimal(returnOption.perTravelerFare),
+            observedAt: max(outboundOption.observedAt, returnOption.observedAt),
+            durationDays: gap,
+            kind: kind
+        )
+    }
+
+    private func bestReturnOneWay(
+        for outbound: StorefrontFlightLeg,
         among all: [StorefrontFlightOption],
-        origin: String,
-        destination: String,
-        relativeTo anchor: StorefrontFlightLeg,
-        candidateIsAfter: Bool
+        returnDestination: String
     ) -> StorefrontFlightOption? {
-        all
-            .filter { candidate in
-                guard candidate.inbound == nil,
-                      candidate.currency.caseInsensitiveCompare("USD") == .orderedSame,
-                      candidate.perTravelerFare.isFinite,
-                      candidate.perTravelerFare > 0,
-                      candidate.outbound.origin.caseInsensitiveCompare(origin) == .orderedSame,
-                      candidate.outbound.destination.caseInsensitiveCompare(destination) == .orderedSame else { return false }
-                let outbound = candidateIsAfter ? anchor : candidate.outbound
-                let inbound = candidateIsAfter ? candidate.outbound : anchor
-                guard let days = tripGapDays(outbound: outbound, inbound: inbound) else { return false }
-                return (4...8).contains(days)
+        let candidates = all.filter { candidate in
+            guard candidate.inbound == nil,
+                  candidate.currency.caseInsensitiveCompare("USD") == .orderedSame,
+                  candidate.perTravelerFare.isFinite,
+                  candidate.perTravelerFare > 0,
+                  isSaudi(candidate.outbound.origin),
+                  candidate.outbound.destination.caseInsensitiveCompare(returnDestination) == .orderedSame,
+                  let gap = tripGapDays(outbound: outbound, inbound: candidate.outbound),
+                  packageKind(outbound: outbound, inbound: candidate.outbound, gapDays: gap) != nil else {
+                return false
             }
-            .min { lhs, rhs in
-                let lhsOutbound = candidateIsAfter ? anchor : lhs.outbound
-                let lhsInbound = candidateIsAfter ? lhs.outbound : anchor
-                let rhsOutbound = candidateIsAfter ? anchor : rhs.outbound
-                let rhsInbound = candidateIsAfter ? rhs.outbound : anchor
-                let lhsDays = tripGapDays(outbound: lhsOutbound, inbound: lhsInbound) ?? 99
-                let rhsDays = tripGapDays(outbound: rhsOutbound, inbound: rhsInbound) ?? 99
-                let lhsDistance = abs(lhsDays - 7)
-                let rhsDistance = abs(rhsDays - 7)
-                if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
-                if lhs.perTravelerFare != rhs.perTravelerFare { return lhs.perTravelerFare < rhs.perTravelerFare }
-                if lhs.priority != rhs.priority { return lhs.priority < rhs.priority }
-                return lhs.outbound.departureAt < rhs.outbound.departureAt
+            return true
+        }
+
+        guard !candidates.isEmpty else { return nil }
+
+        // JED arrivals get a real 2–3 day Makkah-only Comfort product whenever that
+        // window exists. Otherwise the scanner composes a 4–15 day two-city Standard trip.
+        if outbound.destination.uppercased() == "JED" {
+            let short = candidates.filter { candidate in
+                guard candidate.outbound.origin.uppercased() == "JED",
+                      let gap = tripGapDays(outbound: outbound, inbound: candidate.outbound) else { return false }
+                return (2...3).contains(gap)
             }
+            if !short.isEmpty {
+                return short.min { lhs, rhs in
+                    let lhsGap = tripGapDays(outbound: outbound, inbound: lhs.outbound) ?? 99
+                    let rhsGap = tripGapDays(outbound: outbound, inbound: rhs.outbound) ?? 99
+                    let lhsDistance = abs(lhsGap - 3)
+                    let rhsDistance = abs(rhsGap - 3)
+                    if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
+                    if lhs.perTravelerFare != rhs.perTravelerFare { return lhs.perTravelerFare < rhs.perTravelerFare }
+                    if lhs.priority != rhs.priority { return lhs.priority < rhs.priority }
+                    return lhs.outbound.departureAt < rhs.outbound.departureAt
+                }
+            }
+        }
+
+        let long = candidates.filter { candidate in
+            guard let gap = tripGapDays(outbound: outbound, inbound: candidate.outbound) else { return false }
+            return (4...15).contains(gap)
+        }
+        return long.min { lhs, rhs in
+            let complementary = complementarySaudiAirport(for: outbound.destination)
+            let lhsOpenJaw = lhs.outbound.origin.uppercased() == complementary
+            let rhsOpenJaw = rhs.outbound.origin.uppercased() == complementary
+            if lhsOpenJaw != rhsOpenJaw { return lhsOpenJaw && !rhsOpenJaw }
+
+            let lhsGap = tripGapDays(outbound: outbound, inbound: lhs.outbound) ?? 99
+            let rhsGap = tripGapDays(outbound: outbound, inbound: rhs.outbound) ?? 99
+            let lhsDistance = abs(lhsGap - 7)
+            let rhsDistance = abs(rhsGap - 7)
+            if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
+            if lhs.perTravelerFare != rhs.perTravelerFare { return lhs.perTravelerFare < rhs.perTravelerFare }
+            if lhs.priority != rhs.priority { return lhs.priority < rhs.priority }
+            return lhs.outbound.departureAt < rhs.outbound.departureAt
+        }
+    }
+
+    private func packageKind(
+        outbound: StorefrontFlightLeg,
+        inbound: StorefrontFlightLeg,
+        gapDays: Int
+    ) -> StorefrontUmrahPackageKind? {
+        guard isSaudi(outbound.destination), isSaudi(inbound.origin) else { return nil }
+
+        if outbound.destination.uppercased() == "JED",
+           inbound.origin.uppercased() == "JED",
+           (2...3).contains(gapDays) {
+            return .makkahComfortShort
+        }
+
+        if (4...15).contains(gapDays) {
+            return .makkahMadinahStandard
+        }
+
+        return nil
+    }
+
+    private func isAllowedReturnDestination(_ airport: String, for outboundOrigin: String) -> Bool {
+        let destination = airport.uppercased()
+        let preferred = outboundOrigin.uppercased()
+        return destination == preferred || (preferred != "TAS" && destination == "TAS")
     }
 
     private func makePackagePreview(
         pair: FlightPackagePair,
-        makkahHotel: HotelSummary,
-        madinahHotel: HotelSummary,
-        makkahNightly: Decimal,
-        madinahNightly: Decimal
+        standardMakkahHotel: HotelSummary?,
+        standardMadinahHotel: HotelSummary?,
+        comfortMakkahHotel: HotelSummary?
     ) -> StorefrontFlightPackagePreview? {
         guard pair.farePerPersonUSD > 0,
               let outboundDeparture = isoDate(pair.outbound.departureAt),
@@ -411,7 +489,6 @@ final class HotelStorefrontStore: ObservableObject {
         var trip = TripDraft()
         trip.origin = pair.outbound.origin.uppercased()
         trip.originAirport = nil
-        trip.scope = .makkahAndMadinah
         trip.arrivalAirport = pair.outbound.destination.uppercased() == "MED" ? .madinah : .jeddah
         trip.departureDate = tripDepartureDay
         trip.saudiArrivalDate = saudiArrivalDay
@@ -421,29 +498,57 @@ final class HotelStorefrontStore: ObservableObject {
         trip.children = 0
         trip.infants = 0
         trip.rooms = 1
-        trip.hotelStars = PackageTier.standard.primaryHotelStars
-        trip.packageTier = .standard
         trip.flightTripType = .roundTrip
 
-        let windows = TripStayPlanner.windows(for: trip, calendar: storefrontCalendar)
-        guard let madinahWindow = windows.madinah else { return nil }
+        let makkahHotel: HotelSummary
+        let madinahHotel: HotelSummary?
+        switch pair.kind {
+        case .makkahComfortShort:
+            guard let hotel = comfortMakkahHotel, nightlyUSD(for: hotel) != nil else { return nil }
+            makkahHotel = hotel
+            madinahHotel = nil
+            trip.scope = .makkahOnly
+            trip.packageTier = .comfort
+            trip.hotelStars = PackageTier.comfort.primaryHotelStars
 
+        case .makkahMadinahStandard:
+            guard let makkah = standardMakkahHotel,
+                  let madinah = standardMadinahHotel,
+                  nightlyUSD(for: makkah) != nil,
+                  nightlyUSD(for: madinah) != nil else { return nil }
+            makkahHotel = makkah
+            madinahHotel = madinah
+            trip.scope = .makkahAndMadinah
+            trip.packageTier = .standard
+            trip.hotelStars = PackageTier.standard.primaryHotelStars
+        }
+
+        guard let makkahNightly = nightlyUSD(for: makkahHotel) else { return nil }
+        let windows = TripStayPlanner.windows(for: trip, calendar: storefrontCalendar)
         let makkahComponent = LocalHotelPriceComponent(
             nightlyUsd: makkahNightly,
             nights: windows.makkah.nights,
             rooms: 1,
             hotelId: makkahHotel.id,
             roomId: nil,
-            source: "iumrah-storefront-fixed-nawazi"
+            source: pair.kind == .makkahComfortShort
+                ? "iumrah-storefront-comfort-shohada"
+                : "iumrah-storefront-standard-nawazi"
         )
-        let madinahComponent = LocalHotelPriceComponent(
-            nightlyUsd: madinahNightly,
-            nights: madinahWindow.nights,
-            rooms: 1,
-            hotelId: madinahHotel.id,
-            roomId: nil,
-            source: "iumrah-storefront-fixed-mihrab-tayyiba"
-        )
+
+        var madinahComponent: LocalHotelPriceComponent?
+        if let madinahHotel,
+           let window = windows.madinah,
+           let nightly = nightlyUSD(for: madinahHotel) {
+            madinahComponent = LocalHotelPriceComponent(
+                nightlyUsd: nightly,
+                nights: window.nights,
+                rooms: 1,
+                hotelId: madinahHotel.id,
+                roomId: nil,
+                source: "iumrah-storefront-standard-mihrab-tayyiba"
+            )
+        }
 
         let outboundOffer = syntheticOffer(
             id: pair.outboundOptionID,
@@ -479,6 +584,11 @@ final class HotelStorefrontStore: ObservableObject {
         ) else { return nil }
 
         let stay = TripStayPlanner.breakdown(for: trip, calendar: storefrontCalendar)
+        var packageHotels = [storefrontPackageHotel(makkahHotel, nights: stay.makkahNights)]
+        if let madinahHotel, stay.madinahNights > 0 {
+            packageHotels.append(storefrontPackageHotel(madinahHotel, nights: stay.madinahNights))
+        }
+
         return StorefrontFlightPackagePreview(
             pricePerPerson: quote.pricePerPerson,
             totalPackagePrice: quote.totalPackagePrice,
@@ -486,11 +596,25 @@ final class HotelStorefrontStore: ObservableObject {
             returnOptionID: pair.returnOptionID,
             outbound: pair.outbound,
             inbound: pair.inbound,
+            durationDays: pair.durationDays,
             totalNights: stay.totalNights,
             makkahNights: stay.makkahNights,
             madinahNights: stay.madinahNights,
-            makkahHotelName: makkahHotel.name,
-            madinahHotelName: madinahHotel.name
+            kind: pair.kind,
+            tier: trip.packageTier,
+            hotels: packageHotels,
+            packageQuote: quote
+        )
+    }
+
+    private func storefrontPackageHotel(_ hotel: HotelSummary, nights: Int) -> StorefrontPackageHotel {
+        StorefrontPackageHotel(
+            id: hotel.id,
+            name: hotel.name,
+            city: hotel.city,
+            stars: hotel.stars,
+            coverImageURL: previewImages(for: hotel, limit: 1).first ?? hotel.coverImageURL,
+            nights: max(1, nights)
         )
     }
 
@@ -516,7 +640,7 @@ final class HotelStorefrontStore: ObservableObject {
             durationMinutes: leg.durationMinutes,
             totalPackagePrice: fare,
             currency: "USD",
-            sourceLabel: "iumrah Business",
+            sourceLabel: "iumrah Flights Scanner",
             airlineCode: leg.airlineCode,
             fareAmount: fare,
             fareScope: .perPassenger,
@@ -537,9 +661,6 @@ final class HotelStorefrontStore: ObservableObject {
             return hotel
         }
 
-        // Business names can carry a suffix such as “Hotel”, “Madinah”,
-        // “Watheer”, or use Tayyiba/Tayba/Taiba transliteration. Match each
-        // semantic token group without binding storefront pricing to one spelling.
         return hotels.first { hotel in
             let normalized = normalizedHotelName(hotel.name)
             let matches = requiredTokenGroups.allSatisfy { alternatives in
@@ -613,8 +734,6 @@ final class HotelStorefrontStore: ObservableObject {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = storefrontCalendar.timeZone
         formatter.dateFormat = "yyyy-MM-dd"
-        // Noon UTC keeps the intended travel day stable when the pricing engine
-        // later reads the draft with the device's local calendar/time zone.
         formatter.defaultDate = Date(timeIntervalSince1970: 43_200)
         return formatter
     }

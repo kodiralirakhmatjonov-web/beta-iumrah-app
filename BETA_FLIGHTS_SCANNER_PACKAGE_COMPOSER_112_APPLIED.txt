@@ -1,0 +1,18 @@
+iumrah Beta — Flights Scanner Package Composer 112
+Date: 2026-09-10
+
+This update changes Hotels > Flights from a raw published-flight price list into a local Umrah package composer.
+
+Rules:
+- Uzbekistan → Saudi Arabia rows are package anchors.
+- JED arrival + JED return after 2–3 days => Makkah-only Comfort package using Shohada Hotel from the live hotel catalog.
+- 4–15 day journeys => Makkah + Madinah Standard package using Nawazi Hotel + Mihrab Tayyiba from the live hotel catalog.
+- Return preference is the original Uzbekistan city; Tashkent is the fallback only when no valid same-city return exists.
+- Saudi → Uzbekistan rows do not calculate an independent package. They mirror the exact price of the first package pair that uses them.
+- Card headline price remains the complete per-person package price; raw ticket and hotel component prices are not exposed.
+- Flight cards now contain package imagery and airline marks.
+- Tapping a priced flight opens a complete package detail page with both flights, hotel card(s), included iumrah services, refund policy and final per-person price.
+- Customer copy replaces “Published flights” with iumrah Flights Scanner language.
+- Every generated package card carries the seal “Сгенерировано iumrah Package System” (localized in all four app languages).
+
+No Package Engine runtime source changed in this update. The backend contract test is updated only so future Package Engine validation remains green.

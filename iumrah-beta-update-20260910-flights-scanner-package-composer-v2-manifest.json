@@ -1,0 +1,60 @@
+{
+  "name": "iumrah-beta-update-20260910-flights-scanner-package-composer-v2.zip",
+  "base_state": "beta-iumrah-app-main 5(5) + flight-catalog-route-filter-v1 + hotel-meals-v1 + primary-hotel-layout-flight-package-v1",
+  "purpose": "Compose every eligible Uzbekistan→Saudi flight row into a per-person Umrah package, mirror the same package price to its Saudi→Uzbekistan return component, add regional/Tashkent fallback pairing, short Comfort Makkah-only products, 4–15 day Standard two-city products, imagery, detail page and Flights Scanner branding.",
+  "requires_package_engine_deploy": false,
+  "requires_testflight_build": true,
+  "pairing_policy": {
+    "anchor": "non-Saudi origin → JED/MED",
+    "short_package": "JED arrival + JED return, 2–3 day gap, Makkah only, Comfort, Shohada Hotel",
+    "long_package": "JED/MED arrival + JED/MED return, 4–15 day gap, Makkah + Madinah, Standard, Nawazi Hotel + Mihrab Tayyiba",
+    "return_destination_priority": [
+      "same Uzbekistan origin",
+      "TAS fallback"
+    ],
+    "return_price_behavior": "return row mirrors the exact first PackagePair price that uses it",
+    "long_route_ranking": [
+      "open-jaw Saudi return",
+      "duration nearest 7 days",
+      "lower return fare",
+      "priority",
+      "departure time"
+    ]
+  },
+  "customer_copy": {
+    "ru_section_title": "Найдите нас с помощью iumrah Flights Scanner",
+    "ru_generated_seal": "Сгенерировано iumrah Package System"
+  },
+  "files": [
+    {
+      "path": "BETA_FLIGHTS_SCANNER_PACKAGE_COMPOSER_112_APPLIED.txt",
+      "sha256": "b355cba345678f56125fa188bf5d07b629ba154e6fe7e63edb68df8214808d40",
+      "bytes": 1488
+    },
+    {
+      "path": "Backend/PackageEngine/test/client-hotel-flight-package-contract.test.mjs",
+      "sha256": "8e036172d73dd1eb9577c3a6d2c762aab00632fed3c775a24952a32bf07f5f79",
+      "bytes": 5540
+    },
+    {
+      "path": "Sources/Core/AppLocalization.swift",
+      "sha256": "9e36b42211095158fecc1e4ca91e38e0f336a3efa06765038541a6014ae016d2",
+      "bytes": 183715
+    },
+    {
+      "path": "Sources/Models/HotelStorefrontModels.swift",
+      "sha256": "d4bb3e9fcfa2f638b17a36cd54d9a90475d6f6a8c1c7818ddbc4c0127e9f41de",
+      "bytes": 3929
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "sha256": "a3bca282ca594f08734cfeb11a230381e0fc06edea388e715196f56c96c9c94e",
+      "bytes": 33007
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "sha256": "e46f59bd2d10c8e4607137f4d2127563b170a2406b2ac1d58a0dc0d7d26274fc",
+      "bytes": 57281
+    }
+  ]
+}

@@ -73,22 +73,49 @@ struct StorefrontFlightBoardResponse: Codable, Hashable {
     let options: [StorefrontFlightOption]
 }
 
-/// A customer-facing package price attached to one published flight row.
-/// The row itself may be one-way; the preview pairs it with the complementary
-/// published Saudi leg 4...8 days away and prices the complete Umrah package
-/// for one pilgrim with the fixed storefront hotels.
-struct StorefrontFlightPackagePreview: Hashable {
+/// A locally composed Umrah package attached to one or more catalog flight rows.
+/// Uzbekistan → Saudi Arabia is the package anchor. A matching Saudi Arabia →
+/// Uzbekistan leg becomes the return component and receives the exact same package
+/// price in the storefront. Component supplier prices are never exposed.
+enum StorefrontUmrahPackageKind: String, Hashable {
+    case makkahComfortShort
+    case makkahMadinahStandard
+}
+
+struct StorefrontPackageHotel: Hashable, Identifiable {
+    let id: String
+    let name: String
+    let city: String
+    let stars: Int?
+    let coverImageURL: String?
+    let nights: Int
+}
+
+struct StorefrontFlightPackagePreview: Hashable, Identifiable {
+    var id: String { "\(outboundOptionID)::\(returnOptionID)" }
+
     let pricePerPerson: Decimal
     let totalPackagePrice: Decimal
     let outboundOptionID: String
     let returnOptionID: String
     let outbound: StorefrontFlightLeg
     let inbound: StorefrontFlightLeg
+    let durationDays: Int
     let totalNights: Int
     let makkahNights: Int
     let madinahNights: Int
-    let makkahHotelName: String
-    let madinahHotelName: String
+    let kind: StorefrontUmrahPackageKind
+    let tier: PackageTier
+    let hotels: [StorefrontPackageHotel]
+    let packageQuote: PackageQuote
+
+    var primaryHotel: StorefrontPackageHotel? {
+        hotels.first(where: { $0.city.lowercased().contains("makk") || $0.city.lowercased().contains("mecc") }) ?? hotels.first
+    }
+
+    var usesTashkentReturnFallback: Bool {
+        outbound.origin.uppercased() != "TAS" && inbound.destination.uppercased() == "TAS"
+    }
 }
 
 struct HotelStorefrontQuote: Hashable {
