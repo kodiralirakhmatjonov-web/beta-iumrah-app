@@ -1,0 +1,23 @@
+iumrah Beta — flight catalogue + generator route filter update 110
+Date: 2026-09-10
+
+What changed
+- Generator published-flight rows now respect the pilgrim's selected route exactly:
+  * Makkah only: origin → JED and JED → origin.
+  * Makkah + Madinah, first airport MED: origin → MED and JED → origin.
+  * Makkah + Madinah, first airport JED: origin → JED and MED → origin.
+- Selecting a published card no longer silently rewrites the selected package scope/arrival airport.
+- Route labels show the exact outbound and return airports instead of JED / MED placeholders.
+- The Hotels > Flights storefront no longer truncates the visible catalogue to 12 cards.
+- The public storefront flight board now returns all future staff-published direct Umrah routes (up to 300 rows), while `origin` remains the hotel-package baseline selector.
+- The generator fallback ignores complete itineraries belonging to a different departure city.
+
+Required after applying this ZIP
+1. Run GitHub Action: Deploy iumrah Package Engine.
+2. Run GitHub Action: Build iumrah Beta / TestFlight.
+
+Validation completed before packaging
+- Swift parser: changed Swift files passed.
+- Package Engine source/contract tests: 32/32 passed.
+- Package Engine TypeScript typecheck passed.
+- Package Engine runtime tests: 18/18 passed.

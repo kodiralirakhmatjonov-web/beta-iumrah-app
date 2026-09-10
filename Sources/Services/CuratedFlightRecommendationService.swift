@@ -65,9 +65,10 @@ final class CuratedFlightRecommendationService {
 
     private init() {}
 
-    /// Loads every staff-published direct Umrah option for the departure airport.
-    /// The carousel is deliberately broader than the currently selected JED/MED
-    /// itinerary order so the pilgrim can discover a better flight/date first.
+    /// Loads every staff-published direct Umrah option connected to the departure
+    /// airport. The service stays origin-wide so route changes do not require a
+    /// different data contract; TripBuilder applies the pilgrim's exact JED/MED
+    /// route criteria before any card is shown or selected.
     func load(trip: TripDraft, from: Date = Date(), days: Int = 365) async throws -> [CuratedFlightRecommendation] {
         let calendar = Calendar(identifier: .gregorian)
         let start = calendar.startOfDay(for: from)
@@ -151,6 +152,8 @@ final class CuratedFlightRecommendationService {
                     return nil
                 }
             } else {
+                guard option.outbound.origin.uppercased() == origin,
+                      option.inbound?.destination.uppercased() == origin else { return nil }
                 role = "complete"
             }
 

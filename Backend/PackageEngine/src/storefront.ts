@@ -199,6 +199,10 @@ export async function publicStorefrontFlightBoard(url: URL, db: D1Like | undefin
   if (!validOrigin(origin)) return responseJSON({ ok: false, error: "INVALID_ORIGIN" }, 400);
 
   const today = new Date().toISOString().slice(0, 10);
+  // The Flights storefront is a public catalogue, not a route-specific search.
+  // Return every future staff-published direct Umrah product across departure
+  // cities. `origin` is used only to choose the hotel-card baseline price below.
+  // Generator screens apply their own exact route criteria client-side.
   const result = await db.prepare(`SELECT id, outbound_origin, outbound_destination,
       inbound_origin, inbound_destination, outbound_date, inbound_date, itinerary_json,
       total_fare, per_traveler_fare, currency, traveler_count, observed_at, priority
@@ -206,12 +210,15 @@ export async function publicStorefrontFlightBoard(url: URL, db: D1Like | undefin
     WHERE published = 1
       AND outbound_date >= ?
       AND (
-        (outbound_origin = ? AND outbound_destination IN ('MED','JED')) OR
-        (outbound_origin IN ('MED','JED') AND outbound_destination = ?)
+        (inbound_origin IS NULL AND (
+          outbound_destination IN ('MED','JED') OR outbound_origin IN ('MED','JED')
+        )) OR
+        (inbound_origin IS NOT NULL AND
+          outbound_destination IN ('MED','JED') AND inbound_origin IN ('MED','JED'))
       )
     ORDER BY priority ASC, outbound_date ASC, per_traveler_fare ASC
-    LIMIT 100`)
-    .bind(today, origin, origin)
+    LIMIT 300`)
+    .bind(today)
     .all<CuratedRow>();
 
   const options = (result.results ?? []).map(mapRow).filter((value): value is PublicOption => value !== null);

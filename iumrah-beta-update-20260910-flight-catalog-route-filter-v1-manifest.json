@@ -1,0 +1,59 @@
+{
+  "name": "iumrah Beta flight catalogue + exact generator route filter v1",
+  "date": "2026-09-10",
+  "based_on": "beta-iumrah-app-main 5(5).zip",
+  "purpose": "Show only route-compatible published flights in the generator and expose the full future Business-published Umrah flight catalogue in Hotels > Flights.",
+  "root_causes": [
+    "TripBuilder intentionally mixed both JED and MED one-way publications, ignoring the route already selected by the pilgrim.",
+    "Selecting a published one-way flight rewrote JourneyScope/arrivalAirport, so the flight card could change the package criteria instead of respecting them.",
+    "HotelsHomeView hard-truncated the published flight list with options.prefix(12).",
+    "The storefront backend filtered options to one requested origin, so the catalogue could not expose publications from other departure cities."
+  ],
+  "route_contract": {
+    "makkahOnly": "origin -> JED; JED -> origin",
+    "makkahAndMadinah_firstMED": "origin -> MED; JED -> origin",
+    "makkahAndMadinah_firstJED": "origin -> JED; MED -> origin"
+  },
+  "files": [
+    {
+      "path": "Sources/Views/Trip/TripBuilderView.swift",
+      "bytes": 62861,
+      "sha256": "bb0c447dbc5f8414291eb04966183a43468d840cdc8461fd238efa2af5cf53f5"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 26908,
+      "sha256": "c912f61678f9f29fea464507c8d7adcd71f173e927fb2561fa3bf7b2217c1552"
+    },
+    {
+      "path": "Sources/Services/CuratedFlightRecommendationService.swift",
+      "bytes": 16588,
+      "sha256": "91f9ca1148fed224f46c05bb66a34225b8e1593c7f0b7045cc11158165735b18"
+    },
+    {
+      "path": "Backend/PackageEngine/src/storefront.ts",
+      "bytes": 13183,
+      "sha256": "cad870fe89ca6b2ad7008c440a9c3fa338c8437d23a2aa77616c6ce9a62678d8"
+    },
+    {
+      "path": "Backend/PackageEngine/test/storefront-flight-board-contract.test.mjs",
+      "bytes": 2216,
+      "sha256": "f1bfb4d38c035a366c14dd325e4e17fc1ada14e266c8fa32ebc0c70fc2a340c5"
+    },
+    {
+      "path": "BETA_FLIGHT_CATALOG_ROUTE_FILTER_110_APPLIED.txt",
+      "bytes": 1310,
+      "sha256": "88f12e513f8415adb873e9f676d92e3467a3868c4f16b28e84b5644724f8dd42"
+    }
+  ],
+  "validation": {
+    "swift_parse": "passed",
+    "package_engine_contract_tests": "32/32 passed",
+    "typescript_typecheck": "passed",
+    "package_engine_runtime_tests": "18/18 passed"
+  },
+  "required_after_apply": [
+    "Run Deploy iumrah Package Engine",
+    "Run Build iumrah Beta / TestFlight"
+  ]
+}

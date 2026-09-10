@@ -143,8 +143,8 @@ struct HotelsHomeView: View {
 
             if let options = storefront.flightBoard?.options, !options.isEmpty {
                 SectionHeader(L10n.text("hotel_storefront_published_flights", settings.language), eyebrow: L10n.text("hotel_storefront_current", settings.language), subtitle: nil)
-                VStack(spacing: 12) {
-                    ForEach(Array(options.prefix(12))) { option in
+                LazyVStack(spacing: 12) {
+                    ForEach(options) { option in
                         StorefrontFlightOptionCard(option: option, language: settings.language)
                     }
                 }
