@@ -2226,7 +2226,7 @@ private struct PackageFlightChoiceCard: View {
 
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(isSelected ? IumrahIconRole.success.color : .tertiary)
+                        .foregroundStyle(isSelected ? IumrahIconRole.success.color : Color.secondary.opacity(0.55))
                 }
             }
             .padding(16)

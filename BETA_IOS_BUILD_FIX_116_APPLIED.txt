@@ -1,0 +1,1 @@
+Fixes Xcode compile error in HotelsHomeView.swift (Color/ShapeStyle ternary). No Google OAuth credentials required for this build fix.

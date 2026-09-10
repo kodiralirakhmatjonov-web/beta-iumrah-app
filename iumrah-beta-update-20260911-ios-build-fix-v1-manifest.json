@@ -1,0 +1,18 @@
+{
+  "name": "iumrah Beta iOS build fix v1",
+  "date": "2026-09-11",
+  "scope": "Minimal SwiftUI compile fix only",
+  "changes": [
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "reason": "Fix Xcode error: ternary mixed Color with .tertiary ShapeStyle in foregroundStyle",
+      "replacement": "Use Color.secondary.opacity(0.55) so both ternary branches are Color"
+    },
+    {
+      "path": "BETA_IOS_BUILD_FIX_116_APPLIED.txt",
+      "reason": "Patch application marker"
+    }
+  ],
+  "google_oauth_required_for_build": false,
+  "google_sign_in_architecture_changed": false
+}
