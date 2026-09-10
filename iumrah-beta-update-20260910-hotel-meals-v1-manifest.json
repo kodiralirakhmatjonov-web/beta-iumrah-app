@@ -1,0 +1,50 @@
+{
+  "name": "iumrah Beta Comfort/Luxury selectable hotel meals v1",
+  "date": "2026-09-10",
+  "root": "beta-iumrah-app-main",
+  "reason": "Add selectable Comfort/Luxury meal plans on the hotel step, preserve Economy/Standard pricing, and make the selected Makkah/Madinah meals authoritative in local package pricing.",
+  "files": [
+    {
+      "path": "Sources/Models/TripModels.swift",
+      "bytes": 9895,
+      "sha256": "16190721083856fe43c1b2baf0a4c1238f8a9b194c5dc36eff879cedafe80717"
+    },
+    {
+      "path": "Sources/Services/LocalPackagePricingEngine.swift",
+      "bytes": 22378,
+      "sha256": "e44e76301db29a00c7ba121c683d17fc6f585663fa6a3b7cc7c4b92006e39578"
+    },
+    {
+      "path": "Sources/State/JourneyStore.swift",
+      "bytes": 37226,
+      "sha256": "73d6f273a09152ffd0f4c0257c635b8661881c08da81a6d023c5b57390211225"
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "bytes": 54036,
+      "sha256": "fc3726d12b697792a09920f7927feb28d37052784331701041a02534960d6f55"
+    },
+    {
+      "path": "Sources/Views/Hotels/PrimaryHotelView.swift",
+      "bytes": 21822,
+      "sha256": "258c98bd2ebeaf6c09ac3f484e9f2c4b1ca93d2ed1106c3ce3fe2901b12ecfbb"
+    },
+    {
+      "path": "Backend/PackageEngine/test/generator-production-pricing.test.mjs",
+      "bytes": 11119,
+      "sha256": "3380790e2c8c5a5fe7a23f3430401b52aca45dc4c1010fa3a5635ded954620dc"
+    },
+    {
+      "path": "BETA_HOTEL_MEALS_110_APPLIED.txt",
+      "bytes": 1662,
+      "sha256": "116ca8d9e38210a6f62a4f937b287b09d16a117ae13c4cca6e475ee6085814a4"
+    }
+  ],
+  "validation": [
+    "Swift syntax parse for complete Sources tree",
+    "PackageEngine TypeScript typecheck",
+    "PackageEngine automated tests: 31 contract tests + 18 runtime tests",
+    "ZIP CRC validation",
+    "Safe extraction simulation against the supplied seed repository"
+  ]
+}

@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct PrimaryHotelView: View {
@@ -255,6 +256,10 @@ struct PrimaryHotelView: View {
                     Spacer(minLength: 0)
                 }
 
+                if journey.hasSelectableHotelMeals {
+                    mealPlanCard(role: role)
+                }
+
                 HStack(spacing: 10) {
                     NavigationLink {
                         HotelDetailView(hotel: hotel, selectionFlow: true, selectionRole: role)
@@ -290,6 +295,165 @@ struct PrimaryHotelView: View {
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
         }
         .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+    }
+
+    private func mealPlanCard(role: HotelSelectionRole) -> some View {
+        let city: HotelMealCity = role == .makkah ? .makkah : .madinah
+
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "fork.knife")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 30, height: 30)
+                    .background(Color.primary.opacity(0.06), in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mealPlanTitle)
+                        .font(.subheadline.weight(.bold))
+                    Text(mealScheduleText(role: role))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+
+            Divider().padding(.leading, 54)
+            includedBreakfastRow
+
+            if role == .makkah {
+                Divider().padding(.leading, 54)
+                selectableMealRow(.lunch, city: city)
+            }
+
+            Divider().padding(.leading, 54)
+            selectableMealRow(.dinner, city: city)
+        }
+        .background(Color.iumrahRaisedBackground.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.045), lineWidth: 0.6)
+        }
+    }
+
+    private var includedBreakfastRow: some View {
+        HStack(spacing: 12) {
+            mealIcon("cup.and.saucer.fill")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mealName(.breakfast))
+                    .font(.subheadline.weight(.semibold))
+                Text(mealIncludedText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.iumrahCareLight)
+                .accessibilityLabel(mealIncludedText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    private func selectableMealRow(_ meal: HotelMealKind, city: HotelMealCity) -> some View {
+        let price = LocalPackagePricingEngine.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
+        let isOn = Binding(
+            get: { journey.isMealEnabled(meal, city: city) },
+            set: { journey.setMealEnabled($0, meal: meal, city: city) }
+        )
+
+        return HStack(spacing: 12) {
+            mealIcon(meal == .lunch ? "sun.max.fill" : "moon.stars.fill")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mealName(meal))
+                    .font(.subheadline.weight(.semibold))
+                Text(optionalMealPriceText(price))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Color.iumrahCareLight)
+                .accessibilityLabel(mealName(meal))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+    }
+
+    private func mealIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 28, height: 28)
+    }
+
+    private var mealPlanTitle: String {
+        switch settings.language {
+        case .russian: return "Питание в отеле"
+        case .english: return "Hotel meals"
+        case .uzbek: return "Mehmonxonada ovqatlanish"
+        case .uzbekCyrillic: return "Меҳмонхонада овқатланиш"
+        }
+    }
+
+    private func mealScheduleText(role: HotelSelectionRole) -> String {
+        switch (settings.language, role) {
+        case (.russian, .makkah): return "Мекка · завтрак, обед и ужин"
+        case (.russian, .madinah): return "Медина · завтрак и ужин"
+        case (.english, .makkah): return "Makkah · breakfast, lunch and dinner"
+        case (.english, .madinah): return "Madinah · breakfast and dinner"
+        case (.uzbek, .makkah): return "Makka · nonushta, tushlik va kechki ovqat"
+        case (.uzbek, .madinah): return "Madina · nonushta va kechki ovqat"
+        case (.uzbekCyrillic, .makkah): return "Макка · нонушта, тушлик ва кечки овқат"
+        case (.uzbekCyrillic, .madinah): return "Мадина · нонушта ва кечки овқат"
+        }
+    }
+
+    private func mealName(_ meal: HotelMealKind) -> String {
+        switch (settings.language, meal) {
+        case (.russian, .breakfast): return "Завтрак"
+        case (.russian, .lunch): return "Обед"
+        case (.russian, .dinner): return "Ужин"
+        case (.english, .breakfast): return "Breakfast"
+        case (.english, .lunch): return "Lunch"
+        case (.english, .dinner): return "Dinner"
+        case (.uzbek, .breakfast): return "Nonushta"
+        case (.uzbek, .lunch): return "Tushlik"
+        case (.uzbek, .dinner): return "Kechki ovqat"
+        case (.uzbekCyrillic, .breakfast): return "Нонушта"
+        case (.uzbekCyrillic, .lunch): return "Тушлик"
+        case (.uzbekCyrillic, .dinner): return "Кечки овқат"
+        }
+    }
+
+    private var mealIncludedText: String {
+        switch settings.language {
+        case .russian: return "Включено · без доплаты"
+        case .english: return "Included · no extra charge"
+        case .uzbek: return "Kiritilgan · qo‘shimcha to‘lovsiz"
+        case .uzbekCyrillic: return "Киритилган · қўшимча тўловсиз"
+        }
+    }
+
+    private func optionalMealPriceText(_ price: Decimal) -> String {
+        let amount = NSDecimalNumber(decimal: price).intValue
+        switch settings.language {
+        case .russian: return "$\(amount) · за человека / день"
+        case .english: return "$\(amount) · per person / day"
+        case .uzbek: return "$\(amount) · kishi / kun"
+        case .uzbekCyrillic: return "$\(amount) · киши / кун"
+        }
     }
 
     private var localizedMakkah: String {

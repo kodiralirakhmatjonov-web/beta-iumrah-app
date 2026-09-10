@@ -180,6 +180,7 @@ final class JourneyStore: ObservableObject {
 
         trip.packageTier = tier
         trip.hotelStars = expectedStars
+        trip.mealSelection = nil
 
         // A category change invalidates only hotel choices and the quote. Flight
         // selection, direct-flight IDs, dates, passengers and Weekend state stay intact.
@@ -204,6 +205,11 @@ final class JourneyStore: ObservableObject {
 
     func resetAfterTripChange(keepingPublishedFlightSelection: Bool = false) {
         if !keepingPublishedFlightSelection { clearPublishedFlightSelection() }
+
+        // A newly configured journey starts from the package default meal plan.
+        // Comfort/Luxury paid meals are therefore enabled again until the pilgrim
+        // explicitly removes them on the hotel step.
+        trip.mealSelection = nil
 
         selectedHotel = nil
         selectedRoom = nil
@@ -392,6 +398,31 @@ final class JourneyStore: ObservableObject {
         if category != nil { selectedMadinahRoom = nil }
         invalidateHotelPriceAndQuote()
         scheduleHotelPricePrefetch()
+    }
+
+    var hasSelectableHotelMeals: Bool {
+        trip.packageTier == .comfort || trip.packageTier == .luxury
+    }
+
+    func isMealEnabled(_ meal: HotelMealKind, city: HotelMealCity) -> Bool {
+        trip.effectiveMealSelection.isEnabled(meal, in: city)
+    }
+
+    func setMealEnabled(_ enabled: Bool, meal: HotelMealKind, city: HotelMealCity) {
+        guard hasSelectableHotelMeals else { return }
+
+        var selection = trip.effectiveMealSelection
+        guard selection.isEnabled(meal, in: city) != enabled else { return }
+        selection.setEnabled(enabled, meal: meal, city: city)
+
+        var updatedTrip = trip
+        updatedTrip.mealSelection = selection
+        trip = updatedTrip
+
+        // Meal changes do not invalidate the already verified hotel rate, but
+        // they must invalidate every package total built from the old selection.
+        quote = nil
+        transferSelectionConfirmed = false
     }
 
 

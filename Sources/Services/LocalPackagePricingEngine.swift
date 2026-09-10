@@ -28,6 +28,13 @@ enum LocalPackagePricingEngine {
     static let paymentFeeRate = Decimal(string: "0.02")!
     static let publicRoundingStep = Decimal(5)
 
+    /// Economy and Standard retain the existing bundled meal allocation unchanged.
+    static let economyStandardMealPerPersonPerDayUsd = Decimal(15)
+    /// Comfort/Luxury use selectable lunch/dinner allocations on the hotel step.
+    /// Breakfast is included at zero additional supplier allocation.
+    static let comfortOptionalMealPerPersonPerServiceDayUsd = Decimal(30)
+    static let luxuryOptionalMealPerPersonPerServiceDayUsd = Decimal(50)
+
     static let visaPerTravellerUsd = Decimal(120)
     static let makkahZiyaratPerGroupUsd = Decimal(100)
     static let madinahZiyaratPerGroupUsd = Decimal(100)
@@ -74,7 +81,7 @@ enum LocalPackagePricingEngine {
         let hotels = makkahHotelCost + madinahHotelCost
         let visa = visaPerTravellerUsd * Decimal(travelers)
         let mealTravellers = max(0, trip.adults + trip.children)
-        let meals = mealRate(trip.packageTier) * Decimal(max(1, stay.totalDays)) * Decimal(mealTravellers)
+        let meals = mealCost(trip: trip, stay: stay, mealTravellers: mealTravellers)
 
         let includeMadinah = trip.scope == .makkahAndMadinah
         let transfer = transferPerPackageUsd
@@ -115,7 +122,7 @@ enum LocalPackagePricingEngine {
         }
         components.append(contentsOf: [
             .init(code: "visa", label: "Визы", supplierCostUsd: visa),
-            .init(code: "meals", label: "Питание", supplierCostUsd: meals),
+            .init(code: "meals", label: mealComponentLabel(for: trip), supplierCostUsd: meals),
             .init(code: "transfers", label: transferVehicle.map { "Трансфер · \($0.modelName)" } ?? "Трансферы", supplierCostUsd: transfer),
         ])
         if vehicleUpgrade > 0 {
@@ -143,7 +150,7 @@ enum LocalPackagePricingEngine {
 
         let pricingSnapshot = GeneratorPricingSnapshot(
             quoteId: quoteId,
-            pricingVersion: "local-expedia-package-v7",
+            pricingVersion: "local-expedia-package-v8",
             currency: "USD",
             context: .init(
                 tier: trip.packageTier.rawValue,
@@ -210,7 +217,7 @@ enum LocalPackagePricingEngine {
         let flights = flightFarePerTravelerUsd * Decimal(travelers)
         let hotel = hotelNightlyUsd * Decimal(rooms) * Decimal(nights)
         let visa = visaPerTravellerUsd * Decimal(travelers)
-        let meals = mealRate(tier) * Decimal(nights + 1) * Decimal(travelers)
+        let meals = storefrontMealCost(tier: tier, totalNights: nights, travelers: travelers)
         let transfer = transferPerPackageUsd
         let intercity: Decimal = 0
         let guide = accompanimentWithMadinahPerGroupUsd
@@ -252,7 +259,7 @@ enum LocalPackagePricingEngine {
         )
         let snapshot = GeneratorPricingSnapshot(
             quoteId: quoteID,
-            pricingVersion: "local-storefront-package-v1",
+            pricingVersion: "local-storefront-package-v2",
             currency: "USD",
             context: .init(
                 tier: tier.rawValue,
@@ -353,12 +360,79 @@ enum LocalPackagePricingEngine {
         return formatter.string(from: value)
     }
 
-    private static func mealRate(_ tier: PackageTier) -> Decimal {
+    static func optionalMealUnitPriceUsd(for tier: PackageTier) -> Decimal? {
         switch tier {
-        case .economy, .standard: return 15
-        case .comfort: return 50
-        case .luxury: return 100
+        case .economy, .standard:
+            return nil
+        case .comfort:
+            return comfortOptionalMealPerPersonPerServiceDayUsd
+        case .luxury:
+            return luxuryOptionalMealPerPersonPerServiceDayUsd
         }
+    }
+
+    /// Production meal pricing contract:
+    /// - Economy/Standard keep the historical $15 × trip day × adult/child allocation.
+    /// - Comfort/Luxury breakfast is included at $0.
+    /// - Makkah offers optional lunch + dinner on every service night.
+    /// - Madinah offers optional dinner only; lunch is intentionally unavailable.
+    /// - Infants are not charged for meals, preserving the existing traveler rule.
+    private static func mealCost(trip: TripDraft, stay: TripStayBreakdown, mealTravellers: Int) -> Decimal {
+        let people = Decimal(max(0, mealTravellers))
+        guard people > 0 else { return 0 }
+
+        switch trip.packageTier {
+        case .economy, .standard:
+            return economyStandardMealPerPersonPerDayUsd * Decimal(max(1, stay.totalDays)) * people
+
+        case .comfort, .luxury:
+            guard let unit = optionalMealUnitPriceUsd(for: trip.packageTier) else { return 0 }
+            let selection = trip.effectiveMealSelection
+            let makkahServiceDays = Decimal(max(1, stay.makkahNights))
+            let madinahServiceDays = Decimal(max(0, stay.madinahNights))
+
+            var total: Decimal = 0
+            if selection.makkahLunch { total += unit * makkahServiceDays * people }
+            if selection.makkahDinner { total += unit * makkahServiceDays * people }
+            if trip.scope == .makkahAndMadinah, selection.madinahDinner {
+                total += unit * madinahServiceDays * people
+            }
+            return total
+        }
+    }
+
+    /// The Hotels storefront has no dated city split, so its package preview uses
+    /// the same 60/40 Makkah/Madinah stay policy as TripStayPlanner and the default
+    /// Comfort/Luxury meal selection. Economy/Standard remain byte-for-byte equivalent
+    /// to the previous bundled $15/day formula.
+    private static func storefrontMealCost(tier: PackageTier, totalNights: Int, travelers: Int) -> Decimal {
+        let nights = max(1, totalNights)
+        let people = Decimal(max(1, travelers))
+
+        switch tier {
+        case .economy, .standard:
+            return economyStandardMealPerPersonPerDayUsd * Decimal(nights + 1) * people
+        case .comfort, .luxury:
+            guard let unit = optionalMealUnitPriceUsd(for: tier) else { return 0 }
+            guard nights > 1 else {
+                return unit * Decimal(2 * nights) * people
+            }
+            let makkahNights = max(1, min(nights - 1, Int(ceil(Double(nights) * 0.6))))
+            let madinahNights = max(1, nights - makkahNights)
+            // Default selection: Makkah lunch+dinner, Madinah dinner. Breakfast is free.
+            let paidMealServiceCount = (makkahNights * 2) + madinahNights
+            return unit * Decimal(paidMealServiceCount) * people
+        }
+    }
+
+    private static func mealComponentLabel(for trip: TripDraft) -> String {
+        guard trip.packageTier == .comfort || trip.packageTier == .luxury else { return "Питание" }
+        let selection = trip.effectiveMealSelection
+        var values = ["завтрак включён"]
+        if selection.makkahLunch { values.append("Мекка: обед") }
+        if selection.makkahDinner { values.append("Мекка: ужин") }
+        if trip.scope == .makkahAndMadinah, selection.madinahDinner { values.append("Медина: ужин") }
+        return "Питание · " + values.joined(separator: " · ")
     }
 
     private static func roundPublic(_ value: Decimal) -> Decimal {

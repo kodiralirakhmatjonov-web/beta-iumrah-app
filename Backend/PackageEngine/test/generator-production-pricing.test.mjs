@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const root = new URL('../../../', import.meta.url);
 const hotelModels = fs.readFileSync(new URL('Sources/Models/HotelModels.swift', root), 'utf8');
+const tripModels = fs.readFileSync(new URL('Sources/Models/TripModels.swift', root), 'utf8');
 const localPricing = fs.readFileSync(new URL('Sources/Services/LocalPackagePricingEngine.swift', root), 'utf8');
 const coordinator = fs.readFileSync(new URL('Sources/Services/RealFlightPackageSearchService.swift', root), 'utf8');
 const ignavClient = fs.readFileSync(new URL('Sources/Services/IgnavFlightInventoryProvider.swift', root), 'utf8');
@@ -53,7 +54,7 @@ assert.match(localPricing, /code: trip\.isRoundTripFlight \? "flight_roundtrip" 
 assert.match(localPricing, /journeyFare: journeyInput/);
 assert.match(localPricing, /outbound: nil/);
 assert.match(localPricing, /inbound: nil/);
-assert.match(localPricing, /local-expedia-package-v7/);
+assert.match(localPricing, /local-expedia-package-v8/);
 
 // Only verified provider fares may become package prices.
 assert.match(ignavClient, /price\.status\.caseInsensitiveCompare\("verified"\) == \.orderedSame/);
@@ -78,8 +79,19 @@ assert.match(localPricing, /standardPackageMarkupRate\s*=\s*Decimal\(string:\s*"
 assert.match(localPricing, /luxuryPackageMarkupRate\s*=\s*Decimal\(string:\s*"0\.35"\)!/);
 assert.match(localPricing, /tier == \.luxury \? luxuryPackageMarkupRate : standardPackageMarkupRate/);
 assert.match(localPricing, /paymentFeeRate\s*=\s*Decimal\(string:\s*"0\.02"\)!/);
-assert.match(localPricing, /case \.comfort:\s*return 50/);
-assert.match(localPricing, /case \.luxury:\s*return 100/);
+assert.match(localPricing, /economyStandardMealPerPersonPerDayUsd = Decimal\(15\)/);
+assert.match(localPricing, /comfortOptionalMealPerPersonPerServiceDayUsd = Decimal\(30\)/);
+assert.match(localPricing, /luxuryOptionalMealPerPersonPerServiceDayUsd = Decimal\(50\)/);
+assert.match(localPricing, /selection\.makkahLunch/);
+assert.match(localPricing, /selection\.makkahDinner/);
+assert.match(localPricing, /selection\.madinahDinner/);
+assert.match(tripModels, /struct PackageMealSelection: Codable, Hashable/);
+assert.match(tripModels, /var makkahLunch: Bool = true/);
+assert.match(tripModels, /var makkahDinner: Bool = true/);
+assert.match(tripModels, /var madinahDinner: Bool = true/);
+assert.match(primaryHotel, /mealPlanCard\(role: role\)/);
+assert.match(primaryHotel, /Toggle\("", isOn: isOn\)/);
+assert.match(primaryHotel, /if role == \.makkah/);
 assert.match(localPricing, /transferPerPackageUsd = Decimal\(300\)/);
 assert.match(localPricing, /includeHaramainTrain: Bool = false/);
 assert.match(localPricing, /haramain_train_addon/);

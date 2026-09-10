@@ -50,6 +50,56 @@ enum PackageTier: String, CaseIterable, Codable, Identifiable, Hashable {
     }
 }
 
+enum HotelMealCity: String, Codable, Hashable {
+    case makkah
+    case madinah
+}
+
+enum HotelMealKind: String, Codable, Hashable {
+    case breakfast
+    case lunch
+    case dinner
+}
+
+/// Customer-selectable hotel meal plan used by Comfort and Luxury packages.
+/// Breakfast is always included at no additional cost. Paid lunch/dinner choices
+/// default to enabled and can be removed independently before package pricing.
+struct PackageMealSelection: Codable, Hashable {
+    var makkahLunch: Bool = true
+    var makkahDinner: Bool = true
+    var madinahDinner: Bool = true
+
+    static let defaultSelection = PackageMealSelection()
+
+    func isEnabled(_ meal: HotelMealKind, in city: HotelMealCity) -> Bool {
+        switch (city, meal) {
+        case (_, .breakfast):
+            return true
+        case (.makkah, .lunch):
+            return makkahLunch
+        case (.makkah, .dinner):
+            return makkahDinner
+        case (.madinah, .lunch):
+            return false
+        case (.madinah, .dinner):
+            return madinahDinner
+        }
+    }
+
+    mutating func setEnabled(_ enabled: Bool, meal: HotelMealKind, city: HotelMealCity) {
+        switch (city, meal) {
+        case (_, .breakfast), (.madinah, .lunch):
+            return
+        case (.makkah, .lunch):
+            makkahLunch = enabled
+        case (.makkah, .dinner):
+            makkahDinner = enabled
+        case (.madinah, .dinner):
+            madinahDinner = enabled
+        }
+    }
+}
+
 enum DateFlexibility: String, CaseIterable, Codable, Identifiable, Hashable {
     case exact
     /// Retained only so previously persisted drafts continue to decode.
@@ -139,6 +189,10 @@ struct TripDraft: Codable, Hashable {
     var rooms: Int = 1
     var hotelStars: Int = 3
     var packageTier: PackageTier = .standard
+    /// Optional for backward compatibility with drafts created before selectable
+    /// Comfort/Luxury hotel meals were introduced. Missing always means the new
+    /// default: all eligible paid meals are enabled.
+    var mealSelection: PackageMealSelection? = nil
     var scope: JourneyScope = .makkahAndMadinah
     var flightFilters: FlightSearchFilters? = nil
     /// Optional so drafts saved before one-way search was introduced continue to
@@ -151,6 +205,7 @@ struct TripDraft: Codable, Hashable {
     var resolvedFlightTripType: FlightTripType { flightTripType ?? .roundTrip }
     var isRoundTripFlight: Bool { resolvedFlightTripType == .roundTrip }
     var isWeekendUmrah: Bool { flexibility == .weekend }
+    var effectiveMealSelection: PackageMealSelection { mealSelection ?? .defaultSelection }
 
     var originCode: String {
         (originAirport?.iata ?? origin).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

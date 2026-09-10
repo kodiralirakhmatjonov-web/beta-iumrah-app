@@ -735,8 +735,8 @@ struct FinalPackageView: View {
             }
 
             HStack(spacing: 8) {
-                mealCountPill(city: "Makkah", count: 3)
-                if needsMadinah { mealCountPill(city: "Madinah", count: 2) }
+                mealCountPill(city: localizedMealCity(.makkah), count: makkahMealCount)
+                if needsMadinah { mealCountPill(city: localizedMealCity(.madinah), count: madinahMealCount) }
             }
 
             Text(mealsExplanation)
@@ -786,16 +786,69 @@ struct FinalPackageView: View {
     }
 
     private var mealsSummary: String {
-        needsMadinah ? localizedFinal("3 раза в Мекке · 2 раза в Медине", "3 meals in Makkah · 2 in Madinah", "Makkada 3 marta · Madinada 2 marta", "Маккада 3 марта · Мадинада 2 марта") : localizedFinal("3 раза в Мекке", "3 meals in Makkah", "Makkada 3 marta", "Маккада 3 марта")
+        if needsMadinah {
+            return localizedFinal(
+                "Мекка · \(russianMealsPerDay(makkahMealCount)) · Медина · \(russianMealsPerDay(madinahMealCount))",
+                "Makkah · \(makkahMealCount) meals/day · Madinah · \(madinahMealCount) meals/day",
+                "Makka · kuniga \(makkahMealCount) mahal · Madina · kuniga \(madinahMealCount) mahal",
+                "Макка · кунига \(makkahMealCount) маҳал · Мадина · кунига \(madinahMealCount) маҳал"
+            )
+        }
+        return localizedFinal(
+            "Мекка · \(russianMealsPerDay(makkahMealCount))",
+            "Makkah · \(makkahMealCount) meals/day",
+            "Makka · kuniga \(makkahMealCount) mahal",
+            "Макка · кунига \(makkahMealCount) маҳал"
+        )
     }
 
     private var mealsExplanation: String {
-        localizedFinal(
+        if journey.hasSelectableHotelMeals {
+            return localizedFinal(
+                "Завтрак включён без доплаты. В цену пакета входят только выбранные Вами обеды и ужины; отключённые позиции сразу исключаются из расчёта.",
+                "Breakfast is included at no extra charge. Only the lunches and dinners you selected are included in the package price; disabled items are removed from pricing immediately.",
+                "Nonushta qo‘shimcha to‘lovsiz kiritilgan. Paket narxiga faqat Siz tanlagan tushlik va kechki ovqatlar kiradi; o‘chirilgan variantlar hisobdan darhol chiqariladi.",
+                "Нонушта қўшимча тўловсиз киритилган. Пакет нархига фақат Сиз танлаган тушлик ва кечки овқатлар киради; ўчирилган вариантлар ҳисобдан дарҳол чиқарилади."
+            )
+        }
+        return localizedFinal(
             "Питание включено в программу пакета. Конкретные рестораны и время приёмов пищи подтверждаются в деталях поездки.",
             "Meals are included in the package program. Specific restaurants and meal times are confirmed in your trip details.",
             "Ovqatlanish paket dasturiga kiritilgan. Aniq restoranlar va vaqtlar safar tafsilotlarida tasdiqlanadi.",
             "Овқатланиш пакет дастурига киритилган. Аниқ ресторанлар ва вақтлар сафар тафсилотларида тасдиқланади."
         )
+    }
+
+    private func russianMealsPerDay(_ count: Int) -> String {
+        count == 1 ? "1 раз в день" : "\(count) раза в день"
+    }
+
+    private var makkahMealCount: Int {
+        guard journey.hasSelectableHotelMeals else { return 3 }
+        var count = 1 // Breakfast is always included.
+        if journey.isMealEnabled(.lunch, city: .makkah) { count += 1 }
+        if journey.isMealEnabled(.dinner, city: .makkah) { count += 1 }
+        return count
+    }
+
+    private var madinahMealCount: Int {
+        guard journey.hasSelectableHotelMeals else { return 2 }
+        var count = 1 // Breakfast is always included; Madinah has no lunch option.
+        if journey.isMealEnabled(.dinner, city: .madinah) { count += 1 }
+        return count
+    }
+
+    private func localizedMealCity(_ city: HotelMealCity) -> String {
+        switch (settings.language, city) {
+        case (.russian, .makkah): return "Мекка"
+        case (.russian, .madinah): return "Медина"
+        case (.english, .makkah): return "Makkah"
+        case (.english, .madinah): return "Madinah"
+        case (.uzbek, .makkah): return "Makka"
+        case (.uzbek, .madinah): return "Madina"
+        case (.uzbekCyrillic, .makkah): return "Макка"
+        case (.uzbekCyrillic, .madinah): return "Мадина"
+        }
     }
 
     private var directFlightTitle: String { localizedFinal("Прямой", "Direct", "To‘g‘ridan-to‘g‘ri", "Тўғридан-тўғри") }

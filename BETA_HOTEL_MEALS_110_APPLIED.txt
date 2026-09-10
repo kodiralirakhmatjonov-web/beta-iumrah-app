@@ -1,0 +1,23 @@
+iumrah Beta update 110 — Comfort/Luxury selectable hotel meals
+Date: 2026-09-10
+
+Implemented:
+- Hotel step: Comfort (4★) and Luxury (5★) cards now show a compact meal plan directly below each selected hotel.
+- Breakfast is always included at no extra charge.
+- Makkah: breakfast + optional lunch + optional dinner.
+- Madinah: breakfast + optional dinner; lunch is intentionally unavailable.
+- Comfort optional lunch/dinner allocation: $30 per adult/child per service day.
+- Luxury optional lunch/dinner allocation: $50 per adult/child per service day.
+- Paid meal toggles default to ON and can be switched off independently by the pilgrim.
+- Economy and Standard meal pricing remains unchanged at the existing $15 per adult/child per trip day.
+- Meal selection immediately invalidates the old package quote and is used by flight price previews and final local package pricing.
+- The final package screen reflects the selected meal count instead of always showing fixed 3x/2x values.
+- The existing pricing snapshot records the selected Comfort/Luxury meal plan in the meal component label without changing the booking API schema.
+- Pricing snapshot version advanced to local-expedia-package-v8; storefront preview meal logic advanced to v2.
+
+Validation performed in this environment:
+- Swift syntax parsing passed for the complete Sources tree.
+- PackageEngine TypeScript typecheck passed.
+- PackageEngine automated test suite passed (31 contract tests + 18 runtime tests).
+- Patch ZIP CRC and safe-extraction simulation validated during packaging.
+- Full SwiftUI/Xcode/TestFlight compilation still requires the repository's macOS GitHub Actions workflow.
