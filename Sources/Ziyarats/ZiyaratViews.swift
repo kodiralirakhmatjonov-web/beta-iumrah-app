@@ -4,11 +4,10 @@ import UIKit
 
 // MARK: - iumrah Ziyarats
 //
-// Map-first experience inspired by Apple Maps / Find My. The map is the permanent
-// spatial scene and the Ziyarats chrome lives in one floating bottom surface. The
-// surface has three physical states and follows the finger continuously; only the
-// final snap is spring-animated. This avoids the rectangular host surface and the
-// sheet hand-off visible in the previous implementation.
+// Map-first experience inspired by Apple Maps / Find My. The map stays behind a
+// system presentation sheet. iOS owns the sheet detents, drag physics and the
+// nested TabView/UITabBarController, so the navigation chrome adopts the native
+// iOS 26 Liquid Glass implementation instead of a simulated drawer or tab bar.
 
 struct ZiyaratJourneyView: View {
     @Environment(\.dismiss) private var dismiss
@@ -34,17 +33,18 @@ struct ZiyaratJourneyView: View {
     @State private var revealedStopCount = 0
 
     @State private var panelVisible = false
-    @State private var panelLevel: ZiyaratPanelLevel = .compact
-    @GestureState private var panelDrag: CGFloat = 0
+    @State private var panelDetent: PresentationDetent = Self.cardDetent
     @State private var closing = false
-    @Namespace private var glassNamespace
+
+    private static let compactDetent: PresentationDetent = .height(96)
+    private static let cardDetent: PresentationDetent = .fraction(0.44)
 
     private var orderedPlaces: [ZiyaratPlace] {
         route.places.sorted { $0.routeOrder < $1.routeOrder }
     }
 
-    private var isCompactPanel: Bool { panelLevel == .compact }
-    private var isExpandedPanel: Bool { panelLevel == .full }
+    private var isCompactPanel: Bool { panelDetent == Self.compactDetent }
+    private var isExpandedPanel: Bool { panelDetent == .large }
 
     var body: some View {
         GeometryReader { proxy in
@@ -58,14 +58,6 @@ struct ZiyaratJourneyView: View {
                     emptyOverlay
                         .padding(.horizontal, 24)
                         .zIndex(5)
-                }
-
-                if panelVisible && !welcomeVisible {
-                    panelDrawer(in: proxy)
-                        .zIndex(15)
-
-                    ziyaratsSystemTabBar(in: proxy)
-                        .zIndex(18)
                 }
 
                 if welcomeVisible {
@@ -96,9 +88,20 @@ struct ZiyaratJourneyView: View {
             await loadJourney()
             await playWelcomeSequence()
         }
-        .onChange(of: panelLevel) { _, _ in
+        .onChange(of: panelDetent) { _, _ in
             guard let selectedPlace else { return }
             focus(on: selectedPlace, animated: true)
+        }
+        .onChange(of: activeTab) { oldValue, newValue in
+            handleNativeTabChange(from: oldValue, to: newValue)
+        }
+        .sheet(isPresented: $panelVisible) {
+            nativeZiyaratsSheet
+                .presentationDetents([Self.compactDetent, Self.cardDetent, .large], selection: $panelDetent)
+                .presentationDragIndicator(.visible)
+                .presentationContentInteraction(.resizes)
+                .presentationBackgroundInteraction(.enabled(upThrough: .large))
+                .interactiveDismissDisabled(true)
         }
     }
 
@@ -225,141 +228,96 @@ struct ZiyaratJourneyView: View {
 
     // MARK: Native Ziyarats chrome
 
-    /// The panel keeps one fixed layout size and moves vertically, like a UIKit sheet.
-    /// We do not resize/re-layout the image-heavy body on every drag frame.
-    private func panelDrawer(in proxy: GeometryProxy) -> some View {
-        let tabBarClearance = ZiyaratSystemTabBar.preferredHeight - 2
-        let metrics = ZiyaratPanelMetrics(containerHeight: max(420, proxy.size.height - tabBarClearance + 8))
-        let targetVisibleHeight = metrics.height(for: panelLevel)
-        let liveVisibleHeight = metrics.rubberBandedHeight(targetVisibleHeight - panelDrag)
-        let yOffset = metrics.fullHeight - liveVisibleHeight
-        let bodyProgress = metrics.bodyProgress(for: liveVisibleHeight)
-
-        let panel = VStack(spacing: 0) {
-            ZStack {
-                Rectangle()
-                    .fill(.clear)
-                    .frame(height: 28)
-
-                Capsule()
-                    .fill(Color.secondary.opacity(0.40))
-                    .frame(width: 36, height: 5)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if isCompactPanel { setPanel(.card) }
-                else if isExpandedPanel { setPanel(.card) }
-                else { setPanel(.full) }
-            }
-            .gesture(panelGesture(metrics: metrics))
-
-            panelBody
-                .id(panelContentID)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .opacity(bodyProgress)
-                .allowsHitTesting(panelLevel != .compact && bodyProgress > 0.88)
-                .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: metrics.fullHeight)
-        .contentShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-
-        return Group {
-            if #available(iOS 26.0, *) {
-                panel
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
-                    .glassEffectID("ziyarats-panel", in: glassNamespace)
-                    .glassEffectTransition(.materialize)
-            } else {
-                // Older iOS gets a solid adaptive surface, never a fake blur/material.
-                panel
-                    .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 32, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
-                    }
-            }
-        }
-        .padding(.horizontal, 7)
-        .padding(.bottom, tabBarClearance)
-        .offset(y: yOffset)
-        .transaction { transaction in
-            if panelDrag != 0 { transaction.animation = nil }
-        }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: activeTab)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: selectedPlace?.id)
-        .accessibilityElement(children: .contain)
-    }
-
-    private func ziyaratsSystemTabBar(in proxy: GeometryProxy) -> some View {
-        let safeBottom = proxy.safeAreaInsets.bottom
-        return ZiyaratSystemTabBar(
-            selection: activeTab,
-            items: ZiyaratPanelTab.allCases.map { tab in
-                .init(tab: tab, title: tabTitle(tab), systemImage: tab.icon)
-            },
-            onSelection: { tab, reselected in
-                if reselected {
-                    selectTab(tab)
-                } else {
-                    selectTab(tab)
-                }
-            }
-        )
-        .frame(height: ZiyaratSystemTabBar.preferredHeight + safeBottom)
-        .padding(.horizontal, 5)
-        .padding(.bottom, -safeBottom)
-        .ignoresSafeArea(edges: .bottom)
-        .allowsHitTesting(!welcomeVisible)
-    }
-
-    private var panelContentID: String {
-        if let selectedPlace { return "place-\(selectedPlace.id)" }
-        return "tab-\(activeTab.rawValue)"
-    }
-
-    private func panelGesture(metrics: ZiyaratPanelMetrics) -> some Gesture {
-        DragGesture(minimumDistance: 1, coordinateSpace: .global)
-            .updating($panelDrag) { value, state, _ in
-                guard abs(value.translation.height) >= abs(value.translation.width) * 0.62 else { return }
-                state = value.translation.height
-            }
-            .onEnded { value in
-                guard abs(value.translation.height) >= abs(value.translation.width) * 0.62 else { return }
-                let currentVisibleHeight = metrics.height(for: panelLevel)
-                let projectedVisibleHeight = currentVisibleHeight - value.predictedEndTranslation.height
-                let target = metrics.level(forProjectedHeight: projectedVisibleHeight, current: panelLevel)
-                if target != panelLevel { IumrahHaptics.selection() }
-                setPanel(target)
-            }
-    }
-
-    private var panelBody: some View {
+    /// This is a real system sheet containing a real SwiftUI TabView.
+    /// iOS owns the sheet drag physics, detent snapping, tab bar, selection lens,
+    /// touch response and Liquid Glass rendering. There is no custom drawer,
+    /// no UIViewRepresentable tab bar, and no simulated material in this layer.
+    private var nativeZiyaratsSheet: some View {
         Group {
-            if let selectedPlace {
-                ZiyaratPlacePanelContent(
-                    place: selectedPlace,
-                    totalStops: orderedPlaces.count,
-                    expanded: isExpandedPanel,
-                    language: settings.language,
-                    onClose: {
-                        IumrahHaptics.selection()
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-                            self.selectedPlace = nil
-                        }
-                        fitEntireRoute(animated: true)
-                    },
-                    onExpand: { setPanel(.full) },
-                    onOpenMaps: { openInMaps(selectedPlace) }
-                )
+            if #available(iOS 18.0, *) {
+                TabView(selection: $activeTab) {
+                    Tab(tabTitle(.journey), systemImage: ZiyaratPanelTab.journey.icon, value: ZiyaratPanelTab.journey) {
+                        nativeSheetPage { journeyPanel }
+                    }
+                    Tab(tabTitle(.places), systemImage: ZiyaratPanelTab.places.icon, value: ZiyaratPanelTab.places) {
+                        nativeSheetPage { placesTabContent }
+                    }
+                    Tab(tabTitle(.route), systemImage: ZiyaratPanelTab.route.icon, value: ZiyaratPanelTab.route) {
+                        nativeSheetPage { routePanel }
+                    }
+                    Tab(tabTitle(.map), systemImage: ZiyaratPanelTab.map.icon, value: ZiyaratPanelTab.map) {
+                        nativeSheetPage { mapPanel }
+                    }
+                }
             } else {
-                switch activeTab {
-                case .journey: journeyPanel
-                case .places: placesPanel
-                case .route: routePanel
-                case .map: mapPanel
+                TabView(selection: $activeTab) {
+                    nativeSheetPage { journeyPanel }
+                        .tabItem { Label(tabTitle(.journey), systemImage: ZiyaratPanelTab.journey.icon) }
+                        .tag(ZiyaratPanelTab.journey)
+                    nativeSheetPage { placesTabContent }
+                        .tabItem { Label(tabTitle(.places), systemImage: ZiyaratPanelTab.places.icon) }
+                        .tag(ZiyaratPanelTab.places)
+                    nativeSheetPage { routePanel }
+                        .tabItem { Label(tabTitle(.route), systemImage: ZiyaratPanelTab.route.icon) }
+                        .tag(ZiyaratPanelTab.route)
+                    nativeSheetPage { mapPanel }
+                        .tabItem { Label(tabTitle(.map), systemImage: ZiyaratPanelTab.map.icon) }
+                        .tag(ZiyaratPanelTab.map)
                 }
             }
+        }
+        // Intentionally no .background(.material), .glassEffect(), UITabBarAppearance,
+        // or custom tab-bar container here. Compiling with the iOS 26 SDK lets the
+        // native TabView/UITabBarController adopt Liquid Glass automatically.
+    }
+
+    @ViewBuilder
+    private func nativeSheetPage<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if isCompactPanel {
+            Color.clear
+                .accessibilityHidden(true)
+        } else {
+            content()
+        }
+    }
+
+    @ViewBuilder
+    private var placesTabContent: some View {
+        if let selectedPlace {
+            ZiyaratPlacePanelContent(
+                place: selectedPlace,
+                totalStops: orderedPlaces.count,
+                expanded: isExpandedPanel,
+                language: settings.language,
+                onClose: {
+                    IumrahHaptics.selection()
+                    self.selectedPlace = nil
+                    fitEntireRoute(animated: true)
+                },
+                onExpand: { setPanel(.full) },
+                onOpenMaps: { openInMaps(selectedPlace) }
+            )
+        } else {
+            placesPanel
+        }
+    }
+
+    private func handleNativeTabChange(from oldValue: ZiyaratPanelTab, to newValue: ZiyaratPanelTab) {
+        guard panelVisible else { return }
+        IumrahHaptics.selection()
+
+        if newValue != .places {
+            selectedPlace = nil
+        }
+
+        switch newValue {
+        case .map:
+            setPanel(.compact)
+        case .route:
+            fitEntireRoute(animated: true)
+            if isCompactPanel { setPanel(.card) }
+        case .journey, .places:
+            if isCompactPanel { setPanel(.card) }
         }
     }
 
@@ -603,34 +561,17 @@ struct ZiyaratJourneyView: View {
         focus(on: place, animated: true)
     }
 
-    private func selectTab(_ tab: ZiyaratPanelTab) {
-        IumrahHaptics.selection()
-        let wasActive = activeTab == tab && selectedPlace == nil
-        selectedPlace = nil
-        activeTab = tab
-
-        if tab == .map {
-            // The map tab is the "map first" state: selecting it gives the map
-            // back almost the whole screen. A second tap opens map controls.
-            setPanel(wasActive && isCompactPanel ? .card : .compact)
-        } else if wasActive && !isCompactPanel {
-            setPanel(.compact)
-        } else {
-            setPanel(.card)
-        }
-
-        if tab == .route { fitEntireRoute(animated: true) }
-    }
-
     private func setPanel(_ level: ZiyaratPanelLevel) {
-        guard panelLevel != level else { return }
-        if reduceMotion {
-            panelLevel = level
-        } else {
-            withAnimation(.interactiveSpring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.12)) {
-                panelLevel = level
-            }
+        let target: PresentationDetent
+        switch level {
+        case .compact: target = Self.compactDetent
+        case .card: target = Self.cardDetent
+        case .full: target = .large
         }
+        guard panelDetent != target else { return }
+        // Deliberately do not wrap this in a custom spring. The system sheet owns
+        // the transition and its gesture physics.
+        panelDetent = target
     }
 
     private func focus(on place: ZiyaratPlace, animated: Bool) {
@@ -680,16 +621,11 @@ struct ZiyaratJourneyView: View {
         guard !closing else { return }
         closing = true
         IumrahHaptics.selection()
-        chrome.setImmersive(false)
-        if reduceMotion {
-            panelVisible = false
+        panelVisible = false
+        Task { @MainActor in
+            if !reduceMotion { try? await Task.sleep(for: .milliseconds(220)) }
+            chrome.setImmersive(false)
             dismiss()
-        } else {
-            withAnimation(.easeInOut(duration: 0.16)) { panelVisible = false }
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(110))
-                dismiss()
-            }
         }
     }
 
@@ -721,8 +657,8 @@ struct ZiyaratJourneyView: View {
             revealedStopCount = orderedPlaces.count
             try? await Task.sleep(for: .milliseconds(450))
             welcomeVisible = false
+            panelDetent = Self.cardDetent
             panelVisible = true
-            panelLevel = .card
             return
         }
 
@@ -740,9 +676,9 @@ struct ZiyaratJourneyView: View {
         try? await Task.sleep(for: .milliseconds(650))
         withAnimation(.easeInOut(duration: 0.38)) { welcomeVisible = false }
         try? await Task.sleep(for: .milliseconds(90))
-        panelLevel = .compact
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.90)) { panelVisible = true }
-        try? await Task.sleep(for: .milliseconds(190))
+        panelDetent = Self.compactDetent
+        panelVisible = true
+        try? await Task.sleep(for: .milliseconds(220))
         setPanel(.card)
     }
 
@@ -877,67 +813,6 @@ private enum ZiyaratPanelLevel {
     case full
 }
 
-private struct ZiyaratPanelMetrics {
-    let compactHeight: CGFloat
-    let cardHeight: CGFloat
-    let fullHeight: CGFloat
-
-    init(containerHeight: CGFloat) {
-        compactHeight = 0
-        cardHeight = min(372, max(316, containerHeight * 0.43))
-        fullHeight = max(cardHeight + 170, containerHeight - 6)
-    }
-
-    func height(for level: ZiyaratPanelLevel) -> CGFloat {
-        switch level {
-        case .compact: return compactHeight
-        case .card: return cardHeight
-        case .full: return fullHeight
-        }
-    }
-
-    func bodyProgress(for height: CGFloat) -> Double {
-        let distance = max(1, cardHeight - compactHeight)
-        return Double(min(1, max(0, (height - 18) / min(108, distance))))
-    }
-
-    func rubberBandedHeight(_ proposed: CGFloat) -> CGFloat {
-        if proposed < compactHeight {
-            return compactHeight - rubberBand(compactHeight - proposed)
-        }
-        if proposed > fullHeight {
-            return fullHeight + rubberBand(proposed - fullHeight)
-        }
-        return proposed
-    }
-
-    func level(forProjectedHeight projected: CGFloat, current: ZiyaratPanelLevel) -> ZiyaratPanelLevel {
-        let lowerMid = (compactHeight + cardHeight) / 2
-        let upperMid = (cardHeight + fullHeight) / 2
-
-        // A small directional bias makes quick flicks feel like the system sheet
-        // without making slow positioning unpredictable.
-        switch current {
-        case .compact:
-            if projected > upperMid { return .full }
-            return projected > lowerMid - 18 ? .card : .compact
-        case .card:
-            if projected < lowerMid + 12 { return .compact }
-            if projected > upperMid - 12 { return .full }
-            return .card
-        case .full:
-            if projected < lowerMid { return .compact }
-            return projected < upperMid + 18 ? .card : .full
-        }
-    }
-
-    private func rubberBand(_ distance: CGFloat) -> CGFloat {
-        // Diminishing resistance close to UIScrollView/UISheet overscroll.
-        let c: CGFloat = 0.36
-        return (1 - (1 / ((distance * c / 120) + 1))) * 120
-    }
-}
-
 private enum ZiyaratPanelTab: String, CaseIterable, Identifiable {
     case journey
     case places
@@ -994,91 +869,6 @@ private struct ZiyaratNativeGlassIconButton: View {
             }
         }
         .accessibilityLabel(accessibilityLabel)
-    }
-}
-
-/// A real UIKit tab bar. On iOS 26 the system owns the Liquid Glass compositor,
-/// selection lens, touch response, haptics, and accessibility. No custom blur,
-/// material, opacity or painted tab background is applied here.
-private struct ZiyaratSystemTabBar: UIViewRepresentable {
-    static let preferredHeight: CGFloat = 62
-
-    struct Item: Equatable {
-        let tab: ZiyaratPanelTab
-        let title: String
-        let systemImage: String
-    }
-
-    let selection: ZiyaratPanelTab
-    let items: [Item]
-    let onSelection: (ZiyaratPanelTab, Bool) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    func makeUIView(context: Context) -> UITabBar {
-        let tabBar = UITabBar(frame: .zero)
-        tabBar.delegate = context.coordinator
-        tabBar.isTranslucent = true
-        tabBar.tintColor = .systemBlue
-        tabBar.unselectedItemTintColor = .secondaryLabel
-        tabBar.itemPositioning = .fill
-        configure(tabBar)
-        return tabBar
-    }
-
-    func updateUIView(_ tabBar: UITabBar, context: Context) {
-        context.coordinator.parent = self
-        configure(tabBar)
-    }
-
-    private func configure(_ tabBar: UITabBar) {
-        if tabBar.items?.count != items.count {
-            tabBar.items = items.enumerated().map { index, item in
-                let barItem = UITabBarItem(
-                    title: item.title,
-                    image: UIImage(systemName: item.systemImage),
-                    selectedImage: UIImage(systemName: item.systemImage)
-                )
-                barItem.tag = index
-                return barItem
-            }
-        } else {
-            for (index, item) in items.enumerated() {
-                guard let barItem = tabBar.items?[safe: index] else { continue }
-                barItem.title = item.title
-                barItem.image = UIImage(systemName: item.systemImage)
-                barItem.selectedImage = UIImage(systemName: item.systemImage)
-                barItem.tag = index
-            }
-        }
-
-        if let index = items.firstIndex(where: { $0.tab == selection }),
-           let selected = tabBar.items?[safe: index],
-           tabBar.selectedItem !== selected {
-            tabBar.selectedItem = selected
-        }
-    }
-
-    final class Coordinator: NSObject, UITabBarDelegate {
-        var parent: ZiyaratSystemTabBar
-
-        init(parent: ZiyaratSystemTabBar) {
-            self.parent = parent
-        }
-
-        func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
-            guard let model = parent.items[safe: item.tag] else { return }
-            let reselected = parent.selection == model.tab
-            parent.onSelection(model.tab, reselected)
-        }
-    }
-}
-
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }
 
