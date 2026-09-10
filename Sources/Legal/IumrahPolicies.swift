@@ -54,7 +54,7 @@ enum IumrahRefundComponent: String, Identifiable, Hashable {
 
     var icon: String {
         switch self {
-        case .package: return "suitcase.rolling.fill"
+        case .package: return "arrow.uturn.backward.circle.fill"
         case .flight: return "airplane"
         case .hotel: return "building.2.fill"
         case .transfer: return "car.fill"

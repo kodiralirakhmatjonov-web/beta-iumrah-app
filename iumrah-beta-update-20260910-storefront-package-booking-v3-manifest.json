@@ -1,0 +1,57 @@
+{
+  "name": "iumrah-beta-update-20260910-storefront-package-booking-v3.zip",
+  "base_chain": [
+    "beta-iumrah-app-main 5(5).zip",
+    "iumrah-beta-update-20260910-flight-catalog-route-filter-v1.zip",
+    "iumrah-beta-update-20260910-hotel-meals-v1.zip",
+    "iumrah-beta-update-20260910-primary-hotel-layout-flight-package-v1.zip",
+    "iumrah-beta-update-20260910-flights-scanner-package-composer-v2.zip"
+  ],
+  "purpose": "Interactive, bookable Flights Scanner package detail using existing room, transfer, pricing and BookingStore architecture.",
+  "requires_package_engine_deploy": false,
+  "requires_testflight_build": true,
+  "saudi_evisa_reference": "https://visa.visitsaudi.com/",
+  "validation_target": {
+    "swift_parse": "all Sources/**/*.swift",
+    "package_engine_typecheck": "npm run typecheck",
+    "contract_tests": "node --test test/*.test.mjs",
+    "runtime_tests": "bash scripts/runtime-tests.sh"
+  },
+  "files": [
+    {
+      "path": "BETA_STOREFRONT_PACKAGE_BOOKING_113_APPLIED.txt",
+      "sha256": "a0387adb237722a1d8ee0efbdecf288d46c02d5e0a03109a9ecb5ac4c4a9ad22",
+      "bytes": 1762
+    },
+    {
+      "path": "Backend/PackageEngine/test/storefront-package-booking-contract.test.mjs",
+      "sha256": "a965dcf4a8aa39804e191ce1c6f2dd81b0d26a6a8d94457c4189135275b2af15",
+      "bytes": 5136
+    },
+    {
+      "path": "Sources/Legal/IumrahPolicies.swift",
+      "sha256": "4380ba90920cd9412a52b04832b9aa70274578b54d8c7b1c52487e1cb2287525",
+      "bytes": 44053
+    },
+    {
+      "path": "Sources/Models/HotelStorefrontModels.swift",
+      "sha256": "98066e2e74a1a27b50de84f9773c7e0474c4da145c7e4d704ddbacfd88e6c023",
+      "bytes": 4239
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "sha256": "8661bd83fbc62e37602ae1b8272a8adaefafc412d525e2281e811c6cf4d51fba",
+      "bytes": 37829
+    },
+    {
+      "path": "Sources/Views/Package/TransferSelectionView.swift",
+      "sha256": "99d11917b1422005d58a605be6536fe6f4a3cf6af5768dda63d514a0dee48248",
+      "bytes": 51139
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "sha256": "0bf6ca7f45b7d9c60a68c7961e071d7f130dffe44afc1a63065b30d16d7e5740",
+      "bytes": 109201
+    }
+  ]
+}

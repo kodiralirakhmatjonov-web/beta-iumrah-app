@@ -73,6 +73,95 @@ final class HotelStorefrontStore: ObservableObject {
         flightPackagePreviews[option.id]
     }
 
+    /// Rebuilds the exact package quote used by the Flights Scanner checkout after
+    /// the pilgrim changes traveler count, room selection or transfer class.
+    /// Supplier/component values stay internal; the caller only receives PackageQuote.
+    func checkoutQuote(
+        for preview: StorefrontFlightPackagePreview,
+        trip: TripDraft,
+        makkahHotel: HotelSummary,
+        madinahHotel: HotelSummary?,
+        makkahRoomID: String?,
+        madinahRoomID: String?,
+        transferVehicle: TransferVehicleKind?,
+        includeHaramainTrain: Bool = false,
+        haramainPublicAddOnUsd: Decimal = 0
+    ) -> PackageQuote? {
+        guard preview.flightFarePerPersonUSD > 0,
+              let offers = bookingFlightOffers(for: preview),
+              let makkahNightly = nightlyUSD(for: makkahHotel) else { return nil }
+
+        let windows = TripStayPlanner.windows(for: trip, calendar: storefrontCalendar)
+        let makkah = LocalHotelPriceComponent(
+            nightlyUsd: makkahNightly,
+            nights: windows.makkah.nights,
+            rooms: max(1, trip.rooms),
+            hotelId: makkahHotel.id,
+            roomId: makkahRoomID,
+            source: "iumrah-flights-scanner-checkout-makkah"
+        )
+
+        var madinah: LocalHotelPriceComponent?
+        if trip.scope == .makkahAndMadinah {
+            guard let madinahHotel,
+                  let madinahWindow = windows.madinah,
+                  let madinahNightly = nightlyUSD(for: madinahHotel) else { return nil }
+            madinah = LocalHotelPriceComponent(
+                nightlyUsd: madinahNightly,
+                nights: madinahWindow.nights,
+                rooms: max(1, trip.rooms),
+                hotelId: madinahHotel.id,
+                roomId: madinahRoomID,
+                source: "iumrah-flights-scanner-checkout-madinah"
+            )
+        }
+
+        return try? LocalPackagePricingEngine.calculate(
+            trip: trip,
+            journeyFareUsd: preview.flightFarePerPersonUSD,
+            journeyFareScope: .perPassenger,
+            pricingOffer: offers.inbound,
+            outboundOffer: offers.outbound,
+            inboundOffer: offers.inbound,
+            makkahHotel: makkah,
+            madinahHotel: madinah,
+            includeHaramainTrain: includeHaramainTrain,
+            transferVehicle: transferVehicle,
+            haramainPublicAddOnUsd: haramainPublicAddOnUsd
+        )
+    }
+
+    /// Booking-safe snapshots for the published flight pair. The package fare is
+    /// carried once by the pair; the booking payload still preserves both physical
+    /// legs and their staff-published identifiers for operations/audit.
+    func bookingFlightOffers(for preview: StorefrontFlightPackagePreview) -> (outbound: FlightOffer, inbound: FlightOffer)? {
+        guard let outboundDeparture = isoDate(preview.outbound.departureAt),
+              let outboundArrival = isoDate(preview.outbound.arrivalAt),
+              let inboundDeparture = isoDate(preview.inbound.departureAt),
+              let inboundArrival = isoDate(preview.inbound.arrivalAt) else { return nil }
+
+        return (
+            syntheticOffer(
+                id: preview.outboundOptionID,
+                leg: preview.outbound,
+                direction: .outbound,
+                departure: outboundDeparture,
+                arrival: outboundArrival,
+                fare: preview.flightFarePerPersonUSD,
+                observedAt: preview.fareObservedAt
+            ),
+            syntheticOffer(
+                id: preview.returnOptionID,
+                leg: preview.inbound,
+                direction: .inbound,
+                departure: inboundDeparture,
+                arrival: inboundArrival,
+                fare: preview.flightFarePerPersonUSD,
+                observedAt: preview.fareObservedAt
+            )
+        )
+    }
+
     func previewImages(for hotel: HotelSummary, limit: Int = 3) -> [String] {
         var values: [String] = []
         if let detail = details[hotel.id] {
@@ -592,6 +681,8 @@ final class HotelStorefrontStore: ObservableObject {
         return StorefrontFlightPackagePreview(
             pricePerPerson: quote.pricePerPerson,
             totalPackagePrice: quote.totalPackagePrice,
+            flightFarePerPersonUSD: pair.farePerPersonUSD,
+            fareObservedAt: pair.observedAt,
             outboundOptionID: pair.outboundOptionID,
             returnOptionID: pair.returnOptionID,
             outbound: pair.outbound,
@@ -627,7 +718,27 @@ final class HotelStorefrontStore: ObservableObject {
         fare: Decimal,
         observedAt: String
     ) -> FlightOffer {
-        FlightOffer(
+        let directSegments: [FlightSegment]?
+        if leg.stops == 0 {
+            directSegments = [
+                FlightSegment(
+                    id: "storefront-segment:\(id):\(direction.rawValue)",
+                    airline: leg.airline,
+                    airlineCode: leg.airlineCode,
+                    flightNumber: leg.flightNumber,
+                    origin: FlightAirportSnapshot(code: leg.origin),
+                    destination: FlightAirportSnapshot(code: leg.destination),
+                    departureAt: departure,
+                    arrivalAt: arrival,
+                    durationMinutes: max(1, leg.durationMinutes),
+                    cabin: leg.cabinClass
+                )
+            ]
+        } else {
+            directSegments = nil
+        }
+
+        return FlightOffer(
             id: "storefront-package:\(id):\(direction.rawValue)",
             direction: direction,
             airline: leg.airline,
@@ -641,7 +752,9 @@ final class HotelStorefrontStore: ObservableObject {
             totalPackagePrice: fare,
             currency: "USD",
             sourceLabel: "iumrah Flights Scanner",
+            sourceCandidateID: id,
             airlineCode: leg.airlineCode,
+            segments: directSegments,
             fareAmount: fare,
             fareScope: .perPassenger,
             fareObservedAt: isoDate(observedAt),

@@ -1,0 +1,18 @@
+iumrah Beta storefront package booking update 113
+Date: 2026-09-10
+
+Scope
+- Keeps the generated Flights Scanner package page visual hierarchy while upgrading the hero to a swipeable hotel-photo carousel with page indicators.
+- Makes outbound and return flight cards expandable with airport, time, duration, cabin and flight-number details.
+- Opens the exact package hotel in HotelDetailView selection mode so the pilgrim can choose a room and return to the same package page with that room reflected in the package state.
+- Reuses the existing TransferSelectionView as a package-customization route; selecting a vehicle returns to the package page and recalculates the package total.
+- Adds traveler/room controls and recalculates the complete package through LocalPackagePricingEngine rather than multiplying the displayed headline price.
+- Adds Saudi tourist eVisa information from the official Saudi eVisa portal: one-year validity, multiple entry unless otherwise stated, maximum stay up to 90 days, Umrah allowed excluding Hajj, and passport validity requirement.
+- Adds iumrah Guide personal-accompaniment details and direct founder consultation actions already used by iumrah Care.
+- Adds a separate booking-confidence explanation for booking ID, invoice, receipt after confirmed payment, refund policy and iumrah Care.
+- Changes the package refund icon to a return/refund semantic symbol.
+- Keeps ziyarat rows unchanged for the later ziyarat modal update.
+- Removes the storefront package copy saying component prices are not shown.
+- Creates the booking through the existing BookingStore/BookingService flow so the server returns the real booking ID and the booking opens in BookingDetailView.
+
+Runtime Package Engine source is unchanged by this patch.

@@ -853,9 +853,39 @@ private struct StorefrontFlightOptionCard: View {
     }
 }
 
+private enum StorefrontPackageInfoSheet: String, Identifiable {
+    case visa
+    case guide
+    case trust
+
+    var id: String { rawValue }
+}
+
+private struct PackageHotelSelectionTarget: Identifiable, Hashable {
+    let hotel: HotelSummary
+    let role: HotelSelectionRole
+
+    var id: String { "\(role.rawValue)::\(hotel.id)" }
+}
+
 private struct StorefrontUmrahPackageDetailView: View {
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var storefront: HotelStorefrontStore
+    @EnvironmentObject private var journey: JourneyStore
+    @EnvironmentObject private var bookings: BookingStore
+    @ObservedObject private var push = PushNotificationManager.shared
+
     let preview: StorefrontFlightPackagePreview
+
+    @State private var heroImageIndex = 0
+    @State private var isPrepared = false
+    @State private var selectedHotelTarget: PackageHotelSelectionTarget?
+    @State private var showTransferSelection = false
+    @State private var infoSheet: StorefrontPackageInfoSheet?
+    @State private var isProfileSheetPresented = false
+    @State private var isSubmitting = false
+    @State private var bookingError: String?
+    @State private var createdBookingID: String?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -869,14 +899,37 @@ private struct StorefrontUmrahPackageDetailView: View {
 
                 SectionHeader(hotelsTitle, eyebrow: "iumrah Hotels", subtitle: nil)
                 ForEach(preview.hotels) { hotel in
-                    PackageHotelDetailCard(hotel: hotel, language: settings.language)
+                    PackageHotelDetailCard(
+                        hotel: hotel,
+                        selectedRoomName: selectedRoomName(for: hotel),
+                        chooseRoomText: chooseRoomTitle,
+                        language: settings.language,
+                        onOpen: { openHotel(hotel) }
+                    )
                 }
 
                 SectionHeader(includedTitle, eyebrow: "iumrah", subtitle: nil)
                 servicesCard
 
+                travelersCard
+
                 IumrahRefundPolicyCard(component: .package, compact: true)
+
+                PackagePurchaseTrustCard(language: settings.language) {
+                    infoSheet = .trust
+                }
+
                 priceCard
+
+                if let bookingError {
+                    Text(bookingError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+                }
+
+                bookingButton
 
                 Label(generatedStamp, systemImage: "seal.fill")
                     .font(.caption.weight(.semibold))
@@ -891,26 +944,76 @@ private struct StorefrontUmrahPackageDetailView: View {
         .background(Color.iumrahPageBackground)
         .navigationTitle(packageNavigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await storefront.prepareIfNeeded()
+            prepareBookingJourneyIfNeeded()
+        }
+        .onChange(of: journey.trip) { _, _ in
+            guard isPrepared else { return }
+            refreshQuote()
+        }
+        .navigationDestination(item: $selectedHotelTarget) { target in
+            HotelDetailView(
+                hotel: target.hotel,
+                selectionFlow: true,
+                selectionRole: target.role,
+                onSelectionSaved: {
+                    refreshQuote()
+                }
+            )
+        }
+        .navigationDestination(isPresented: $showTransferSelection) {
+            TransferSelectionView(selectionMode: true) {
+                refreshQuote()
+            }
+        }
+        .navigationDestination(item: $createdBookingID) { bookingID in
+            BookingDetailView(bookingID: bookingID)
+        }
+        .sheet(item: $infoSheet) { sheet in
+            StorefrontPackageInformationSheet(
+                kind: sheet,
+                language: settings.language,
+                preview: preview
+            )
+        }
+        .sheet(isPresented: $isProfileSheetPresented) {
+            BookingProfileCaptureSheet {
+                Task { await createBooking() }
+            }
+            .environmentObject(settings)
+        }
     }
 
     private var packageHero: some View {
         GeometryReader { proxy in
             ZStack(alignment: .bottomLeading) {
-                if let imageURL = preview.primaryHotel?.coverImageURL, !imageURL.isEmpty {
-                    HotelCachedImage(rawURL: imageURL)
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                } else {
-                    Image("IumrahFlightsShowcaseHero")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
+                TabView(selection: $heroImageIndex) {
+                    if heroImages.isEmpty {
+                        Image("IumrahFlightsShowcaseHero")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .clipped()
+                            .tag(0)
+                    } else {
+                        ForEach(Array(heroImages.enumerated()), id: \.offset) { index, imageURL in
+                            HotelCachedImage(rawURL: imageURL)
+                                .frame(width: proxy.size.width, height: proxy.size.height)
+                                .clipped()
+                                .tag(index)
+                        }
+                    }
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(width: proxy.size.width, height: proxy.size.height)
 
                 LinearGradient(
                     colors: [.black.opacity(0.05), .black.opacity(0.78)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
+                .allowsHitTesting(false)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Label("iumrah Package", systemImage: "shippingbox.fill")
@@ -923,7 +1026,7 @@ private struct StorefrontUmrahPackageDetailView: View {
                         .lineLimit(2)
 
                     HStack(alignment: .lastTextBaseline, spacing: 8) {
-                        Text(money(preview.pricePerPerson))
+                        Text(money(currentQuote.pricePerPerson))
                             .font(.system(size: 31, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                         Text(perPersonShort)
@@ -932,6 +1035,24 @@ private struct StorefrontUmrahPackageDetailView: View {
                     }
                 }
                 .padding(20)
+                .allowsHitTesting(false)
+
+                if heroImages.count > 1 {
+                    HStack(spacing: 6) {
+                        ForEach(heroImages.indices, id: \.self) { index in
+                            Capsule()
+                                .fill(Color.white.opacity(index == heroImageIndex ? 0.95 : 0.42))
+                                .frame(width: index == heroImageIndex ? 18 : 6, height: 6)
+                                .animation(.easeInOut(duration: 0.18), value: heroImageIndex)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .allowsHitTesting(false)
+                }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -942,6 +1063,15 @@ private struct StorefrontUmrahPackageDetailView: View {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
         }
+    }
+
+    private var heroImages: [String] {
+        guard let hotel = primaryHotelSummary else {
+            return preview.primaryHotel?.coverImageURL.map { [$0] } ?? []
+        }
+        let values = storefront.previewImages(for: hotel, limit: 6)
+        if !values.isEmpty { return values }
+        return hotel.coverImageURL.map { [$0] } ?? []
     }
 
     private var overviewCard: some View {
@@ -971,35 +1101,156 @@ private struct StorefrontUmrahPackageDetailView: View {
 
     private var servicesCard: some View {
         VStack(spacing: 0) {
-            serviceRow(icon: "checkmark.document.fill", title: visaTitle, role: .document)
+            serviceButtonRow(
+                icon: "doc.text.fill",
+                title: visaTitle,
+                subtitle: visaSummary,
+                role: .document
+            ) {
+                infoSheet = .visa
+            }
+
             Divider().padding(.leading, 54)
-            serviceRow(icon: "car.side.fill", title: transferTitle, role: .transfer)
+
+            serviceButtonRow(
+                icon: "car.side.fill",
+                title: transferTitle,
+                subtitle: journey.selectedTransferVehicle?.modelName ?? "Kia Carnival",
+                role: .transfer
+            ) {
+                journey.transferSelectionConfirmed = false
+                showTransferSelection = true
+            }
+
             Divider().padding(.leading, 54)
-            serviceRow(icon: "fork.knife", title: mealsTitle, role: .hotel)
+
+            serviceRow(
+                icon: "fork.knife",
+                title: mealsTitle,
+                subtitle: mealsSummary,
+                role: .hotel
+            )
+
             Divider().padding(.leading, 54)
-            serviceRow(icon: "person.2.fill", title: accompanimentTitle, role: .care)
+
+            serviceButtonRow(
+                icon: "person.crop.circle.badge.checkmark",
+                title: guideTitle,
+                subtitle: guideSummary,
+                role: .care
+            ) {
+                infoSheet = .guide
+            }
+
             Divider().padding(.leading, 54)
-            serviceRow(icon: "mappin.and.ellipse", title: makkahZiyaratTitle, role: .location)
+            serviceRow(icon: "mappin.and.ellipse", title: makkahZiyaratTitle, subtitle: nil, role: .location)
             if preview.kind == .makkahMadinahStandard {
                 Divider().padding(.leading, 54)
-                serviceRow(icon: "mappin.circle.fill", title: madinahZiyaratTitle, role: .location)
+                serviceRow(icon: "mappin.circle.fill", title: madinahZiyaratTitle, subtitle: nil, role: .location)
             }
             Divider().padding(.leading, 54)
-            serviceRow(icon: "heart.fill", title: "iumrah Care", role: .care)
+            serviceRow(icon: "heart.fill", title: "iumrah Care", subtitle: careSummary, role: .care)
         }
         .iumrahCard()
     }
 
-    private func serviceRow(icon: String, title: String, role: IumrahIconRole) -> some View {
+    private func serviceRow(icon: String, title: String, subtitle: String?, role: IumrahIconRole) -> some View {
         HStack(spacing: 12) {
             IumrahIconBadge(systemName: icon, role: role, size: 40, symbolSize: 15, cornerRadius: 13)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Spacer()
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(IumrahIconRole.success.color)
         }
         .padding(.vertical, 11)
+    }
+
+    private func serviceButtonRow(
+        icon: String,
+        title: String,
+        subtitle: String,
+        role: IumrahIconRole,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            IumrahHaptics.selection()
+            action()
+        } label: {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: icon, role: role, size: 40, symbolSize: 15, cornerRadius: 13)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var travelersCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(L10n.text("trip_travelers_title", settings.language), systemImage: "person.2")
+                .font(.headline)
+                .padding(.bottom, 4)
+
+            Text(travelersBody)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 4)
+
+            CounterRow(
+                title: L10n.text("adults", settings.language),
+                subtitle: nil,
+                value: $journey.trip.adults,
+                minimum: 1,
+                maximum: max(1, 9 - journey.trip.children - journey.trip.infants)
+            )
+            Divider()
+            CounterRow(
+                title: L10n.text("children", settings.language),
+                subtitle: L10n.text("children_age", settings.language),
+                value: $journey.trip.children,
+                minimum: 0,
+                maximum: max(0, 9 - journey.trip.adults - journey.trip.infants)
+            )
+            Divider()
+            CounterRow(
+                title: L10n.text("infants", settings.language),
+                subtitle: L10n.text("infants_age", settings.language),
+                value: $journey.trip.infants,
+                minimum: 0,
+                maximum: min(4, max(0, 9 - journey.trip.adults - journey.trip.children))
+            )
+            Divider()
+            CounterRow(
+                title: L10n.text("rooms", settings.language),
+                subtitle: nil,
+                value: $journey.trip.rooms,
+                minimum: 1,
+                maximum: 6
+            )
+        }
+        .iumrahCard()
     }
 
     private var priceCard: some View {
@@ -1008,21 +1259,243 @@ private struct StorefrontUmrahPackageDetailView: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
+
             HStack(alignment: .lastTextBaseline) {
-                Text(money(preview.pricePerPerson))
+                Text(money(currentQuote.totalPackagePrice))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .tracking(-0.7)
                 Spacer()
-                Text(perPersonLong)
+                Text(totalForTravelersText)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            Text(priceIncludesText)
-                .font(.caption)
+
+            Label("\(money(currentQuote.pricePerPerson)) · \(perPersonLong)", systemImage: "person.fill")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .iumrahCard()
+    }
+
+    private var bookingButton: some View {
+        Button {
+            isProfileSheetPresented = true
+        } label: {
+            HStack(spacing: 12) {
+                if isSubmitting {
+                    ProgressView().tint(.white)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isSubmitting ? bookingInProgressTitle : bookTripTitle)
+                        .font(.headline)
+                    if !isSubmitting {
+                        Text("\(money(currentQuote.totalPackagePrice)) · \(totalForTravelersText)")
+                            .font(.caption.weight(.semibold))
+                            .opacity(0.76)
+                    }
+                }
+                Spacer(minLength: 8)
+                if !isSubmitting {
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(IumrahPrimaryButtonStyle())
+        .disabled(!canBook || isSubmitting)
+        .opacity(canBook && !isSubmitting ? 1 : 0.45)
+    }
+
+    private var currentQuote: PackageQuote {
+        journey.quote ?? preview.packageQuote
+    }
+
+    private var primaryHotelSummary: HotelSummary? {
+        guard let id = preview.primaryHotel?.id else { return nil }
+        return storefront.hotel(id: id)
+    }
+
+    private var canBook: Bool {
+        guard isPrepared,
+              journey.quote != nil,
+              journey.selectedHotel != nil,
+              journey.selectedOutbound != nil,
+              journey.selectedInbound != nil else { return false }
+        if preview.kind == .makkahMadinahStandard, journey.selectedMadinahHotel == nil { return false }
+        return true
+    }
+
+    private func openHotel(_ packageHotel: StorefrontPackageHotel) {
+        guard let hotel = storefront.hotel(id: packageHotel.id) else {
+            bookingError = hotelUnavailableText
+            IumrahHaptics.error()
+            return
+        }
+        let role: HotelSelectionRole = isMadinahCity(packageHotel.city) ? .madinah : .makkah
+        selectedHotelTarget = PackageHotelSelectionTarget(hotel: hotel, role: role)
+    }
+
+    private func selectedRoomName(for packageHotel: StorefrontPackageHotel) -> String? {
+        let role: HotelSelectionRole = isMadinahCity(packageHotel.city) ? .madinah : .makkah
+        switch role {
+        case .makkah:
+            if let room = journey.selectedRoom { return room.name }
+            if let category = journey.selectedRoomCategory { return L10n.text(category.category.titleKey, settings.language) }
+        case .madinah:
+            if let room = journey.selectedMadinahRoom { return room.name }
+            if let category = journey.selectedMadinahRoomCategory { return L10n.text(category.category.titleKey, settings.language) }
+        }
+        return nil
+    }
+
+    private func isMadinahCity(_ city: String) -> Bool {
+        let value = city.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX")).lowercased()
+        return value.contains("madin") || value.contains("medin")
+    }
+
+    @MainActor
+    private func prepareBookingJourneyIfNeeded() {
+        guard !isPrepared else { return }
+        guard let makkahPackageHotel = preview.hotels.first(where: { !isMadinahCity($0.city) }),
+              let makkahHotel = storefront.hotel(id: makkahPackageHotel.id),
+              let outboundDeparture = parseStorefrontISO(preview.outbound.departureAt),
+              let outboundArrival = parseStorefrontISO(preview.outbound.arrivalAt),
+              let returnDeparture = parseStorefrontISO(preview.inbound.departureAt),
+              let offers = storefront.bookingFlightOffers(for: preview) else {
+            bookingError = packagePreparationErrorText
+            return
+        }
+
+        let madinahHotel: HotelSummary?
+        if preview.kind == .makkahMadinahStandard {
+            guard let packageHotel = preview.hotels.first(where: { isMadinahCity($0.city) }),
+                  let resolved = storefront.hotel(id: packageHotel.id) else {
+                bookingError = packagePreparationErrorText
+                return
+            }
+            madinahHotel = resolved
+        } else {
+            madinahHotel = nil
+        }
+
+        var trip = TripDraft()
+        trip.origin = preview.outbound.origin.uppercased()
+        trip.originAirport = nil
+        trip.arrivalAirport = preview.outbound.destination.uppercased() == "MED" ? .madinah : .jeddah
+        trip.departureDate = Calendar.current.startOfDay(for: outboundDeparture)
+        trip.saudiArrivalDate = Calendar.current.startOfDay(for: outboundArrival)
+        trip.returnDate = Calendar.current.startOfDay(for: returnDeparture)
+        trip.flexibility = .exact
+        trip.adults = 1
+        trip.children = 0
+        trip.infants = 0
+        trip.rooms = 1
+        trip.hotelStars = preview.tier.primaryHotelStars
+        trip.packageTier = preview.tier
+        trip.mealSelection = nil
+        trip.scope = preview.kind == .makkahComfortShort ? .makkahOnly : .makkahAndMadinah
+        trip.flightTripType = .roundTrip
+
+        journey.resetAfterTripChange()
+        journey.trip = trip
+        journey.packageFlightPath = .publishedDirect
+        journey.selectedPublishedCompleteID = preview.outboundOptionID == preview.returnOptionID ? preview.outboundOptionID : nil
+        journey.selectedPublishedOutboundID = preview.outboundOptionID
+        journey.selectedPublishedReturnID = preview.returnOptionID
+        journey.hotels = storefront.makkahHotels
+        journey.madinahHotels = storefront.madinahHotels
+        journey.selectedHotel = makkahHotel
+        journey.selectedMadinahHotel = madinahHotel
+        journey.selectedRoom = nil
+        journey.selectedRoomCategory = nil
+        journey.selectedMadinahRoom = nil
+        journey.selectedMadinahRoomCategory = nil
+        journey.selectedOutbound = offers.outbound
+        journey.selectedInbound = offers.inbound
+        journey.selectedTransferVehicle = .carnival
+        journey.haramainTrainSelected = false
+        journey.transferSelectionConfirmed = false
+        journey.quote = preview.packageQuote
+        journey.errorMessage = nil
+        heroImageIndex = 0
+        isPrepared = true
+        refreshQuote()
+    }
+
+    @MainActor
+    private func refreshQuote() {
+        guard isPrepared,
+              let makkahHotel = journey.selectedHotel else { return }
+
+        let quote = storefront.checkoutQuote(
+            for: preview,
+            trip: journey.trip,
+            makkahHotel: makkahHotel,
+            madinahHotel: journey.selectedMadinahHotel,
+            makkahRoomID: journey.selectedRoom?.id ?? journey.selectedRoomCategory?.id,
+            madinahRoomID: journey.selectedMadinahRoom?.id ?? journey.selectedMadinahRoomCategory?.id,
+            transferVehicle: journey.selectedTransferVehicle,
+            includeHaramainTrain: journey.haramainTrainSelected,
+            haramainPublicAddOnUsd: journey.haramainTrainAddOnUsd
+        )
+
+        if let quote {
+            journey.quote = quote
+            bookingError = nil
+        } else {
+            bookingError = priceRefreshErrorText
+        }
+    }
+
+    @MainActor
+    private func createBooking() async {
+        guard !isSubmitting,
+              let hotel = journey.selectedHotel,
+              let outbound = journey.selectedOutbound,
+              let inbound = journey.selectedInbound,
+              let quote = journey.quote else { return }
+
+        if preview.kind == .makkahMadinahStandard, journey.selectedMadinahHotel == nil { return }
+
+        isSubmitting = true
+        bookingError = nil
+        defer { isSubmitting = false }
+
+        do {
+            let profile = BookingPilgrimProfile(
+                firstName: settings.firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                lastName: settings.lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                telegram: settings.telegram.trimmingCharacters(in: .whitespacesAndNewlines),
+                whatsapp: settings.whatsapp.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+
+            let session = try await bookings.create(
+                trip: journey.trip,
+                hotel: hotel,
+                madinahHotel: journey.selectedMadinahHotel,
+                room: journey.selectedRoom,
+                roomCategory: journey.selectedRoomCategory,
+                madinahRoom: journey.selectedMadinahRoom,
+                madinahRoomCategory: journey.selectedMadinahRoomCategory,
+                intercityTransport: preview.kind == .makkahMadinahStandard
+                    ? (journey.haramainTrainSelected ? .haramainTrain : .road)
+                    : nil,
+                outbound: outbound,
+                inbound: inbound,
+                quote: quote,
+                language: settings.language,
+                pilgrimProfile: profile
+            )
+
+            if let deviceToken = push.deviceToken {
+                await bookings.syncPushSubscriptions(deviceToken: deviceToken, locale: settings.language.rawValue)
+            }
+            IumrahHaptics.success()
+            createdBookingID = session.id
+        } catch {
+            bookingError = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
     }
 
     private func money(_ value: Decimal) -> String {
@@ -1058,62 +1531,142 @@ private struct StorefrontUmrahPackageDetailView: View {
             "Бу пакет Тошкентга қайтади, чунки пакет оралиғида \(preview.outbound.origin) га мос қайтиш рейси топилмади."
         )
     }
-    private var visaTitle: String { tr("Виза", "Visa", "Viza", "Виза") }
+    private var visaTitle: String { tr("Туристическая виза", "Tourist visa", "Turistik viza", "Туристик виза") }
+    private var visaSummary: String { tr("eVisa · 1 год · многократный въезд · до 90 дней", "eVisa · 1 year · multiple entry · up to 90 days", "eVisa · 1 yil · ko‘p martalik kirish · 90 kungacha", "eVisa · 1 йил · кўп марталик кириш · 90 кунгача") }
     private var transferTitle: String {
         preview.kind == .makkahComfortShort
             ? tr("Аэропортовый трансфер", "Airport transfer", "Aeroport transferi", "Аэропорт трансфери")
             : tr("Трансферы и переезд между городами", "Transfers and intercity journey", "Transferlar va shaharlararo yo‘l", "Трансферлар ва шаҳарлараро йўл")
     }
-    private var mealsTitle: String {
+    private var mealsTitle: String { tr("Питание", "Meals", "Ovqatlanish", "Овқатланиш") }
+    private var mealsSummary: String {
         preview.kind == .makkahComfortShort
-            ? tr("Питание Comfort · завтрак, обед и ужин", "Comfort meals · breakfast, lunch and dinner", "Comfort ovqatlanish · nonushta, tushlik va kechki ovqat", "Comfort овқатланиш · нонушта, тушлик ва кечки овқат")
-            : tr("Питание Standard", "Standard meals", "Standard ovqatlanish", "Standard овқатланиш")
+            ? tr("Мекка · 3 раза в день включено", "Makkah · 3 meals a day included", "Makka · kuniga 3 mahal kiritilgan", "Макка · кунига 3 маҳал киритилган")
+            : tr("Мекка · 3 раза в день · Медина · 2 раза в день", "Makkah · 3 meals/day · Madinah · 2 meals/day", "Makka · kuniga 3 mahal · Madina · kuniga 2 mahal", "Макка · кунига 3 маҳал · Мадина · кунига 2 маҳал")
     }
-    private var accompanimentTitle: String { tr("Сопровождение iumrah", "iumrah assistance", "iumrah hamrohligi", "iumrah ҳамроҳлиги") }
+    private var guideTitle: String { tr("iumrah Guide · сопровождение", "iumrah Guide · personal assistance", "iumrah Guide · shaxsiy hamrohlik", "iumrah Guide · шахсий ҳамроҳлик") }
+    private var guideSummary: String { tr("От встречи в аэропорту до вашего вылета", "From airport arrival until your departure", "Aeroportda kutib olishdan jo‘nab ketishingizgacha", "Аэропортда кутиб олишдан жўнаб кетишингизгача") }
+    private var careSummary: String { tr("Поддержка по вашей поездке", "Support for your trip", "Safaringiz bo‘yicha yordam", "Сафарингиз бўйича ёрдам") }
     private var makkahZiyaratTitle: String { tr("Зияраты в Мекке", "Makkah ziyarat", "Makka ziyoratlari", "Макка зиёратлари") }
     private var madinahZiyaratTitle: String { tr("Зияраты в Медине", "Madinah ziyarat", "Madina ziyoratlari", "Мадина зиёратлари") }
-    private var finalPriceTitle: String { tr("Итоговая цена пакета", "Final package price", "Paketning yakuniy narxi", "Пакетнинг якуний нархи") }
+    private var finalPriceTitle: String { tr("Итоговая цена поездки", "Final trip price", "Safarning yakuniy narxi", "Сафарнинг якуний нархи") }
     private var perPersonShort: String { tr("за 1 человека", "for 1 person", "1 kishi uchun", "1 киши учун") }
     private var perPersonLong: String { tr("на 1 человека", "per person", "1 kishi uchun", "1 киши учун") }
-    private var priceIncludesText: String { tr("Одна цена включает выбранную пару рейсов, отели и сервисы iumrah. Стоимость отдельных компонентов не показывается.", "One price includes the selected flight pair, hotels and iumrah services. Individual component prices are not shown.", "Bitta narx tanlangan reyslar juftligi, mehmonxonalar va iumrah xizmatlarini o‘z ichiga oladi. Alohida komponent narxlari ko‘rsatilmaydi.", "Битта нарх танланган рейслар жуфтлиги, меҳмонхоналар ва iumrah хизматларини ўз ичига олади. Алоҳида компонент нархлари кўрсатилмайди.") }
+    private var totalForTravelersText: String {
+        let count = max(1, journey.trip.travelerCount)
+        return tr("за \(count) чел.", "for \(count) travelers", "\(count) kishi uchun", "\(count) киши учун")
+    }
+    private var travelersBody: String { tr("Добавьте тех, кто едет с вами. Итоговая цена пакета пересчитается автоматически.", "Add the people traveling with you. The package total recalculates automatically.", "Siz bilan safar qiladiganlarni qo‘shing. Paketning umumiy narxi avtomatik qayta hisoblanadi.", "Сиз билан сафар қиладиганларни қўшинг. Пакетнинг умумий нархи автоматик қайта ҳисобланади.") }
+    private var chooseRoomTitle: String { tr("Выбрать комнату", "Choose a room", "Xona tanlash", "Хона танлаш") }
+    private var bookTripTitle: String { tr("Забронировать поездку", "Book this trip", "Safarni bron qilish", "Сафарни брон қилиш") }
+    private var bookingInProgressTitle: String { tr("Создаём бронирование…", "Creating booking…", "Bron yaratilmoqda…", "Брон яратилмоқда…") }
     private var generatedStamp: String { tr("Сгенерировано iumrah Package System", "Generated by iumrah Package System", "iumrah Package System yaratdi", "iumrah Package System яратди") }
+    private var packagePreparationErrorText: String { tr("Не удалось подготовить этот пакет к бронированию. Обновите каталог и попробуйте снова.", "This package could not be prepared for booking. Refresh the catalog and try again.", "Bu paketni bron qilishga tayyorlab bo‘lmadi. Katalogni yangilang va qayta urinib ko‘ring.", "Бу пакетни брон қилишга тайёрлаб бўлмади. Каталогни янгиланг ва қайта уриниб кўринг.") }
+    private var priceRefreshErrorText: String { tr("Не удалось пересчитать пакет после изменения выбора.", "The package could not be recalculated after your change.", "Tanlovdan keyin paket narxini qayta hisoblab bo‘lmadi.", "Танловдан кейин пакет нархини қайта ҳисоблаб бўлмади.") }
+    private var hotelUnavailableText: String { tr("Карточка этого отеля временно недоступна.", "This hotel page is temporarily unavailable.", "Bu mehmonxona sahifasi vaqtincha mavjud emas.", "Бу меҳмонхона саҳифаси вақтинча мавжуд эмас.") }
 }
 
 private struct PackageFlightLegDetailCard: View {
     let leg: StorefrontFlightLeg
     let direction: String
     let language: AppSettingsStore.Language
+    @State private var expanded = false
 
     var body: some View {
-        HStack(spacing: 14) {
-            AirlineLogoView(airlineCode: leg.airlineCode, size: 50)
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                    expanded.toggle()
+                }
+                IumrahHaptics.selection()
+            } label: {
+                HStack(spacing: 14) {
+                    AirlineLogoView(airlineCode: leg.airlineCode, size: 50)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(direction.uppercased())
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                Text("\(leg.origin) → \(leg.destination)")
-                    .font(.headline)
-                Text("\(leg.airline) \(leg.flightNumber)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text("\(day(leg.departureAt)) · \(clock(leg.departureAt))")
-                    .font(.caption.monospacedDigit().weight(.semibold))
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(direction.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                        Text("\(leg.origin) → \(leg.destination)")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text("\(leg.airline) \(leg.flightNumber)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Text("\(day(leg.departureAt)) · \(clock(leg.departureAt))")
+                            .font(.caption.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(.primary)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Image(systemName: "airplane")
+                            .font(.headline)
+                            .foregroundStyle(IumrahIconRole.travel.color)
+                        Text(directText)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(expanded ? 180 : 0))
+                    }
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            Spacer(minLength: 6)
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Image(systemName: "airplane")
-                    .font(.headline)
-                    .foregroundStyle(IumrahIconRole.travel.color)
-                Text(directText)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            if expanded {
+                Divider().padding(.vertical, 14)
+                VStack(spacing: 11) {
+                    flightFact(title: departureAirportTitle, value: airportText(leg.origin))
+                    flightFact(title: arrivalAirportTitle, value: airportText(leg.destination))
+                    flightFact(title: departureTimeTitle, value: fullDateTime(leg.departureAt))
+                    flightFact(title: arrivalTimeTitle, value: fullDateTime(leg.arrivalAt))
+                    flightFact(title: durationTitle, value: durationText(leg.durationMinutes))
+                    flightFact(title: cabinTitle, value: leg.cabinClass.isEmpty ? "—" : leg.cabinClass.capitalized)
+                    flightFact(title: flightNumberTitle, value: leg.flightNumber)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .iumrahCard()
+    }
+
+    private func flightFact(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 12)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func airportText(_ code: String) -> String {
+        if let airport = FlightReferenceCatalog.airport(code) {
+            return "\(airport.city) · \(airport.name) · \(code.uppercased())"
+        }
+        return code.uppercased()
+    }
+
+    private func fullDateTime(_ value: String) -> String {
+        guard let date = parseStorefrontISO(value) else { return value }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language.localeIdentifier)
+        formatter.setLocalizedDateFormatFromTemplate("d MMM yyyy HH:mm")
+        return formatter.string(from: date)
+    }
+
+    private func durationText(_ minutes: Int) -> String {
+        let h = max(0, minutes) / 60
+        let m = max(0, minutes) % 60
+        if m == 0 { return "\(h)h" }
+        return "\(h)h \(m)m"
     }
 
     private var directText: String {
@@ -1124,63 +1677,104 @@ private struct PackageFlightLegDetailCard: View {
         case .uzbekCyrillic: return leg.stops == 0 ? "тўғридан-тўғри" : "\(leg.stops) уланиш"
         }
     }
+
+    private var departureAirportTitle: String { tr("Аэропорт вылета", "Departure airport", "Jo‘nash aeroporti", "Жўнаш аэропорти") }
+    private var arrivalAirportTitle: String { tr("Аэропорт прилёта", "Arrival airport", "Yetib borish aeroporti", "Етиб бориш аэропорти") }
+    private var departureTimeTitle: String { tr("Вылет", "Departure", "Jo‘nash", "Жўнаш") }
+    private var arrivalTimeTitle: String { tr("Прилёт", "Arrival", "Yetib kelish", "Етиб келиш") }
+    private var durationTitle: String { tr("В пути", "Duration", "Yo‘lda", "Йўлда") }
+    private var cabinTitle: String { tr("Класс", "Cabin", "Klass", "Класс") }
+    private var flightNumberTitle: String { tr("Рейс", "Flight", "Reys", "Рейс") }
+
+    private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
+        switch language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCy
+        }
+    }
 }
 
 private struct PackageHotelDetailCard: View {
     let hotel: StorefrontPackageHotel
+    let selectedRoomName: String?
+    let chooseRoomText: String
     let language: AppSettingsStore.Language
+    let onOpen: () -> Void
 
     var body: some View {
-        GeometryReader { proxy in
-            let mediaWidth = min(max(proxy.size.width * 0.31, 108), 124)
-            HStack(spacing: 0) {
-                ZStack {
-                    if let imageURL = hotel.coverImageURL, !imageURL.isEmpty {
-                        HotelCachedImage(rawURL: imageURL)
-                            .frame(width: mediaWidth, height: 136)
-                    } else {
-                        Color.iumrahRaisedBackground
-                            .overlay {
-                                Image(systemName: "building.2.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(.secondary)
-                            }
-                    }
-                }
-                .frame(width: mediaWidth, height: 136)
-                .clipped()
-
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(hotel.name)
-                        .font(.headline)
-                        .lineLimit(2)
-                    HStack(spacing: 6) {
-                        if let stars = hotel.stars {
-                            Text(String(repeating: "★", count: max(1, min(5, stars))))
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(IumrahIconRole.rating.color)
+        Button {
+            IumrahHaptics.selection()
+            onOpen()
+        } label: {
+            GeometryReader { proxy in
+                let mediaWidth = min(max(proxy.size.width * 0.31, 108), 124)
+                HStack(spacing: 0) {
+                    ZStack {
+                        if let imageURL = hotel.coverImageURL, !imageURL.isEmpty {
+                            HotelCachedImage(rawURL: imageURL)
+                                .frame(width: mediaWidth, height: 150)
+                        } else {
+                            Color.iumrahRaisedBackground
+                                .overlay {
+                                    Image(systemName: "building.2.fill")
+                                        .font(.title2)
+                                        .foregroundStyle(.secondary)
+                                }
                         }
-                        Text(cityTitle)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
                     }
-                    Label(nightsText, systemImage: "moon.stars.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
+                    .frame(width: mediaWidth, height: 150)
+                    .clipped()
+
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(hotel.name)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                        HStack(spacing: 6) {
+                            if let stars = hotel.stars {
+                                Text(String(repeating: "★", count: max(1, min(5, stars))))
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(IumrahIconRole.rating.color)
+                            }
+                            Text(cityTitle)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        Label(nightsText, systemImage: "moon.stars.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        Spacer(minLength: 0)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: "bed.double.fill")
+                                .font(.caption)
+                            Text(selectedRoomName ?? chooseRoomText)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .foregroundStyle(selectedRoomName == nil ? .secondary : .primary)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(width: proxy.size.width, height: 150)
             }
-            .frame(width: proxy.size.width, height: 136)
+            .frame(height: 150)
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
+            }
         }
-        .frame(height: 136)
-        .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
-        }
+        .buttonStyle(.plain)
     }
 
     private var cityTitle: String { L10n.city(hotel.city, language) }
@@ -1193,6 +1787,294 @@ private struct PackageHotelDetailCard: View {
         }
     }
 }
+
+private struct PackagePurchaseTrustCard: View {
+    let language: AppSettingsStore.Language
+    let onOpen: () -> Void
+
+    var body: some View {
+        Button {
+            IumrahHaptics.selection()
+            onOpen()
+        } label: {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: "checkmark.shield.fill", role: .security, size: 42, symbolSize: 17, cornerRadius: 14)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(14)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.7)
+        }
+    }
+
+    private var title: String {
+        switch language {
+        case .russian: return "Доверие и подтверждение бронирования"
+        case .english: return "Booking trust and confirmation"
+        case .uzbek: return "Bron ishonchi va tasdig‘i"
+        case .uzbekCyrillic: return "Брон ишончи ва тасдиғи"
+        }
+    }
+
+    private var subtitle: String {
+        switch language {
+        case .russian: return "Booking ID · инвойс · чек после подтверждения оплаты · поддержка iumrah"
+        case .english: return "Booking ID · invoice · receipt after payment confirmation · iumrah support"
+        case .uzbek: return "Booking ID · invoice · to‘lov tasdiqlangach chek · iumrah yordami"
+        case .uzbekCyrillic: return "Booking ID · invoice · тўлов тасдиқлангач чек · iumrah ёрдами"
+        }
+    }
+}
+
+private struct StorefrontPackageInformationSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let kind: StorefrontPackageInfoSheet
+    let language: AppSettingsStore.Language
+    let preview: StorefrontFlightPackagePreview
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
+                    switch kind {
+                    case .visa:
+                        visaContent
+                    case .guide:
+                        guideContent
+                    case .trust:
+                        trustContent
+                    }
+                }
+                .padding(IumrahDesign.pagePadding)
+                .padding(.bottom, 26)
+            }
+            .background(Color.iumrahPageBackground)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(doneTitle) { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            IumrahIconBadge(systemName: headerIcon, role: headerRole, size: 50, symbolSize: 20, cornerRadius: 16)
+            Text(sheetTitle)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .tracking(-0.7)
+            Text(sheetSubtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var visaContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            infoCard {
+                infoPoint(icon: "calendar", title: tr("Срок действия", "Validity", "Amal qilish muddati", "Амал қилиш муддати"), body: tr("До 1 года с даты выдачи.", "Up to 1 year from issue.", "Berilgan kundan boshlab 1 yilgacha.", "Берилган кундан бошлаб 1 йилгача."))
+                Divider()
+                infoPoint(icon: "arrow.left.arrow.right", title: tr("Въезды", "Entries", "Kirishlar", "Киришлар"), body: tr("Многократный въезд, если иное не указано в самой eVisa.", "Multiple entry unless the issued eVisa states otherwise.", "eVisa hujjatida boshqacha ko‘rsatilmagan bo‘lsa, ko‘p martalik kirish.", "eVisa ҳужжатида бошқача кўрсатилмаган бўлса, кўп марталик кириш."))
+                Divider()
+                infoPoint(icon: "clock", title: tr("Пребывание", "Stay", "Qolish muddati", "Қолиш муддати"), body: tr("Максимальный срок пребывания — до 90 дней.", "Maximum stay is up to 90 days.", "Maksimal qolish muddati — 90 kungacha.", "Максимал қолиш муддати — 90 кунгача."))
+                Divider()
+                infoPoint(icon: "building.columns.fill", title: tr("Умра", "Umrah", "Umra", "Умра"), body: tr("Туристическая eVisa разрешает совершение Умры, но не Хаджа.", "The tourist eVisa permits Umrah, but not Hajj.", "Turistik eVisa Umra qilishga ruxsat beradi, ammo Haj uchun emas.", "Туристик eVisa Умра қилишга рухсат беради, аммо Ҳаж учун эмас."))
+                Divider()
+                infoPoint(icon: "person.text.rectangle", title: tr("Паспорт", "Passport", "Pasport", "Паспорт"), body: tr("Для подачи через официальный eVisa-сервис паспорт должен быть действителен не менее 6 месяцев на дату въезда.", "For the official eVisa service, the passport must have at least 6 months validity at entry.", "Rasmiy eVisa xizmati uchun pasport kirish sanasida kamida 6 oy amal qilishi kerak.", "Расмий eVisa хизмати учун паспорт кириш санасида камида 6 ой амал қилиши керак."))
+            }
+
+            Text(visaAuthorityNote)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Link(destination: URL(string: "https://visa.visitsaudi.com/")!) {
+                HStack {
+                    Label(officialVisaSourceTitle, systemImage: "safari.fill")
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(IumrahSecondaryButtonStyle())
+        }
+    }
+
+    private var guideContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            infoCard {
+                guidePoint("airplane.arrival", tr("Встреча в аэропорту", "Airport welcome", "Aeroportda kutib olish", "Аэропортда кутиб олиш"), tr("iumrah Guide встречает вас по маршруту поездки и помогает начать поездку без лишних вопросов после прилёта.", "Your iumrah Guide meets you for the trip and helps you start the journey smoothly after arrival.", "iumrah Guide safar yo‘nalishingiz bo‘yicha kutib oladi va kelganingizdan keyin safarni oson boshlashga yordam beradi.", "iumrah Guide сафар йўналишингиз бўйича кутиб олади ва келганингиздан кейин сафарни осон бошлашга ёрдам беради."))
+                Divider()
+                guidePoint("text.bubble.fill", tr("Арабский язык и заселение", "Arabic and hotel check-in", "Arab tili va mehmonxonaga joylashish", "Араб тили ва меҳмонхонага жойлашиш"), tr("Помогает с общением на арабском и сопровождает заселение в выбранный отель.", "Helps with Arabic communication and supports hotel check-in.", "Arab tilida muloqot qilish va tanlangan mehmonxonaga joylashishda yordam beradi.", "Араб тилида мулоқот қилиш ва танланган меҳмонхонага жойлашишда ёрдам беради."))
+                Divider()
+                guidePoint("car.fill", tr("Маршрут и трансферы", "Route and transfers", "Yo‘nalish va transferlar", "Йўналиш ва трансферлар"), tr("Сопровождает ключевые переезды по программе, включая переход между Меккой и Мединой, когда он есть в пакете.", "Supports the key transfers in your itinerary, including the Makkah–Madinah journey when included.", "Dasturdagi asosiy transferlarda, jumladan paketda bo‘lsa Makka–Madina yo‘lida hamroh bo‘ladi.", "Дастурдаги асосий трансферларда, жумладан пакетда бўлса Макка–Мадина йўлида ҳамроҳ бўлади."))
+                Divider()
+                guidePoint("mappin.and.ellipse", tr("Зияраты", "Ziyarat", "Ziyoratlar", "Зиёратлар"), tr("Сопровождает включённые зияраты и помогает ориентироваться по программе поездки.", "Accompanies the included ziyarat program and helps you follow the itinerary.", "Paketga kiritilgan ziyoratlarda hamroh bo‘ladi va safar dasturi bo‘yicha yo‘l ko‘rsatadi.", "Пакетга киритилган зиёратларда ҳамроҳ бўлади ва сафар дастури бўйича йўл кўрсатади."))
+                Divider()
+                guidePoint("hands.sparkles.fill", tr("Сопровождение Умры", "Umrah support", "Umra hamrohligi", "Умра ҳамроҳлиги"), tr("Помогает пройти организационную часть Умры и остаётся вашим контактным лицом по поездке.", "Helps with the organizational side of Umrah and remains your trip contact.", "Umraning tashkiliy qismida yordam beradi va safar davomida sizning aloqa shaxsingiz bo‘lib qoladi.", "Умранинг ташкилий қисмида ёрдам беради ва сафар давомида сизнинг алоқа шахсингиз бўлиб қолади."))
+                Divider()
+                guidePoint("airplane.departure", tr("До вылета домой", "Until departure home", "Uyga jo‘nashgacha", "Уйга жўнашгача"), tr("Сопровождение привязано к вашей поездке до её завершения и трансфера в аэропорт на обратный вылет.", "The assistance stays tied to your trip through its completion and the airport transfer for your return flight.", "Hamrohlik safaringiz yakunigacha va qaytish reysi uchun aeroport transferigacha davom etadi.", "Ҳамроҳлик сафарингиз якунигача ва қайтиш рейси учун аэропорт трансферигача давом этади."))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(founderContactTitle)
+                    .font(.headline)
+                Text(founderContactBody)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 10) {
+                    Link(destination: URL(string: "tel:+998508898845")!) {
+                        Label(callTitle, systemImage: "phone.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+
+                    Link(destination: URL(string: "https://t.me/saudiclub966")!) {
+                        Label("Telegram", systemImage: "paperplane.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(IumrahSecondaryButtonStyle())
+                }
+            }
+            .iumrahCard()
+        }
+    }
+
+    private var trustContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(trustIntro)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            infoCard {
+                infoPoint(icon: "number.square.fill", title: "iumrah Booking ID", body: trustBookingIDBody)
+                Divider()
+                infoPoint(icon: "doc.text.fill", title: tr("Инвойс", "Invoice", "Invoice", "Invoice"), body: trustInvoiceBody)
+                Divider()
+                infoPoint(icon: "checkmark.seal.fill", title: tr("Чек", "Receipt", "Chek", "Чек"), body: trustReceiptBody)
+                Divider()
+                infoPoint(icon: "arrow.uturn.backward.circle.fill", title: tr("Возврат", "Refund", "Qaytarish", "Қайтариш"), body: trustRefundBody)
+                Divider()
+                infoPoint(icon: "heart.fill", title: "iumrah Care", body: trustCareBody)
+            }
+
+            Text(trustIndividualNote)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            content()
+        }
+        .iumrahCard()
+    }
+
+    private func infoPoint(icon: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IumrahIconBadge(systemName: icon, role: .security, size: 38, symbolSize: 14, cornerRadius: 12)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(body).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func guidePoint(_ icon: String, _ title: String, _ body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IumrahIconBadge(systemName: icon, role: .care, size: 38, symbolSize: 14, cornerRadius: 12)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(body).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var headerIcon: String {
+        switch kind {
+        case .visa: return "doc.text.fill"
+        case .guide: return "person.crop.circle.badge.checkmark"
+        case .trust: return "checkmark.shield.fill"
+        }
+    }
+
+    private var headerRole: IumrahIconRole {
+        switch kind {
+        case .visa: return .document
+        case .guide: return .care
+        case .trust: return .security
+        }
+    }
+
+    private var sheetTitle: String {
+        switch kind {
+        case .visa: return tr("Туристическая eVisa Саудовской Аравии", "Saudi tourist eVisa", "Saudiya turistik eVisa", "Саудия туристик eVisa")
+        case .guide: return "iumrah Guide"
+        case .trust: return tr("Доверие к бронированию", "Booking confidence", "Bronga ishonch", "Бронга ишонч")
+        }
+    }
+
+    private var sheetSubtitle: String {
+        switch kind {
+        case .visa:
+            return tr("Официальные условия туристической eVisa, применимые к поездке на Умру.", "Official tourist eVisa terms relevant to an Umrah trip.", "Umra safariga tegishli rasmiy turistik eVisa shartlari.", "Умра сафарига тегишли расмий туристик eVisa шартлари.")
+        case .guide:
+            return tr("Индивидуальное сопровождение, привязанное к вашей поездке — от прилёта до обратного вылета.", "Personal assistance tied to your trip, from arrival until your return departure.", "Safaringizga biriktirilgan shaxsiy hamrohlik — kelishdan qaytish reysigacha.", "Сафарингизга бириктирилган шахсий ҳамроҳлик — келишдан қайтиш рейсигача.")
+        case .trust:
+            return tr("Что фиксирует iumrah после того, как вы создаёте бронирование этого пакета.", "What iumrah records after you create a booking for this package.", "Bu paket uchun bron yaratganingizdan keyin iumrah nimalarni qayd etadi.", "Бу пакет учун брон яратганингиздан кейин iumrah нималарни қайд этади.")
+        }
+    }
+
+    private var visaAuthorityNote: String { tr("Узбекистан указан в официальном списке стран, граждане которых могут подавать на Saudi eVisa. Решение о выдаче визы и разрешении на въезд всегда остаётся за компетентными органами Саудовской Аравии.", "Uzbekistan is listed among the countries whose citizens can apply for the Saudi eVisa. Visa approval and admission to Saudi Arabia remain subject to the competent Saudi authorities.", "O‘zbekiston Saudi eVisa uchun ariza berishi mumkin bo‘lgan davlatlar rasmiy ro‘yxatida bor. Vizani berish va mamlakatga kiritish bo‘yicha yakuniy qaror Saudiya vakolatli organlariga tegishli.", "Ўзбекистон Saudi eVisa учун ариза бериши мумкин бўлган давлатлар расмий рўйхатида бор. Визани бериш ва мамлакатга киритиш бўйича якуний қарор Саудия ваколатли органларига тегишли.") }
+    private var officialVisaSourceTitle: String { tr("Официальный Saudi eVisa портал", "Official Saudi eVisa portal", "Rasmiy Saudi eVisa portali", "Расмий Saudi eVisa портали") }
+    private var founderContactTitle: String { tr("Поговорите с основателем iumrah до бронирования", "Talk to the iumrah founder before booking", "Bron qilishdan oldin iumrah asoschisi bilan gaplashing", "Брон қилишдан олдин iumrah асосчиси билан гаплашинг") }
+    private var founderContactBody: String { tr("Можно прямо сейчас обсудить именно этот пакет или другой вариант с Абдулазизом. Звонок и Telegram доступны напрямую — без передачи запроса через общий чат.", "You can discuss this exact package or another option directly with Abdulaziz now. Call or Telegram him directly without routing the question through a general chat.", "Aynan shu paket yoki boshqa variantni hozir Abdulaziz bilan bevosita muhokama qilishingiz mumkin. Qo‘ng‘iroq va Telegram to‘g‘ridan-to‘g‘ri mavjud.", "Айнан шу пакет ёки бошқа вариантни ҳозир Абдулазиз билан бевосита муҳокама қилишингиз мумкин. Қўнғироқ ва Telegram тўғридан-тўғри мавжуд.") }
+    private var callTitle: String { tr("Позвонить", "Call", "Qo‘ng‘iroq", "Қўнғироқ") }
+    private var trustIntro: String { tr("Бронирование создаётся внутри вашей учётной записи iumrah и получает собственный идентификатор. Маршрут, выбранные отели, комнаты, трансфер и сервисы сохраняются вместе с поездкой.", "The booking is created inside your iumrah account with its own identifier. Route, hotels, rooms, transfer and services are saved with the trip.", "Bron iumrah hisobingiz ichida alohida identifikator bilan yaratiladi. Yo‘nalish, mehmonxonalar, xonalar, transfer va xizmatlar safar bilan birga saqlanadi.", "Брон iumrah ҳисобингиз ичида алоҳида идентификатор билан яратилади. Йўналиш, меҳмонхоналар, хоналар, трансфер ва хизматлар сафар билан бирга сақланади.") }
+    private var trustBookingIDBody: String { tr("После создания поездка получает уникальный ID бронирования и появляется в разделе «Бронирование».", "After creation, the trip receives a unique booking ID and appears in Bookings.", "Yaratilgach, safar noyob bron ID oladi va Bron bo‘limida paydo bo‘ladi.", "Яратилгач, сафар ноёб брон ID олади ва Брон бўлимида пайдо бўлади.") }
+    private var trustInvoiceBody: String { tr("Данные заказа и сумма пакета фиксируются в бронировании; инвойс доступен как документ покупки/оплаты по процессу бронирования.", "Order details and the package amount are recorded in the booking; the invoice is available as part of the purchase/payment process.", "Buyurtma ma’lumotlari va paket summasi bronda qayd etiladi; invoice xarid/to‘lov jarayonining bir qismi sifatida mavjud bo‘ladi.", "Буюртма маълумотлари ва пакет суммаси бронда қайд этилади; invoice харид/тўлов жараёнининг бир қисми сифатида мавжуд бўлади.") }
+    private var trustReceiptBody: String { tr("После подтверждения оплаты чек сохраняется внутри бронирования вместе с платёжными документами.", "After payment is confirmed, the receipt is stored inside the booking with the payment documents.", "To‘lov tasdiqlangach, chek to‘lov hujjatlari bilan birga bron ichida saqlanadi.", "Тўлов тасдиқлангач, чек тўлов ҳужжатлари билан бирга брон ичида сақланади.") }
+    private var trustRefundBody: String { tr("Условия возврата доступны до бронирования и остаются привязаны к соответствующим компонентам поездки.", "Refund terms are available before booking and remain tied to the relevant trip components.", "Qaytarish shartlari bron qilishdan oldin ko‘rinadi va safarning tegishli qismlariga bog‘lanadi.", "Қайтариш шартлари брон қилишдан олдин кўринади ва сафарнинг тегишли қисмларига боғланади.") }
+    private var trustCareBody: String { tr("После создания бронирования iumrah Care остаётся точкой связи по вашей поездке и её обслуживанию.", "After the booking is created, iumrah Care remains your support point for the trip and its services.", "Bron yaratilgach, iumrah Care safaringiz va xizmatlar bo‘yicha aloqa nuqtasi bo‘lib qoladi.", "Брон яратилгач, iumrah Care сафарингиз ва хизматлар бўйича алоқа нуқтаси бўлиб қолади.") }
+    private var trustIndividualNote: String { tr("Этот пакет оформляется как индивидуальная поездка: выбранные сервисы iumrah привязываются к вашему бронированию и вашей программе.", "This package is arranged as an individual trip: the selected iumrah services are tied to your booking and itinerary.", "Bu paket individual safar sifatida rasmiylashtiriladi: tanlangan iumrah xizmatlari broningiz va dasturingizga biriktiriladi.", "Бу пакет индивидуал сафар сифатида расмийлаштирилади: танланган iumrah хизматлари брон ва дастурингизга бириктирилади.") }
+    private var doneTitle: String { tr("Готово", "Done", "Tayyor", "Тайёр") }
+
+    private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
+        switch language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCy
+        }
+    }
+}
+
 
 struct HotelCareShowcaseCard: View {
     let language: AppSettingsStore.Language

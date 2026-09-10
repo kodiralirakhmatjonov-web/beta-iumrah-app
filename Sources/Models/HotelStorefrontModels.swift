@@ -96,6 +96,11 @@ struct StorefrontFlightPackagePreview: Hashable, Identifiable {
 
     let pricePerPerson: Decimal
     let totalPackagePrice: Decimal
+    /// Complete published flight-pair fare for one traveler. Kept internal so the
+    /// package detail can recalculate the same package when traveler/room/transfer
+    /// selections change without exposing component pricing in the UI.
+    let flightFarePerPersonUSD: Decimal
+    let fareObservedAt: String
     let outboundOptionID: String
     let returnOptionID: String
     let outbound: StorefrontFlightLeg
