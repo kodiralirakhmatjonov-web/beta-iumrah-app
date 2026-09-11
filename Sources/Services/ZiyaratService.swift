@@ -22,7 +22,7 @@ actor ZiyaratService {
         }
 
         if let cached = cachedRoute(city: city), !cached.places.isEmpty { return cached }
-        return ZiyaratSeedData.medina
+        return ZiyaratSeedData.fallback(city: city)
     }
 
     private func cache(_ route: ZiyaratRoute, city: String) {

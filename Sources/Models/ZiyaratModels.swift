@@ -170,4 +170,25 @@ enum ZiyaratSeedData {
             )
         ]
     )
+
+    static func fallback(city: String) -> ZiyaratRoute {
+        let normalized = city.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalized == "makkah" || normalized == "mecca" {
+            return ZiyaratRoute(
+                id: "makkah-main",
+                slug: "makkah-ziyarat",
+                city: "Makkah",
+                country: "Saudi Arabia",
+                title: "Makkah Ziyarat",
+                subtitle: "Sacred and historic places around Makkah",
+                transportMode: "car",
+                status: "published",
+                estimatedMinutes: 0,
+                stopCount: 0,
+                places: []
+            )
+        }
+        return medina
+    }
+
 }

@@ -4,10 +4,18 @@ import UIKit
 
 // MARK: - iumrah Ziyarats
 //
-// Map-first experience inspired by Apple Maps / Find My. The map stays behind a
-// single system presentation sheet. iOS owns the sheet detents, drag physics,
-// corner treatment and Liquid Glass surface. Ziyarats navigation is laid directly
-// on that one system surface, avoiding a second tab-bar glass layer.
+// Map-first experience tuned to the interaction model of Apple's Find My:
+// a single floating Liquid Glass surface above MapKit, three snap positions,
+// one persistent tab row, and no nested sheets or duplicated glass layers.
+// Liquid Glass itself is always rendered by the iOS 26 API; only the panel's
+// geometry/gesture is custom so the compact state can match Find My precisely.
+
+private enum ZiyaratJourneyCity: String, CaseIterable, Identifiable {
+    case madinah = "Madinah"
+    case makkah = "Makkah"
+
+    var id: String { rawValue }
+}
 
 struct ZiyaratJourneyView: View {
     @Environment(\.dismiss) private var dismiss
@@ -16,6 +24,8 @@ struct ZiyaratJourneyView: View {
     @EnvironmentObject private var chrome: AppChromeStore
 
     @State private var route = ZiyaratSeedData.medina
+    @State private var selectedCity: ZiyaratJourneyCity = .madinah
+    @State private var routeRequestID = UUID()
     @State private var selectedPlace: ZiyaratPlace?
     @State private var activeTab: ZiyaratPanelTab = .journey
 
@@ -32,22 +42,22 @@ struct ZiyaratJourneyView: View {
     @State private var welcomeCopyVisible = false
     @State private var revealedStopCount = 0
 
-    @State private var panelVisible = false
-    @State private var panelDetent: PresentationDetent = Self.cardDetent
+    @State private var panelPresented = false
+    @State private var panelLevel: ZiyaratPanelLevel = .compact
+    @State private var panelDragY: CGFloat = 0
     @State private var closing = false
-
-    private static let compactDetent: PresentationDetent = .height(108)
-    private static let cardDetent: PresentationDetent = .fraction(0.44)
 
     private var orderedPlaces: [ZiyaratPlace] {
         route.places.sorted { $0.routeOrder < $1.routeOrder }
     }
 
-    private var isCompactPanel: Bool { panelDetent == Self.compactDetent }
-    private var isExpandedPanel: Bool { panelDetent == .large }
+    private var isCompactPanel: Bool { panelLevel == .compact }
+    private var isExpandedPanel: Bool { panelLevel == .full }
 
     var body: some View {
         GeometryReader { proxy in
+            let metrics = ZiyaratPanelMetrics(containerHeight: proxy.size.height)
+
             ZStack(alignment: .bottom) {
                 mapScene
                     .ignoresSafeArea()
@@ -58,6 +68,14 @@ struct ZiyaratJourneyView: View {
                     emptyOverlay
                         .padding(.horizontal, 24)
                         .zIndex(5)
+                }
+
+                if panelPresented {
+                    findMyPanel(metrics: metrics)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .zIndex(12)
                 }
 
                 if welcomeVisible {
@@ -88,16 +106,9 @@ struct ZiyaratJourneyView: View {
             await loadJourney()
             await playWelcomeSequence()
         }
-        .onChange(of: panelDetent) { _, _ in
+        .onChange(of: panelLevel) { _, _ in
             guard let selectedPlace else { return }
             focus(on: selectedPlace, animated: true)
-        }
-        .sheet(isPresented: $panelVisible) {
-            nativeZiyaratsSheet
-                .presentationDetents([Self.compactDetent, Self.cardDetent, .large], selection: $panelDetent)
-                .presentationDragIndicator(isCompactPanel ? .hidden : .visible)
-                .presentationBackgroundInteraction(.enabled(upThrough: Self.cardDetent))
-                .interactiveDismissDisabled(true)
         }
     }
 
@@ -166,7 +177,16 @@ struct ZiyaratJourneyView: View {
                     action: closeZiyarats
                 )
 
-                Spacer()
+                Spacer(minLength: 8)
+
+                ZiyaratNativeCitySwitcher(
+                    selectedCity: selectedCity,
+                    madinahTitle: medinaSwitchTitle,
+                    makkahTitle: makkahSwitchTitle,
+                    onSelect: changeCity
+                )
+
+                Spacer(minLength: 8)
 
                 ZiyaratNativeMapControlGroup(
                     primarySystemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
@@ -196,48 +216,95 @@ struct ZiyaratJourneyView: View {
         .zIndex(10)
     }
 
-    // MARK: Native Ziyarats chrome
+    // MARK: Find My-style Ziyarats surface
 
-    /// The system sheet is the one and only Liquid Glass surface.
-    /// The four Ziyarats destinations live directly on that surface instead of
-    /// embedding another TabView/UITabBar inside the sheet. This removes the
-    /// double-layer "glass inside glass" effect and makes the compact detent
-    /// itself become the Ziyarats navigation bar, like Apple's map-first apps.
-    private var nativeZiyaratsSheet: some View {
-        NavigationStack {
-            Group {
-                if isCompactPanel {
-                    Color.clear
-                        .accessibilityHidden(true)
-                } else {
-                    currentPanelContent
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                ZiyaratSheetNavigationBar(
-                    activeTab: activeTab,
-                    title: tabTitle,
-                    onSelect: activateTab
+    /// One native Liquid Glass surface, exactly one tab row, and no SwiftUI sheet.
+    /// The custom geometry is deliberate: SwiftUI's minimum sheet detent is much
+    /// taller than Find My's compact surface on iPhone. The glass itself remains
+    /// iOS 26's native compositor effect.
+    private func findMyPanel(metrics: ZiyaratPanelMetrics) -> some View {
+        let height = interactivePanelHeight(metrics: metrics)
+        let contentProgress = metrics.contentProgress(for: height)
+
+        return Group {
+            if #available(iOS 26.0, *) {
+                panelSurfaceContent(
+                    metrics: metrics,
+                    contentProgress: contentProgress
                 )
-            }
-            .navigationTitle(selectedPlace.map { stopCounterTitle($0) } ?? "")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if selectedPlace != nil && !isCompactPanel {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .cancel, action: closeSelectedPlace) {
-                            Image(systemName: "xmark")
-                        }
-                        .accessibilityLabel(closePlaceLabel)
-                    }
+                .frame(height: height)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+            } else {
+                panelSurfaceContent(
+                    metrics: metrics,
+                    contentProgress: contentProgress
+                )
+                .frame(height: height)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
                 }
             }
-            .toolbar(selectedPlace != nil && !isCompactPanel ? .visible : .hidden, for: .navigationBar)
-            .toolbarBackground(.hidden, for: .navigationBar)
         }
-        // Intentionally no .presentationBackground(.material), no custom blur,
-        // and no nested TabView. iOS 26 renders this partial-height sheet with
-        // the native Liquid Glass presentation surface.
+        .shadow(color: .black.opacity(0.08), radius: 24, y: 10)
+        .animation(nil, value: panelDragY)
+    }
+
+    private func panelSurfaceContent(
+        metrics: ZiyaratPanelMetrics,
+        contentProgress: CGFloat
+    ) -> some View {
+        VStack(spacing: 0) {
+            ZiyaratPanelGrabber()
+                .gesture(panelDragGesture(metrics: metrics))
+
+            currentPanelContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(contentProgress)
+                .clipped()
+                .allowsHitTesting(contentProgress > 0.98 && !isCompactPanel)
+
+            Divider()
+                .opacity(contentProgress > 0.2 ? 0.26 : 0)
+
+            ZiyaratSheetNavigationBar(
+                activeTab: activeTab,
+                title: tabTitle,
+                onSelect: activateTab
+            )
+            .frame(height: metrics.navigationHeight)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+    }
+
+    private func interactivePanelHeight(metrics: ZiyaratPanelMetrics) -> CGFloat {
+        let base = metrics.height(for: panelLevel)
+        return metrics.rubberBanded(base - panelDragY)
+    }
+
+    private func panelDragGesture(metrics: ZiyaratPanelMetrics) -> some Gesture {
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .onChanged { value in
+                var transaction = Transaction()
+                transaction.animation = nil
+                withTransaction(transaction) {
+                    panelDragY = value.translation.height
+                }
+            }
+            .onEnded { value in
+                let source = panelLevel
+                let projected = metrics.height(for: source) - value.predictedEndTranslation.height
+                let target = metrics.nearestLevel(to: projected)
+
+                withAnimation(reduceMotion ? nil : .interactiveSpring(response: 0.38, dampingFraction: 0.88, blendDuration: 0.08)) {
+                    panelDragY = 0
+                    panelLevel = target
+                }
+                if target != source {
+                    IumrahHaptics.selection()
+                }
+            }
     }
 
     @ViewBuilder
@@ -259,8 +326,10 @@ struct ZiyaratJourneyView: View {
         if let selectedPlace {
             ZiyaratPlacePanelContent(
                 place: selectedPlace,
+                counterTitle: stopCounterTitle(selectedPlace),
                 expanded: isExpandedPanel,
                 language: settings.language,
+                onBack: closeSelectedPlace,
                 onExpand: { setPanel(.full) },
                 onOpenMaps: { openInMaps(selectedPlace) }
             )
@@ -318,8 +387,8 @@ struct ZiyaratJourneyView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         Text(routeTitle)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .tracking(-0.6)
+                            .font(.system(size: 28, weight: .bold))
+                            .tracking(-0.5)
                         Text(routeSubtitle)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -548,16 +617,11 @@ struct ZiyaratJourneyView: View {
     }
 
     private func setPanel(_ level: ZiyaratPanelLevel) {
-        let target: PresentationDetent
-        switch level {
-        case .compact: target = Self.compactDetent
-        case .card: target = Self.cardDetent
-        case .full: target = .large
+        guard panelLevel != level else { return }
+        withAnimation(reduceMotion ? nil : .interactiveSpring(response: 0.38, dampingFraction: 0.90, blendDuration: 0.08)) {
+            panelDragY = 0
+            panelLevel = level
         }
-        guard panelDetent != target else { return }
-        // Deliberately do not wrap this in a custom spring. The system sheet owns
-        // the transition and its gesture physics.
-        panelDetent = target
     }
 
     private func focus(on place: ZiyaratPlace, animated: Bool) {
@@ -607,9 +671,11 @@ struct ZiyaratJourneyView: View {
         guard !closing else { return }
         closing = true
         IumrahHaptics.selection()
-        panelVisible = false
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.20)) {
+            panelPresented = false
+        }
         Task { @MainActor in
-            if !reduceMotion { try? await Task.sleep(for: .milliseconds(220)) }
+            if !reduceMotion { try? await Task.sleep(for: .milliseconds(190)) }
             chrome.setImmersive(false)
             dismiss()
         }
@@ -619,20 +685,49 @@ struct ZiyaratJourneyView: View {
 
     @MainActor
     private func loadJourney() async {
-        loadingCatalog = true
-        let live = await ZiyaratService.shared.route(city: "Madinah")
-        route = live
-        camera = .region(Self.region(for: live.places))
-        loadingCatalog = false
+        await loadJourney(for: selectedCity, animateCamera: false)
+    }
 
-        if !welcomeVisible { revealedStopCount = live.places.count }
+    @MainActor
+    private func loadJourney(for city: ZiyaratJourneyCity, animateCamera: Bool) async {
+        let requestID = UUID()
+        routeRequestID = requestID
+        loadingCatalog = true
+
+        let live = await ZiyaratService.shared.route(city: city.rawValue)
+        guard routeRequestID == requestID, selectedCity == city else { return }
+
+        route = live
+        let targetRegion = live.places.isEmpty ? Self.defaultRegion(for: city) : Self.region(for: live.places)
+        if animateCamera && !reduceMotion {
+            withAnimation(.easeInOut(duration: 0.52)) { camera = .region(targetRegion) }
+        } else {
+            camera = .region(targetRegion)
+        }
+        loadingCatalog = false
+        revealedStopCount = live.places.count
 
         loadingRoute = true
+        let routeCity = city
         Task { @MainActor in
             let lines = await ZiyaratRouteService.shared.roadPolylines(for: live.places)
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: 0.28)) { polylines = lines }
+            guard !Task.isCancelled, selectedCity == routeCity, routeRequestID == requestID else { return }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) { polylines = lines }
             loadingRoute = false
+        }
+    }
+
+    private func changeCity(_ city: ZiyaratJourneyCity) {
+        guard city != selectedCity else { return }
+        IumrahHaptics.selection()
+        selectedCity = city
+        selectedPlace = nil
+        activeTab = .journey
+        polylines = []
+        revealedStopCount = 0
+        if isCompactPanel { setPanel(.card) }
+        Task { @MainActor in
+            await loadJourney(for: city, animateCamera: true)
         }
     }
 
@@ -643,8 +738,8 @@ struct ZiyaratJourneyView: View {
             revealedStopCount = orderedPlaces.count
             try? await Task.sleep(for: .milliseconds(450))
             welcomeVisible = false
-            panelDetent = Self.cardDetent
-            panelVisible = true
+            panelLevel = .card
+            panelPresented = true
             return
         }
 
@@ -662,18 +757,32 @@ struct ZiyaratJourneyView: View {
         try? await Task.sleep(for: .milliseconds(650))
         withAnimation(.easeInOut(duration: 0.38)) { welcomeVisible = false }
         try? await Task.sleep(for: .milliseconds(90))
-        panelDetent = Self.compactDetent
-        panelVisible = true
-        try? await Task.sleep(for: .milliseconds(220))
+        panelLevel = .compact
+        withAnimation(.interactiveSpring(response: 0.42, dampingFraction: 0.90, blendDuration: 0.08)) {
+            panelPresented = true
+        }
+        try? await Task.sleep(for: .milliseconds(260))
         setPanel(.card)
     }
 
-    private static func region(for places: [ZiyaratPlace]) -> MKCoordinateRegion {
-        guard !places.isEmpty else {
+    private static func defaultRegion(for city: ZiyaratJourneyCity) -> MKCoordinateRegion {
+        switch city {
+        case .madinah:
             return MKCoordinateRegion(
                 center: CLLocationCoordinate2D(latitude: 24.4672, longitude: 39.6111),
                 span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
             )
+        case .makkah:
+            return MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 21.4038, longitude: 39.8926),
+                span: MKCoordinateSpan(latitudeDelta: 0.16, longitudeDelta: 0.18)
+            )
+        }
+    }
+
+    private static func region(for places: [ZiyaratPlace]) -> MKCoordinateRegion {
+        guard !places.isEmpty else {
+            return defaultRegion(for: .madinah)
         }
 
         let lats = places.map(\.latitude)
@@ -723,8 +832,20 @@ struct ZiyaratJourneyView: View {
 
     // MARK: Localized UI copy
 
-    private var routeTitle: String { localized("Зиярат Медины", "Medina Ziyarat", "Madina ziyorati", "Мадина зиёрати") }
-    private var cityTitle: String { localized("Медина", "Madinah", "Madina", "Мадина") }
+    private var routeTitle: String {
+        switch selectedCity {
+        case .madinah: return localized("Зиярат Медины", "Medina Ziyarat", "Madina ziyorati", "Мадина зиёрати")
+        case .makkah: return localized("Зиярат Мекки", "Makkah Ziyarat", "Makka ziyorati", "Макка зиёрати")
+        }
+    }
+    private var cityTitle: String {
+        switch selectedCity {
+        case .madinah: return localized("Медина", "Madinah", "Madina", "Мадина")
+        case .makkah: return localized("Мекка", "Makkah", "Makka", "Макка")
+        }
+    }
+    private var medinaSwitchTitle: String { localized("Медина", "Madinah", "Madina", "Мадина") }
+    private var makkahSwitchTitle: String { localized("Мекка", "Makkah", "Makka", "Макка") }
     private var routeSubtitle: String { localized("Священные и исторические места в одной поездке", "Sacred and historic places in one journey", "Muqaddas va tarixiy joylar bitta yo‘nalishda", "Муқаддас ва тарихий жойлар битта йўналишда") }
     private var welcomePretitle: String { localized("Добро пожаловать в", "Welcome to", "Xush kelibsiz", "Хуш келибсиз") }
     private var stopsLabel: String { localized("мест", "stops", "joy", "жой") }
@@ -794,10 +915,71 @@ struct ZiyaratJourneyView: View {
     }
 }
 
-private enum ZiyaratPanelLevel {
+private enum ZiyaratPanelLevel: CaseIterable {
     case compact
     case card
     case full
+}
+
+private struct ZiyaratPanelMetrics {
+    let containerHeight: CGFloat
+
+    let navigationHeight: CGFloat = 70
+    let compactHeight: CGFloat = 108
+
+    var cardHeight: CGFloat {
+        min(max(containerHeight * 0.48, 360), 470)
+    }
+
+    var fullHeight: CGFloat {
+        min(containerHeight - 12, max(cardHeight + 150, containerHeight - 48))
+    }
+
+    func height(for level: ZiyaratPanelLevel) -> CGFloat {
+        switch level {
+        case .compact: return compactHeight
+        case .card: return cardHeight
+        case .full: return fullHeight
+        }
+    }
+
+    func rubberBanded(_ raw: CGFloat) -> CGFloat {
+        let minimum = compactHeight
+        let maximum = fullHeight
+
+        if raw < minimum {
+            return minimum - (minimum - raw) * 0.18
+        }
+        if raw > maximum {
+            return maximum + (raw - maximum) * 0.12
+        }
+        return raw
+    }
+
+    func nearestLevel(to projectedHeight: CGFloat) -> ZiyaratPanelLevel {
+        ZiyaratPanelLevel.allCases.min {
+            abs(height(for: $0) - projectedHeight) < abs(height(for: $1) - projectedHeight)
+        } ?? .card
+    }
+
+    func contentProgress(for height: CGFloat) -> CGFloat {
+        let start = compactHeight + 10
+        let end = compactHeight + 74
+        guard end > start else { return 1 }
+        return min(max((height - start) / (end - start), 0), 1)
+    }
+}
+
+private struct ZiyaratPanelGrabber: View {
+    var body: some View {
+        Capsule()
+            .fill(Color.secondary.opacity(0.32))
+            .frame(width: 36, height: 5)
+            .frame(maxWidth: .infinity)
+            .frame(height: 24)
+            .contentShape(Rectangle())
+            .accessibilityHidden(true)
+    }
 }
 
 private enum ZiyaratPanelTab: String, CaseIterable, Identifiable {
@@ -815,6 +997,57 @@ private enum ZiyaratPanelTab: String, CaseIterable, Identifiable {
         case .route: return "point.topleft.down.to.point.bottomright.curvepath"
         case .map: return "map.fill"
         }
+    }
+}
+
+
+private struct ZiyaratNativeCitySwitcher: View {
+    let selectedCity: ZiyaratJourneyCity
+    let madinahTitle: String
+    let makkahTitle: String
+    let onSelect: (ZiyaratJourneyCity) -> Void
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                controls
+                    .padding(4)
+                    .glassEffect(.regular.interactive(true), in: Capsule())
+            } else {
+                controls
+                    .padding(4)
+                    .background(.regularMaterial, in: Capsule())
+            }
+        }
+        .fixedSize(horizontal: true, vertical: true)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 2) {
+            cityButton(.madinah, title: madinahTitle)
+            cityButton(.makkah, title: makkahTitle)
+        }
+    }
+
+    private func cityButton(_ city: ZiyaratJourneyCity, title: String) -> some View {
+        let selected = selectedCity == city
+        return Button {
+            guard !selected else { return }
+            onSelect(city)
+        } label: {
+            Text(title)
+                .font(.subheadline.weight(selected ? .semibold : .medium))
+                .foregroundStyle(selected ? Color(uiColor: .systemBlue) : Color.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .frame(minWidth: 64)
+                .padding(.horizontal, 10)
+                .frame(height: 38)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }
 
@@ -840,7 +1073,7 @@ private struct ZiyaratNativeGlassIconButton: View {
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
-                .controlSize(.large)
+                .controlSize(.regular)
             } else {
                 Button {
                     IumrahHaptics.selection()
@@ -854,7 +1087,7 @@ private struct ZiyaratNativeGlassIconButton: View {
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
-                .controlSize(.large)
+                .controlSize(.regular)
             }
         }
         .accessibilityLabel(accessibilityLabel)
@@ -875,9 +1108,13 @@ private struct ZiyaratNativeMapControlGroup: View {
         Group {
             if #available(iOS 26.0, *) {
                 controls
+                    .frame(width: 54)
+                    .fixedSize(horizontal: true, vertical: true)
                     .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
             } else {
                 controls
+                    .frame(width: 54)
+                    .fixedSize(horizontal: true, vertical: true)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
             }
         }
@@ -1195,8 +1432,10 @@ private struct ZiyaratRouteStepRow: View {
 
 private struct ZiyaratPlacePanelContent: View {
     let place: ZiyaratPlace
+    let counterTitle: String
     let expanded: Bool
     let language: AppSettingsStore.Language
+    let onBack: () -> Void
     let onExpand: () -> Void
     let onOpenMaps: () -> Void
 
@@ -1209,6 +1448,7 @@ private struct ZiyaratPlacePanelContent: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
+                placeNavigationHeader
                 gallery
                 placeHeader
                 metadata
@@ -1255,6 +1495,25 @@ private struct ZiyaratPlacePanelContent: View {
         }
     }
 
+    private var placeNavigationHeader: some View {
+        HStack(spacing: 12) {
+            Button(action: onBack) {
+                Label(localized("Места", "Places", "Joylar", "Жойлар"), systemImage: "chevron.left")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color(uiColor: .systemBlue))
+
+            Spacer(minLength: 8)
+
+            Text(counterTitle)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(height: 28)
+    }
+
     private var gallery: some View {
         VStack(spacing: 9) {
             ZStack(alignment: .topTrailing) {
@@ -1263,7 +1522,7 @@ private struct ZiyaratPlacePanelContent: View {
                         .frame(height: expanded ? 260 : 190)
                 } else {
                     TabView(selection: $selectedImage) {
-                        ForEach(Array(place.images.prefix(5).enumerated()), id: \.offset) { index, image in
+                        ForEach(Array(place.images.enumerated()), id: \.offset) { index, image in
                             ZiyaratImageView(image: image)
                                 .tag(index)
                         }
@@ -1273,7 +1532,7 @@ private struct ZiyaratPlacePanelContent: View {
                 }
 
                 if !place.images.isEmpty {
-                    Text("\(min(selectedImage + 1, place.images.count)) / \(min(place.images.count, 5))")
+                    Text("\(min(selectedImage + 1, place.images.count)) / \(place.images.count)")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 9)
@@ -1286,8 +1545,8 @@ private struct ZiyaratPlacePanelContent: View {
 
             if place.images.count > 1 {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(place.images.prefix(5).enumerated()), id: \.offset) { index, image in
+                    LazyHStack(spacing: 8) {
+                        ForEach(Array(place.images.enumerated()), id: \.offset) { index, image in
                             Button {
                                 withAnimation(.easeInOut(duration: 0.24)) { selectedImage = index }
                             } label: {
@@ -1311,8 +1570,8 @@ private struct ZiyaratPlacePanelContent: View {
     private var placeHeader: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(content.title)
-                .font(.system(size: 29, weight: .bold, design: .rounded))
-                .tracking(-0.65)
+                .font(.system(size: 29, weight: .bold))
+                .tracking(-0.55)
             if !place.titleArabic.isEmpty {
                 Text(place.titleArabic)
                     .font(.title3)
