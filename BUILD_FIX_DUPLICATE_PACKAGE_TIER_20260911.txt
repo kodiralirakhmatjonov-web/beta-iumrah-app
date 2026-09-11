@@ -1,0 +1,5 @@
+Build fix 2026-09-11
+
+Fixes Xcode exit code 65 caused by duplicate PackageTierComparisonOption declarations and duplicate JourneyStore package-tier comparison methods.
+
+Only Sources/State/JourneyStore+PackageTierComparison.swift is neutralized. The canonical implementation remains in Sources/State/JourneyStore.swift.
