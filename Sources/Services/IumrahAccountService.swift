@@ -166,25 +166,6 @@ struct IumrahAccountService {
         )
     }
 
-    func signInWithGoogle(_ credential: IumrahGoogleCredential, locale: String) async throws -> IumrahAccountAuthResponse {
-        try await api.post(
-            "/api/package/client/account/google/sign-in",
-            body: IumrahGoogleSignInRequest(
-                identityToken: credential.identityToken,
-                nonce: credential.nonce,
-                device: IumrahAccountDeviceIdentity.current(locale: locale)
-            )
-        )
-    }
-
-    func linkGoogle(_ credential: IumrahGoogleCredential, token: String) async throws -> IumrahGoogleLinkResponse {
-        try await api.post(
-            "/api/package/client/account/google/link",
-            body: IumrahGoogleRequest(identityToken: credential.identityToken, nonce: credential.nonce),
-            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
-        )
-    }
-
     func startEmailVerification(email: String, locale: String, token: String) async throws -> IumrahEmailChallengeStartResponse {
         try await api.post(
             "/api/package/client/account/email/start",

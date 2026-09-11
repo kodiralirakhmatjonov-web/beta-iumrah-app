@@ -1,5 +1,4 @@
 import AuthenticationServices
-import GoogleSignInSwift
 import SwiftUI
 import UserNotifications
 import UIKit
@@ -20,7 +19,6 @@ struct IumrahAccountView: View {
     @State private var loginError: String?
     @State private var appleNonce = ""
     @State private var isAppleSigningIn = false
-    @State private var isGoogleSigningIn = false
 
     @State private var firstName = ""
     @State private var lastName = ""
@@ -588,7 +586,7 @@ struct IumrahAccountView: View {
                 settingsRow(
                     icon: "lock.shield.fill",
                     title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"),
-                    value: tr("Apple, Google and active sessions", "Apple, Google и активные сеансы", "Apple, Google va faol seanslar", "Apple, Google ва фаол сеанслар")
+                    value: tr("Apple and active sessions", "Apple и активные сеансы", "Apple va faol seanslar", "Apple ва фаол сеанслар")
                 )
             }
             .buttonStyle(.plain)
@@ -722,7 +720,7 @@ struct IumrahAccountView: View {
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(loginID.filter(\.isNumber).count != 6 || loginPassword.count < 8 || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
+            .disabled(loginID.filter(\.isNumber).count != 6 || loginPassword.count < 8 || isLoggingIn)
 
             HStack(spacing: 12) {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
@@ -740,24 +738,13 @@ struct IumrahAccountView: View {
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
             .frame(height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .disabled(isAppleSigningIn || isGoogleSigningIn || isLoggingIn)
-
-            GoogleSignInButton(
-                scheme: colorScheme == .dark ? .dark : .light,
-                style: .wide,
-                state: (isGoogleSigningIn || isAppleSigningIn || isLoggingIn) ? .disabled : .normal
-            ) {
-                startGoogleSignIn()
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .disabled(isAppleSigningIn || isLoggingIn)
 
             Text(tr(
-                "Apple or Google opens the same account after the sign-in method is connected to your six-digit iumrah ID in Account Security.",
-                "Apple или Google открывает тот же аккаунт после привязки способа входа к шестизначному iumrah ID в разделе «Безопасность аккаунта».",
-                "Apple yoki Google kirish usuli Akkaunt xavfsizligida olti xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
-                "Apple ёки Google кириш усули Аккаунт хавфсизлигида олти хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
+                "Apple opens the same account after it has been connected to your six-digit iumrah ID in Account Security.",
+                "Apple открывает тот же аккаунт после привязки к шестизначному iumrah ID в разделе «Безопасность аккаунта».",
+                "Apple Akkaunt xavfsizligida olti xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
+                "Apple Аккаунт хавфсизлигида олти хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
             ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -1046,26 +1033,6 @@ struct IumrahAccountView: View {
                 await completeAuthenticatedLogin(profile)
                 IumrahHaptics.success()
             } catch let error as ASAuthorizationError where error.code == .canceled {
-                loginError = nil
-            } catch {
-                loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
-                IumrahHaptics.error()
-            }
-        }
-    }
-
-    private func startGoogleSignIn() {
-        guard !isGoogleSigningIn, !isAppleSigningIn, !isLoggingIn else { return }
-        isGoogleSigningIn = true
-        loginError = nil
-        Task { @MainActor in
-            defer { isGoogleSigningIn = false }
-            do {
-                let credential = try await IumrahGoogleSignInSupport.signIn()
-                let profile = try await account.signInWithGoogle(credential, locale: settings.language.rawValue)
-                await completeAuthenticatedLogin(profile)
-                IumrahHaptics.success()
-            } catch where IumrahGoogleSignInSupport.isCancellation(error) {
                 loginError = nil
             } catch {
                 loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)

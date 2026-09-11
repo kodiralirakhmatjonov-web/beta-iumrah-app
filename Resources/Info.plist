@@ -22,10 +22,6 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>GIDClientID</key>
-	<string>__GOOGLE_IOS_CLIENT_ID__</string>
-	<key>GIDServerClientID</key>
-	<string>__GOOGLE_SERVER_CLIENT_ID__</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -61,16 +57,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>iumrahapp</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>com.iumrah.google-sign-in</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>__GOOGLE_REVERSED_IOS_CLIENT_ID__</string>
 			</array>
 		</dict>
 	</array>

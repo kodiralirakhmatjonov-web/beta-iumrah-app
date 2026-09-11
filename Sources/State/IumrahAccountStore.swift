@@ -73,13 +73,6 @@ final class IumrahAccountStore: ObservableObject {
     }
 
     @discardableResult
-    func signInWithGoogle(_ credential: IumrahGoogleCredential, locale: String) async throws -> IumrahAccountProfile {
-        let response = try await service.signInWithGoogle(credential, locale: locale)
-        setSession(response)
-        return response.account
-    }
-
-    @discardableResult
     func updateProfile(firstName: String, lastName: String, phone: String, email: String, telegram: String, whatsapp: String) async throws -> IumrahAccountProfile {
         guard let token else { throw APIError.status(401) }
         let profile = try await service.updateProfile(
@@ -94,7 +87,6 @@ final class IumrahAccountStore: ObservableObject {
 
     func logout() async {
         if let token { await service.logout(token: token) }
-        IumrahGoogleSignInSupport.signOutProviderSession()
         token = nil
         account = nil
         lastError = nil
@@ -128,11 +120,6 @@ final class IumrahAccountStore: ObservableObject {
     func linkApple(_ credential: IumrahAppleCredential) async throws -> IumrahAppleLinkResponse {
         guard let token else { throw APIError.status(401) }
         return try await service.linkApple(credential, token: token)
-    }
-
-    func linkGoogle(_ credential: IumrahGoogleCredential) async throws -> IumrahGoogleLinkResponse {
-        guard let token else { throw APIError.status(401) }
-        return try await service.linkGoogle(credential, token: token)
     }
 
     func startEmailVerification(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
@@ -191,7 +178,6 @@ final class IumrahAccountStore: ObservableObject {
     }
 
     private func clearLocalSession() {
-        IumrahGoogleSignInSupport.signOutProviderSession()
         token = nil
         account = nil
         lastError = nil

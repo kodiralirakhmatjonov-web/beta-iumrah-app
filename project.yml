@@ -12,11 +12,6 @@ settings:
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
 
-packages:
-  GoogleSignIn:
-    url: https://github.com/google/GoogleSignIn-iOS
-    exactVersion: 9.2.0
-
 targets:
   iumrahBeta:
     type: application
@@ -57,10 +52,5 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconBlue AppIconCyan AppIconDeepBlue AppIconWorld AppIconMakkah"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
-    dependencies:
-      - package: GoogleSignIn
-        products:
-          - GoogleSignIn
-          - GoogleSignInSwift
     scheme:
       testTargets: []

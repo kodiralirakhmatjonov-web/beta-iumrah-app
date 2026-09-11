@@ -1,0 +1,71 @@
+{
+  "name": "iumrah Beta — Temporarily disable Google Sign-In on iOS v1",
+  "date": "2026-09-11",
+  "reason": "Current TestFlight archive fails because the manually specified provisioning profile is propagated to GoogleSignIn-iOS Swift Package resource targets, which do not support provisioning profiles.",
+  "scope": "Remove GoogleSignIn-iOS from the iOS target and restore the pre-Google client auth files. Keep Sign in with Apple and iumrah ID unchanged. Keep backend Google groundwork for later.",
+  "expected_effects": [
+    "project.yml contains no GoogleSignIn Swift Package dependency",
+    "Resources/Info.plist contains no GIDClientID/GIDServerClientID/Google callback scheme",
+    "Sources contains no import GoogleSignIn or GoogleSignInSwift",
+    "Continue with Google and Google linking UI are absent",
+    "Sign in with Apple remains intact",
+    "Existing HotelsHomeView build fix is not overwritten"
+  ],
+  "files": [
+    {
+      "path": "BETA_GOOGLE_IOS_DISABLED_117_APPLIED.txt",
+      "bytes": 317,
+      "sha256": "aba6e95c4638303189bc1794bd2aa98f79cddeb1cc7552d8fc922bb95ee329ac"
+    },
+    {
+      "path": "BETA_GOOGLE_SIGN_IN_115_APPLIED.txt",
+      "bytes": 331,
+      "sha256": "9cb940a8a42737457be88978ffd9ec7cba846195115641693dc021b247b30c37"
+    },
+    {
+      "path": "Resources/Info.plist",
+      "bytes": 3778,
+      "sha256": "0041c3ca583c5a1fccede6f6c78cf64f9d9169c6b8e90c2b587e3eb69b4a9d65"
+    },
+    {
+      "path": "Sources/App/IumrahAppDelegate.swift",
+      "bytes": 1754,
+      "sha256": "a0e7d72442aea438459487658d8cfa6436234fa59b81005f58f002ee64045554"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
+      "bytes": 47176,
+      "sha256": "723d49507adc27343fa8cc85e6780fea6e284585d2f3e132002ac8fc54c5c39b"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 55621,
+      "sha256": "b33b100069d68579ea4fbaff8714180f879aae86ade435204264ffce82337413"
+    },
+    {
+      "path": "Sources/Core/IumrahGoogleSignInSupport.swift",
+      "bytes": 246,
+      "sha256": "1ae312e459f6a9cf946ee1b5fff17ee9692d0eaa6aafcd330da6b042133c6c60"
+    },
+    {
+      "path": "Sources/Models/IumrahAccountModels.swift",
+      "bytes": 8573,
+      "sha256": "117a8d3989fdc78976db51395657ae10b6c04ec9c998af1ebafae8911ff77752"
+    },
+    {
+      "path": "Sources/Services/IumrahAccountService.swift",
+      "bytes": 8564,
+      "sha256": "a848c9ea3c59e4b61755814cdad8899d5a6f5949250866e3c005e104916eb34d"
+    },
+    {
+      "path": "Sources/State/IumrahAccountStore.swift",
+      "bytes": 9631,
+      "sha256": "2eb0a741a390e6d4b500572abb7a67292e5c955120c35844403fb73aa9a119f0"
+    },
+    {
+      "path": "project.yml",
+      "bytes": 2054,
+      "sha256": "87ea79d71e44a9d122e030a52806e5a1b170c89ec5dffa1a20db7eb9eb4de024"
+    }
+  ]
+}

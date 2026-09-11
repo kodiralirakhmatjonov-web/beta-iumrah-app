@@ -1,0 +1,6 @@
+iumrah Beta — Temporarily disable Google Sign-In on iOS
+Date: 2026-09-11
+
+Purpose: allow the current TestFlight archive to build without GoogleSignIn-iOS Swift Package dependencies.
+Apple Sign-In and the existing iumrah ID architecture are preserved.
+Backend Google groundwork is retained for future re-enablement.
