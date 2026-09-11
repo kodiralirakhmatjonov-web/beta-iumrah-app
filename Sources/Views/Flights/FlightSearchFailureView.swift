@@ -12,6 +12,8 @@ struct FlightSearchGateView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                IumrahGeneratorHeader(stage: .flight)
+
                 SectionHeader(
                     title,
                     eyebrow: direction == .outbound ? outboundEyebrow : returnEyebrow,

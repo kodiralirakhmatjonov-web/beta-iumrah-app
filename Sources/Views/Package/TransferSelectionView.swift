@@ -102,6 +102,13 @@ struct TransferSelectionView: View {
             .allowsHitTesting(false)
 
             VStack(spacing: 0) {
+                IumrahGeneratorHeader(
+                    stage: .transfer,
+                    currentPriceText: currentPackagePriceTitle
+                )
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+
                 Spacer()
 
                 searchBottomSheet
@@ -216,6 +223,11 @@ struct TransferSelectionView: View {
     private var matchedExperience: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
+                IumrahGeneratorHeader(
+                    stage: .transfer,
+                    currentPriceText: currentPackagePriceTitle
+                )
+
                 matchedHeader
                 vehicleStage
                 vehicleInformation
@@ -920,7 +932,7 @@ private struct TransferLiveSearchMap: View {
                 .padding(.horizontal, 10)
                 .frame(height: 34)
                 .background(.regularMaterial, in: Capsule())
-                .padding(.top, 122)
+                .padding(.top, 176)
                 .padding(.trailing, 16)
         }
         .onChange(of: second) { _, value in

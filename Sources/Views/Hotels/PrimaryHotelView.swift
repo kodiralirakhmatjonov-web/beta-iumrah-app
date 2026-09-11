@@ -23,6 +23,8 @@ struct PrimaryHotelView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
+                    IumrahGeneratorHeader(stage: .hotel)
+
                     heading
                     hotelContent
 

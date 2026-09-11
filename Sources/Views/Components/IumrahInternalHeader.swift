@@ -73,10 +73,10 @@ private struct GeneratorProgressStrip: View {
     var currentPriceText: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(FlowCopy.text(.stepOfFour, settings.language)) \(stage.rawValue) / 5")
-                    .font(.caption.weight(.semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
 
                 Spacer(minLength: 12)
@@ -88,12 +88,12 @@ private struct GeneratorProgressStrip: View {
                             .tracking(0.7)
                             .foregroundStyle(.secondary)
                         Text(currentPriceText)
-                            .font(.subheadline.monospacedDigit().weight(.bold))
+                            .font(.callout.monospacedDigit().weight(.bold))
                             .contentTransition(.numericText())
                     }
                 } else {
                     Text(L10n.text(labelKey ?? stage.localizationKey, settings.language))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.callout.weight(.semibold))
                         .lineLimit(1)
                 }
             }
@@ -103,7 +103,7 @@ private struct GeneratorProgressStrip: View {
                     Capsule(style: .continuous)
                         .fill(segmentColor(item))
                         .frame(maxWidth: .infinity)
-                        .frame(height: item == stage ? 6 : 4)
+                        .frame(height: item == stage ? 5 : 3.5)
                 }
             }
         }
@@ -139,12 +139,12 @@ private struct GeneratorStageCarousel: View {
     @State private var glowBreath = false
     @State private var resetGeneration = 0
 
-    private let itemSpacing: CGFloat = 78
-    private let carouselHeight: CGFloat = 90
+    private let itemSpacing: CGFloat = 68
+    private let carouselHeight: CGFloat = 74
 
     var body: some View {
         GeometryReader { proxy in
-            let radiusX = min(102, max(58, proxy.size.width * 0.39))
+            let radiusX = min(88, max(54, proxy.size.width * 0.37))
 
             ZStack {
                 ambientGlow
@@ -262,10 +262,10 @@ private struct GeneratorStageCarousel: View {
                     endRadius: 96
                 )
             )
-            .frame(width: glowBreath ? 188 : 166, height: glowBreath ? 54 : 46)
-            .blur(radius: 17)
+            .frame(width: glowBreath ? 158 : 142, height: glowBreath ? 44 : 38)
+            .blur(radius: 15)
             .opacity(glowBreath ? 0.88 : 0.68)
-            .offset(y: 18)
+            .offset(y: 14)
             .animation(.easeInOut(duration: 0.58), value: activeStage.rawValue)
             .allowsHitTesting(false)
     }
@@ -275,10 +275,10 @@ private struct GeneratorStageCarousel: View {
         let tileOpacity = 0.06 + (0.90 * Double(emphasis))
 
         return ZStack {
-            RoundedRectangle(cornerRadius: 23, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color.iumrahCardBackground.opacity(tileOpacity))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 23, style: .continuous)
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .strokeBorder(
                             Color.primary.opacity(0.018 + (0.045 * Double(emphasis))),
                             lineWidth: 0.75
@@ -292,11 +292,11 @@ private struct GeneratorStageCarousel: View {
                 )
 
             Image(systemName: item.carouselSymbol)
-                .font(.system(size: 29 + (6 * frontness), weight: .semibold))
+                .font(.system(size: 25 + (5 * frontness), weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(item.carouselRole.color)
         }
-        .frame(width: 74, height: 74)
+        .frame(width: 64, height: 64)
     }
 
     private var restingIndex: Int {
@@ -330,7 +330,7 @@ private struct GeneratorStageCarousel: View {
     }
 
     private func scale(for frontness: CGFloat) -> CGFloat {
-        0.52 + (0.52 * frontness)
+        0.56 + (0.46 * frontness)
     }
 
     private func opacity(for frontness: CGFloat) -> Double {
@@ -338,64 +338,88 @@ private struct GeneratorStageCarousel: View {
     }
 
     private func blur(for frontness: CGFloat) -> CGFloat {
-        6.0 * (1 - frontness)
+        5.5 * (1 - frontness)
     }
 
     private func verticalOffset(for frontness: CGFloat) -> CGFloat {
-        8.0 * (1 - frontness)
+        6.0 * (1 - frontness)
     }
 }
 
-/// One chrome block below the device safe area. It contains the native Liquid
-/// Glass back control, the circular stage carousel, and the progress strip.
-private struct GeneratorPinnedHeader: View {
+/// Compact generator chrome that is rendered *inside* each screen's scroll
+/// content. It therefore clears the hardware safe area naturally on entry and
+/// scrolls away with the page instead of staying pinned above the content.
+///
+/// The outer surface and the back button both use Apple's iOS 26 Liquid Glass
+/// APIs. On earlier iOS versions the design system falls back to a restrained
+/// opaque surface; blur is never used to imitate Liquid Glass.
+struct IumrahGeneratorHeader: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettingsStore
-    @Environment(\.colorScheme) private var colorScheme
 
     let stage: TripProgressStage
     var currentPriceText: String? = nil
 
     var body: some View {
-        VStack(spacing: 10) {
-            ZStack(alignment: .leading) {
-                GeneratorStageCarousel(stage: stage)
-                    .padding(.horizontal, 54)
+        IumrahGlassGroup(spacing: 8) {
+            VStack(spacing: 6) {
+                ZStack(alignment: .leading) {
+                    GeneratorStageCarousel(stage: stage)
+                        .padding(.horizontal, 48)
 
-                IumrahGlassIconButton(
-                    systemName: "chevron.left",
-                    size: 56,
-                    fontSize: 25,
-                    accessibilityLabel: backAccessibilityLabel
-                ) {
-                    dismiss()
+                    nativeBackButton
+                        .padding(.leading, 2)
                 }
-                .padding(.leading, 2)
-            }
-            .frame(height: 92)
+                .frame(height: 76)
 
-            GeneratorProgressStrip(
-                stage: stage,
-                currentPriceText: currentPriceText
-            )
-            .padding(.horizontal, 4)
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 13)
-        .background {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(
-                    Color.iumrahRaisedBackground
-                        .opacity(colorScheme == .dark ? 0.94 : 0.97)
+                GeneratorProgressStrip(
+                    stage: stage,
+                    currentPriceText: currentPriceText
                 )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 34, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.8)
-                }
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.16 : 0.055), radius: 18, x: 0, y: 8)
+                .padding(.horizontal, 2)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 7)
+            .padding(.bottom, 10)
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 28, style: .continuous),
+                allowsStaticGlass: true,
+                chrome: true
+            )
         }
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var nativeBackButton: some View {
+        if #available(iOS 26.0, *) {
+            Button {
+                IumrahHaptics.selection()
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 23, weight: .semibold))
+                    .frame(width: 46, height: 46)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.glass)
+            .accessibilityLabel(backAccessibilityLabel)
+        } else {
+            Button {
+                IumrahHaptics.selection()
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(Color.primary)
+                    .frame(width: 46, height: 46)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .background(Color.iumrahRaisedBackground, in: Circle())
+            .overlay(Circle().stroke(Color.primary.opacity(0.07), lineWidth: 0.7))
+            .accessibilityLabel(backAccessibilityLabel)
+        }
     }
 
     private var backAccessibilityLabel: String {
@@ -410,7 +434,7 @@ private struct GeneratorPinnedHeader: View {
 
 /// Keeps UINavigationController's native edge-swipe pop gesture available even
 /// though generator screens hide the stock navigation bar in favor of the
-/// safe-area-aware pinned header above.
+/// in-content generator header above.
 private struct GeneratorInteractivePopRestorer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> Controller {
         Controller()
@@ -437,22 +461,13 @@ private struct IumrahInternalNavigationModifier: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if showsGeneratorAmbient, let progressStage {
+        if showsGeneratorAmbient, progressStage != nil {
             content
-                // The generator owns one pinned header below the hardware safe
-                // area. This avoids the Dynamic Island / status bar entirely on
-                // every iPhone size and removes the constrained toolbar title box.
+                // The generator header is part of each destination's own scroll
+                // content. This branch only removes the stock navigation bar and
+                // preserves Apple's interactive edge-swipe back gesture.
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    GeneratorPinnedHeader(
-                        stage: progressStage,
-                        currentPriceText: currentPriceText
-                    )
-                    .padding(.horizontal, IumrahDesign.pagePadding)
-                    .padding(.top, 6)
-                    .padding(.bottom, 8)
-                }
                 .background {
                     GeneratorInteractivePopRestorer()
                         .frame(width: 0, height: 0)
@@ -464,8 +479,6 @@ private struct IumrahInternalNavigationModifier: ViewModifier {
                 ))
         } else {
             content
-                // Non-generator internal destinations keep Apple's stock
-                // navigation bar and native back affordance unchanged.
                 .toolbar(.visible, for: .navigationBar)
                 .navigationBarBackButtonHidden(false)
                 .navigationBarTitleDisplayMode(.inline)

@@ -22,6 +22,8 @@ struct TripBuilderView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
+                IumrahGeneratorHeader(stage: .trip)
+
                 intro
                 routeCard
                 datesCard
