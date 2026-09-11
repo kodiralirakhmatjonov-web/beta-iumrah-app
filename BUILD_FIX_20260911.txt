@@ -1,0 +1,9 @@
+iumrah Beta build fix 2026-09-11
+
+Fixes incomplete package-cards-colors-support-modals update:
+- adds PackageTierComparisonOption
+- adds JourneyStore.buildPackageTierComparisons()
+- adds JourneyStore.applyPackageTierComparison(_:)
+- preserves the updated FinalPackageView.swift
+
+The comparison engine keeps the selected flight pair/dates/passengers fixed while resolving Primary Hotels and a quote for each package tier.
