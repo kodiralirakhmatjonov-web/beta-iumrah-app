@@ -1,0 +1,8 @@
+iumrah Beta — Hotels build repair v4
+
+Fixes compiler errors from GitHub Actions run 93704255034:
+- HotelsHomeView.swift:1114 — removed dependency on TransferSelectionView(selectionMode:onSelectionSaved:) and refreshes quote on destination disappearance.
+- HotelsHomeView.swift:1592 — replaced missing localizedMakkah/localizedMadinah identifiers with the existing tr(...) localization helper.
+- HotelsHomeView.swift:2846 — replaced incompatible .tertiary ternary branch with a concrete Color value.
+
+No package pricing, Hotel First routing, Care/Guide, Family/Friends, meals, sharing, or FinalPackageView logic is replaced by this patch.

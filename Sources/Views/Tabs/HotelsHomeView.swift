@@ -1111,9 +1111,11 @@ struct StorefrontUmrahPackageDetailView: View {
             )
         }
         .navigationDestination(isPresented: $showTransferSelection) {
-            TransferSelectionView(selectionMode: true) {
-                refreshQuote()
-            }
+            TransferSelectionView()
+                .onDisappear {
+                    guard isPrepared else { return }
+                    refreshQuote()
+                }
         }
         .navigationDestination(item: $createdBookingID) { bookingID in
             BookingDetailView(bookingID: bookingID)
@@ -1589,7 +1591,10 @@ struct StorefrontUmrahPackageDetailView: View {
     @ViewBuilder
     private func mealCitySection(city: HotelMealCity) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(city == .makkah ? localizedMakkah : localizedMadinah)
+            Text(city == .makkah
+                ? tr("Мекка", "Makkah", "Makka", "Макка")
+                : tr("Медина", "Madinah", "Madina", "Мадина")
+            )
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -2843,7 +2848,7 @@ private struct PackageFlightChoiceCard: View {
 
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(isSelected ? IumrahIconRole.success.color : .tertiary)
+                        .foregroundStyle(isSelected ? IumrahIconRole.success.color : Color.primary.opacity(0.30))
                 }
             }
             .padding(16)
