@@ -11,6 +11,14 @@ private enum FinalPackageServiceSection: Hashable {
     case meals
 }
 
+
+private enum FinalPackageSupportSheet: String, Identifiable {
+    case visa
+    case guide
+
+    var id: String { rawValue }
+}
+
 struct FinalPackageView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -25,7 +33,12 @@ struct FinalPackageView: View {
     @State private var showCreatedBooking = false
     @State private var isCalculatingPrice = false
     @State private var showCareExplanation = false
+    @State private var presentedSupportSheet: FinalPackageSupportSheet?
     @State private var expandedService: FinalPackageServiceSection?
+    @State private var comparisonOptions: [PackageTierComparisonOption] = []
+    @State private var focusedComparisonTier: PackageTier?
+    @State private var isLoadingComparisons = false
+    @State private var isApplyingComparison = false
 
     private var needsMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canBook: Bool {
@@ -39,12 +52,17 @@ struct FinalPackageView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
+                IumrahFlowProgress(stage: .ready)
+
                 if let createdSession {
                     successContent(createdSession)
                 } else {
                     packageHeader
-                    if let quote = journey.quote, journey.hasFinalGeneratorQuote {
-                        premiumPriceCard(quote)
+                    if journey.quote != nil, journey.hasFinalGeneratorQuote {
+                        packageTierCarousel
+                        packageRecommendationCard
+                        packageDifferenceCard
+                        packageSupportShortcutsCard
                     } else {
                         pricingStatusCard
                     }
@@ -62,29 +80,20 @@ struct FinalPackageView: View {
                             .padding(.horizontal, 4)
                     }
 
-                    Button {
-                        isProfileSheetPresented = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            if isSubmitting { ProgressView().tint(.white) }
-                            Text(FlowCopy.text(.bookPackage, settings.language))
-                            if !isSubmitting { Image(systemName: "arrow.right") }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(IumrahPrimaryButtonStyle())
-                    .disabled(!canBook || isSubmitting)
-                    .opacity(canBook && !isSubmitting ? 1 : 0.45)
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
-            .padding(.bottom, 48)
+            .padding(.bottom, 32)
         }
         .background(Color.iumrahPageBackground)
         .iumrahInternalNavigation(progress: .ready, showsGeneratorAmbient: true)
         .task {
-            if !journey.hasFinalGeneratorQuote { await recalculatePrice(forceHotelRefresh: false) }
+            if !journey.hasFinalGeneratorQuote {
+                await recalculatePrice(forceHotelRefresh: false)
+            } else {
+                await loadPackageTierComparisons(resetFocus: true)
+            }
             await push.refreshAndRegisterIfAllowed()
         }
         .sheet(isPresented: $isProfileSheetPresented) {
@@ -96,6 +105,9 @@ struct FinalPackageView: View {
         .sheet(isPresented: $showCareExplanation) {
             UmrahCarePackageExplanationView()
                 .environmentObject(settings)
+        }
+        .sheet(item: $presentedSupportSheet) { kind in
+            FinalPackageInformationSheet(kind: kind, language: settings.language)
         }
         .navigationDestination(isPresented: $showCreatedBooking) {
             if let createdSession {
@@ -153,7 +165,35 @@ struct FinalPackageView: View {
         isCalculatingPrice = true
         await journey.buildQuote(forceHotelRefresh: forceHotelRefresh)
         isCalculatingPrice = false
-        if journey.hasFinalGeneratorQuote { IumrahHaptics.success() }
+        if journey.hasFinalGeneratorQuote {
+            IumrahHaptics.success()
+            await loadPackageTierComparisons(resetFocus: true)
+        }
+    }
+
+    @MainActor
+    private func loadPackageTierComparisons(resetFocus: Bool) async {
+        guard journey.hasFinalGeneratorQuote else { return }
+        if resetFocus || focusedComparisonTier == nil {
+            // Keep the already-selected package visually centered while the other
+            // levels are being resolved from the Business hotel catalogue.
+            focusedComparisonTier = journey.trip.packageTier
+        }
+        isLoadingComparisons = true
+        let options = await journey.buildPackageTierComparisons()
+        comparisonOptions = options
+        isLoadingComparisons = false
+    }
+
+    @MainActor
+    private func applyPackageTierComparison(_ option: PackageTierComparisonOption) async {
+        guard option.isAvailable, option.tier != journey.trip.packageTier, !isApplyingComparison else { return }
+        isApplyingComparison = true
+        journey.applyPackageTierComparison(option)
+        focusedComparisonTier = option.tier
+        comparisonOptions = await journey.buildPackageTierComparisons()
+        isApplyingComparison = false
+        IumrahHaptics.success()
     }
 
     private var calculatingPriceTitle: String {
@@ -231,80 +271,737 @@ struct FinalPackageView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func premiumPriceCard(_ quote: PackageQuote) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center) {
-                Label(indicativePriceTitle, systemImage: "chart.line.uptrend.xyaxis")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.72))
-                Spacer()
-                HStack(spacing: 6) {
-                    ForEach(0..<min(journey.trip.travelerCount, 3), id: \.self) { _ in
-                        Image(systemName: "person.fill")
-                            .font(.caption.weight(.bold))
+    private var packageTierCarousel: some View {
+        VStack(spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(comparisonSectionTitle)
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                Spacer(minLength: 8)
+                Text(comparisonSectionHint)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            GeometryReader { proxy in
+                let cardWidth = max(308, proxy.size.width * 0.905)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(displayComparisonOptions) { option in
+                            packageTierCard(option)
+                                .frame(width: cardWidth, height: 548)
+                                .scaleEffect(focusedComparisonTier == option.tier ? 1 : 0.965)
+                                .opacity(focusedComparisonTier == option.tier ? 1 : 0.86)
+                                .animation(.spring(response: 0.34, dampingFraction: 0.9), value: focusedComparisonTier)
+                                .id(option.tier)
+                        }
                     }
-                    Text("\(journey.trip.travelerCount)")
-                        .font(.caption.weight(.bold))
+                    .scrollTargetLayout()
+                    .padding(.horizontal, max(0, (proxy.size.width - cardWidth) / 2))
                 }
-                .padding(.horizontal, 11)
-                .frame(height: 30)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $focusedComparisonTier)
+            }
+            .frame(height: 548)
+
+            packageTierIndicator
+
+            HStack(spacing: 8) {
+                Image(systemName: "airplane")
+                    .font(.caption.weight(.bold))
+                Text(fixedFlightComparisonNote)
+                    .font(.footnote.weight(.medium))
+            }
+            .foregroundStyle(.secondary)
+
+            if isLoadingComparisons {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(comparisonLoadingTitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    private var displayComparisonOptions: [PackageTierComparisonOption] {
+        if !comparisonOptions.isEmpty { return comparisonOptions }
+        return [PackageTierComparisonOption(
+            tier: journey.trip.packageTier,
+            quote: journey.quote,
+            makkahHotel: journey.selectedHotel,
+            madinahHotel: journey.selectedMadinahHotel,
+            unavailableReason: nil
+        )]
+    }
+
+    @ViewBuilder
+    private func packageTierCard(_ option: PackageTierComparisonOption) -> some View {
+        let isCurrent = option.tier == journey.trip.packageTier
+        let theme = packageTheme(option.tier)
+
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(option.tier.title(settings.language).uppercased())
+                    .font(.caption.weight(.bold))
+                    .tracking(1.15)
+                    .foregroundStyle(.white.opacity(0.78))
+
+                if isCurrent {
+                    Text(currentPackageBadge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .frame(height: 24)
+                        .background(Color.white.opacity(0.16), in: Capsule())
+                }
+                Spacer(minLength: 0)
+
+                HStack(spacing: 5) {
+                    Image(systemName: "person.fill")
+                    Text("\(journey.trip.travelerCount)")
+                }
+                .font(.caption.weight(.bold))
+                .padding(.horizontal, 10)
+                .frame(height: 28)
                 .background(Color.white.opacity(0.12), in: Capsule())
             }
 
-            Text(money(quote.totalPackagePrice, quote.currency))
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .tracking(-1.6)
-                .minimumScaleFactor(0.72)
+            Spacer().frame(height: 24)
+
+            if let quote = option.quote {
+                Text(money(quote.totalPackagePrice, quote.currency))
+                    .font(.system(size: 54, weight: .bold, design: .rounded))
+                    .tracking(-1.9)
+                    .minimumScaleFactor(0.62)
+                    .lineLimit(1)
+
+                HStack(spacing: 8) {
+                    Text("\(money(quote.pricePerPerson, quote.currency)) / \(perPersonShortTitle)")
+                    Text("·")
+                    Text(packageForTravelersTitle)
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.76))
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
-            Text(L10n.text("final_price_note", settings.language))
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.68))
-
-            if journey.trip.travelerCount == 2 {
-                HStack(spacing: 10) {
-                    travelerSplitChip(amount: quote.pricePerPerson, currency: quote.currency)
-                    travelerSplitChip(amount: quote.pricePerPerson, currency: quote.currency)
+                if !isCurrent, let delta = comparisonDeltaText(option) {
+                    Text(delta)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.94))
+                        .padding(.horizontal, 11)
+                        .frame(height: 30)
+                        .background(Color.white.opacity(0.12), in: Capsule())
+                        .padding(.top, 10)
                 }
             } else {
-                HStack(spacing: 10) {
-                    Label(
-                        "\(journey.trip.travelerCount) × \(money(quote.pricePerPerson, quote.currency))",
-                        systemImage: "person.2.fill"
-                    )
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .frame(height: 42)
-                    .background(Color.white.opacity(0.10), in: Capsule())
+                Text(priceTemporarilyUnavailableTitle)
+                    .font(.system(size: 31, weight: .bold, design: .rounded))
+                    .tracking(-0.8)
+                Text(priceTemporarilyUnavailableBody)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.68))
+                    .padding(.top, 7)
+            }
+
+            Spacer().frame(height: 16)
+
+            Text(packagePositionTitle(option.tier))
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(packagePositionBody(option.tier))
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.white.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+
+            Spacer().frame(height: 16)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(packageBenefits(option), id: \.self) { benefit in
+                    HStack(alignment: .top, spacing: 9) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.top, 1)
+                        Text(benefit)
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.84))
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+            }
+
+            Spacer(minLength: 16)
+
+            if isCurrent {
+                Button {
+                    isProfileSheetPresented = true
+                    IumrahHaptics.soft()
+                } label: {
+                    HStack(spacing: 10) {
+                        if isSubmitting { ProgressView().tint(.black).controlSize(.small) }
+                        Text(continueBookingTitle)
+                            .font(.headline.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        Spacer(minLength: 6)
+                        if !isSubmitting {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canBook || isSubmitting || isApplyingComparison)
+                .opacity(canBook && !isSubmitting && !isApplyingComparison ? 1 : 0.45)
+            } else if option.isAvailable {
+                Button {
+                    Task { await applyPackageTierComparison(option) }
+                } label: {
+                    HStack(spacing: 8) {
+                        if isApplyingComparison {
+                            ProgressView().tint(.black).controlSize(.small)
+                        }
+                        Text(selectComparisonTitle(option))
+                            .font(.headline.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                        Spacer(minLength: 6)
+                        if !isApplyingComparison {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 15)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(isApplyingComparison)
             }
         }
         .foregroundStyle(.white)
         .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
+            ZStack {
+                LinearGradient(
+                    colors: theme.gradient,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                RadialGradient(
+                    colors: [theme.highlight.opacity(0.72), .clear],
+                    center: .topTrailing,
+                    startRadius: 8,
+                    endRadius: 280
+                )
+                LinearGradient(
+                    colors: [Color.white.opacity(0.07), .clear, Color.black.opacity(0.18)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .strokeBorder(Color.white.opacity(isCurrent ? 0.18 : 0.08), lineWidth: isCurrent ? 1.0 : 0.65)
+        }
+        .shadow(color: theme.shadow.opacity(focusedComparisonTier == option.tier ? 0.28 : 0.16), radius: 30, y: 14)
+    }
+
+
+    private struct PackageCardTheme {
+        let gradient: [Color]
+        let highlight: Color
+        let shadow: Color
+    }
+
+    private func packageTheme(_ tier: PackageTier) -> PackageCardTheme {
+        switch tier {
+        case .economy:
+            return PackageCardTheme(
+                gradient: [Color(red: 0.18, green: 0.29, blue: 0.23), Color(red: 0.05, green: 0.07, blue: 0.06)],
+                highlight: Color(red: 0.68, green: 0.88, blue: 0.74),
+                shadow: Color(red: 0.06, green: 0.13, blue: 0.09)
+            )
+        case .standard:
+            return PackageCardTheme(
+                gradient: [Color(red: 0.12, green: 0.17, blue: 0.46), Color(red: 0.03, green: 0.05, blue: 0.14)],
+                highlight: Color(red: 0.56, green: 0.67, blue: 1.0),
+                shadow: Color(red: 0.05, green: 0.08, blue: 0.20)
+            )
+        case .comfort:
+            return PackageCardTheme(
+                gradient: [Color(red: 0.04, green: 0.33, blue: 0.37), Color(red: 0.02, green: 0.08, blue: 0.11)],
+                highlight: Color(red: 0.55, green: 0.96, blue: 0.97),
+                shadow: Color(red: 0.02, green: 0.12, blue: 0.13)
+            )
+        case .luxury:
+            return PackageCardTheme(
+                gradient: [Color(red: 0.56, green: 0.42, blue: 0.12), Color(red: 0.16, green: 0.09, blue: 0.03)],
+                highlight: Color(red: 1.0, green: 0.90, blue: 0.62),
+                shadow: Color(red: 0.22, green: 0.14, blue: 0.04)
+            )
+        }
+    }
+
+    private var packageTierIndicator: some View {
+
+        HStack(spacing: 7) {
+            ForEach(PackageTier.allCases) { tier in
+                Button {
+                    withAnimation(.spring(response: 0.36, dampingFraction: 0.88)) {
+                        focusedComparisonTier = tier
+                    }
+                    IumrahHaptics.selection()
+                } label: {
+                    Text(tier.title(settings.language))
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .foregroundStyle(focusedComparisonTier == tier ? Color.primary : Color.secondary)
+                        .padding(.horizontal, 9)
+                        .frame(height: 30)
+                        .background(
+                            focusedComparisonTier == tier ? Color.primary.opacity(0.08) : Color.clear,
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var packageRecommendationCard: some View {
+        let tier = focusedComparisonTier ?? journey.trip.packageTier
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .bold))
+                Text(iumrahRecommendationTitle)
+                    .font(.caption.weight(.bold))
+                    .tracking(0.6)
+                Spacer(minLength: 0)
+                if tier == journey.trip.packageTier {
+                    Text(currentPackageBadge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color(red: 0.35, green: 0.23, blue: 0.60))
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(Color.white.opacity(0.75), in: Capsule())
+                }
+            }
+            .foregroundStyle(Color(red: 0.35, green: 0.23, blue: 0.60))
+
+            Text(packageRecommendationHeadline(tier))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 0.28, green: 0.18, blue: 0.48))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(packageRecommendationText(tier))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color(red: 0.33, green: 0.24, blue: 0.54))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(
             LinearGradient(
-                colors: [Color(red: 0.07, green: 0.19, blue: 0.16), Color(red: 0.03, green: 0.04, blue: 0.05)],
+                colors: [Color(red: 0.90, green: 0.87, blue: 1.0), Color(red: 0.97, green: 0.94, blue: 1.0)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.56), lineWidth: 0.9)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.14), radius: 26, y: 12)
     }
 
-    private func travelerSplitChip(amount: Decimal, currency: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "person.fill")
-                .font(.caption.weight(.bold))
-            Text(money(amount, currency))
-                .font(.subheadline.weight(.bold))
+    private var packageSupportShortcutsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(packageSupportTitle)
+                .font(.system(size: 21, weight: .bold, design: .rounded))
+            Text(packageSupportBody)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 10) {
+                packageSupportButton(
+                    icon: "doc.text.fill",
+                    title: visaSupportTitle,
+                    subtitle: visaSupportSubtitle
+                ) {
+                    presentedSupportSheet = .visa
+                    IumrahHaptics.selection()
+                }
+
+                packageSupportButton(
+                    icon: "heart.fill",
+                    title: careSupportTitle,
+                    subtitle: careSupportSubtitle
+                ) {
+                    showCareExplanation = true
+                    IumrahHaptics.selection()
+                }
+
+                packageSupportButton(
+                    icon: "person.2.fill",
+                    title: guideSupportTitle,
+                    subtitle: guideSupportSubtitle
+                ) {
+                    presentedSupportSheet = .guide
+                    IumrahHaptics.selection()
+                }
+            }
         }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
-        .frame(height: 42)
-        .background(Color.white.opacity(0.10), in: Capsule())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
+    }
+
+    private func packageSupportButton(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: icon, role: icon == "doc.text.fill" ? .document : .care, size: 40, symbolSize: 14, cornerRadius: 13)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+            .padding(14)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var packageDifferenceCard: some View {
+        if let target = differenceTargetOption,
+           let currentHotel = journey.selectedHotel,
+           let targetHotel = target.makkahHotel {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(differenceCardTitle(target.tier))
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                        if let delta = comparisonDeltaText(target) {
+                            Text(delta)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: target.tier.primaryHotelStars > journey.trip.packageTier.primaryHotelStars ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.bottom, 12)
+
+                comparisonFactRow(
+                    title: makkahHotelComparisonTitle,
+                    current: currentHotel.name,
+                    target: targetHotel.name
+                )
+
+                if needsMadinah,
+                   let currentMadinah = journey.selectedMadinahHotel,
+                   let targetMadinah = target.madinahHotel {
+                    comparisonFactRow(
+                        title: madinahHotelComparisonTitle,
+                        current: currentMadinah.name,
+                        target: targetMadinah.name
+                    )
+                }
+
+                comparisonFactRow(
+                    title: hotelLevelComparisonTitle,
+                    current: hotelLevelText(journey.trip.packageTier),
+                    target: hotelLevelText(target.tier)
+                )
+
+                comparisonFactRow(
+                    title: mealsComparisonTitle,
+                    current: mealsLevelText(journey.trip.packageTier),
+                    target: mealsLevelText(target.tier),
+                    showsDivider: false
+                )
+            }
+            .padding(18)
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+            }
+        }
+    }
+
+    private func comparisonFactRow(
+        title: String,
+        current: String,
+        target: String,
+        showsDivider: Bool = true
+    ) -> some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(current)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Image(systemName: "arrow.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                    Text(target)
+                        .font(.subheadline.weight(.bold))
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 11)
+
+            if showsDivider { Divider().opacity(0.45) }
+        }
+    }
+
+    private var differenceTargetOption: PackageTierComparisonOption? {
+        let currentTier = journey.trip.packageTier
+        let focusedTier = focusedComparisonTier ?? currentTier
+        if focusedTier != currentTier {
+            return comparisonOptions.first(where: { $0.tier == focusedTier && $0.isAvailable })
+        }
+
+        guard let currentIndex = PackageTier.allCases.firstIndex(of: currentTier) else { return nil }
+        let higher = PackageTier.allCases.dropFirst(currentIndex + 1)
+        for tier in higher {
+            if let option = comparisonOptions.first(where: { $0.tier == tier && $0.isAvailable }) { return option }
+        }
+        for tier in PackageTier.allCases.prefix(currentIndex).reversed() {
+            if let option = comparisonOptions.first(where: { $0.tier == tier && $0.isAvailable }) { return option }
+        }
+        return nil
+    }
+
+    private func packageBenefits(_ option: PackageTierComparisonOption) -> [String] {
+        let makkah = option.makkahHotel?.name ?? fallbackPrimaryHotelTitle(option.tier, city: .makkah)
+        let madinah = option.madinahHotel?.name ?? fallbackPrimaryHotelTitle(option.tier, city: .madinah)
+
+        switch option.tier {
+        case .economy:
+            return [
+                localizedFinal("Практичное размещение 1–2★ / Primary Hotel", "Practical 1–2★ / Primary Hotel stay", "Amaliy 1–2★ / Primary Hotel", "Амалий 1–2★ / Primary Hotel"),
+                makkah,
+                localizedFinal("Более доступная Umrah без ухода в удалённые от Харама районы", "A more accessible Umrah without sending you far from the Haram area", "Haramdan juda uzoq bo‘lmagan, ko‘proq hamyonbop Umra", "Ҳарамдан жуда узоқ бўлмаган, кўпроқ ҳамёнбоп Умра")
+            ]
+        case .standard:
+            return [
+                "\(makkah) · 3★",
+                needsMadinah ? madinah : localizedFinal("Оптимальная логистика поездки", "Balanced trip logistics", "Muvozanatli safar logistikasi", "Мувозанатли сафар логистикаси"),
+                localizedFinal("Хороший комфорт и честная цена без лишней переплаты", "Good comfort with a fair price and no unnecessary overpayment", "Yaxshi qulaylik va ortiqcha to‘lovsiz halol narx", "Яхши қулайлик ва ортиқча тўловсиз ҳалол нарх")
+            ]
+        case .comfort:
+            return [
+                "\(makkah) · 4★",
+                localizedFinal("Завтрак включён без доплаты", "Breakfast included at no extra charge", "Nonushta qo‘shimcha to‘lovsiz", "Нонушта қўшимча тўловсиз"),
+                localizedFinal("Ближе к Хараму и комфортнее по качеству проживания", "Closer to the Haram with stronger day-to-day comfort", "Haramga yaqinroq va yashash sifati qulayroq", "Ҳарамга яқинроқ ва яшаш сифати қулайроқ")
+            ]
+        case .luxury:
+            return [
+                "\(makkah) · 5★",
+                needsMadinah ? "\(madinah) · 5★" : localizedFinal("Премиальный уровень проживания", "Premium stay level", "Premium yashash darajasi", "Премиум яшаш даражаси"),
+                localizedFinal("Расположение у Харама и высокий класс каждой части поездки", "Haram-front positioning with a higher class across the journey", "Haram yonidagi joylashuv va safarning har bir qismida yuqori daraja", "Ҳарам ёнидаги жойлашув ва сафарнинг ҳар бир қисмида юқори даража")
+            ]
+        }
+    }
+
+    private enum ComparisonCity: Equatable { case makkah, madinah }
+
+    private func fallbackPrimaryHotelTitle(_ tier: PackageTier, city: ComparisonCity) -> String {
+        let cityName = city == .makkah ? "Makkah" : "Madinah"
+        return "\(cityName) · Primary Hotel · \(tier.primaryHotelStars)★"
+    }
+
+    private func packagePositionTitle(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy: return localizedFinal("Максимальная экономия", "Maximum savings", "Maksimal tejamkorlik", "Максимал тежамкорлик")
+        case .standard: return localizedFinal("Оптимальный баланс", "Balanced choice", "Muvozanatli tanlov", "Мувозанатли танлов")
+        case .comfort: return localizedFinal("Больше комфорта каждый день", "More comfort every day", "Har kuni ko‘proq qulaylik", "Ҳар куни кўпроқ қулайлик")
+        case .luxury: return localizedFinal("Премиальная Umrah без компромиссов", "Premium Umrah with fewer compromises", "Kamroq murosali premium Umra", "Камроқ муросали премиум Умра")
+        }
+    }
+
+    private func packagePositionBody(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy:
+            return localizedFinal("Для тех, кому важнее итоговая стоимость, чем категория проживания.", "For travelers who prioritize the final price over hotel category.", "Yakuniy narx mehmonxona toifasidan muhimroq bo‘lganlar uchun.", "Якуний нарх меҳмонхона тоифасидан муҳимроқ бўлганлар учун.")
+        case .standard:
+            return localizedFinal("Основные удобства сохранены, а стоимость остаётся под контролем.", "Core conveniences stay intact while the total remains controlled.", "Asosiy qulayliklar saqlanadi, umumiy narx nazoratda qoladi.", "Асосий қулайликлар сақланади, умумий нарх назоратда қолади.")
+        case .comfort:
+            return localizedFinal("Доплата направлена прежде всего на уровень и расположение отеля.", "The upgrade is focused primarily on hotel level and location.", "Qo‘shimcha qiymat asosan mehmonxona darajasi va joylashuviga ketadi.", "Қўшимча қиймат асосан меҳмонхона даражаси ва жойлашувига кетади.")
+        case .luxury:
+            return localizedFinal("Вы платите не за больше услуг, а за более высокий уровень ключевых частей поездки.", "You are not paying for more items, but for a higher level of the journey's key parts.", "Ko‘proq xizmat uchun emas, safarning asosiy qismlarining yuqori darajasi uchun to‘laysiz.", "Кўпроқ хизмат учун эмас, сафарнинг асосий қисмларининг юқори даражаси учун тўлайсиз.")
+        }
+    }
+
+    private func packageRecommendationHeadline(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy:
+            return localizedFinal("Доступная Umrah без тяжёлой логистики", "Accessible Umrah without difficult logistics", "Qiyin logistikasiz hamyonbop Umra", "Қийин логистикасиз ҳамёнбоп Умра")
+        case .standard:
+            return localizedFinal("Проверенный баланс цены и качества", "A proven balance of price and quality", "Narx va sifatning sinalgan muvozanati", "Нарх ва сифатнинг синалган мувозанати")
+        case .comfort:
+            return localizedFinal("Ближе к Хараму и легче каждый день", "Closer to the Haram and easier every day", "Haramga yaqinroq va har kuni yengilroq", "Ҳарамга яқинроқ ва ҳар куни енгилроқ")
+        case .luxury:
+            return localizedFinal("Премиальный уровень рядом с Харамом", "A premium level right by the Haram", "Haram yonidagi premium daraja", "Ҳарам ёнидаги премиум даража")
+        }
+    }
+
+    private func packageRecommendationText(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy:
+            return localizedFinal(
+                "Мы старались сделать этот уровень действительно доступным: эконом‑отели не уводят Вас на 5 километров от Харама. Обычно это размещение примерно в 1–2 км, в районе Ajyad и по прямой дороге к Хараму, с понятной логистикой, хорошими комнатами и очень приемлемой ценой.",
+                "We intentionally keep this level genuinely accessible: Economy hotels do not push you 5 km away from the Haram. They are typically around 1–2 km away, often in the Ajyad area and on a direct route toward the Haram, with clear logistics, decent rooms and a very approachable price.",
+                "Bu darajani haqiqatan hamyonbop qilishga harakat qildik: Economy mehmonxonalari Sizni Haramdan 5 km uzoqqa olib ketmaydi. Odatda ular 1–2 km atrofida, ko‘pincha Ajyad hududida va Haramga to‘g‘ri yo‘nalishda bo‘ladi — logistika tushunarli, xonalar yaxshi va narx juda maqbul.",
+                "Бу даражани ҳақиқатан ҳамёнбоп қилишга ҳаракат қилдик: Economy меҳмонхоналари Сизни Ҳарамдан 5 км узоққа олиб кетмайди. Одатда улар 1–2 км атрофида, кўпинча Ajyad ҳудудида ва Ҳарамга тўғри йўналишда бўлади — логистика тушунарли, хоналар яхши ва нарх жуда мақбул."
+            )
+        case .standard:
+            return localizedFinal(
+                "Для Standard мы подбираем качественный и аккуратный отель с хорошим уровнем комфорта и честной стоимостью. Это вариант для тех, кто хочет сохранить бюджет, но всё равно получить удачное расположение, надёжный уровень комнат и понятную структуру поездки.",
+                "For Standard we choose a solid, comfortable hotel with an honest price. It fits travelers who want to protect the budget while still getting a good location, reliable room quality and a clear trip structure.",
+                "Standard uchun biz qulay va ishonchli mehmonxonani halol narx bilan tanlaymiz. Bu byudjetni saqlamoqchi, lekin baribir yaxshi joylashuv, xonalar sifati va tushunarli safar tuzilishini xohlaydiganlar uchun mos variant.",
+                "Standard учун биз қулай ва ишончли меҳмонхонани ҳалол нарх билан танлаймиз. Бу бюджетни сақламоқчи, лекин барибир яхши жойлашув, хоналар сифати ва тушунарли сафар тузилишини хоҳлайдиганлар учун мос вариант."
+            )
+        case .comfort:
+            return localizedFinal(
+                "Comfort мы рекомендуем тем, кому важна близость к Хараму каждый день: ориентир — около 150 метров, то есть буквально несколько минут пешком. Здесь лучше чувствуется баланс цены, близости к Хараму и качества комнат, поэтому этот уровень особенно хорошо подходит семьям и тем, кто хочет больше удобства без перехода в Luxury.",
+                "We recommend Comfort to travelers who value being closer to the Haram every day: the reference point is around 150 meters, just a few minutes on foot. This tier gives a stronger balance of price, Haram proximity and room quality, making it especially suitable for families and travelers who want more ease without moving all the way to Luxury.",
+                "Comfort'ni Haramga har kuni yaqin bo‘lish muhim bo‘lganlar uchun tavsiya qilamiz: mo‘ljal taxminan 150 metr, ya’ni piyoda bir necha daqiqa. Bu yerda narx, Haramga yaqinlik va xona sifati balansi yaxshiroq seziladi, shuning uchun bu daraja oilalar va Luxury'ga o‘tmasdan ko‘proq qulaylik xohlaydiganlar uchun ayniqsa mos.",
+                "Comfort'ни Ҳарамга ҳар куни яқин бўлиш муҳим бўлганлар учун тавсия қиламиз: мўлжал тахминан 150 метр, яъни пиёда бир неча дақиқа. Бу ерда нарх, Ҳарамга яқинлик ва хона сифати баланси яхшироқ сезилади, шунинг учун бу даража оилалар ва Luxury'га ўтмасдан кўпроқ қулайлик хоҳлайдиганлар учун айниқса мос."
+            )
+        case .luxury:
+            return localizedFinal(
+                "Luxury подойдёт тем, кто хочет максимально убрать бытовую нагрузку из поездки. Главное преимущество здесь — расположение непосредственно у Харама: Вы почти не теряете время на дорогу между отелем и мечетью, а каждая ключевая часть поездки ощущается на более высоком уровне.",
+                "Luxury suits travelers who want to remove as much everyday friction from the trip as possible. The main advantage is being positioned directly by the Haram, so you lose almost no time moving between the hotel and the mosque, while every key part of the journey feels upgraded.",
+                "Luxury safardan kundalik tashvishlarni imkon qadar kamaytirmoqchi bo‘lganlar uchun mos. Asosiy ustunlik — mehmonxona Haramning o‘ziga juda yaqin: mehmonxona va masjid o‘rtasidagi yo‘lga deyarli vaqt ketmaydi va safarning har bir asosiy qismi yuqoriroq darajada seziladi.",
+                "Luxury сафардан кундалик ташвишларни имкон қадар камайтирмоқчи бўлганлар учун мос. Асосий устунлик — меҳмонхона Ҳарамнинг ўзига жуда яқин: меҳмонхона ва масжид ўртасидаги йўлга деярли вақт кетмайди ва сафарнинг ҳар бир асосий қисми юқорироқ даражада сезилади."
+            )
+        }
+    }
+
+    private func comparisonDeltaText(_ option: PackageTierComparisonOption) -> String? {
+        guard let current = journey.quote?.totalPackagePrice,
+              let target = option.quote?.totalPackagePrice else { return nil }
+        let delta = target - current
+        if delta == 0 { return localizedFinal("Та же итоговая цена", "Same total price", "Umumiy narx bir xil", "Умумий нарх бир хил") }
+        if delta > 0 {
+            return localizedFinal("+\(money(delta, option.quote?.currency ?? "USD")) к вашему пакету", "+\(money(delta, option.quote?.currency ?? "USD")) vs your package", "+\(money(delta, option.quote?.currency ?? "USD")) joriy paketingizga", "+\(money(delta, option.quote?.currency ?? "USD")) жорий пакетингизга")
+        }
+        let saved = -delta
+        return localizedFinal("Экономия \(money(saved, option.quote?.currency ?? "USD"))", "Save \(money(saved, option.quote?.currency ?? "USD"))", "\(money(saved, option.quote?.currency ?? "USD")) tejaysiz", "\(money(saved, option.quote?.currency ?? "USD")) тежайсиз")
+    }
+
+    private func selectComparisonTitle(_ option: PackageTierComparisonOption) -> String {
+        let tier = option.tier.title(settings.language)
+        guard let current = journey.quote?.totalPackagePrice,
+              let target = option.quote?.totalPackagePrice else {
+            return localizedFinal("Выбрать \(tier)", "Choose \(tier)", "\(tier) ni tanlash", "\(tier) ни танлаш")
+        }
+        let delta = target - current
+        if delta > 0 {
+            return localizedFinal("Выбрать \(tier) · +\(money(delta, option.quote?.currency ?? "USD"))", "Choose \(tier) · +\(money(delta, option.quote?.currency ?? "USD"))", "\(tier) · +\(money(delta, option.quote?.currency ?? "USD"))", "\(tier) · +\(money(delta, option.quote?.currency ?? "USD"))")
+        } else if delta < 0 {
+            return localizedFinal("Выбрать \(tier) · −\(money(-delta, option.quote?.currency ?? "USD"))", "Choose \(tier) · −\(money(-delta, option.quote?.currency ?? "USD"))", "\(tier) · −\(money(-delta, option.quote?.currency ?? "USD"))", "\(tier) · −\(money(-delta, option.quote?.currency ?? "USD"))")
+        }
+        return localizedFinal("Выбрать \(tier)", "Choose \(tier)", "\(tier) ni tanlash", "\(tier) ни танлаш")
+    }
+
+    private func hotelLevelText(_ tier: PackageTier) -> String {
+        tier == .economy ? "2★ / 1★" : "\(tier.primaryHotelStars)★"
+    }
+
+    private func mealsLevelText(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy, .standard:
+            return localizedFinal("Питание в пакете", "Meals in package", "Ovqat paketda", "Овқат пакетда")
+        case .comfort, .luxury:
+            return localizedFinal("Завтрак включён", "Breakfast included", "Nonushta kiritilgan", "Нонушта киритилган")
+        }
+    }
+
+    private var currentPackageBadge: String { localizedFinal("Ваш пакет", "Your package", "Sizning paketingiz", "Сизнинг пакетингиз") }
+    private var currentSelectionTitle: String { localizedFinal("Текущий выбор", "Current selection", "Joriy tanlov", "Жорий танлов") }
+    private var comparisonSectionTitle: String { localizedFinal("Уровень поездки", "Trip level", "Safar darajasi", "Сафар даражаси") }
+    private var comparisonSectionHint: String { localizedFinal("Свайпните для сравнения", "Swipe to compare", "Taqqoslash uchun suring", "Таққослаш учун суринг") }
+    private var iumrahRecommendationTitle: String { localizedFinal("РЕКОМЕНДАЦИЯ IUMRAH", "IUMRAH RECOMMENDATION", "IUMRAH TAVSIYASI", "IUMRAH ТАВСИЯСИ") }
+    private var comparisonLoadingTitle: String { localizedFinal("Сравниваем уровни по вашим датам…", "Comparing levels for your dates…", "Sanalar bo‘yicha darajalar solishtirilmoqda…", "Саналар бўйича даражалар солиштирилмоқда…") }
+    private var fixedFlightComparisonNote: String { localizedFinal("Выбранный авиабилет и даты не меняются при сравнении", "Your selected flight and dates stay fixed while comparing", "Taqqoslashda tanlangan reys va sanalar o‘zgarmaydi", "Таққослашда танланган рейс ва саналар ўзгармайди") }
+    private var priceTemporarilyUnavailableTitle: String { localizedFinal("Цена обновляется", "Price is updating", "Narx yangilanmoqda", "Нарх янгиланмоқда") }
+    private var priceTemporarilyUnavailableBody: String { localizedFinal("Для этого уровня сейчас нет подтверждённой цены Primary Hotel.", "A confirmed Primary Hotel price is not available for this level right now.", "Bu daraja uchun Primary Hotel tasdiqlangan narxi hozir mavjud emas.", "Бу даража учун Primary Hotel тасдиқланган нархи ҳозир мавжуд эмас.") }
+    private var perPersonShortTitle: String { localizedFinal("чел.", "person", "kishi", "киши") }
+    private var packageForTravelersTitle: String {
+        let count = journey.trip.travelerCount
+        return localizedFinal("пакет для \(count)", "package for \(count)", "\(count) kishi uchun paket", "\(count) киши учун пакет")
+    }
+    private var makkahHotelComparisonTitle: String { localizedFinal("Отель в Мекке", "Makkah hotel", "Makkadagi mehmonxona", "Маккадаги меҳмонхона") }
+    private var madinahHotelComparisonTitle: String { localizedFinal("Отель в Медине", "Madinah hotel", "Madinadagi mehmonxona", "Мадинадаги меҳмонхона") }
+    private var hotelLevelComparisonTitle: String { localizedFinal("Уровень проживания", "Stay level", "Yashash darajasi", "Яшаш даражаси") }
+    private var mealsComparisonTitle: String { localizedFinal("Питание", "Meals", "Ovqatlanish", "Овқатланиш") }
+    private var packageSupportTitle: String { localizedFinal("Важные пояснения по поездке", "Important trip details", "Safar bo‘yicha muhim izohlar", "Сафар бўйича муҳим изоҳлар") }
+    private var packageSupportBody: String { localizedFinal("Если хотите заранее понять детали, откройте пояснения по визе, iumrah Care и iumrah Guide.", "If you want to understand the details before booking, open the explainers for the visa, iumrah Care and iumrah Guide.", "Bron qilishdan oldin tafsilotlarni tushunmoqchi bo‘lsangiz, viza, iumrah Care va iumrah Guide izohlarini oching.", "Брон қилишдан олдин тафсилотларни тушунмоқчи бўлсангиз, виза, iumrah Care ва iumrah Guide изоҳларини очинг.") }
+    private var visaSupportTitle: String { localizedFinal("Виза для поездки", "Trip visa", "Safar vizasi", "Сафар визаси") }
+    private var visaSupportSubtitle: String { localizedFinal("Срок действия, въезд и что именно входит в ваш пакет.", "Validity, entries and what is included in your package.", "Amal qilish muddati, kirish va paketingizga nimalar kirishi.", "Амал қилиш муддати, кириш ва пакетингизга нималар кириши.") }
+    private var careSupportTitle: String { localizedFinal("iumrah Care", "iumrah Care", "iumrah Care", "iumrah Care") }
+    private var careSupportSubtitle: String { localizedFinal("Как работает дополнительная поддержка по вашей поездке.", "How the additional support layer works for your trip.", "Safaringiz bo‘yicha qo‘shimcha yordam qanday ishlashi.", "Сафарингиз бўйича қўшимча ёрдам қандай ишлаши.") }
+    private var guideSupportTitle: String { localizedFinal("iumrah Guide", "iumrah Guide", "iumrah Guide", "iumrah Guide") }
+    private var guideSupportSubtitle: String { localizedFinal("Что включает персональное сопровождение по маршруту.", "What personal assistance includes along the journey.", "Yo‘nalish bo‘yicha shaxsiy hamrohlik nimalarni o‘z ichiga olishi.", "Йўналиш бўйича шахсий ҳамроҳлик нималарни ўз ичига олиши.") }
+    private var continueBookingTitle: String { localizedFinal("Продолжить бронирование", "Continue booking", "Bron qilishni davom ettirish", "Брон қилишни давом эттириш") }
+
+    private func differenceCardTitle(_ tier: PackageTier) -> String {
+        localizedFinal(
+            "Что изменится с \(tier.title(settings.language))",
+            "What changes with \(tier.title(settings.language))",
+            "\(tier.title(settings.language)) bilan nima o‘zgaradi",
+            "\(tier.title(settings.language)) билан нима ўзгаради"
+        )
     }
 
     private var includedServicesCard: some View {
@@ -1169,5 +1866,117 @@ struct FinalPackageView: View {
         formatter.locale = Locale(identifier: settings.language.localeIdentifier)
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "\(currency) \(amount)"
+    }
+}
+
+private struct FinalPackageInformationSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let kind: FinalPackageSupportSheet
+    let language: AppSettingsStore.Language
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
+                    content
+                }
+                .padding(IumrahDesign.pagePadding)
+                .padding(.bottom, 24)
+            }
+            .background(Color.iumrahPageBackground)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(closeTitle) { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            IumrahIconBadge(systemName: headerIcon, role: kind == .visa ? .document : .care, size: 52, symbolSize: 20, cornerRadius: 17)
+            Text(sheetTitle)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(sheetSubtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch kind {
+        case .visa:
+            VStack(alignment: .leading, spacing: 14) {
+                infoCard {
+                    infoPoint(icon: "calendar", title: tr("Срок действия", "Validity", "Amal qilish muddati", "Амал қилиш муддати"), body: tr("Туристическая eVisa обычно действует 1 год с даты выдачи.", "The tourist eVisa is typically valid for 1 year from issuance.", "Turistik eVisa odatda berilgan kundan boshlab 1 yil amal qiladi.", "Туристик eVisa одатда берилган кундан бошлаб 1 йил амал қилади."))
+                    Divider()
+                    infoPoint(icon: "arrow.triangle.2.circlepath", title: tr("Въезд", "Entries", "Kirish", "Кириш"), body: tr("Как правило, виза предусматривает многократный въезд, если в самой визе не указано иное.", "It generally allows multiple entries unless the issued visa states otherwise.", "Odatda viza ko‘p martalik kirishga ruxsat beradi, agar vizaning o‘zida boshqacha ko‘rsatilmagan bo‘lsa.", "Одатда виза кўп марталик киришга рухсат беради, агар визанинг ўзида бошқача кўрсатилмаган бўлса."))
+                    Divider()
+                    infoPoint(icon: "clock", title: tr("Пребывание", "Stay", "Qolish", "Қолиш"), body: tr("Разрешённый срок пребывания — до 90 дней.", "The permitted stay is up to 90 days.", "Ruxsat etilgan qolish muddati 90 kungacha.", "Рухсат этилган қолиш муддати 90 кунгача."))
+                }
+
+                Text(tr("В вашем пакете виза идёт как часть общей поездки. Итоговое решение о выдаче визы и разрешении на въезд всегда остаётся за компетентными органами Саудовской Аравии.", "In your package, the visa is treated as part of the overall journey. Final visa issuance and entry decisions always remain with the competent Saudi authorities.", "Paketingizda viza umumiy safarning bir qismi sifatida ko‘riladi. Vizani berish va kirishga ruxsat bo‘yicha yakuniy qaror Saudiya vakolatli organlariga tegishli.", "Пакетингизда виза умумий сафарнинг бир қисми сифатида кўрилади. Визани бериш ва киришга рухсат бўйича якуний қарор Саудия ваколатли органларига тегишли."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .guide:
+            VStack(alignment: .leading, spacing: 14) {
+                infoCard {
+                    infoPoint(icon: "airplane.arrival", title: tr("Встреча по маршруту", "Arrival support", "Kelishdagi yordam", "Келишдаги ёрдам"), body: tr("iumrah Guide помогает начать поездку спокойнее: встреча, первые ориентиры и логика перемещений по вашему маршруту.", "iumrah Guide helps you start the trip more calmly with arrival support, first orientation and movement logic for your route.", "iumrah Guide safarni xotirjamroq boshlashingizga yordam beradi: kutib olish, dastlabki yo‘naltirish va yo‘nalish bo‘yicha harakatlar logikasi.", "iumrah Guide сафарни хотиржамроқ бошлашингизга ёрдам беради: кутиб олиш, дастлабки йўналтириш ва йўналиш бўйича ҳаракатлар логикаси."))
+                    Divider()
+                    infoPoint(icon: "building.2.fill", title: tr("Поддержка по отелю", "Hotel support", "Mehmonxona bo‘yicha yordam", "Меҳмонхона бўйича ёрдам"), body: tr("Это сопровождение вокруг вашей программы: заселение, ключевые точки поездки и координация по маршруту.", "This is support around your program: check-in, key journey points and route coordination.", "Bu dasturingiz atrofidagi yordam: joylashish, safarning asosiy nuqtalari va yo‘nalish bo‘yicha muvofiqlashtirish.", "Бу дастурингиз атрофидаги ёрдам: жойлашиш, сафарнинг асосий нуқталари ва йўналиш бўйича мувофиқлаштириш."))
+                    Divider()
+                    infoPoint(icon: "person.2.fill", title: tr("Индивидуальный формат", "Personal format", "Individual format", "Индивидуал формат"), body: tr("Guide привязан к вашему бронированию как персональное сопровождение, а не как массовая группа.", "The Guide is tied to your booking as personal assistance rather than a mass group experience.", "Guide broningizga ommaviy guruh emas, balki shaxsiy hamrohlik sifatida biriktiriladi.", "Guide бронингизга оммавий гуруҳ эмас, балки шахсий ҳамроҳлик сифатида бириктирилади."))
+                }
+            }
+        }
+    }
+
+    private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) { content() }
+            .padding(18)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+            }
+    }
+
+    private func infoPoint(icon: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IumrahIconBadge(systemName: icon, role: kind == .visa ? .document : .care, size: 40, symbolSize: 15, cornerRadius: 13)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(body).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var headerIcon: String { kind == .visa ? "doc.text.fill" : "person.2.fill" }
+    private var sheetTitle: String {
+        switch kind {
+        case .visa: return tr("Виза Umrah-поездки", "Visa for your Umrah trip", "Umra safaringiz vizasi", "Умра сафарингиз визаси")
+        case .guide: return "iumrah Guide"
+        }
+    }
+    private var sheetSubtitle: String {
+        switch kind {
+        case .visa: return tr("Кратко о визе, которая входит в пакет поездки.", "A short explainer about the visa included in your trip package.", "Safar paketingizga kiradigan viza haqida qisqacha izoh.", "Сафар пакетингизга кирадиган виза ҳақида қисқача изоҳ.")
+        case .guide: return tr("Что включает персональное сопровождение по вашему маршруту.", "What the personal assistance layer includes for your route.", "Yo‘nalishingiz bo‘yicha shaxsiy hamrohlik nimalarni o‘z ichiga oladi.", "Йўналишингиз бўйича шахсий ҳамроҳлик нималарни ўз ичига олади.")
+        }
+    }
+    private var closeTitle: String { tr("Готово", "Done", "Tayyor", "Тайёр") }
+
+    private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
+        switch language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCy
+        }
     }
 }
