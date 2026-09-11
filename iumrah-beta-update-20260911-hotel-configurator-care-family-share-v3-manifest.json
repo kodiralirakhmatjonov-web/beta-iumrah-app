@@ -1,0 +1,126 @@
+{
+  "name": "iumrah Beta Hotel Configurator Care Family Share v3",
+  "date": "2026-09-11",
+  "base": "beta-iumrah-app-main(20260910-154135).zip",
+  "consolidated_over_previous": "hotel-first-configurator-v2 + departure-airport/geolocation v1",
+  "features": [
+    "Open Configurator black CTA; Add Madinah and primary CTAs avoid Liquid Glass",
+    "Comfort 4-star: breakfast included; Makkah lunch $30/person/day and dinner $30/person/day opt-in",
+    "Luxury 5-star: breakfast included; Makkah lunch $50/person/day and dinner $50/person/day opt-in",
+    "Saudi eVisa visual modal with supplied KSA Visa logo and Riyadh image",
+    "iumrah Guide = local Saudi trip accompaniment; iumrah Care = direct founder Abdulaziz contact",
+    "Trust card separates invoice/receipt, iumrah responsibility, airline responsibility and refund policy",
+    "Dynamic iumrah Family/Friends savings versus equivalent solo packages; room minimum follows capacity",
+    "Invite/share exports message, rich universal link, PDF and PNG package card",
+    "Package universal link restores traveler mix, rooms, Makkah/Madinah scope, first city, meal toggles and flight IDs when published inventory is still available",
+    "Hotel-list share and hotel-detail share use the same rich package share instead of a naked hotel URL"
+  ],
+  "validation": {
+    "swift_frontend_parse": "all Sources/*.swift passed (192 files)",
+    "plist": "Resources/Info.plist parsed with Python plistlib",
+    "asset_json": "both new imageset Contents.json files parsed",
+    "ios_runtime_build": "not run; environment is Linux without Xcode/iOS SDK"
+  },
+  "files": [
+    {
+      "path": "BETA_HOTEL_CONFIGURATOR_CARE_FAMILY_SHARE_V3_APPLIED.txt",
+      "bytes": 725,
+      "sha256": "7ef19926133d50ab41b232920a8179b5c79fcd0d5a16bd236c8d8f7e5fdeedea"
+    },
+    {
+      "path": "Resources/Assets.xcassets/SaudiEVisaLogo.imageset/Contents.json",
+      "bytes": 250,
+      "sha256": "268fe1a3350987836c58695a727d573ffb9c6ddfacf20c03ad6497362daf6a19"
+    },
+    {
+      "path": "Resources/Assets.xcassets/SaudiEVisaLogo.imageset/saudi-evisa-logo.png",
+      "bytes": 8212,
+      "sha256": "d4aeaca0e82cfda73e14a5207888ad3c44cbaddc6095f286694876f911d0d2b5"
+    },
+    {
+      "path": "Resources/Assets.xcassets/SaudiVisaRiyadhHero.imageset/Contents.json",
+      "bytes": 257,
+      "sha256": "a0c5d3da2f2c9db4e44e07ee538d15e47b3935505b57b00f0b1baba9432bdb3f"
+    },
+    {
+      "path": "Resources/Assets.xcassets/SaudiVisaRiyadhHero.imageset/saudi-visa-riyadh-hero.jpeg",
+      "bytes": 58596,
+      "sha256": "c2ecf2ac56d4ef2ccee87617b9639f8c1dc3a04d741ef97d6a37bd8f7b2016e4"
+    },
+    {
+      "path": "Resources/Info.plist",
+      "bytes": 3778,
+      "sha256": "0041c3ca583c5a1fccede6f6c78cf64f9d9169c6b8e90c2b587e3eb69b4a9d65"
+    },
+    {
+      "path": "Sources/AppShell/AppChromeStore.swift",
+      "bytes": 3012,
+      "sha256": "78759946c51d4a07c34e74888ed0836c6e30d2819c97ee3ef721b4ca9ec4e422"
+    },
+    {
+      "path": "Sources/Core/AppLocalization.swift",
+      "bytes": 184956,
+      "sha256": "fcabe42d323affa2ac722f728bce21963c70618d7ee070e0f143c6b43f672d1b"
+    },
+    {
+      "path": "Sources/Models/HotelStorefrontModels.swift",
+      "bytes": 4810,
+      "sha256": "e64cfa99d94f78ff2b76e5aecdcf179a9bd5d556f520cba91a85e60bc61e162f"
+    },
+    {
+      "path": "Sources/Models/TripModels.swift",
+      "bytes": 9887,
+      "sha256": "b9b34217ebd1b27fab348d8db707c2c3a2d1734f689a6c83b46fc81c65ca6ae0"
+    },
+    {
+      "path": "Sources/Services/DepartureAirportLocationResolver.swift",
+      "bytes": 4781,
+      "sha256": "bc0386a4e1434e7f8fbd5c07c44b8c5a7df5980430b5041bc9961a245eb4d59e"
+    },
+    {
+      "path": "Sources/Services/HotelStorefrontService.swift",
+      "bytes": 11652,
+      "sha256": "d069eea716ddc447e5261a5070c3bad94ea7ba6e0a9804940d6cfcf42b704cb6"
+    },
+    {
+      "path": "Sources/Services/LocalPackagePricingEngine.swift",
+      "bytes": 21987,
+      "sha256": "d3478763882a7cc314a233b4e71d7ea75446b34fa9fa93c9dca79ff2b883ffe1"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 48729,
+      "sha256": "c483f6833985eb1a92d515c1a57d7780a789d652af821122e66c5da0bcb0ee19"
+    },
+    {
+      "path": "Sources/Views/Airports/AirportSelectorButton.swift",
+      "bytes": 3243,
+      "sha256": "e3548413658d82bd0fd37650c0ef6fd9ba4e166b04e283e7adff2ef7fb4f6361"
+    },
+    {
+      "path": "Sources/Views/Home/IumrahBackendSystemView.swift",
+      "bytes": 35120,
+      "sha256": "bada021c2941eefd2b77760a28c98ce1f9e76e655e7022c4e9c8df79de0d1086"
+    },
+    {
+      "path": "Sources/Views/Hotels/HotelDetailView.swift",
+      "bytes": 74598,
+      "sha256": "c475657bd2a61bdc83446d0dcee31d39200b45dfc230ec3c4a15779702b93793"
+    },
+    {
+      "path": "Sources/Views/Package/IumrahPackageShare.swift",
+      "bytes": 22652,
+      "sha256": "a56066934afc2e082de41c4d1068afab0e8663b942f9b54b072561a3587dbeea"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 14900,
+      "sha256": "b4cdffb2373e02975dca4764cf1acbdb88e5bf61043eb1d1c9d6949d18599f72"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 176891,
+      "sha256": "6cf5f9fc2884e21c1233973ada831fae82a59043e019a70f3ae061c64000cf7a"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+iumrah Beta · Hotel Configurator v3 · 2026-09-11
+
+Consolidated update. Includes the prior Hotel First / departure-airport / geolocation work and adds:
+- black non-Liquid-Glass Configurator CTAs;
+- Comfort/Luxury breakfast-included + optional paid lunch/dinner pricing;
+- visual Saudi eVisa information sheet using the supplied KSA Visa and Riyadh assets;
+- strict separation of iumrah Guide, iumrah Care, booking trust and refund policy;
+- dynamic Family/Friends group-savings math and automatic room-capacity floor;
+- rich package sharing/invitations: message + live Configurator deep link + PDF + PNG card;
+- shared links restore travelers, rooms, route scope, meal choices and published flight IDs when still available.

@@ -13,6 +13,8 @@ struct HotelDetailView: View {
     var selectionFlow: Bool = false
     var selectionRole: HotelSelectionRole = .makkah
     var onSelectionSaved: (() -> Void)? = nil
+    var autoOpenConfigurator: Bool = false
+    var configuratorDeepLink: HotelConfiguratorDeepLink? = nil
 
     @State private var detail: HotelDetail?
     @State private var isLoading = false
@@ -29,6 +31,8 @@ struct HotelDetailView: View {
     @State private var selectionError: String?
     @State private var carePresented = false
     @State private var selectedConfiguratorPreview: StorefrontFlightPackagePreview?
+    @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
+    @State private var packageShareError: String?
 
     private let service = HotelCatalogService()
     private let packageEngine = RemotePackageEngineClient()
@@ -84,11 +88,7 @@ struct HotelDetailView: View {
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                ShareLink(
-                    item: storefront.shareURL(for: hotel),
-                    subject: Text(hotel.name),
-                    message: Text(L10n.text("hotel_storefront_share", settings.language))
-                ) {
+                Button { shareHotelPackage() } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel(L10n.text("hotel_storefront_share", settings.language))
@@ -109,6 +109,10 @@ struct HotelDetailView: View {
             await storefront.updateDepartureAirport(journey.trip.originCode)
             await load()
             await loadRoomCategories()
+            if autoOpenConfigurator, selectedConfiguratorPreview == nil,
+               let preview = storefront.hotelConfiguratorPreview(for: hotel) {
+                selectedConfiguratorPreview = preview
+            }
         }
         .fullScreenCover(isPresented: $isGalleryPresented) {
             HotelGalleryView(hotelName: hotel.name, images: detail?.images ?? [])
@@ -118,8 +122,71 @@ struct HotelDetailView: View {
             HotelCareContactSheet()
                 .environmentObject(settings)
         }
+        .sheet(item: $packageShareArtifacts) { artifacts in
+            IumrahPackageActivitySheet(artifacts: artifacts)
+        }
+        .alert(packageShareErrorTitle, isPresented: Binding(
+            get: { packageShareError != nil },
+            set: { if !$0 { packageShareError = nil } }
+        )) {
+            Button(packageShareErrorDismiss, role: .cancel) { packageShareError = nil }
+        } message: {
+            Text(packageShareError ?? "")
+        }
         .navigationDestination(item: $selectedConfiguratorPreview) { preview in
-            StorefrontUmrahPackageDetailView(preview: preview, entry: .hotelFirst(hotelID: hotel.id))
+            StorefrontUmrahPackageDetailView(
+                preview: preview,
+                entry: .hotelFirst(hotelID: hotel.id),
+                sharedConfiguration: configuratorDeepLink
+            )
+        }
+    }
+
+    @MainActor
+    private func shareHotelPackage() {
+        guard let preview = storefront.hotelConfiguratorPreview(for: hotel) else {
+            packageShareError = packageShareUnavailableText
+            IumrahHaptics.error()
+            return
+        }
+
+        do {
+            packageShareArtifacts = try IumrahPackageShareFactory.make(
+                payload: .defaultHotelFirst(hotel: hotel, preview: preview, language: settings.language),
+                language: settings.language,
+                invitation: false
+            )
+            IumrahHaptics.selection()
+        } catch {
+            packageShareError = packageShareUnavailableText
+            IumrahHaptics.error()
+        }
+    }
+
+    private var packageShareUnavailableText: String {
+        switch settings.language {
+        case .russian: return "Не удалось подготовить пакет для отправки. Обновите цены и попробуйте ещё раз."
+        case .english: return "The package could not be prepared for sharing. Refresh pricing and try again."
+        case .uzbek: return "Paketni ulashish uchun tayyorlab bo‘lmadi. Narxlarni yangilang va qayta urinib ko‘ring."
+        case .uzbekCyrillic: return "Пакетни улашиш учун тайёрлаб бўлмади. Нархларни янгиланг ва қайта уриниб кўринг."
+        }
+    }
+
+    private var packageShareErrorTitle: String {
+        switch settings.language {
+        case .russian: return "Не удалось поделиться"
+        case .english: return "Could not share"
+        case .uzbek: return "Ulashib bo‘lmadi"
+        case .uzbekCyrillic: return "Улашиб бўлмади"
+        }
+    }
+
+    private var packageShareErrorDismiss: String {
+        switch settings.language {
+        case .russian: return "Понятно"
+        case .english: return "OK"
+        case .uzbek: return "Tushunarli"
+        case .uzbekCyrillic: return "Тушунарли"
         }
     }
 
@@ -318,7 +385,7 @@ struct HotelDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(IumrahSecondaryButtonStyle())
+            .buttonStyle(IumrahPrimaryButtonStyle())
             .disabled(storefront.hotelConfiguratorPreview(for: hotel) == nil)
             .opacity(storefront.hotelConfiguratorPreview(for: hotel) == nil ? 0.45 : 1)
         }
@@ -333,10 +400,10 @@ struct HotelDetailView: View {
 
     private var changePackageTitle: String {
         switch settings.language {
-        case .russian: return "Изменить пакет"
-        case .english: return "Customize package"
-        case .uzbek: return "Paketni o‘zgartirish"
-        case .uzbekCyrillic: return "Пакетни ўзгартириш"
+        case .russian: return "Открыть конфигуратор"
+        case .english: return "Open Configurator"
+        case .uzbek: return "Configuratorni ochish"
+        case .uzbekCyrillic: return "Configuratorни очиш"
         }
     }
 

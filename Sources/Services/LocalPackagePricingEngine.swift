@@ -401,10 +401,10 @@ enum LocalPackagePricingEngine {
         }
     }
 
-    /// The Hotels storefront has no dated city split, so its package preview uses
-    /// the same 60/40 Makkah/Madinah stay policy as TripStayPlanner and the default
-    /// Comfort/Luxury meal selection. Economy/Standard remain byte-for-byte equivalent
-    /// to the previous bundled $15/day formula.
+    /// The Hotels storefront preview must match the initial Configurator state.
+    /// Economy/Standard retain the bundled $15/day allocation. Comfort/Luxury
+    /// include breakfast at $0 and keep paid lunch/dinner opt-in, so the initial
+    /// storefront quote contains no paid meal allocation.
     private static func storefrontMealCost(tier: PackageTier, totalNights: Int, travelers: Int) -> Decimal {
         let nights = max(1, totalNights)
         let people = Decimal(max(1, travelers))
@@ -413,15 +413,9 @@ enum LocalPackagePricingEngine {
         case .economy, .standard:
             return economyStandardMealPerPersonPerDayUsd * Decimal(nights + 1) * people
         case .comfort, .luxury:
-            guard let unit = optionalMealUnitPriceUsd(for: tier) else { return 0 }
-            guard nights > 1 else {
-                return unit * Decimal(2 * nights) * people
-            }
-            let makkahNights = max(1, min(nights - 1, Int(ceil(Double(nights) * 0.6))))
-            let madinahNights = max(1, nights - makkahNights)
-            // Default selection: Makkah lunch+dinner, Madinah dinner. Breakfast is free.
-            let paidMealServiceCount = (makkahNights * 2) + madinahNights
-            return unit * Decimal(paidMealServiceCount) * people
+            // Breakfast is included by the hotel tier. Lunch and dinner are
+            // intentionally excluded until the pilgrim enables them in Configurator.
+            return 0
         }
     }
 

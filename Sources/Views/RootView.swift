@@ -144,7 +144,50 @@ struct RootView: View {
 
         guard let hotelID,
               !hotelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        chrome.openHotel(id: hotelID)
+        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        var queryValues: [String: String] = [:]
+        for item in query {
+            guard let value = item.value else { continue }
+            queryValues[item.name.lowercased()] = value
+        }
+        let truthy = { (value: String?) -> Bool in
+            ["1", "true", "yes", "on"].contains(value?.lowercased() ?? "")
+        }
+        let openConfigurator = truthy(queryValues["configurator"])
+
+        let configuratorDeepLink: HotelConfiguratorDeepLink?
+        if openConfigurator {
+            let hasMealSnapshot = queryValues["makkah_lunch"] != nil
+                || queryValues["makkah_dinner"] != nil
+                || queryValues["madinah_dinner"] != nil
+            let meals = hasMealSnapshot
+                ? PackageMealSelection(
+                    makkahLunch: truthy(queryValues["makkah_lunch"]),
+                    makkahDinner: truthy(queryValues["makkah_dinner"]),
+                    madinahDinner: truthy(queryValues["madinah_dinner"])
+                )
+                : nil
+            configuratorDeepLink = HotelConfiguratorDeepLink(
+                hotelID: hotelID,
+                adults: queryValues["adults"].flatMap { Int($0) },
+                children: queryValues["children"].flatMap { Int($0) },
+                infants: queryValues["infants"].flatMap { Int($0) },
+                rooms: queryValues["rooms"].flatMap { Int($0) },
+                scope: queryValues["scope"].flatMap { JourneyScope(rawValue: $0) },
+                firstSaudiCity: queryValues["first_city"].map { $0.uppercased() }.flatMap { SaudiArrivalAirport(rawValue: $0) },
+                mealSelection: meals,
+                outboundOptionID: queryValues["outbound"],
+                inboundOptionID: queryValues["inbound"]
+            )
+        } else {
+            configuratorDeepLink = nil
+        }
+
+        chrome.openHotel(
+            id: hotelID,
+            openConfigurator: openConfigurator,
+            configuratorDeepLink: configuratorDeepLink
+        )
     }
 
     @MainActor

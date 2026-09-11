@@ -1,5 +1,18 @@
 import SwiftUI
 
+struct HotelConfiguratorDeepLink: Hashable {
+    let hotelID: String
+    var adults: Int? = nil
+    var children: Int? = nil
+    var infants: Int? = nil
+    var rooms: Int? = nil
+    var scope: JourneyScope? = nil
+    var firstSaudiCity: SaudiArrivalAirport? = nil
+    var mealSelection: PackageMealSelection? = nil
+    var outboundOptionID: String? = nil
+    var inboundOptionID: String? = nil
+}
+
 enum AppTab: Hashable {
     case home
     case hotels
@@ -14,6 +27,8 @@ final class AppChromeStore: ObservableObject {
     @Published var shouldStartTripBuilder = false
     @Published var requestedBookingID: String?
     @Published var requestedHotelID: String?
+    @Published var requestedHotelConfiguratorID: String?
+    @Published var requestedHotelConfiguratorDeepLink: HotelConfiguratorDeepLink?
     @Published var isImmersiveMode = false
     @Published var isSidebarOpen = false
     @Published var isESIMPresented = false
@@ -32,8 +47,16 @@ final class AppChromeStore: ObservableObject {
         IumrahHaptics.selection()
     }
 
-    func openHotel(id: String) {
+    func openHotel(
+        id: String,
+        openConfigurator: Bool = false,
+        configuratorDeepLink: HotelConfiguratorDeepLink? = nil
+    ) {
         requestedHotelID = id
+        requestedHotelConfiguratorID = openConfigurator ? id : nil
+        requestedHotelConfiguratorDeepLink = openConfigurator
+            ? (configuratorDeepLink ?? HotelConfiguratorDeepLink(hotelID: id))
+            : nil
         currentTab = .hotels
         requestedTab = .hotels
         IumrahHaptics.selection()

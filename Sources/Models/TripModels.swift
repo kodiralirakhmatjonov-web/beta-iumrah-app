@@ -63,11 +63,11 @@ enum HotelMealKind: String, Codable, Hashable {
 
 /// Customer-selectable hotel meal plan used by Comfort and Luxury packages.
 /// Breakfast is always included at no additional cost. Paid lunch/dinner choices
-/// default to enabled and can be removed independently before package pricing.
+/// are opt-in: the default package contains breakfast only.
 struct PackageMealSelection: Codable, Hashable {
-    var makkahLunch: Bool = true
-    var makkahDinner: Bool = true
-    var madinahDinner: Bool = true
+    var makkahLunch: Bool = false
+    var makkahDinner: Bool = false
+    var madinahDinner: Bool = false
 
     static let defaultSelection = PackageMealSelection()
 
@@ -190,8 +190,8 @@ struct TripDraft: Codable, Hashable {
     var hotelStars: Int = 3
     var packageTier: PackageTier = .standard
     /// Optional for backward compatibility with drafts created before selectable
-    /// Comfort/Luxury hotel meals were introduced. Missing always means the new
-    /// default: all eligible paid meals are enabled.
+    /// Comfort/Luxury hotel meals were introduced. Missing means the current
+    /// breakfast-only default; paid lunch/dinner remain opt-in.
     var mealSelection: PackageMealSelection? = nil
     var scope: JourneyScope = .makkahAndMadinah
     var flightFilters: FlightSearchFilters? = nil
