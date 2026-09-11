@@ -23,7 +23,6 @@ struct PrimaryHotelView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
-                    IumrahFlowProgress(stage: .hotel)
                     heading
                     hotelContent
 

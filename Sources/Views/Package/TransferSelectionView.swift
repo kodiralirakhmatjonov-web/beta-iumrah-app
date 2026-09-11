@@ -12,10 +12,6 @@ struct TransferSelectionView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var inheritedColorScheme
-    @Environment(\.dismiss) private var dismiss
-
-    private let selectionMode: Bool
-    private let onSelectionSaved: (() -> Void)?
 
     @State private var discoveryPhase: TransferDiscoveryPhase = .searching
     @State private var searchSecond = 0
@@ -28,11 +24,6 @@ struct TransferSelectionView: View {
 
     @State private var searchDuration = Int.random(in: 20...40)
     private let vehicles = TransferVehicleKind.allCases
-
-    init(selectionMode: Bool = false, onSelectionSaved: (() -> Void)? = nil) {
-        self.selectionMode = selectionMode
-        self.onSelectionSaved = onSelectionSaved
-    }
 
     private var selectedVehicle: TransferVehicleKind {
         vehicles[min(max(selectedIndex, 0), vehicles.count - 1)]
@@ -69,7 +60,11 @@ struct TransferSelectionView: View {
         }
         .background(pageBackground.ignoresSafeArea())
         .animation(.easeInOut(duration: 0.48), value: isVIP)
-        .iumrahInternalNavigation(progress: .transfer)
+        .iumrahInternalNavigation(
+            progress: .transfer,
+            showsGeneratorAmbient: true,
+            currentPriceText: currentPackagePriceTitle
+        )
         .navigationDestination(isPresented: $showFinalPackage) {
             FinalPackageView()
         }
@@ -107,13 +102,6 @@ struct TransferSelectionView: View {
             .allowsHitTesting(false)
 
             VStack(spacing: 0) {
-                IumrahFlowProgress(
-                    stage: .transfer,
-                    currentPriceText: currentPackagePriceTitle
-                )
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 10)
-
                 Spacer()
 
                 searchBottomSheet
@@ -228,11 +216,6 @@ struct TransferSelectionView: View {
     private var matchedExperience: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                IumrahFlowProgress(
-                    stage: .transfer,
-                    currentPriceText: currentPackagePriceTitle
-                )
-
                 matchedHeader
                 vehicleStage
                 vehicleInformation
@@ -608,11 +591,7 @@ struct TransferSelectionView: View {
         }
 
         let pricingTask = Task { @MainActor in
-            if selectionMode {
-                seedSelectionModeBasePrice()
-            } else {
-                await refreshBasePackagePrice()
-            }
+            await refreshBasePackagePrice()
         }
 
         if journey.transferSelectionConfirmed {
@@ -641,16 +620,6 @@ struct TransferSelectionView: View {
             discoveryPhase = .matched
         }
         IumrahHaptics.success()
-    }
-
-    @MainActor
-    private func seedSelectionModeBasePrice() {
-        guard let quote = journey.quote else { return }
-        let activeVehicleAddOn = (journey.selectedTransferVehicle ?? journey.recommendedTransferVehicle())
-            .publicUpgradeUsd(for: journey.trip.scope)
-        let activeTrainAddOn = journey.haramainTrainSelected ? journey.haramainTrainAddOnUsd : 0
-        let resolved = quote.totalPackagePrice - activeVehicleAddOn - activeTrainAddOn
-        basePackagePriceUsd = resolved > 0 ? resolved : quote.totalPackagePrice
     }
 
     @MainActor
@@ -700,14 +669,6 @@ struct TransferSelectionView: View {
         confirmationError = nil
         journey.chooseTransferVehicle(selectedVehicle)
         journey.confirmTransferSelection()
-
-        if selectionMode {
-            IumrahHaptics.success()
-            isConfirming = false
-            onSelectionSaved?()
-            dismiss()
-            return
-        }
 
         await journey.buildQuote(forceHotelRefresh: false)
 

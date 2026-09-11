@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum TripProgressStage: Int, CaseIterable {
     case trip = 1
@@ -16,10 +17,31 @@ enum TripProgressStage: Int, CaseIterable {
         case .ready: return "step_ready"
         }
     }
+
+    fileprivate var carouselSymbol: String {
+        switch self {
+        case .trip: return "calendar"
+        case .hotel: return "building.2.fill"
+        case .flight: return "airplane.departure"
+        case .transfer: return "car.side.fill"
+        case .ready: return "checkmark.seal.fill"
+        }
+    }
+
+    fileprivate var carouselRole: IumrahIconRole {
+        switch self {
+        case .trip: return .calendar
+        case .hotel: return .hotel
+        case .flight: return .travel
+        case .transfer: return .transfer
+        case .ready: return .success
+        }
+    }
 }
 
-/// Compact, scrollable progress element for the Umrah builder.
-/// It belongs inside page content instead of being pinned to the safe area.
+/// Compatibility progress view retained for non-generator call sites. The five
+/// generator destinations now render the same progress information inside the
+/// pinned generator header instead of duplicating a card in scroll content.
 struct IumrahFlowProgress: View {
     @EnvironmentObject private var settings: AppSettingsStore
     let stage: TripProgressStage
@@ -27,12 +49,38 @@ struct IumrahFlowProgress: View {
     var currentPriceText: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        GeneratorProgressStrip(
+            stage: stage,
+            labelKey: labelKey,
+            currentPriceText: currentPriceText
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Generator pinned header
+
+/// The progress strip is deliberately surface-free here because it lives inside
+/// the single pinned generator container with the carousel and back control.
+private struct GeneratorProgressStrip: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+
+    let stage: TripProgressStage
+    var labelKey: String? = nil
+    var currentPriceText: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(FlowCopy.text(.stepOfFour, settings.language)) \(stage.rawValue) / 5")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+
                 Spacer(minLength: 12)
+
                 if let currentPriceText {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(currentPriceLabel)
@@ -46,6 +94,7 @@ struct IumrahFlowProgress: View {
                 } else {
                     Text(L10n.text(labelKey ?? stage.localizationKey, settings.language))
                         .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
                 }
             }
 
@@ -58,10 +107,6 @@ struct IumrahFlowProgress: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 
     private var currentPriceLabel: String {
@@ -80,62 +125,61 @@ struct IumrahFlowProgress: View {
     }
 }
 
-// MARK: - Generator ambient rail
-
-/// A large, tactile carousel that lives in the otherwise empty generator
-/// navigation-title area. It is intentionally independent from the progress
-/// card below: the progress card communicates completion, while this rail gives
-/// the active generator context a calm, living identity.
-private struct GeneratorAmbientRail: View {
+/// Native SwiftUI circular carousel for the five real generator stages.
+/// Every stage remains in the hierarchy at all times. Items that leave one
+/// side travel around the back of the ring and return from the other side, so
+/// there is no edge clipping or visual "teleporting" from a fade mask.
+private struct GeneratorStageCarousel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let stage: TripProgressStage
 
-    @State private var activeIndex = 0
+    @State private var carouselPosition: CGFloat = 0
     @State private var dragTranslation: CGFloat = 0
     @State private var glowBreath = false
     @State private var resetGeneration = 0
 
-    private let itemSpacing: CGFloat = 82
-    private let railWidth: CGFloat = 312
-    private let railHeight: CGFloat = 100
-
-    private struct Item: Identifiable {
-        let id: String
-        let symbol: String
-        let role: IumrahIconRole
-        let isResting: Bool
-
-        init(
-            id: String,
-            symbol: String,
-            role: IumrahIconRole,
-            isResting: Bool = false
-        ) {
-            self.id = id
-            self.symbol = symbol
-            self.role = role
-            self.isResting = isResting
-        }
-    }
+    private let itemSpacing: CGFloat = 78
+    private let carouselHeight: CGFloat = 90
 
     var body: some View {
-        ZStack {
-            containerSurface
-            ambientGlow
-            iconStrip
+        GeometryReader { proxy in
+            let radiusX = min(102, max(58, proxy.size.width * 0.39))
+
+            ZStack {
+                ambientGlow
+
+                ForEach(Array(TripProgressStage.allCases.enumerated()), id: \.element.rawValue) { index, item in
+                    let angle = angle(for: index)
+                    let depth = cos(angle)
+                    let frontness = (depth + 1) / 2
+                    let x = sin(angle) * radiusX
+
+                    stageTile(item, frontness: frontness)
+                        .scaleEffect(scale(for: frontness))
+                        .opacity(opacity(for: frontness))
+                        .blur(radius: blur(for: frontness))
+                        .rotation3DEffect(
+                            .degrees(Double(-sin(angle) * 18)),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.46
+                        )
+                        .offset(
+                            x: x,
+                            y: verticalOffset(for: frontness)
+                        )
+                        .zIndex(Double(depth * 10))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(carouselGesture)
         }
-        .frame(width: railWidth, height: railHeight)
-        .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        // Keep the whole ambient rail inside the navigation bar's own bounds.
-        // The toolbar remains pinned while the generator content scrolls, and
-        // the rail no longer relies on an offset that can be clipped by UIKit.
-        .padding(.vertical, 2)
-        .gesture(carouselGesture)
+        .frame(height: carouselHeight)
         .accessibilityHidden(true)
         .task(id: stage.rawValue) {
             let target = restingIndex
-            activeIndex = target
+            carouselPosition = CGFloat(target)
             dragTranslation = 0
             resetGeneration = 0
             glowBreath = false
@@ -146,18 +190,15 @@ private struct GeneratorAmbientRail: View {
                 glowBreath = true
             }
 
-            // One calm presentation lap on entry, then park on the icon that
-            // represents the current generator context. There is no perpetual
-            // auto-scrolling after this sequence.
+            // One continuous 360° presentation lap on entry. The state itself
+            // is unbounded; sin/cos provide the wrap, so an item physically
+            // travels around the back of the ring rather than being removed
+            // and recreated at the opposite edge.
             try? await Task.sleep(nanoseconds: 260_000_000)
             guard !Task.isCancelled else { return }
 
-            for step in 1...items.count {
-                try? await Task.sleep(nanoseconds: 205_000_000)
-                guard !Task.isCancelled else { return }
-                withAnimation(.spring(response: 0.50, dampingFraction: 0.86, blendDuration: 0.08)) {
-                    activeIndex = wrapped(target + step)
-                }
+            withAnimation(.easeInOut(duration: 1.55)) {
+                carouselPosition = CGFloat(target + TripProgressStage.allCases.count)
             }
         }
         .task(id: resetGeneration) {
@@ -165,73 +206,17 @@ private struct GeneratorAmbientRail: View {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             guard !Task.isCancelled else { return }
 
-            withAnimation(.spring(response: 0.62, dampingFraction: 0.86, blendDuration: 0.10)) {
-                activeIndex = restingIndex
+            let target = nearestEquivalentPosition(for: restingIndex, around: carouselPosition)
+            withAnimation(.spring(response: 0.62, dampingFraction: 0.87, blendDuration: 0.10)) {
+                carouselPosition = target
                 dragTranslation = 0
             }
         }
     }
 
-    private var containerSurface: some View {
-        RoundedRectangle(cornerRadius: 34, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay {
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .fill(Color.iumrahCardBackground.opacity(0.20))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.045), lineWidth: 0.75)
-            }
-            .shadow(color: Color.black.opacity(0.035), radius: 14, x: 0, y: 7)
-            .allowsHitTesting(false)
-    }
-
-    private var iconStrip: some View {
-        ZStack {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                let phase = continuousDistance(for: index)
-                let magnitude = abs(phase)
-
-                if magnitude <= 2.25 {
-                    iconTile(item, magnitude: magnitude)
-                        .scaleEffect(scale(for: magnitude))
-                        .opacity(opacity(for: magnitude))
-                        .blur(radius: blur(for: magnitude))
-                        .offset(
-                            x: phase * itemSpacing,
-                            y: verticalOffset(for: magnitude)
-                        )
-                        .zIndex(Double(4) - Double(magnitude))
-                }
-            }
-        }
-        .frame(width: railWidth - 8, height: railHeight - 6)
-        // Fade the outer icons gradually instead of hard-clipping them at the
-        // rail bounds. This preserves the depth effect during manual swipes.
-        .mask(edgeFadeMask)
-    }
-
-    private var edgeFadeMask: some View {
-        LinearGradient(
-            stops: [
-                .init(color: .clear, location: 0.00),
-                .init(color: .black.opacity(0.45), location: 0.055),
-                .init(color: .black, location: 0.14),
-                .init(color: .black, location: 0.86),
-                .init(color: .black.opacity(0.45), location: 0.945),
-                .init(color: .clear, location: 1.00)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-
     private var carouselGesture: some Gesture {
         DragGesture(minimumDistance: 7, coordinateSpace: .local)
             .onChanged { value in
-                // Keep vertical page gestures natural. The rail only claims a
-                // gesture once the movement is clearly horizontal.
                 guard abs(value.translation.width) > abs(value.translation.height) else { return }
                 dragTranslation = value.translation.width
             }
@@ -253,12 +238,12 @@ private struct GeneratorAmbientRail: View {
                 }
 
                 withAnimation(.spring(response: 0.46, dampingFraction: 0.84, blendDuration: 0.08)) {
-                    activeIndex = wrapped(activeIndex + steps)
+                    carouselPosition += CGFloat(steps)
                     dragTranslation = 0
                 }
 
-                // Every manual play session is temporary: one second after the
-                // finger leaves the rail, return to the generator's real context.
+                // Manual play is temporary. One second after the finger leaves,
+                // the carousel returns to the actual generator stage.
                 resetGeneration &+= 1
             }
     }
@@ -268,173 +253,239 @@ private struct GeneratorAmbientRail: View {
             .fill(
                 RadialGradient(
                     colors: [
-                        activeItem.role.color.opacity(0.30),
-                        activeItem.role.color.opacity(0.12),
-                        activeItem.role.color.opacity(0.035),
+                        activeStage.carouselRole.color.opacity(0.27),
+                        activeStage.carouselRole.color.opacity(0.10),
                         .clear
                     ],
                     center: .center,
                     startRadius: 1,
-                    endRadius: 118
+                    endRadius: 96
                 )
             )
-            .frame(width: glowBreath ? 236 : 208, height: glowBreath ? 62 : 52)
-            .blur(radius: 18)
+            .frame(width: glowBreath ? 188 : 166, height: glowBreath ? 54 : 46)
+            .blur(radius: 17)
             .opacity(glowBreath ? 0.88 : 0.68)
-            .offset(y: 24)
-            .animation(.easeInOut(duration: 0.58), value: activeIndex)
+            .offset(y: 18)
+            .animation(.easeInOut(duration: 0.58), value: activeStage.rawValue)
             .allowsHitTesting(false)
     }
 
-    private func iconTile(_ item: Item, magnitude: CGFloat) -> some View {
-        let emphasis = max(0, 1 - min(magnitude, 1))
+    private func stageTile(_ item: TripProgressStage, frontness: CGFloat) -> some View {
+        let emphasis = pow(frontness, 4.5)
+        let tileOpacity = 0.06 + (0.90 * Double(emphasis))
 
         return ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color.iumrahCardBackground.opacity(0.72 + (0.26 * Double(emphasis))))
+            RoundedRectangle(cornerRadius: 23, style: .continuous)
+                .fill(Color.iumrahCardBackground.opacity(tileOpacity))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    RoundedRectangle(cornerRadius: 23, style: .continuous)
                         .strokeBorder(
-                            Color.primary.opacity(0.025 + (0.03 * Double(emphasis))),
+                            Color.primary.opacity(0.018 + (0.045 * Double(emphasis))),
                             lineWidth: 0.75
                         )
                 }
                 .shadow(
-                    color: item.role.color.opacity(0.12 * Double(emphasis)),
+                    color: item.carouselRole.color.opacity(0.13 * Double(emphasis)),
                     radius: 14 * emphasis,
                     x: 0,
                     y: 7 * emphasis
                 )
 
-            Image(systemName: item.symbol)
-                .font(.system(size: 34, weight: .semibold))
+            Image(systemName: item.carouselSymbol)
+                .font(.system(size: 29 + (6 * frontness), weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(item.role.color)
+                .foregroundStyle(item.carouselRole.color)
         }
-        .frame(width: 72, height: 72)
+        .frame(width: 74, height: 74)
     }
 
     private var restingIndex: Int {
-        items.firstIndex(where: \.isResting) ?? 0
+        max(0, stage.rawValue - 1)
     }
 
-    private var activeItem: Item {
-        items[wrapped(activeIndex)]
+    private var displayedPosition: CGFloat {
+        carouselPosition - (dragTranslation / itemSpacing)
     }
 
-    private var items: [Item] {
-        switch stage {
-        case .trip:
-            return [
-                Item(id: "trip-flight", symbol: "airplane.departure", role: .travel),
-                Item(id: "trip-location", symbol: "mappin.and.ellipse", role: .location),
-                // The trip screen contains the date choice, so the carousel
-                // settles on the calendar after its one-time presentation lap.
-                Item(id: "trip-calendar", symbol: "calendar", role: .calendar, isResting: true),
-                Item(id: "trip-guests", symbol: "person.2.fill", role: .profile),
-                Item(id: "trip-bag", symbol: "suitcase.fill", role: .booking)
-            ]
-        case .hotel:
-            return [
-                Item(id: "hotel-building", symbol: "building.2.fill", role: .hotel, isResting: true),
-                Item(id: "hotel-bed", symbol: "bed.double.fill", role: .hotel),
-                Item(id: "hotel-location", symbol: "mappin.and.ellipse", role: .location),
-                Item(id: "hotel-rating", symbol: "star.fill", role: .rating),
-                Item(id: "hotel-meal", symbol: "fork.knife", role: .booking)
-            ]
-        case .flight:
-            return [
-                Item(id: "flight-departure", symbol: "airplane.departure", role: .travel, isResting: true),
-                Item(id: "flight-time", symbol: "clock.fill", role: .waiting),
-                Item(id: "flight-bag", symbol: "suitcase.fill", role: .booking),
-                Item(id: "flight-route", symbol: "arrow.left.arrow.right", role: .accent),
-                Item(id: "flight-arrival", symbol: "airplane.arrival", role: .travel)
-            ]
-        case .transfer:
-            return [
-                Item(id: "transfer-car", symbol: "car.side.fill", role: .transfer, isResting: true),
-                Item(id: "transfer-map", symbol: "map.fill", role: .location),
-                Item(id: "transfer-guests", symbol: "person.2.fill", role: .profile),
-                Item(id: "transfer-bag", symbol: "suitcase.fill", role: .booking),
-                Item(id: "transfer-pin", symbol: "location.fill", role: .location)
-            ]
-        case .ready:
-            return [
-                Item(id: "ready-seal", symbol: "checkmark.seal.fill", role: .success, isResting: true),
-                Item(id: "ready-document", symbol: "doc.text.fill", role: .document),
-                Item(id: "ready-payment", symbol: "creditcard.fill", role: .payment),
-                Item(id: "ready-care", symbol: "heart.fill", role: .care),
-                Item(id: "ready-sparkles", symbol: "sparkles", role: .umrah)
-            ]
-        }
+    private var activeStage: TripProgressStage {
+        let index = wrapped(Int(displayedPosition.rounded()))
+        return TripProgressStage.allCases[index]
     }
 
-    private func continuousDistance(for index: Int) -> CGFloat {
-        let base = CGFloat(signedDistance(for: index))
-        return base + (dragTranslation / itemSpacing)
+    private func angle(for index: Int) -> CGFloat {
+        let step = (2 * CGFloat.pi) / CGFloat(TripProgressStage.allCases.count)
+        return (CGFloat(index) - displayedPosition) * step
     }
 
-    private func signedDistance(for index: Int) -> Int {
-        let count = items.count
-        let normalizedActive = wrapped(activeIndex)
-        let direct = index - normalizedActive
-        let forwardWrap = direct + count
-        let backwardWrap = direct - count
-        return [direct, forwardWrap, backwardWrap].min { abs($0) < abs($1) } ?? direct
+    private func nearestEquivalentPosition(for index: Int, around current: CGFloat) -> CGFloat {
+        let count = CGFloat(TripProgressStage.allCases.count)
+        let base = CGFloat(index)
+        let revolutions = ((current - base) / count).rounded()
+        return base + (revolutions * count)
     }
 
     private func wrapped(_ index: Int) -> Int {
-        let count = max(items.count, 1)
+        let count = max(TripProgressStage.allCases.count, 1)
         return ((index % count) + count) % count
     }
 
-    private func scale(for magnitude: CGFloat) -> CGFloat {
-        if magnitude <= 1 {
-            return 1.06 - (0.25 * magnitude)
+    private func scale(for frontness: CGFloat) -> CGFloat {
+        0.52 + (0.52 * frontness)
+    }
+
+    private func opacity(for frontness: CGFloat) -> Double {
+        0.14 + (0.86 * Double(pow(frontness, 0.9)))
+    }
+
+    private func blur(for frontness: CGFloat) -> CGFloat {
+        6.0 * (1 - frontness)
+    }
+
+    private func verticalOffset(for frontness: CGFloat) -> CGFloat {
+        8.0 * (1 - frontness)
+    }
+}
+
+/// One chrome block below the device safe area. It contains the native Liquid
+/// Glass back control, the circular stage carousel, and the progress strip.
+private struct GeneratorPinnedHeader: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    let stage: TripProgressStage
+    var currentPriceText: String? = nil
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack(alignment: .leading) {
+                GeneratorStageCarousel(stage: stage)
+                    .padding(.horizontal, 54)
+
+                IumrahGlassIconButton(
+                    systemName: "chevron.left",
+                    size: 56,
+                    fontSize: 25,
+                    accessibilityLabel: backAccessibilityLabel
+                ) {
+                    dismiss()
+                }
+                .padding(.leading, 2)
+            }
+            .frame(height: 92)
+
+            GeneratorProgressStrip(
+                stage: stage,
+                currentPriceText: currentPriceText
+            )
+            .padding(.horizontal, 4)
         }
-        return max(0.60, 0.81 - (0.18 * (magnitude - 1)))
-    }
-
-    private func opacity(for magnitude: CGFloat) -> Double {
-        if magnitude <= 1 {
-            return 1.0 - (0.44 * Double(magnitude))
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 13)
+        .background {
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
+                .fill(
+                    Color.iumrahRaisedBackground
+                        .opacity(colorScheme == .dark ? 0.94 : 0.97)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 34, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.8)
+                }
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.16 : 0.055), radius: 18, x: 0, y: 8)
         }
-        return max(0.12, 0.56 - (0.34 * Double(magnitude - 1)))
+        .accessibilityElement(children: .contain)
     }
 
-    private func blur(for magnitude: CGFloat) -> CGFloat {
-        if magnitude <= 0.35 { return 0 }
-        if magnitude <= 1 { return 2.2 * magnitude }
-        return min(6.4, 2.2 + ((magnitude - 1) * 3.2))
+    private var backAccessibilityLabel: String {
+        switch settings.language {
+        case .russian: return "Назад"
+        case .english: return "Back"
+        case .uzbek: return "Orqaga"
+        case .uzbekCyrillic: return "Орқага"
+        }
+    }
+}
+
+/// Keeps UINavigationController's native edge-swipe pop gesture available even
+/// though generator screens hide the stock navigation bar in favor of the
+/// safe-area-aware pinned header above.
+private struct GeneratorInteractivePopRestorer: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
     }
 
-    private func verticalOffset(for magnitude: CGFloat) -> CGFloat {
-        min(4.5, magnitude * 2.4)
+    func updateUIViewController(_ uiViewController: Controller, context: Context) {}
+
+    final class Controller: UIViewController {
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+        }
     }
 }
 
 private struct IumrahInternalNavigationModifier: ViewModifier {
     @EnvironmentObject private var chrome: AppChromeStore
+
     let progressStage: TripProgressStage?
     let showsGeneratorAmbient: Bool
+    let currentPriceText: String?
+
     @State private var registered = false
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if showsGeneratorAmbient, let progressStage {
+            content
+                // The generator owns one pinned header below the hardware safe
+                // area. This avoids the Dynamic Island / status bar entirely on
+                // every iPhone size and removes the constrained toolbar title box.
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    GeneratorPinnedHeader(
+                        stage: progressStage,
+                        currentPriceText: currentPriceText
+                    )
+                    .padding(.horizontal, IumrahDesign.pagePadding)
+                    .padding(.top, 6)
+                    .padding(.bottom, 8)
+                }
+                .background {
+                    GeneratorInteractivePopRestorer()
+                        .frame(width: 0, height: 0)
+                }
+                .tint(Color.primary)
+                .modifier(InternalChromeRegistrationModifier(
+                    chrome: chrome,
+                    registered: $registered
+                ))
+        } else {
+            content
+                // Non-generator internal destinations keep Apple's stock
+                // navigation bar and native back affordance unchanged.
+                .toolbar(.visible, for: .navigationBar)
+                .navigationBarBackButtonHidden(false)
+                .navigationBarTitleDisplayMode(.inline)
+                .tint(Color.primary)
+                .modifier(InternalChromeRegistrationModifier(
+                    chrome: chrome,
+                    registered: $registered
+                ))
+        }
+    }
+}
+
+/// Isolated lifecycle registration avoids duplicating onAppear/onDisappear
+/// bookkeeping across the two navigation presentation branches above.
+private struct InternalChromeRegistrationModifier: ViewModifier {
+    let chrome: AppChromeStore
+    @Binding var registered: Bool
 
     func body(content: Content) -> some View {
         content
-            // Internal destinations use Apple's real navigation bar and real back
-            // affordance. This preserves UINavigationController's edge-swipe pop
-            // gesture instead of recreating a back button with dismiss().
-            .toolbar(.visible, for: .navigationBar)
-            .navigationBarBackButtonHidden(false)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if showsGeneratorAmbient, let progressStage {
-                    ToolbarItem(placement: .principal) {
-                        GeneratorAmbientRail(stage: progressStage)
-                    }
-                }
-            }
-            .tint(Color.primary)
             .onAppear {
                 guard !registered else { return }
                 registered = true
@@ -451,12 +502,14 @@ private struct IumrahInternalNavigationModifier: ViewModifier {
 extension View {
     func iumrahInternalNavigation(
         progress: TripProgressStage? = nil,
-        showsGeneratorAmbient: Bool = false
+        showsGeneratorAmbient: Bool = false,
+        currentPriceText: String? = nil
     ) -> some View {
         modifier(
             IumrahInternalNavigationModifier(
                 progressStage: progress,
-                showsGeneratorAmbient: showsGeneratorAmbient
+                showsGeneratorAmbient: showsGeneratorAmbient,
+                currentPriceText: currentPriceText
             )
         )
     }

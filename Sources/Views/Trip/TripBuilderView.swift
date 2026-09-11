@@ -22,7 +22,6 @@ struct TripBuilderView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
-                IumrahFlowProgress(stage: .trip)
                 intro
                 routeCard
                 datesCard

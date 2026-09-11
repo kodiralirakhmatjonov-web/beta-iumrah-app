@@ -56,7 +56,6 @@ struct ReturnFlightView: View {
     private var resultsView: some View {
         ScrollView {
             LazyVStack(spacing: 18) {
-                IumrahFlowProgress(stage: .flight)
                 SectionHeader(
                     L10n.text("flight_return_title", settings.language),
                     eyebrow: L10n.text("flight_return_eyebrow", settings.language),
