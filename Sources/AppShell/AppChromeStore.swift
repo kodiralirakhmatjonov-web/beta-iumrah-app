@@ -23,7 +23,7 @@ enum AppTab: Hashable {
 
 final class AppChromeStore: ObservableObject {
     @Published var requestedTab: AppTab?
-    @Published var currentTab: AppTab = .home
+    @Published var currentTab: AppTab = .booking
     @Published var shouldStartTripBuilder = false
     @Published var requestedBookingID: String?
     @Published var requestedHotelID: String?

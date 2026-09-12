@@ -1,0 +1,126 @@
+{
+  "name": "iumrah Beta Apple Store Products / For You / Gear redesign v2 localized",
+  "date": "2026-09-12",
+  "base": "beta-iumrah-app-main(20260912-063943).zip",
+  "replaces": "iumrah-beta-update-20260912-apple-store-products-for-you-gear-v1.zip",
+  "scope": "complete all-in-one cosmetic/navigation storefront update; business/backend architecture preserved",
+  "localization": {
+    "source": "AppSettingsStore.Language",
+    "languages": [
+      "ru",
+      "en",
+      "uz",
+      "uz-cyrl"
+    ],
+    "note": "New storefront/navigation copy follows the selected app language; English-only navigation and service labels were removed from Russian and Uzbek interfaces."
+  },
+  "features": [
+    "For You is first/default tab and retains current booking progress/status flows",
+    "Products replaces old Home marketing feed with Apple Store-style merchandising",
+    "Preparation/Gear surface preserves existing Care, Advisor, eSIM and Ziyarat flows",
+    "Hotels business flow remains unchanged",
+    "Account remains visually separated as a circular Liquid Glass control",
+    "Products includes category navigation, black Configurator hero, editorial carousels, need-based collections, iumrah difference, FAQ, and support handoff",
+    "Secondary storefront pages for Configurator, Hotels, Transfers, Flights, Advisor, Ziyarats, eSIM, and Care",
+    "Legacy globe/world footer removed from Products",
+    "Supplied Configurator and transfer artwork integrated",
+    "Transfer image sets include valid Xcode Contents.json metadata"
+  ],
+  "validation": {
+    "swift_frontend_parse": "all changed Swift files passed swiftc -parse after localization correction",
+    "asset_json": "all 5 update asset Contents.json files parsed",
+    "ios_runtime_build": "not run; Linux environment has no Xcode/iOS SDK"
+  },
+  "files": [
+    {
+      "path": "BETA_APPLE_STORE_PRODUCTS_FOR_YOU_GEAR_V2_LOCALIZED_APPLIED.txt",
+      "bytes": 1630,
+      "sha256": "40d2f41ddddd7ab822a8ba60dd65753a2af8398652a1bbd33d2933e424228c62"
+    },
+    {
+      "path": "Resources/Assets.xcassets/StoreConfiguratorLine.imageset/Contents.json",
+      "bytes": 277,
+      "sha256": "528cf1ae3266045af13631daeac8845cf3d4333f07e5b054f2216d01b8afbb2c"
+    },
+    {
+      "path": "Resources/Assets.xcassets/StoreConfiguratorLine.imageset/StoreConfiguratorLine.png",
+      "bytes": 831406,
+      "sha256": "6e186906a12f0867c482dd226548de9da969bb14ec74cc022f4f2c6ee0fe4ddd"
+    },
+    {
+      "path": "Resources/Assets.xcassets/StoreConfiguratorPhones.imageset/Contents.json",
+      "bytes": 279,
+      "sha256": "0c04f1c7a2d4867e9394b4cf59a0d9a2bd6b43898c058927821ff7f37aac6ec4"
+    },
+    {
+      "path": "Resources/Assets.xcassets/StoreConfiguratorPhones.imageset/StoreConfiguratorPhones.png",
+      "bytes": 859792,
+      "sha256": "6c691bbff210d76e36961ba28677363b6b70cb8fd2868fb0242d1eb03a6f26c2"
+    },
+    {
+      "path": "Resources/Assets.xcassets/TransferCarnival.imageset/Contents.json",
+      "bytes": 303,
+      "sha256": "b964fbbb4ca60cd74952e1647cd1fabd81178658dd78f0ee44d31ffc7bf8ac5f"
+    },
+    {
+      "path": "Resources/Assets.xcassets/TransferCarnival.imageset/TransferCarnival.png",
+      "bytes": 593181,
+      "sha256": "dd849f05cf26e22bbafb83ef96ced07f8c98d3f713e082bf7515fc59b9cba5cf"
+    },
+    {
+      "path": "Resources/Assets.xcassets/TransferMalibu.imageset/Contents.json",
+      "bytes": 301,
+      "sha256": "7b15b94795392ca7f41ee421ffbd301fec5d4c41c650bb4094ef57f73b0eefad"
+    },
+    {
+      "path": "Resources/Assets.xcassets/TransferMalibu.imageset/TransferMalibu.png",
+      "bytes": 572892,
+      "sha256": "9236b402b57e174b80016fbfa04cf1f89b3a180ed1778a4750a7b442fac602a9"
+    },
+    {
+      "path": "Resources/Assets.xcassets/TransferYukon.imageset/Contents.json",
+      "bytes": 300,
+      "sha256": "c6ab7694d56de79cd8619bc9162fd27b03b0fa5e7d5b35c74306bd52de6b03fb"
+    },
+    {
+      "path": "Resources/Assets.xcassets/TransferYukon.imageset/TransferYukon.png",
+      "bytes": 743970,
+      "sha256": "4468129507bc4e11c29e003276a51e6c6f124a574edf45385a28b4c9e9b2f395"
+    },
+    {
+      "path": "Sources/AppShell/AppChromeStore.swift",
+      "bytes": 3015,
+      "sha256": "7e69e339cdaf2444deb38113d458d8496386e1db17250897635e67158182725d"
+    },
+    {
+      "path": "Sources/AppShell/IumrahStoreTabBar.swift",
+      "bytes": 4388,
+      "sha256": "f4e5a0e029207c16d99100a9f2bb4927334af16b883d4a84cc92ae75c0ecd862"
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "bytes": 35580,
+      "sha256": "8ffc56c42da13510d20985ef2aa3124f41d04467f2da54a7d401bc800cb25752"
+    },
+    {
+      "path": "Sources/Views/Home/IumrahStorefrontViews.swift",
+      "bytes": 44295,
+      "sha256": "6dfc6727eedac75aa3df28f44d17a476fa81a7271c11dbf0c9edd80fd62341ea"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 14645,
+      "sha256": "6fcfec318b7889e5a810da43a89bdf49f96760d06f5094271c32c96ac6228a41"
+    },
+    {
+      "path": "Sources/Views/Tabs/BookingsHomeView.swift",
+      "bytes": 57411,
+      "sha256": "9be1210e0bb6c1e26388c13ee4a53f26d67a4faf32b140fb819d17459b1b0321"
+    },
+    {
+      "path": "Sources/Views/Tabs/CareHomeView.swift",
+      "bytes": 21545,
+      "sha256": "d8376722f2198323416459e53b2258624ec5245ee8fcb6dd5ec87c5b7e76849a"
+    }
+  ]
+}

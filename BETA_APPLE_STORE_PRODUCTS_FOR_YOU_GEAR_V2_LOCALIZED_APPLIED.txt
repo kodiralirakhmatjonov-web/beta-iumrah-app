@@ -1,0 +1,31 @@
+iumrah Beta — Apple Store Products / For You / Gear v2 (localized)
+Date: 2026-09-12
+Base: beta-iumrah-app-main(20260912-063943).zip
+
+This is a complete replacement overlay for the previous v1 ZIP. The previous ZIP is NOT required.
+
+Scope:
+- cosmetic / storefront navigation presentation only
+- no pricing-engine, booking-engine, flight/hotel backend, API contract, payment, database, or package-generation logic changed
+
+Localization correction:
+- every new storefront/navigation title follows AppSettingsStore.Language
+- Russian UI shows Russian storefront/navigation copy
+- English UI shows English copy
+- Uzbek Latin UI shows Uzbek Latin copy
+- Uzbek Cyrillic UI shows Uzbek Cyrillic copy
+- For You / Products / Gear / Account / Back, Configurator, package tier labels, Hotels, Transfers, service detail labels and CTA copy are localized
+- eSIM and vehicle model names remain product/technical names
+- iumrah brand name remains unchanged
+
+Storefront redesign retained:
+- For You is first/default tab and retains booking progress/status flows
+- Products replaces the old Home marketing feed with Apple Store-style merchandising
+- Gear presentation becomes localized as preparation terminology in non-English interfaces while the internal tab architecture remains unchanged
+- Hotels business flow remains unchanged
+- Account remains a separate circular Liquid Glass control
+- legacy globe/world footer remains removed
+- supplied Configurator and transfer artwork remains integrated
+
+Additional asset fix:
+- added valid Contents.json files to all three transfer image sets so Xcode can resolve Malibu, Carnival and Yukon assets

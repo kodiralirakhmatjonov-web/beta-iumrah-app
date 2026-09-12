@@ -307,30 +307,32 @@ struct RootView: View {
 
     private var tabs: some View {
         TabView(selection: $chrome.currentTab) {
-            tabScreen { HomeDashboardView() }
-                .tabItem { Label(L10n.text("tab_home", settings.language), systemImage: "house") }
-                .tag(AppTab.home)
-
-            tabScreen { HotelsHomeView() }
-                .tabItem { Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2") }
-                .tag(AppTab.hotels)
-
             tabScreen { BookingsHomeView() }
-                .tabItem { Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase") }
                 .tag(AppTab.booking)
 
+            tabScreen { HomeDashboardView() }
+                .tag(AppTab.home)
+
             tabScreen { CareHomeView() }
-                .tabItem { Label(L10n.text("tab_care", settings.language), systemImage: "heart.fill") }
                 .tag(AppTab.care)
 
+            tabScreen { HotelsHomeView() }
+                .tag(AppTab.hotels)
+
             tabScreen { IumrahAccountView() }
-                .tabItem { Label("Account", systemImage: "person.crop.circle") }
                 .tag(AppTab.account)
         }
-        // Navigation chrome uses one restrained app accent; content icons carry
-        // the richer semantic palette. This keeps the native tab bar adult and legible.
-        .tint(IumrahIconRole.umrah.color)
-        .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !chrome.isImmersiveMode && !chrome.isInternalNavigationActive {
+                IumrahStoreTabBar()
+                    .environmentObject(chrome)
+                    .environmentObject(settings)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.30), value: chrome.isImmersiveMode)
+        .animation(.snappy(duration: 0.30), value: chrome.isInternalNavigationActive)
         .fullScreenCover(isPresented: $chrome.isESIMPresented) {
             ESIMView()
                 .environmentObject(settings)
