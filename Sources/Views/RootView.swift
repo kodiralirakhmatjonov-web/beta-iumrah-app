@@ -313,11 +313,11 @@ struct RootView: View {
             tabScreen { HomeDashboardView() }
                 .tag(AppTab.home)
 
-            tabScreen { CareHomeView() }
-                .tag(AppTab.care)
-
             tabScreen { HotelsHomeView() }
                 .tag(AppTab.hotels)
+
+            tabScreen { CareHomeView() }
+                .tag(AppTab.care)
 
             tabScreen { IumrahAccountView() }
                 .tag(AppTab.account)
@@ -325,11 +325,26 @@ struct RootView: View {
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !chrome.isImmersiveMode && !chrome.isInternalNavigationActive {
-                IumrahStoreTabBar()
-                    .environmentObject(chrome)
-                    .environmentObject(settings)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                Color.clear
+                    .frame(height: 70)
+                    .allowsHitTesting(false)
             }
+        }
+        .overlay {
+            GeometryReader { proxy in
+                if !chrome.isImmersiveMode && !chrome.isInternalNavigationActive {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        IumrahStoreTabBar()
+                            .environmentObject(chrome)
+                            .environmentObject(settings)
+                            .padding(.bottom, proxy.safeAreaInsets.bottom + 4)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    .ignoresSafeArea()
+                }
+            }
+            .allowsHitTesting(!chrome.isImmersiveMode && !chrome.isInternalNavigationActive)
         }
         .animation(.snappy(duration: 0.30), value: chrome.isImmersiveMode)
         .animation(.snappy(duration: 0.30), value: chrome.isInternalNavigationActive)
@@ -342,6 +357,9 @@ struct RootView: View {
     }
 
     private func tabScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        AppNavigationContainer { content() }
+        AppNavigationContainer {
+            content()
+                .toolbar(.hidden, for: .tabBar)
+        }
     }
 }

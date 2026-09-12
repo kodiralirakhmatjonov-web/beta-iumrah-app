@@ -931,7 +931,7 @@ private struct TransferLiveSearchMap: View {
                 .font(.caption.weight(.bold))
                 .padding(.horizontal, 10)
                 .frame(height: 34)
-                .background(.regularMaterial, in: Capsule())
+                .iumrahGlass(in: Capsule(), allowsStaticGlass: true, chrome: true)
                 .padding(.top, 176)
                 .padding(.trailing, 16)
         }

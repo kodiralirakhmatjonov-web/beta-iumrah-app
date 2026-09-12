@@ -1,0 +1,38 @@
+iumrah iOS — Apple Store production pass v5
+Date: 2026-09-12
+Base: beta-iumrah-app-main(20260912-063943).zip
+
+Scope: UI / navigation presentation only. No backend, pricing, booking engine,
+hotel engine, flight engine, payment engine, database schema, or API contract changes.
+
+Main navigation:
+1. For You
+2. Products
+3. Hotels
+4. Care
+5. Account as detached circular control
+
+Production-pass changes:
+- Products rebuilt around Apple Store Products rhythm: centered title, compact white
+  product-family tiles, service chips, Discover carousel, one dominant black
+  Configurator card, white photo/text cards, value proposition, services, FAQ, help.
+- Care restored as Care (no Preparation/Gear tab) and rebuilt around the Apple Store
+  Go Further rhythm: "We'll help get you started", setup illustration, get-more cards,
+  Did You Know, suggested services, trip-linked Care chats.
+- For You remains first tab and preserves booking/status/personalized trip content.
+- Hotels is third; Care is fourth.
+- Internal Store/category pages keep native NavigationStack back behavior and hide the
+  custom bottom chrome while pushed.
+- Bottom chrome reserves safe area transparently and is rendered once as an overlay.
+- iOS 26 bottom chrome uses native GlassEffectContainer + glassEffect only.
+- iOS 17–25 fallback uses opaque system surfaces; no Material/blur imitation.
+- Remaining Material-based pseudo-glass in Hotels hero indicator, transfer map badge,
+  and Ziyarats fallback controls removed/replaced with native glass or opaque fallback.
+- New copy remains localized for Russian, English, Uzbek Latin and Uzbek Cyrillic.
+
+Validation performed:
+- Parsed all 196 Swift source files successfully with Swift frontend parser.
+- No ultraThinMaterial/thinMaterial/regularMaterial/UIBlurEffect/UIVisualEffectView
+  occurrences remain in Sources.
+- No Preparation/Gear/Tayyorgarlik/Тайёргарлик display copy remains in changed Store UI.
+- New asset Contents.json files validated as JSON.

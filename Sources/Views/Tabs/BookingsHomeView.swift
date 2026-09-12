@@ -102,11 +102,11 @@ struct BookingsHomeView: View {
                         .padding(.top, 8)
                 }
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 44)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .animation(.snappy(duration: 0.34), value: session.effectiveStatus)
     }
 
@@ -814,7 +814,7 @@ struct BookingsHomeView: View {
                     IumrahStoreCompactRow(systemName: "building.2.fill", title: forYouHotelsTitle, subtitle: forYouHotelsBody, role: .hotel)
                 }
                 Button { chrome.navigate(to: .care) } label: {
-                    IumrahStoreCompactRow(systemName: "waveform.badge.mic", title: forYouGearTitle, subtitle: forYouGearBody, role: .umrah)
+                    IumrahStoreCompactRow(systemName: "waveform.badge.mic", title: forYouCareTitle, subtitle: forYouCareBody, role: .umrah)
                 }
                 Button { chrome.presentESIM() } label: {
                     IumrahStoreCompactRow(systemName: "simcard.fill", title: "iumrah eSIM", subtitle: forYouESIMBody, role: .connectivity)
@@ -875,11 +875,11 @@ struct BookingsHomeView: View {
                 forYouEmptySuggestions
                 noBookingsCard
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 42)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color(uiColor: .systemGroupedBackground))
     }
 
     private var builderHero: some View {
@@ -1058,14 +1058,14 @@ struct BookingsHomeView: View {
     // MARK: - Copy
 
     private var forYouTitle: String { localized("Для Вас", "For You", "Siz uchun", "Сиз учун") }
-    private var forYouGearTitle: String { localized("Подготовка", "Gear", "Tayyorgarlik", "Тайёргарлик") }
+    private var forYouCareTitle: String { localized("Care", "Care", "Care", "Care") }
     private var forYouSubtitle: String { localized("Ваша поездка, статусы и то, что пригодится дальше.", "Your trip, its status and what may be useful next.", "Safaringiz, uning holati va keyingi foydali narsalar.", "Сафарингиз, унинг ҳолати ва кейинги фойдали нарсалар.") }
     private var forYouTripEyebrow: String { localized("Ваша поездка", "Your trip", "Safaringiz", "Сафарингиз") }
     private var forYouRecommendedTitle: String { localized("Для Вашей поездки", "For your trip", "Safaringiz uchun", "Сафарингиз учун") }
     private var forYouRecommendedSubtitle: String { localized("Быстрый доступ к сервисам, которые могут понадобиться дальше.", "Quick access to services you may need next.", "Keyingi kerak bo‘lishi mumkin bo‘lgan servislar.", "Кейинги керак бўлиши мумкин бўлган сервислар.") }
     private var forYouHotelsTitle: String { localized("Отели", "Hotels", "Mehmonxonalar", "Меҳмонхоналар") }
     private var forYouHotelsBody: String { localized("Посмотрите варианты в Мекке и Медине.", "Explore stays in Makkah and Madinah.", "Makka va Madinadagi variantlarni ko‘ring.", "Макка ва Мадинадаги вариантларни кўринг.") }
-    private var forYouGearBody: String { localized("Голосовой гид, поддержка, eSIM и подготовка к поездке.", "Advisor, Care, eSIM and trip preparation.", "Ovozli yo‘l-yo‘riq, yordam, eSIM va safarga tayyorgarlik.", "Овозли йўл-йўриқ, ёрдам, eSIM ва сафарга тайёргарлик.") }
+    private var forYouCareBody: String { localized("Поддержка, голосовой гид, eSIM и сервисы, связанные с поездкой.", "Support, Advisor, eSIM and trip-linked services.", "Yordam, ovozli gid, eSIM va safarga bog‘langan servislar.", "Ёрдам, овозли гид, eSIM ва сафарга боғланган сервислар.") }
     private var forYouESIMBody: String { localized("Подготовьте связь до прибытия.", "Prepare connectivity before arrival.", "Yetib kelishdan oldin aloqani tayyorlang.", "Етиб келишдан олдин алоқани тайёрланг.") }
     private var forYouZiyaratsTitle: String { localized("iumrah Зияраты", "iumrah Ziyarats", "iumrah Ziyoratlar", "iumrah Зиёратлар") }
     private var forYouZiyaratsBody: String { localized("Точки и маршруты Мекки и Медины.", "Places and routes in Makkah and Madinah.", "Makka va Madinadagi joylar va yo‘nalishlar.", "Макка ва Мадинадаги жойлар ва йўналишлар.") }

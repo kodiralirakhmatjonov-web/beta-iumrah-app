@@ -1,0 +1,29 @@
+{
+  "name": "iumrah-beta-update-20260912-apple-store-production-v5",
+  "base": "beta-iumrah-app-main(20260912-063943).zip",
+  "type": "overlay-update",
+  "scope": "UI and navigation presentation only",
+  "business_logic_changed": false,
+  "tab_order": ["For You", "Products", "Hotels", "Care", "Account"],
+  "native_liquid_glass": {
+    "ios_26": "GlassEffectContainer + glassEffect",
+    "ios_17_25": "opaque system-surface fallback",
+    "material_imitation_removed": true
+  },
+  "files": [
+    "Sources/AppShell/AppChromeStore.swift",
+    "Sources/AppShell/IumrahStoreTabBar.swift",
+    "Sources/Views/RootView.swift",
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Home/IumrahStorefrontViews.swift",
+    "Sources/Views/Tabs/BookingsHomeView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "Sources/Views/Tabs/HotelsHomeView.swift",
+    "Sources/Views/Package/TransferSelectionView.swift",
+    "Sources/Ziyarats/ZiyaratViews.swift",
+    "Resources/Assets.xcassets/StoreConfiguratorPhones.imageset/Contents.json",
+    "Resources/Assets.xcassets/StoreConfiguratorPhones.imageset/StoreConfiguratorPhones.png",
+    "Resources/Assets.xcassets/StoreConfiguratorLine.imageset/Contents.json",
+    "Resources/Assets.xcassets/StoreConfiguratorLine.imageset/StoreConfiguratorLine.png"
+  ]
+}

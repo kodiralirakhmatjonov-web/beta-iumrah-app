@@ -2,51 +2,39 @@ import SwiftUI
 
 // MARK: - Apple Store-inspired storefront primitives
 
+/// Large leading title used by personalized and service tabs.
 struct IumrahStorePageHeader: View {
-    @EnvironmentObject private var chrome: AppChromeStore
-    @EnvironmentObject private var settings: AppSettingsStore
-
     let title: String
     var subtitle: String? = nil
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
-                    .tracking(-1.1)
-                    .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 38, weight: .bold, design: .rounded))
+                .tracking(-1.05)
+                .foregroundStyle(.primary)
 
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer(minLength: 10)
-
-            IumrahGlassIconButton(
-                systemName: "person.crop.circle",
-                size: 44,
-                fontSize: 18,
-                accessibilityLabel: accountAccessibilityLabel
-            ) {
-                chrome.navigate(to: .account)
-            }
-            .padding(.top, 1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    private var accountAccessibilityLabel: String {
-        switch settings.language {
-        case .russian: return "Аккаунт"
-        case .english: return "Account"
-        case .uzbek: return "Hisob"
-        case .uzbekCyrillic: return "Ҳисоб"
-        }
+/// Apple Store Products uses a compact centered navigation title.
+struct IumrahStoreCenteredHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 20, weight: .bold, design: .rounded))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 3)
     }
 }
 
@@ -59,6 +47,8 @@ struct IumrahStoreSectionHeader: View {
             Text(title)
                 .font(.system(size: 27, weight: .bold, design: .rounded))
                 .tracking(-0.55)
+                .foregroundStyle(.primary)
+
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
                     .font(.system(size: 15, weight: .medium, design: .rounded))
@@ -70,93 +60,188 @@ struct IumrahStoreSectionHeader: View {
     }
 }
 
-struct IumrahStoreCategoryTile: View {
-    let systemName: String
+/// Compact white product-family tile, matching the rhythm of Apple Store's
+/// iPhone / Watch / iPad row. The entire tile is one white surface.
+struct IumrahStoreProductFamilyTile: View {
     let title: String
+    var assetName: String? = nil
+    var systemName: String? = nil
     var role: IumrahIconRole = .neutral
 
     var body: some View {
-        VStack(spacing: 11) {
-            Image(systemName: systemName)
-                .font(.system(size: 24, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(role.color)
-                .frame(width: 58, height: 58)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        VStack(spacing: 8) {
+            ZStack {
+                if let assetName {
+                    Image(assetName)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(.horizontal, 9)
+                        .padding(.top, 7)
+                } else if let systemName {
+                    Image(systemName: systemName)
+                        .font(.system(size: 34, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(role.color)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
 
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.68)
+                .frame(maxWidth: .infinity)
         }
-        .frame(width: 76)
-        .contentShape(Rectangle())
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 11)
+        .frame(width: 108, height: 128)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
     }
 }
 
-struct IumrahStoreEditorialCard: View {
+/// Main dark merchandising card. This is deliberately the only dominant black
+/// product card on Products so Configurator owns the page visually.
+struct IumrahStoreFeatureCard: View {
     let eyebrow: String
     let title: String
     let subtitle: String
-    var asset: String? = nil
-    var systemName: String? = nil
-    var dark = false
-    var accent: Color = .primary
+    let assetName: String
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(dark ? Color.black : Color.iumrahCardBackground)
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack {
+                Color.black
 
-            if let asset {
-                Image(asset)
+                Image(assetName)
                     .resizable()
-                    .scaledToFill()
-                    .frame(width: 292, height: 360)
-                    .clipped()
-                    .overlay {
-                        LinearGradient(
-                            colors: [Color.clear, dark ? Color.black.opacity(0.76) : Color.black.opacity(0.52)],
-                            startPoint: .center,
-                            endPoint: .bottom
-                        )
-                    }
-            } else if let systemName {
-                Image(systemName: systemName)
-                    .font(.system(size: 72, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(accent.opacity(dark ? 0.82 : 0.72))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .offset(y: -28)
+                    .scaledToFit()
+                    .colorInvert()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 18)
+                    .opacity(0.95)
             }
+            .frame(height: 258)
 
             VStack(alignment: .leading, spacing: 7) {
                 Text(eyebrow.uppercased())
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
                     .tracking(0.85)
-                    .foregroundStyle(dark || asset != nil ? Color.white.opacity(0.67) : Color.secondary)
+                    .foregroundStyle(.white.opacity(0.60))
 
                 Text(title)
                     .font(.system(size: 27, weight: .bold, design: .rounded))
-                    .tracking(-0.55)
-                    .foregroundStyle(dark || asset != nil ? Color.white : Color.primary)
+                    .tracking(-0.5)
+                    .foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(subtitle)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(dark || asset != nil ? Color.white.opacity(0.72) : Color.secondary)
+                    .font(.system(size: 14.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.70))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(3)
             }
             .padding(21)
+            .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
+            .background(Color.black)
         }
-        .frame(width: 292, height: 360)
+        .frame(height: 428)
+        .background(Color.black, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(dark ? 0.04 : 0.055), lineWidth: 0.7)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
         }
-        .shadow(color: .black.opacity(dark ? 0.16 : 0.055), radius: 22, y: 10)
+    }
+}
+
+/// Canonical white Store card: image first, white copy surface second.
+/// Width is intentionally provided by the horizontal container so it adapts
+/// to every iPhone rather than relying on a fixed 292/326pt card.
+struct IumrahStoreMerchandisingCard: View {
+    let eyebrow: String
+    let title: String
+    let subtitle: String
+    let assetName: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(assetName)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 258)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text(eyebrow.uppercased())
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                    .tracking(0.85)
+                    .foregroundStyle(.secondary)
+
+                Text(title)
+                    .font(.system(size: 27, weight: .bold, design: .rounded))
+                    .tracking(-0.5)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(subtitle)
+                    .font(.system(size: 14.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(3)
+            }
+            .padding(21)
+            .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
+            .background(Color.iumrahCardBackground)
+        }
+        .frame(height: 428)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.035), radius: 12, y: 5)
+    }
+}
+
+/// Compact white Store-style service card used in two-column/horizontal sets.
+struct IumrahStoreServiceCard: View {
+    let systemName: String
+    let title: String
+    let subtitle: String
+    var role: IumrahIconRole = .neutral
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            IumrahIconBadge(systemName: systemName, role: role, size: 48, symbolSize: 20, cornerRadius: 16)
+
+            Text(title)
+                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(subtitle)
+                .font(.system(size: 13.5, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(width: 238, height: 214, alignment: .topLeading)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
     }
 }
 
@@ -203,30 +288,55 @@ struct IumrahConfiguratorStorePage: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 28) {
-                IumrahStoreBackHeader(title: configuratorTitle)
-
-                VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text(copy.heroTitle)
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .tracking(-1.0)
                     Text(copy.heroBody)
-                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image("StoreConfiguratorPhones")
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: .infinity)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .padding(.vertical, 8)
+                    .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 30, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+                    }
 
                 IumrahStoreSectionHeader(title: copy.chooseTitle, subtitle: copy.chooseSubtitle)
 
-                packageCards
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        packageCard(title: standardTitle, subtitle: copy.standard, icon: "sparkles", role: .travel)
+                        packageCard(title: comfortTitle, subtitle: copy.comfort, icon: "star.fill", role: .hotel)
+                        packageCard(title: luxuryTitle, subtitle: copy.luxury, icon: "diamond.fill", role: .rating)
+                        packageCard(title: customTitle, subtitle: copy.custom, icon: "slider.horizontal.3", role: .settings)
+                    }
+                    .padding(.horizontal, 1)
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
+
+                IumrahStoreSectionHeader(title: copy.essentialsTitle)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        essentialChip("airplane", copy.flightChip)
+                        essentialChip("building.2.fill", copy.hotelChip)
+                        essentialChip("car.fill", copy.transferChip)
+                        essentialChip("heart.fill", "Care")
+                        essentialChip("simcard.fill", "eSIM")
+                    }
+                    .padding(.horizontal, 1)
+                }
 
                 Button {
                     journey.resetAfterTripChange()
@@ -242,68 +352,112 @@ struct IumrahConfiguratorStorePage: View {
 
                 helpCard
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 44)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .storeProductDetailChrome(title: configuratorTitle)
     }
 
-    private var packageCards: some View {
-        VStack(spacing: 12) {
-            packageCard(title: standardTitle, subtitle: copy.standard, icon: "sparkles", tint: .blue)
-            packageCard(title: comfortTitle, subtitle: copy.comfort, icon: "star.fill", tint: .indigo)
-            packageCard(title: luxuryTitle, subtitle: copy.luxury, icon: "diamond.fill", tint: .orange)
-            packageCard(title: customTitle, subtitle: copy.custom, icon: "slider.horizontal.3", tint: .gray)
-        }
-    }
+    private func packageCard(title: String, subtitle: String, icon: String, role: IumrahIconRole) -> some View {
+        Button {
+            journey.resetAfterTripChange()
+            chrome.startNewTrip()
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack {
+                    Color.iumrahCardBackground
+                    Image(systemName: icon)
+                        .font(.system(size: 68, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(role.color)
+                }
+                .frame(height: 170)
 
-    private func packageCard(title: String, subtitle: String, icon: String, tint: Color) -> some View {
-        HStack(spacing: 15) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 48, height: 48)
-                .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(title)
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                Text(subtitle)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    Text(subtitle)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: 6) {
+                        Text(copy.chooseAction)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                }
+                .padding(18)
+                .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
+            .frame(width: 272, height: 330)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+            }
         }
-        .padding(16)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .buttonStyle(.plain)
+    }
+
+    private func essentialChip(_ icon: String, _ title: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+            Text(title)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+        }
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 16)
+        .frame(height: 44)
+        .background(Color.iumrahCardBackground, in: Capsule())
     }
 
     private var helpCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(copy.helpTitle)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-            Text(copy.helpBody)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-            Button(copy.helpCTA) {
-                chrome.navigate(to: .care)
+        Button {
+            chrome.navigate(to: .care)
+        } label: {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(copy.helpTitle)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(copy.helpBody)
+                        .font(.system(size: 14.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "phone.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(Color(uiColor: .systemBlue))
+                    .frame(width: 52, height: 52)
+                    .background(Color.iumrahRaisedBackground, in: Circle())
             }
-            .font(.headline)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .buttonStyle(.plain)
     }
 
     private var configuratorTitle: String { localized("iumrah Конфигуратор", "iumrah Configurator", "iumrah Konfigurator", "iumrah Конфигуратор") }
     private var standardTitle: String { localized("Стандарт", "Standard", "Standart", "Стандарт") }
     private var comfortTitle: String { localized("Комфорт", "Comfort", "Qulay", "Қулай") }
     private var luxuryTitle: String { localized("Люкс", "Luxury", "Hashamat", "Ҳашамат") }
-    private var customTitle: String { localized("Свой вариант", "Custom", "Individual", "Индивидуал") }
+    private var customTitle: String { localized("Свой вариант", "Custom", "Shaxsiy", "Шахсий") }
 
     private func localized(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
@@ -314,16 +468,16 @@ struct IumrahConfiguratorStorePage: View {
         }
     }
 
-    private var copy: (heroTitle: String, heroBody: String, chooseTitle: String, chooseSubtitle: String, standard: String, comfort: String, luxury: String, custom: String, cta: String, helpTitle: String, helpBody: String, helpCTA: String) {
+    private var copy: (heroTitle: String, heroBody: String, chooseTitle: String, chooseSubtitle: String, standard: String, comfort: String, luxury: String, custom: String, essentialsTitle: String, flightChip: String, hotelChip: String, transferChip: String, chooseAction: String, cta: String, helpTitle: String, helpBody: String) {
         switch settings.language {
         case .russian:
-            return ("Создайте Умру под себя.", "Выберите даты, уровень поездки и детали. iumrah соберёт перелёт, отели, трансфер и поддержку в одном бронировании.", "Выберите уровень", "Начните с готового уровня и измените всё, что важно Вам.", "Практичный пакет с прозрачной стоимостью.", "Больше комфорта в отелях и поездке.", "Премиальные отели, транспорт и сервис.", "Соберите каждый компонент самостоятельно.", "Открыть конфигуратор", "Нужна помощь с выбором?", "Поддержка iumrah поможет выбрать формат поездки до бронирования.", "Перейти к подготовке")
+            return ("Соберите свою Умру.", "Выберите даты, уровень поездки и детали. iumrah соединит нужные компоненты в одном бронировании.", "Выберите формат", "Начните с подходящего уровня и измените то, что важно именно Вам.", "Практичный формат с прозрачной стоимостью.", "Больше комфорта в проживании и поездке.", "Премиальные отели, транспорт и сервис.", "Соберите компоненты самостоятельно.", "Всё необходимое", "Перелёт", "Отели", "Трансфер", "Выбрать", "Открыть конфигуратор", "Нужна помощь с выбором?", "iumrah Care поможет выбрать формат поездки до бронирования.")
         case .english:
-            return ("Build Umrah around you.", "Choose your dates, trip level and preferences. iumrah brings flights, hotels, transfers and support into one booking.", "Choose your level", "Start with a ready-made level, then change what matters to you.", "A practical trip with transparent pricing.", "More comfort across your stay and journey.", "Premium hotels, transport and service.", "Choose every component yourself.", "Open Configurator", "Need help deciding?", "iumrah Care can help you choose before you book.", "Open Gear")
+            return ("Build your Umrah.", "Choose dates, trip level and details. iumrah connects the right components into one booking.", "Choose your format", "Start with the level that fits and change what matters to you.", "A practical format with transparent pricing.", "More comfort across stays and transport.", "Premium hotels, transport and service.", "Choose the components yourself.", "All the essentials", "Flights", "Hotels", "Transfer", "Choose", "Open Configurator", "Still need help deciding?", "iumrah Care can help you choose the right journey format before booking.")
         case .uzbek:
-            return ("Umrani o‘zingizga mos yarating.", "Sana, safar darajasi va istaklaringizni tanlang. iumrah parvoz, mehmonxona, transfer va yordamni bitta bronlashga birlashtiradi.", "Darajani tanlang", "Tayyor darajadan boshlang va muhim qismlarni o‘zgartiring.", "Shaffof narxli amaliy safar.", "Safar davomida ko‘proq qulaylik.", "Premium mehmonxona, transport va servis.", "Har bir qismni o‘zingiz tanlang.", "Konfiguratorni ochish", "Tanlashda yordam kerakmi?", "iumrah yordami bronlashdan oldin safar formatini tanlashga yordam beradi.", "Tayyorgarlikni ochish")
+            return ("Umrangizni yig‘ing.", "Sanalar, safar darajasi va tafsilotlarni tanlang. iumrah kerakli qismlarni bitta bronlashga bog‘laydi.", "Formatni tanlang", "Mos darajadan boshlang va Siz uchun muhim narsalarni o‘zgartiring.", "Shaffof narxli amaliy format.", "Yashash va safarda ko‘proq qulaylik.", "Premium mehmonxona, transport va servis.", "Komponentlarni o‘zingiz tanlang.", "Barcha kerakli narsalar", "Parvoz", "Mehmonxonalar", "Transfer", "Tanlash", "Konfiguratorni ochish", "Tanlashda yordam kerakmi?", "iumrah Care bronlashdan oldin mos safar formatini tanlashga yordam beradi.")
         case .uzbekCyrillic:
-            return ("Умрани ўзингизга мос яратинг.", "Сана, сафар даражаси ва истакларингизни танланг. iumrah парвоз, меҳмонхона, трансфер ва ёрдамни битта бронлашга бирлаштиради.", "Даражани танланг", "Тайёр даражадан бошланг ва муҳим қисмларни ўзгартиринг.", "Шаффоф нархли амалий сафар.", "Сафар давомида кўпроқ қулайлик.", "Премиум меҳмонхона, транспорт ва сервис.", "Ҳар бир қисмни ўзингиз танланг.", "Конфигураторни очиш", "Танлашда ёрдам керакми?", "iumrah ёрдами бронлашдан олдин сафар форматини танлашга ёрдам беради.", "Тайёргарликни очиш")
+            return ("Умрангизни йиғинг.", "Саналар, сафар даражаси ва тафсилотларни танланг. iumrah керакли қисмларни битта бронлашга боғлайди.", "Форматни танланг", "Мос даражадан бошланг ва Сиз учун муҳим нарсаларни ўзгартиринг.", "Шаффоф нархли амалий формат.", "Яшаш ва сафарда кўпроқ қулайлик.", "Премиум меҳмонхона, транспорт ва сервис.", "Компонентларни ўзингиз танланг.", "Барча керакли нарсалар", "Парвоз", "Меҳмонхоналар", "Трансфер", "Танлаш", "Конфигураторни очиш", "Танлашда ёрдам керакми?", "iumrah Care бронлашдан олдин мос сафар форматини танлашга ёрдам беради.")
         }
     }
 }
@@ -336,7 +490,6 @@ struct IumrahTransfersStorePage: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 26) {
-                IumrahStoreBackHeader(title: copy.title)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(copy.headline)
@@ -348,9 +501,17 @@ struct IumrahTransfersStorePage: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                transferCard(asset: "TransferMalibu", title: "Chevrolet Malibu", subtitle: copy.sedan)
-                transferCard(asset: "TransferCarnival", title: "Kia Carnival", subtitle: copy.family)
-                transferCard(asset: "TransferYukon", title: "GMC Yukon", subtitle: copy.premium)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        transferCard(asset: "TransferMalibu", title: "Chevrolet Malibu", subtitle: copy.sedan)
+                        transferCard(asset: "TransferCarnival", title: "Kia Carnival", subtitle: copy.family)
+                        transferCard(asset: "TransferYukon", title: "GMC Yukon", subtitle: copy.premium)
+                    }
+                    .padding(.horizontal, 1)
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
 
                 Button {
                     journey.resetAfterTripChange()
@@ -364,11 +525,12 @@ struct IumrahTransfersStorePage: View {
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 44)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .storeProductDetailChrome(title: copy.title)
     }
 
     private func transferCard(asset: String, title: String, subtitle: String) -> some View {
@@ -376,30 +538,45 @@ struct IumrahTransfersStorePage: View {
             Image(asset)
                 .resizable()
                 .scaledToFill()
-                .frame(height: 245)
-                .frame(maxWidth: .infinity)
+                .frame(width: 316, height: 225)
                 .clipped()
 
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
-                    Text(subtitle)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 6) {
+                    Text(chooseTitle)
+                    Image(systemName: "arrow.right")
                 }
-                Spacer()
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+                .padding(.top, 5)
             }
             .padding(18)
+            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
         }
+        .frame(width: 316, height: 367)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
+    }
+
+
+    private var chooseTitle: String {
+        switch settings.language {
+        case .russian: return "Выбрать"
+        case .english: return "Choose"
+        case .uzbek: return "Tanlash"
+        case .uzbekCyrillic: return "Танлаш"
         }
     }
 
@@ -420,7 +597,6 @@ struct IumrahHotelsStorePage: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 26) {
-                IumrahStoreBackHeader(title: copy.title)
 
                 Image("IumrahHotelsShowcaseHero")
                     .resizable()
@@ -461,11 +637,12 @@ struct IumrahHotelsStorePage: View {
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 44)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .storeProductDetailChrome(title: copy.title)
     }
 
     private var copy: (title: String, headline: String, body: String, haram: String, haramSub: String, fiveStar: String, fiveStarSub: String, family: String, familySub: String, cta: String) {
@@ -496,7 +673,6 @@ struct IumrahServiceStorePage: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 26) {
-                IumrahStoreBackHeader(title: content.brand)
 
                 ZStack(alignment: .bottomLeading) {
                     heroBackground
@@ -533,11 +709,12 @@ struct IumrahServiceStorePage: View {
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 44)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .storeProductDetailChrome(title: content.brand)
     }
 
     @ViewBuilder
@@ -548,9 +725,17 @@ struct IumrahServiceStorePage: View {
                 .resizable()
                 .scaledToFill()
         case .care:
-            Image("IumrahCareShowcaseCard")
-                .resizable()
-                .scaledToFill()
+            LinearGradient(
+                colors: [Color.black, Color.iumrahCareDark],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 112, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.white.opacity(0.86))
+            }
         case .advisor:
             LinearGradient(colors: [Color.black, Color.purple.opacity(0.82), Color.orange.opacity(0.62)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .ziyarats:
@@ -614,7 +799,7 @@ struct IumrahServiceStorePage: View {
                     ("globe", localized("Языки", "Languages", "Tillar", "Тиллар"), localized("Выберите удобный язык сопровождения.", "Choose the language that works for you.", "O‘zingizga qulay tilni tanlang.", "Ўзингизга қулай тилни танланг."), .language),
                     ("book.closed.fill", localized("Этапы", "Stages", "Bosqichlar", "Босқичлар"), localized("Таваф, Сафа и Марва и завершение.", "Tawaf, Safa & Marwa and completion.", "Tavof, Safo va Marva hamda yakunlash.", "Тавоф, Сафо ва Марва ҳамда якунлаш."), .umrah)
                 ],
-                localized("Открыть голосовой гид в разделе подготовки", "Open Advisor in Gear", "Ovozli yo‘l-yo‘riqni Tayyorgarlik bo‘limida ochish", "Овозли йўл-йўриқни Тайёргарлик бўлимида очиш")
+                localized("Открыть голосовой гид в Care", "Open Advisor in Care", "Ovozli yo‘l-yo‘riqni Care bo‘limida ochish", "Овозли йўл-йўриқни Care бўлимида очиш")
             )
         case .ziyarats:
             return (
@@ -629,7 +814,7 @@ struct IumrahServiceStorePage: View {
                     ("photo.on.rectangle", localized("Фотографии", "Photos", "Suratlar", "Суратлар"), localized("Узнавайте место до прибытия.", "Recognise the place before you arrive.", "Yetib borishdan oldin joyni tanib oling.", "Етиб боришдан олдин жойни таниб олинг."), .travel),
                     ("book.closed.fill", localized("Контекст", "Context", "Izoh", "Изоҳ"), localized("Краткое объяснение каждой точки.", "A concise explanation for every stop.", "Har bir nuqta uchun qisqa tushuntirish.", "Ҳар бир нуқта учун қисқа тушунтириш."), .umrah)
                 ],
-                localized("Открыть в разделе подготовки", "Open in Gear", "Tayyorgarlik bo‘limida ochish", "Тайёргарлик бўлимида очиш")
+                localized("Открыть в Care", "Open in Care", "Care bo‘limida ochish", "Care бўлимида очиш")
             )
         case .esim:
             return (
@@ -659,7 +844,7 @@ struct IumrahServiceStorePage: View {
                     ("suitcase.fill", localized("Поездка", "Trip", "Safar", "Сафар"), localized("Контекст бронирования остаётся рядом.", "Booking context remains attached.", "Bronlash konteksti saqlanadi.", "Бронлаш контексти сақланади."), .booking),
                     ("heart.fill", localized("iumrah Поддержка", "iumrah Care", "iumrah Yordam", "iumrah Ёрдам"), localized("До, во время и после Умры.", "Before, during and after Umrah.", "Umradan oldin, davomida va keyin.", "Умрадан олдин, давомида ва кейин."), .care)
                 ],
-                localized("Открыть поддержку в разделе подготовки", "Open Care in Gear", "Yordamni Tayyorgarlik bo‘limida ochish", "Ёрдамни Тайёргарлик бўлимида очиш")
+                localized("Открыть поддержку в Care", "Open Care", "Yordamni Care bo‘limida ochish", "Ёрдамни Care бўлимида очиш")
             )
         }
     }
@@ -674,30 +859,32 @@ struct IumrahServiceStorePage: View {
     }
 }
 
-private struct IumrahStoreBackHeader: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var settings: AppSettingsStore
+
+private struct IumrahStoreProductDetailChrome: ViewModifier {
+    @EnvironmentObject private var chrome: AppChromeStore
+    @State private var registered = false
     let title: String
 
-    var body: some View {
-        HStack(spacing: 12) {
-            IumrahGlassIconButton(systemName: "chevron.left", size: 42, fontSize: 15, accessibilityLabel: backAccessibilityLabel) {
-                dismiss()
+    func body(content: Content) -> some View {
+        content
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
+            .onAppear {
+                guard !registered else { return }
+                registered = true
+                chrome.beginInternalNavigation()
             }
-            Text(title)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .lineLimit(1)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
+            .onDisappear {
+                guard registered else { return }
+                registered = false
+                chrome.endInternalNavigation()
+            }
     }
+}
 
-    private var backAccessibilityLabel: String {
-        switch settings.language {
-        case .russian: return "Назад"
-        case .english: return "Back"
-        case .uzbek: return "Orqaga"
-        case .uzbekCyrillic: return "Орқага"
-        }
+private extension View {
+    func storeProductDetailChrome(title: String) -> some View {
+        modifier(IumrahStoreProductDetailChrome(title: title))
     }
 }
