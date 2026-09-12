@@ -170,39 +170,14 @@ struct ZiyaratJourneyView: View {
 
     private var mapChrome: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                ZiyaratNativeGlassIconButton(
-                    systemName: "xmark",
-                    accessibilityLabel: closeLabel,
-                    action: closeZiyarats
-                )
-
-                Spacer(minLength: 8)
-
-                ZiyaratNativeCitySwitcher(
-                    selectedCity: selectedCity,
-                    madinahTitle: medinaSwitchTitle,
-                    makkahTitle: makkahSwitchTitle,
-                    onSelect: changeCity
-                )
-
-                Spacer(minLength: 8)
-
-                ZiyaratNativeMapControlGroup(
-                    primarySystemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
-                    primaryForeground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
-                    primaryAccessibilityLabel: mapModeLabel,
-                    primaryAction: {
-                        selectedPlace = nil
-                        activeTab = .map
-                        setPanel(.card)
-                    },
-                    secondarySystemName: "location.viewfinder",
-                    secondaryAccessibilityLabel: fitRouteLabel,
-                    secondaryAction: {
-                        fitEntireRoute(animated: true)
+            Group {
+                if #available(iOS 26.0, *) {
+                    GlassEffectContainer(spacing: 12) {
+                        mapChromeTopRow
                     }
-                )
+                } else {
+                    mapChromeTopRow
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -216,9 +191,48 @@ struct ZiyaratJourneyView: View {
         .zIndex(10)
     }
 
+    private var mapChromeTopRow: some View {
+        HStack(alignment: .top) {
+            ZiyaratNativeGlassIconButton(
+                systemName: "xmark",
+                accessibilityLabel: closeLabel,
+                action: closeZiyarats
+            )
+
+            Spacer(minLength: 8)
+
+            ZiyaratNativeCitySwitcher(
+                selectedCity: selectedCity,
+                madinahTitle: medinaSwitchTitle,
+                makkahTitle: makkahSwitchTitle,
+                onSelect: changeCity
+            )
+
+            Spacer(minLength: 8)
+
+            ZiyaratNativeMapControlGroup(
+                primarySystemName: mapMode == .standard ? "map.fill" : "globe.americas.fill",
+                primaryForeground: activeTab == .map ? Color(uiColor: .systemBlue) : nil,
+                primaryAccessibilityLabel: mapModeLabel,
+                primaryAction: {
+                    selectedPlace = nil
+                    activeTab = .map
+                    setPanel(.card)
+                },
+                secondarySystemName: "location.viewfinder",
+                secondaryAccessibilityLabel: fitRouteLabel,
+                secondaryAction: {
+                    fitEntireRoute(animated: true)
+                }
+            )
+        }
+    }
+
     // MARK: Find My-style Ziyarats surface
 
     /// One native Liquid Glass surface, exactly one tab row, and no SwiftUI sheet.
+    /// STRICT: iOS 26 chrome uses only Apple Liquid Glass APIs. Never add Material, blur,
+    /// translucent background overlays, manual glass strokes, or fake glass shadows here.
     /// The custom geometry is deliberate: SwiftUI's minimum sheet detent is much
     /// taller than Find My's compact surface on iPhone. The glass itself remains
     /// iOS 26's native compositor effect.
@@ -233,21 +247,16 @@ struct ZiyaratJourneyView: View {
                     contentProgress: contentProgress
                 )
                 .frame(height: height)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .glassEffect(.regular.interactive(true), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
             } else {
                 panelSurfaceContent(
                     metrics: metrics,
                     contentProgress: contentProgress
                 )
                 .frame(height: height)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
-                }
+                .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
             }
         }
-        .shadow(color: .black.opacity(0.08), radius: 24, y: 10)
         .animation(nil, value: panelDragY)
     }
 
@@ -823,10 +832,6 @@ struct ZiyaratJourneyView: View {
         } else {
             content
                 .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
-                }
         }
     }
 
@@ -1016,7 +1021,7 @@ private struct ZiyaratNativeCitySwitcher: View {
             } else {
                 controls
                     .padding(4)
-                    .background(.regularMaterial, in: Capsule())
+                    .background(Color(uiColor: .systemBackground), in: Capsule())
             }
         }
         .fixedSize(horizontal: true, vertical: true)
@@ -1110,12 +1115,12 @@ private struct ZiyaratNativeMapControlGroup: View {
                 controls
                     .frame(width: 54)
                     .fixedSize(horizontal: true, vertical: true)
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+                    .glassEffect(.regular.interactive(true), in: RoundedRectangle(cornerRadius: 27, style: .continuous))
             } else {
                 controls
                     .frame(width: 54)
                     .fixedSize(horizontal: true, vertical: true)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+                    .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 27, style: .continuous))
             }
         }
     }
