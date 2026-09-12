@@ -1226,7 +1226,7 @@ struct StorefrontUmrahPackageDetailView: View {
                     }
                     .padding(.horizontal, 10)
                     .frame(height: 24)
-                    .iumrahGlass(in: Capsule(), allowsStaticGlass: true, chrome: true)
+                    .background(.ultraThinMaterial, in: Capsule())
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .allowsHitTesting(false)

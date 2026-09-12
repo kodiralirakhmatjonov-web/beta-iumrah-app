@@ -69,11 +69,15 @@ struct BookingsHomeView: View {
     private func activeBookingHub(_ session: StoredBookingSession) -> some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 0) {
-                IumrahStorePageHeader(title: forYouTitle, subtitle: forYouSubtitle)
-                    .padding(.bottom, 24)
+                IumrahRootPageTitle(
+                    title: L10n.text("tab_booking", settings.language),
+                    showsMakkahTime: true,
+                    usesBrandLogo: true
+                )
+                .padding(.bottom, 30)
 
-                forYouJourneyCard(session)
-                    .padding(.bottom, 34)
+                bookingIdentity(session)
+                    .padding(.bottom, 38)
 
                 bookingProgress(session)
                     .padding(.bottom, 38)
@@ -82,9 +86,6 @@ struct BookingsHomeView: View {
                     .padding(.bottom, 34)
 
                 tripManagement(session)
-                    .padding(.bottom, 34)
-
-                forYouRecommendations
                     .padding(.bottom, bookings.sessions.count > 1 ? 36 : 12)
 
                 if bookings.sessions.count > 1 {
@@ -102,67 +103,16 @@ struct BookingsHomeView: View {
                         .padding(.top, 8)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
             .padding(.bottom, 44)
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .animation(.snappy(duration: 0.34), value: session.effectiveStatus)
     }
 
-    private func forYouJourneyCard(_ session: StoredBookingSession) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center) {
-                Text(forYouTripEyebrow.uppercased())
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .tracking(0.9)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(IumrahBookingStatusVisual.color(for: session.effectiveStatus))
-                        .frame(width: 7, height: 7)
-                    Text(L10n.status(session.effectiveStatus, settings.language))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 11)
-                .frame(height: 30)
-                .background(Color.iumrahRaisedBackground, in: Capsule())
-            }
-
-            bookingIdentity(session)
-
-            Divider()
-
-            NavigationLink {
-                BookingDetailView(bookingID: session.id)
-            } label: {
-                HStack {
-                    Text(activeActionTitle(for: session.effectiveStatus))
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 17)
-                .frame(height: 52)
-                .background(Color.black, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(20)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
-        }
-    }
-
-    /// The trip identity is kept intact and simply merchandised inside For You.
+    /// The top deliberately avoids another large card. Like the reference flow,
+    /// hierarchy comes from whitespace and typography before the process begins.
     private func bookingIdentity(_ session: StoredBookingSession) -> some View {
         VStack(spacing: 17) {
             ZStack {
@@ -803,83 +753,23 @@ struct BookingsHomeView: View {
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
-    // MARK: - For You discovery
-
-    private var forYouRecommendations: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            IumrahStoreSectionHeader(title: forYouRecommendedTitle, subtitle: forYouRecommendedSubtitle)
-
-            VStack(spacing: 10) {
-                Button { chrome.navigate(to: .hotels) } label: {
-                    IumrahStoreCompactRow(systemName: "building.2.fill", title: forYouHotelsTitle, subtitle: forYouHotelsBody, role: .hotel)
-                }
-                Button { chrome.navigate(to: .care) } label: {
-                    IumrahStoreCompactRow(systemName: "waveform.badge.mic", title: forYouCareTitle, subtitle: forYouCareBody, role: .umrah)
-                }
-                Button { chrome.presentESIM() } label: {
-                    IumrahStoreCompactRow(systemName: "simcard.fill", title: "iumrah eSIM", subtitle: forYouESIMBody, role: .connectivity)
-                }
-                Button { showZiyarats = true } label: {
-                    IumrahStoreCompactRow(systemName: "map.fill", title: forYouZiyaratsTitle, subtitle: forYouZiyaratsBody, role: .location)
-                }
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var forYouEmptySuggestions: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            IumrahStoreSectionHeader(title: forYouExploreTitle, subtitle: forYouExploreSubtitle)
-
-            HStack(spacing: 10) {
-                Button {
-                    startNewTrip()
-                } label: {
-                    forYouMiniCard(icon: "sparkles", title: forYouFirstTitle, role: .umrah)
-                }
-
-                Button {
-                    chrome.navigate(to: .hotels)
-                } label: {
-                    forYouMiniCard(icon: "building.2.fill", title: forYouHotelsTitle, role: .hotel)
-                }
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func forYouMiniCard(icon: String, title: String, role: IumrahIconRole) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            IumrahIconBadge(systemName: icon, role: role, size: 44, symbolSize: 18, cornerRadius: 15)
-            Text(title)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, minHeight: 132, alignment: .leading)
-        .padding(17)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
-        }
-    }
-
     // MARK: - Empty state
 
     private var emptyBookingHome: some View {
         ScrollView {
             VStack(spacing: 22) {
-                IumrahStorePageHeader(title: forYouTitle, subtitle: forYouSubtitle)
+                IumrahRootPageTitle(
+                    title: L10n.text("tab_booking", settings.language),
+                    showsMakkahTime: true
+                )
                 builderHero
-                forYouEmptySuggestions
                 noBookingsCard
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
             .padding(.bottom, 42)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.iumrahPageBackground)
     }
 
     private var builderHero: some View {
@@ -1057,23 +947,7 @@ struct BookingsHomeView: View {
 
     // MARK: - Copy
 
-    private var forYouTitle: String { localized("Для Вас", "For You", "Siz uchun", "Сиз учун") }
-    private var forYouCareTitle: String { localized("Care", "Care", "Care", "Care") }
-    private var forYouSubtitle: String { localized("Ваша поездка, статусы и то, что пригодится дальше.", "Your trip, its status and what may be useful next.", "Safaringiz, uning holati va keyingi foydali narsalar.", "Сафарингиз, унинг ҳолати ва кейинги фойдали нарсалар.") }
-    private var forYouTripEyebrow: String { localized("Ваша поездка", "Your trip", "Safaringiz", "Сафарингиз") }
-    private var forYouRecommendedTitle: String { localized("Для Вашей поездки", "For your trip", "Safaringiz uchun", "Сафарингиз учун") }
-    private var forYouRecommendedSubtitle: String { localized("Быстрый доступ к сервисам, которые могут понадобиться дальше.", "Quick access to services you may need next.", "Keyingi kerak bo‘lishi mumkin bo‘lgan servislar.", "Кейинги керак бўлиши мумкин бўлган сервислар.") }
-    private var forYouHotelsTitle: String { localized("Отели", "Hotels", "Mehmonxonalar", "Меҳмонхоналар") }
-    private var forYouHotelsBody: String { localized("Посмотрите варианты в Мекке и Медине.", "Explore stays in Makkah and Madinah.", "Makka va Madinadagi variantlarni ko‘ring.", "Макка ва Мадинадаги вариантларни кўринг.") }
-    private var forYouCareBody: String { localized("Поддержка, голосовой гид, eSIM и сервисы, связанные с поездкой.", "Support, Advisor, eSIM and trip-linked services.", "Yordam, ovozli gid, eSIM va safarga bog‘langan servislar.", "Ёрдам, овозли гид, eSIM ва сафарга боғланган сервислар.") }
-    private var forYouESIMBody: String { localized("Подготовьте связь до прибытия.", "Prepare connectivity before arrival.", "Yetib kelishdan oldin aloqani tayyorlang.", "Етиб келишдан олдин алоқани тайёрланг.") }
-    private var forYouZiyaratsTitle: String { localized("iumrah Зияраты", "iumrah Ziyarats", "iumrah Ziyoratlar", "iumrah Зиёратлар") }
-    private var forYouZiyaratsBody: String { localized("Точки и маршруты Мекки и Медины.", "Places and routes in Makkah and Madinah.", "Makka va Madinadagi joylar va yo‘nalishlar.", "Макка ва Мадинадаги жойлар ва йўналишлар.") }
-    private var forYouExploreTitle: String { localized("Начните с себя", "Start with what fits you", "O‘zingizga mosidan boshlang", "Ўзингизга мосидан бошланг") }
-    private var forYouExploreSubtitle: String { localized("Соберите поездку или сначала изучите отели.", "Build a trip or explore hotels first.", "Safar yarating yoki avval mehmonxonalarni ko‘ring.", "Сафар яратинг ёки аввал меҳмонхоналарни кўринг.") }
-    private var forYouFirstTitle: String { localized("Собрать Умру", "Build Umrah", "Umra yaratish", "Умра яратиш") }
-
-    private var activeEyebrow: String { localized("Ваша Умра", "Your Umrah", "Sizning Umrangiz", "Сизнинг Умрангиз") }
+    private var activeEyebrow: String { localized("Ваша Umrah", "Your Umrah", "Sizning Umrangiz", "Сизнинг Умрангиз") }
     private var routeTitle: String { localized("Маршрут", "Route", "Yo‘nalish", "Йўналиш") }
     private var dateTitle: String { localized("Даты", "Dates", "Sanalar", "Саналар") }
     private var hotelTitle: String { localized("Отель", "Hotel", "Mehmonxona", "Меҳмонхона") }
@@ -1107,7 +981,7 @@ struct BookingsHomeView: View {
 
     private var inTripStageTitle: String { localized("Паломник в поездке", "Pilgrim in trip", "Ziyoratchi safarda", "Зиёратчи сафарда") }
     private var inTripStageSubtitle: String { localized("iumrah сопровождает вашу поездку", "iumrah is accompanying your trip", "iumrah safaringizga hamroh", "iumrah сафарингизга ҳамроҳ") }
-    private var inTripCardTitle: String { localized("Ваша Умра продолжается", "Your Umrah is underway", "Umrangiz davom etmoqda", "Умрангиз давом этмоқда") }
+    private var inTripCardTitle: String { localized("Ваша Umrah идёт", "Your Umrah is underway", "Umrangiz davom etmoqda", "Умрангиз давом этмоқда") }
     private var inTripCardBody: String { localized("Маршрут, отель, расписание и помощь iumrah остаются под рукой на протяжении поездки.", "Your route, hotel, schedule and iumrah support stay close throughout the trip.", "Yo‘nalish, mehmonxona, jadval va iumrah yordami safar davomida doimo yoningizda.", "Йўналиш, меҳмонхона, жадвал ва iumrah ёрдами сафар давомида доимо ёнингизда.") }
 
     private var completedStageTitle: String { localized("Поездка завершена", "Trip completed", "Safar yakunlandi", "Сафар якунланди") }
@@ -1120,10 +994,10 @@ struct BookingsHomeView: View {
     private var openFullPlanTitle: String { localized("Открыть полное расписание", "Open full schedule", "To‘liq jadvalni ochish", "Тўлиқ жадвални очиш") }
 
     private var manageSectionTitle: String { localized("Управление поездкой", "Trip management", "Safarni boshqarish", "Сафарни бошқариш") }
-    private var newUmrahTitle: String { localized("Новая Умра", "New Umrah", "Yangi Umra", "Янги Умра") }
+    private var newUmrahTitle: String { localized("Новая Umrah", "New Umrah", "Yangi Umra", "Янги Умра") }
     private var newUmrahSubtitle: String { localized("Собрать новый пакет", "Build a new package", "Yangi paket tuzish", "Янги пакет тузиш") }
     private var addPilgrimTitle: String { localized("Добавить паломника", "Add pilgrim", "Ziyoratchi qo‘shish", "Зиёратчи қўшиш") }
-    private var addPilgrimSubtitle: String { localized("Запрос через поддержку iumrah", "Request via iumrah Care", "iumrah yordami orqali so‘rov", "iumrah ёрдами орқали сўров") }
+    private var addPilgrimSubtitle: String { localized("Запрос через iumrah Care", "Request via iumrah Care", "iumrah Care orqali so‘rov", "iumrah Care орқали сўров") }
     private var manageTitle: String { localized("Управлять бронированием", "Manage booking", "Bronni boshqarish", "Бронни бошқариш") }
     private var manageSubtitle: String { localized("Отели, данные, услуги и документы", "Hotels, details, services and documents", "Mehmonxona, ma’lumotlar, xizmatlar va hujjatlar", "Меҳмонхона, маълумотлар, хизматлар ва ҳужжатлар") }
     private var otherTripsTitle: String { localized("Другие поездки", "Other trips", "Boshqa safarlar", "Бошқа сафарлар") }

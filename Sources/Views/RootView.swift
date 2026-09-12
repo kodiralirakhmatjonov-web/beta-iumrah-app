@@ -307,47 +307,30 @@ struct RootView: View {
 
     private var tabs: some View {
         TabView(selection: $chrome.currentTab) {
-            tabScreen { BookingsHomeView() }
-                .tag(AppTab.booking)
-
             tabScreen { HomeDashboardView() }
+                .tabItem { Label(L10n.text("tab_home", settings.language), systemImage: "house") }
                 .tag(AppTab.home)
 
             tabScreen { HotelsHomeView() }
+                .tabItem { Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2") }
                 .tag(AppTab.hotels)
 
+            tabScreen { BookingsHomeView() }
+                .tabItem { Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase") }
+                .tag(AppTab.booking)
+
             tabScreen { CareHomeView() }
+                .tabItem { Label(L10n.text("tab_care", settings.language), systemImage: "heart.fill") }
                 .tag(AppTab.care)
 
             tabScreen { IumrahAccountView() }
+                .tabItem { Label("Account", systemImage: "person.crop.circle") }
                 .tag(AppTab.account)
         }
-        .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !chrome.isImmersiveMode && !chrome.isInternalNavigationActive {
-                Color.clear
-                    .frame(height: 70)
-                    .allowsHitTesting(false)
-            }
-        }
-        .overlay {
-            GeometryReader { proxy in
-                if !chrome.isImmersiveMode && !chrome.isInternalNavigationActive {
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        IumrahStoreTabBar()
-                            .environmentObject(chrome)
-                            .environmentObject(settings)
-                            .padding(.bottom, proxy.safeAreaInsets.bottom + 4)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    .ignoresSafeArea()
-                }
-            }
-            .allowsHitTesting(!chrome.isImmersiveMode && !chrome.isInternalNavigationActive)
-        }
-        .animation(.snappy(duration: 0.30), value: chrome.isImmersiveMode)
-        .animation(.snappy(duration: 0.30), value: chrome.isInternalNavigationActive)
+        // Navigation chrome uses one restrained app accent; content icons carry
+        // the richer semantic palette. This keeps the native tab bar adult and legible.
+        .tint(IumrahIconRole.umrah.color)
+        .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
         .fullScreenCover(isPresented: $chrome.isESIMPresented) {
             ESIMView()
                 .environmentObject(settings)
@@ -357,9 +340,6 @@ struct RootView: View {
     }
 
     private func tabScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        AppNavigationContainer {
-            content()
-                .toolbar(.hidden, for: .tabBar)
-        }
+        AppNavigationContainer { content() }
     }
 }

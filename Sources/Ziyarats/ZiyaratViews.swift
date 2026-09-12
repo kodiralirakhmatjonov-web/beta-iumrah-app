@@ -240,7 +240,7 @@ struct ZiyaratJourneyView: View {
                     contentProgress: contentProgress
                 )
                 .frame(height: height)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                         .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
@@ -1016,7 +1016,7 @@ private struct ZiyaratNativeCitySwitcher: View {
             } else {
                 controls
                     .padding(4)
-                    .background(Color.iumrahRaisedBackground, in: Capsule())
+                    .background(.regularMaterial, in: Capsule())
             }
         }
         .fixedSize(horizontal: true, vertical: true)
@@ -1115,7 +1115,7 @@ private struct ZiyaratNativeMapControlGroup: View {
                 controls
                     .frame(width: 54)
                     .fixedSize(horizontal: true, vertical: true)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
             }
         }
     }

@@ -1,0 +1,12 @@
+{
+  "name": "iumrah-beta-update-20260912-restore-pre-apple-store-ui-v1",
+  "base_source": "beta-iumrah-app-main(20260912-063943).zip",
+  "purpose": "Restore the exact user interface source that existed before the Apple Store redesign work.",
+  "architecture_changes": false,
+  "backend_changes": false,
+  "notes": [
+    "All previously existing UI files touched by Apple Store redesign passes are restored byte-for-byte from the pre-redesign repository snapshot.",
+    "Apple-only source files that did not exist in that snapshot are replaced with empty Swift files because the repository ZIP patch workflow cannot delete files.",
+    "New Apple-only image assets may remain physically in the asset catalog after rollback but are not referenced by the restored pre-redesign UI."
+  ]
+}

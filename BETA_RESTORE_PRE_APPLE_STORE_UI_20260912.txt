@@ -1,0 +1,19 @@
+iumrah Beta — restore pre-Apple-Store interface
+
+This rollback restores the exact pre-Apple-Store source versions from:
+beta-iumrah-app-main(20260912-063943).zip
+
+Restored original files:
+- Sources/Views/RootView.swift
+- Sources/Views/Home/HomeDashboardView.swift
+- Sources/Views/Tabs/BookingsHomeView.swift
+- Sources/Views/Tabs/CareHomeView.swift
+- Sources/Views/Tabs/HotelsHomeView.swift
+- Sources/Views/Package/TransferSelectionView.swift
+- Sources/Ziyarats/ZiyaratViews.swift
+- Sources/AppShell/AppChromeStore.swift
+- original TransferMalibu / TransferCarnival / TransferYukon asset sets
+
+Apple-Store-only Swift files are intentionally neutralized to empty source files so they cannot alter or depend on the restored UI while remaining safe with the existing ZIP patch workflow, which supports overwrite but not deletion.
+
+No backend, pricing, booking engine, API, database, payment, flight engine or hotel engine files are changed.
