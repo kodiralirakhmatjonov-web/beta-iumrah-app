@@ -1,0 +1,16 @@
+iumrah deploy test contract fix — 2026-09-13
+
+This update changes CI contract tests only. Production application/backend code is untouched.
+
+Reason:
+- customer-facing generator name is now iumrah Configurator, not iumrah Package System;
+- Comfort/Luxury paid lunch and dinner are opt-in and default to false;
+- StorefrontUmrahPackageDetailView is no longer required to be declared private;
+- transfer package customization now uses the current TransferSelectionView API;
+- Care / Guide / Trust / Refund content follows the new separated UX contract.
+
+Validated locally:
+- npm run typecheck: PASS
+- npm test: PASS
+  - main Node suite: 41/41
+  - runtime suite: 19/19

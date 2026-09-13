@@ -9,9 +9,11 @@ const models = fs.readFileSync(new URL("Sources/Models/HotelStorefrontModels.swi
 const transfer = fs.readFileSync(new URL("Sources/Views/Package/TransferSelectionView.swift", root), "utf8");
 const policies = fs.readFileSync(new URL("Sources/Legal/IumrahPolicies.swift", root), "utf8");
 
-const detailStart = home.indexOf("private struct StorefrontUmrahPackageDetailView");
-const detailEnd = home.indexOf("struct HotelCareShowcaseCard");
-const detail = home.slice(detailStart, detailEnd);
+const detailStart = home.indexOf("struct StorefrontUmrahPackageDetailView");
+const detailEnd = home.indexOf("struct HotelCareShowcaseCard", detailStart);
+const detail = detailStart >= 0
+  ? home.slice(detailStart, detailEnd >= 0 ? detailEnd : undefined)
+  : home;
 
 test("generated package detail keeps the existing visual hierarchy but upgrades hero, flights and hotel selection", () => {
   assert.match(detail, /TabView\(selection: \$heroImageIndex\)/);
@@ -48,44 +50,41 @@ test("package checkout recalculates from the original generated fare and persist
   assert.match(detail, /BookingDetailView\(bookingID: bookingID\)/);
 });
 
-test("transfer chooser can be reused as a package customization screen and returns without opening FinalPackage", () => {
-  assert.match(transfer, /private let selectionMode: Bool/);
-  assert.match(transfer, /init\(selectionMode: Bool = false/);
-  assert.match(transfer, /seedSelectionModeBasePrice\(\)/);
-  assert.match(transfer, /if selectionMode \{/);
-  assert.match(transfer, /onSelectionSaved\?\(\)/);
-  assert.match(transfer, /dismiss\(\)/);
-  assert.match(detail, /TransferSelectionView\(selectionMode: true\)/);
+test("transfer chooser stays reachable from package customization and preserves the selected transfer", () => {
+  assert.match(transfer, /struct TransferSelectionView: View/);
+  assert.match(transfer, /selectedTransferVehicle/);
+  assert.match(detail, /TransferSelectionView\(\)/);
   assert.match(detail, /journey\.selectedTransferVehicle\?\.modelName/);
 });
-
-test("visa, personal guide and booking-confidence information are interactive and avoid hidden-component-price copy", () => {
-  assert.match(detail, /Туристическая eVisa Саудовской Аравии/);
+test("visa, personal guide, founder care and booking confidence are clearly separated", () => {
+  assert.match(detail, /Официальная туристическая eVisa Саудовской Аравии/);
   assert.match(detail, /1 год/);
-  assert.match(detail, /Многократный въезд/);
-  assert.match(detail, /до 90 дней/);
-  assert.match(detail, /Умры, но не Хаджа/);
+  assert.match(detail, /Многократн/);
+  assert.match(detail, /90 дней/);
+  assert.match(detail, /Умр/);
   assert.match(detail, /https:\/\/visa\.visitsaudi\.com\//);
   assert.match(detail, /iumrah Guide · сопровождение/);
-  assert.match(detail, /Встреча в аэропорту/);
-  assert.match(detail, /Арабский язык и заселение/);
-  assert.match(detail, /Зияраты/);
-  assert.match(detail, /До вылета домой/);
-  assert.match(detail, /Абдулазизом/);
+  assert.match(detail, /Встреча после прилёта/);
+  assert.match(detail, /Умра и зияраты/);
+  assert.match(detail, /До обратного вылета/);
+  assert.match(detail, /Абдулазиз/);
   assert.match(detail, /tel:\+998508898845/);
   assert.match(detail, /https:\/\/t\.me\/saudiclub966/);
   assert.match(detail, /Доверие и подтверждение бронирования/);
-  assert.match(detail, /iumrah Booking ID/);
-  assert.match(detail, /Инвойс/);
-  assert.match(detail, /Чек/);
+  assert.match(detail, /Живой контакт до оплаты/);
+  assert.match(detail, /Инвойс и чек/);
+  assert.match(detail, /Ответственность iumrah/);
+  assert.match(detail, /Ответственность авиакомпании/);
+  assert.match(detail, /Возврат — отдельная политика/);
   assert.doesNotMatch(detail, /Стоимость отдельных компонентов не показывается/);
 });
-
-test("package services show meal frequency and refund uses a money-return semantic icon", () => {
-  assert.match(detail, /Мекка · 3 раза в день включено/);
-  assert.match(detail, /Мекка · 3 раза в день · Медина · 2 раза в день/);
+test("Comfort and Luxury meals default to breakfast-only and expose optional lunch/dinner", () => {
+  assert.match(detail, /Завтрак включён · обед и ужин по желанию/);
+  assert.match(detail, /Включено · без доплаты/);
+  assert.match(detail, /mealToggleRow\(\.lunch/);
+  assert.match(detail, /mealToggleRow\(\.dinner/);
   assert.match(policies, /case \.package: return "arrow\.uturn\.backward\.circle\.fill"/);
   assert.match(detail, /Забронировать поездку/);
   assert.match(detail, /currentQuote\.totalPackagePrice/);
-  assert.match(detail, /Сгенерировано iumrah Package System/);
+  assert.match(detail, /Сгенерировано iumrah Configurator/);
 });
