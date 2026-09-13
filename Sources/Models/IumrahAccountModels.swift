@@ -229,6 +229,11 @@ struct IumrahAppleConnectionStatus: Decodable, Hashable {
     let linkedAt: String?
 }
 
+struct IumrahGoogleConnectionStatus: Decodable, Hashable {
+    let linked: Bool
+    let linkedAt: String?
+}
+
 struct IumrahVerifiedLoginEmail: Decodable, Hashable {
     let email: String
     let verifiedAt: String
@@ -242,6 +247,7 @@ struct IumrahSecurityOverview: Decodable, Hashable {
     let primaryDeviceProtected: Bool
     let loginEmail: IumrahVerifiedLoginEmail?
     let apple: IumrahAppleConnectionStatus
+    let google: IumrahGoogleConnectionStatus?
     let sessions: [IumrahSecuritySession]
 }
 
@@ -263,6 +269,23 @@ struct IumrahAppleSignInRequest: Encodable {
 struct IumrahAppleLinkResponse: Decodable {
     let ok: Bool
     let appleLinked: Bool
+    let iumrahID: String
+}
+
+struct IumrahGoogleRequest: Encodable {
+    let identityToken: String
+    let nonce: String
+}
+
+struct IumrahGoogleSignInRequest: Encodable {
+    let identityToken: String
+    let nonce: String
+    let device: IumrahClientDevice
+}
+
+struct IumrahGoogleLinkResponse: Decodable {
+    let ok: Bool
+    let googleLinked: Bool
     let iumrahID: String
 }
 

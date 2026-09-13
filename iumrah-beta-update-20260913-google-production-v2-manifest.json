@@ -1,0 +1,96 @@
+{
+  "name": "Iumrah production Google Sign-In v2",
+  "date": "2026-09-13",
+  "source": "kepler-ios-main.zip",
+  "bundle_id": "com.iumrah.app",
+  "google": {
+    "ios_client_id": "863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te.apps.googleusercontent.com",
+    "server_web_client_id": "863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com",
+    "callback_scheme": "com.googleusercontent.apps.863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te",
+    "sdk": "GoogleSignIn-iOS 9.2.0"
+  },
+  "architecture": [
+    "Google is an external identity key; six-digit iumrah ID remains canonical.",
+    "iOS and future Android/Web use the same Package Engine and canonical account/session contract.",
+    "Verified Google email resolves an existing canonical account before account creation.",
+    "Server verifies Google signature, issuer, audience, expiry, nonce, and replay."
+  ],
+  "manual_required": [
+    "Replace .github/workflows/testflight.yml with the separately supplied file BEFORE running TestFlight. The repository ZIP-applier intentionally blocks .github/workflows/.",
+    "Deploy Package Engine before shipping the iOS TestFlight build."
+  ],
+  "validation": {
+    "changed_swift_parse": "pass",
+    "package_engine_typecheck": "pass",
+    "package_engine_tests": "70/70 pass (50 node contract + 20 runtime)",
+    "plist_yaml_validation": "pass",
+    "xcode_archive": "must run in GitHub macOS workflow"
+  },
+  "files": [
+    {
+      "path": "GOOGLE_SIGNIN_SETUP.md",
+      "bytes": 1579,
+      "sha256": "157182aabf7474098ded535a7670443149970e267ebd5a256639aa3d0f384c0e"
+    },
+    {
+      "path": "project.yml",
+      "bytes": 2706,
+      "sha256": "061dd105983d7f8003611e570666bf04515eb59ac27f93db817685a52ff742e9"
+    },
+    {
+      "path": "IUMRAH_GOOGLE_PRODUCTION_20260913_APPLIED.txt",
+      "bytes": 336,
+      "sha256": "0b2f89980e14ff5c892d2f7bb59867a9dfe61702dce33709e96dff8cfe73514d"
+    },
+    {
+      "path": "BETA_GOOGLE_IOS_DISABLED_117_APPLIED.txt",
+      "bytes": 239,
+      "sha256": "a292c5c6c6f2c248ad90a9be5fa2b756487f9423cd987ef3f55ed0dd414a18c9"
+    },
+    {
+      "path": "Resources/Info.plist",
+      "bytes": 4834,
+      "sha256": "35853dea0101769fd567b437a17a1a64fe997d5848c3a45e14cf5e6d70ed7d96"
+    },
+    {
+      "path": "Sources/Core/IumrahGoogleSignInSupport.swift",
+      "bytes": 5779,
+      "sha256": "0c19840c3214e3eb2951890bfbfceffc018b5edbb62b3fc6237253074b7184d5"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountSecurityView.swift",
+      "bytes": 54134,
+      "sha256": "ab0e7199456ec57c05b83aeb2e5cf518df2746958727264052ad5cb1ee4e59a0"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 59377,
+      "sha256": "9e0b2823eafc4e829137f8139cc151435c9c3f4baaaedd6becc60b3d9421d794"
+    },
+    {
+      "path": "Sources/State/IumrahAccountStore.swift",
+      "bytes": 10282,
+      "sha256": "eba84f9330fbf3e1c9dd752b18e6115f837a16e500f58fdeb2b481ce6d7f67b9"
+    },
+    {
+      "path": "Sources/Services/IumrahAccountService.swift",
+      "bytes": 9424,
+      "sha256": "d93bc762fd7f5dde42d55c7e4982b958ced7604bbb91ca94e820f28f0df07f09"
+    },
+    {
+      "path": "Sources/App/IumrahAppDelegate.swift",
+      "bytes": 2124,
+      "sha256": "ca3300d450cd86e8b119be5eafc0359b7f6a33e79b78eb5647ea1d95e24d9364"
+    },
+    {
+      "path": "Sources/Models/IumrahAccountModels.swift",
+      "bytes": 9076,
+      "sha256": "87f1fb865fbd7e0facf895a2af18b99d9ab5970a66f284c46f94ea259a7924c9"
+    },
+    {
+      "path": "Backend/PackageEngine/wrangler.template.jsonc",
+      "bytes": 1556,
+      "sha256": "647d94d327d7ae1fe756709f079627b29d6e330b6356d4904ab73a1c85e9175f"
+    }
+  ]
+}

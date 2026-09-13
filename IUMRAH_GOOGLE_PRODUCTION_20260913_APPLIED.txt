@@ -1,0 +1,6 @@
+Iumrah production Google Sign-In
+Date: 2026-09-13
+Bundle ID: com.iumrah.app
+Architecture: Google + Apple remain external identity keys to one canonical six-digit iumrah ID.
+Google iOS client and shared Server/Web audience configured.
+GoogleSignIn-iOS 9.2.0 restored with TestFlight signing isolation for Swift Package resource targets.
