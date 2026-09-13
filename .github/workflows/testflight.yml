@@ -29,43 +29,120 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify Iumrah 2.0.0 production identity
+      - name: Normalize and verify Iumrah 2.0.0 production identity
         run: |
           set -euo pipefail
-          test -f IUMRAH_PRODUCTION_2_0_0_APPLIED.txt
-          test -f project.yml
-          test -d Sources
-          test -d Resources/Assets.xcassets
-          test -f Sources/App/IumrahApp.swift
-          test -f Sources/Core/AppIdentity.swift
-          test -f Sources/Store/IumrahPlusStore.swift
-          test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
-          test -f Resources/Info.plist
-          test -f Resources/iUmra.entitlements
+
+          for path in \
+            project.yml \
+            Sources/App/IumrahApp.swift \
+            Sources/Core/AppIdentity.swift \
+            Sources/Store/IumrahPlusStore.swift \
+            Resources/Info.plist \
+            Resources/iUmra.entitlements \
+            Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png; do
+            test -e "$path" || { echo "STOP: missing required file: $path"; exit 1; }
+          done
+
+          # The repository still had the legacy visible name iUmra in Info.plist.
+          # Normalize it in CI before XcodeGen so this cannot fail just because
+          # the branding patch has not yet been applied to the branch.
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Iumrah' Resources/Info.plist 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string Iumrah' Resources/Info.plist
+
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p = Path('Sources/Core/AppIdentity.swift')
+          text = p.read_text()
+          text = text.replace('static let displayName = "iUmra"', 'static let displayName = "Iumrah"')
+          text = text.replace('static let displayName = "iUmrah"', 'static let displayName = "Iumrah"')
+          p.write_text(text)
+          PYCODE
 
           grep -F 'MARKETING_VERSION: "2.0.0"' project.yml >/dev/null || {
             echo "STOP: MARKETING_VERSION must be 2.0.0"; exit 1;
           }
           grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
-            echo "STOP: this must be the existing App Store bundle com.iumrah.app"; exit 1;
+            echo "STOP: Bundle ID must be the published App Store ID com.iumrah.app"; exit 1;
           }
           grep -F 'TARGETED_DEVICE_FAMILY: "1,2"' project.yml >/dev/null || {
-            echo "STOP: keep iPhone + iPad support from the published app"; exit 1;
+            echo "STOP: iPhone + iPad support must remain enabled"; exit 1;
           }
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist | grep -Fx 'Iumrah' >/dev/null
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' Resources/Info.plist | grep -Fx 'iumrah' >/dev/null || {
-            echo "STOP: legacy iumrah:// URL scheme is missing"; exit 1;
-          }
-          /usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iUmra.entitlements | grep -Fx 'production' >/dev/null
-          /usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' Resources/iUmra.entitlements | grep -Fx 'Default' >/dev/null
-          /usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' Resources/iUmra.entitlements | grep -Fx 'applinks:iumrah.app' >/dev/null
+
+          DISPLAY_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist)
+          test "$DISPLAY_NAME" = "Iumrah" || { echo "STOP: CFBundleDisplayName=$DISPLAY_NAME"; exit 1; }
+
+          URL_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' Resources/Info.plist 2>/dev/null || true)
+          test "$URL_SCHEME" = "iumrah" || { echo "STOP: legacy iumrah:// URL scheme is missing"; exit 1; }
+
+          APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$APS" = "production" || { echo "STOP: aps-environment must be production, got: ${APS:-missing}"; exit 1; }
+
+          APPLE_SIGNIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$APPLE_SIGNIN" = "Default" || { echo "STOP: Sign in with Apple entitlement is missing"; exit 1; }
+
+          DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$DOMAIN" = "applinks:iumrah.app" || { echo "STOP: applinks:iumrah.app entitlement is missing"; exit 1; }
+
           grep -F 'static let iumrahPlusProductID = "iumrah.plus"' Sources/Core/AppIdentity.swift >/dev/null || {
             echo "STOP: legacy iumrah.plus product identity is missing"; exit 1;
           }
+
           ! grep -R --line-number --fixed-strings 'com.iumrah.beta' project.yml Resources Sources Backend || {
             echo "STOP: active production files still contain com.iumrah.beta"; exit 1;
           }
-          cat IUMRAH_PRODUCTION_2_0_0_APPLIED.txt
+
+          echo "Production identity OK: Iumrah / com.iumrah.app / 2.0.0"
+
+      - name: Prepare complete iPhone and iPad app icon catalogs
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          sets=(Resources/Assets.xcassets/AppIcon*.appiconset)
+          test ${#sets[@]} -gt 0 || { echo "STOP: no AppIcon*.appiconset folders found"; exit 1; }
+
+          for set_dir in "${sets[@]}"; do
+            source="$set_dir/AppIcon-1024.png"
+            contents="$set_dir/Contents.json"
+            test -f "$source" || { echo "STOP: missing $source"; exit 1; }
+            test -f "$contents" || { echo "STOP: missing $contents"; exit 1; }
+
+            sips -z 20 20   "$source" --out "$set_dir/AppIcon-iPad-20@1x.png" >/dev/null
+            sips -z 40 40   "$source" --out "$set_dir/AppIcon-iPad-20@2x.png" >/dev/null
+            sips -z 29 29   "$source" --out "$set_dir/AppIcon-iPad-29@1x.png" >/dev/null
+            sips -z 58 58   "$source" --out "$set_dir/AppIcon-iPad-29@2x.png" >/dev/null
+            sips -z 40 40   "$source" --out "$set_dir/AppIcon-iPad-40@1x.png" >/dev/null
+            sips -z 80 80   "$source" --out "$set_dir/AppIcon-iPad-40@2x.png" >/dev/null
+            sips -z 76 76   "$source" --out "$set_dir/AppIcon-iPad-76@1x.png" >/dev/null
+            sips -z 152 152 "$source" --out "$set_dir/AppIcon-iPad-76@2x.png" >/dev/null
+            sips -z 167 167 "$source" --out "$set_dir/AppIcon-iPad-83.5@2x.png" >/dev/null
+
+            CONTENTS="$contents" python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+
+          p = Path(os.environ['CONTENTS'])
+          data = json.loads(p.read_text())
+          images = [x for x in data.get('images', []) if x.get('idiom') != 'ipad']
+          images += [
+              {'filename':'AppIcon-iPad-20@1x.png','idiom':'ipad','scale':'1x','size':'20x20'},
+              {'filename':'AppIcon-iPad-20@2x.png','idiom':'ipad','scale':'2x','size':'20x20'},
+              {'filename':'AppIcon-iPad-29@1x.png','idiom':'ipad','scale':'1x','size':'29x29'},
+              {'filename':'AppIcon-iPad-29@2x.png','idiom':'ipad','scale':'2x','size':'29x29'},
+              {'filename':'AppIcon-iPad-40@1x.png','idiom':'ipad','scale':'1x','size':'40x40'},
+              {'filename':'AppIcon-iPad-40@2x.png','idiom':'ipad','scale':'2x','size':'40x40'},
+              {'filename':'AppIcon-iPad-76@1x.png','idiom':'ipad','scale':'1x','size':'76x76'},
+              {'filename':'AppIcon-iPad-76@2x.png','idiom':'ipad','scale':'2x','size':'76x76'},
+              {'filename':'AppIcon-iPad-83.5@2x.png','idiom':'ipad','scale':'2x','size':'83.5x83.5'},
+          ]
+          data['images'] = images
+          data.setdefault('info', {'author':'xcode','version':1})
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PYCODE
+          done
+
+          echo "Prepared ${#sets[@]} app icon catalog(s), including required iPad 152x152 and 167x167 icons."
 
       - name: Xcode environment
         run: |
