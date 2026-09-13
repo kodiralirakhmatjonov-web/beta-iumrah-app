@@ -1,13 +1,17 @@
-name: Build iumrah Beta / TestFlight
+name: iUmra 2.0.0 — TestFlight
 
 on:
   workflow_dispatch:
     inputs:
-      upload_to_testflight:
-        description: 'Upload signed build to TestFlight'
-        required: true
-        type: boolean
-        default: true
+      what_to_test:
+        description: 'Optional TestFlight “What to Test” note'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: iumrah-2-0-0-testflight
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -16,47 +20,52 @@ jobs:
   build:
     runs-on: macos-26
     env:
-      SCHEME: iumrahBeta
-      PROJECT: iumrahBeta.xcodeproj
-      BUNDLE_ID: com.iumrah.beta
-      ARCHIVE_PATH: build/iumrahBeta.xcarchive
+      SCHEME: iUmra
+      PROJECT: iUmra.xcodeproj
+      BUNDLE_ID: com.iumrah.app
+      ARCHIVE_PATH: build/iUmra.xcarchive
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify beta bootstrap is applied
+      - name: Verify iUmra 2.0.0 production identity
         run: |
           set -euo pipefail
-          test -f BETA_BOOTSTRAP_004_APPLIED.txt || {
-            echo "STOP: beta bootstrap 004 has not been applied yet."
-            echo "Upload iumrah-beta-update-004.zip to repository root first."
-            exit 1
-          }
+          test -f IUMRAH_PRODUCTION_2_0_0_APPLIED.txt
           test -f project.yml
           test -d Sources
           test -d Resources/Assets.xcassets
-          test -f Sources/App/IumrahBetaApp.swift
+          test -f Sources/App/IumrahApp.swift
+          test -f Sources/Core/AppIdentity.swift
+          test -f Sources/Store/IumrahPlusStore.swift
           test -f Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
           test -f Resources/Info.plist
-          test -f Resources/iumrahBeta.entitlements
+          test -f Resources/iUmra.entitlements
 
-          /usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iumrahBeta.entitlements | grep -Fx 'production' >/dev/null || {
-            echo "STOP: beta entitlements do not contain aps-environment=production"
-            exit 1
+          grep -F 'MARKETING_VERSION: "2.0.0"' project.yml >/dev/null || {
+            echo "STOP: MARKETING_VERSION must be 2.0.0"; exit 1;
           }
-
-          /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes:0' Resources/Info.plist | grep -Fx 'remote-notification' >/dev/null || {
-            echo "STOP: Info.plist does not enable remote-notification background mode"
-            exit 1
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
+            echo "STOP: this must be the existing App Store bundle com.iumrah.app"; exit 1;
           }
-
-          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta' project.yml >/dev/null || {
-            echo "STOP: project.yml does not target com.iumrah.beta"
-            exit 1
+          grep -F 'TARGETED_DEVICE_FAMILY: "1,2"' project.yml >/dev/null || {
+            echo "STOP: keep iPhone + iPad support from the published app"; exit 1;
           }
-
-          cat BETA_BOOTSTRAP_004_APPLIED.txt
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist | grep -Fx 'iUmra' >/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' Resources/Info.plist | grep -Fx 'iumrah' >/dev/null || {
+            echo "STOP: legacy iumrah:// URL scheme is missing"; exit 1;
+          }
+          /usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iUmra.entitlements | grep -Fx 'production' >/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' Resources/iUmra.entitlements | grep -Fx 'Default' >/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' Resources/iUmra.entitlements | grep -Fx 'applinks:iumrah.app' >/dev/null
+          grep -F 'static let iumrahPlusProductID = "iumrah.plus"' Sources/Core/AppIdentity.swift >/dev/null || {
+            echo "STOP: legacy iumrah.plus product identity is missing"; exit 1;
+          }
+          ! grep -R --line-number --fixed-strings 'com.iumrah.beta' project.yml Resources Sources Backend || {
+            echo "STOP: active production files still contain com.iumrah.beta"; exit 1;
+          }
+          cat IUMRAH_PRODUCTION_2_0_0_APPLIED.txt
 
       - name: Xcode environment
         run: |
@@ -90,17 +99,14 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Check TestFlight requirements
-        if: ${{ inputs.upload_to_testflight }}
+      - name: Check production signing requirements
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
-          for name in APPLE_TEAM_ID APPLE_ID_EMAIL APPLE_APP_SPECIFIC_PASSWORD IOS_SIGNING_KEY_PASSWORD; do
+          for name in APPLE_TEAM_ID IOS_SIGNING_KEY_PASSWORD; do
             if [ -z "${!name}" ]; then
               echo "Missing GitHub secret: $name"
               exit 1
@@ -109,7 +115,7 @@ jobs:
 
           test -f Signing/distribution-private-key.enc || {
             echo "Missing Signing/distribution-private-key.enc"
-            echo "The encrypted private key may be reused only if the com.iumrah.beta provisioning profile uses the matching Apple Distribution certificate."
+            echo "The encrypted private key may be reused only if the com.iumrah.app provisioning profile uses the matching Apple Distribution certificate."
             exit 1
           }
 
@@ -135,17 +141,29 @@ jobs:
             PROFILE_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$decoded" 2>/dev/null || true)
             PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$decoded" 2>/dev/null || true)
             APS_ENV=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$decoded" 2>/dev/null || true)
+            APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin:0' "$decoded" 2>/dev/null || true)
+            ASSOCIATED_DOMAINS=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.associated-domains' "$decoded" 2>/dev/null || true)
 
             echo "Profile: $candidate"
             echo "  Name: ${PROFILE_NAME:-unknown}"
             echo "  Team: ${PROFILE_TEAM:-unknown}"
             echo "  App ID: ${APP_IDENTIFIER:-unknown}"
             echo "  APNs: ${APS_ENV:-missing}"
+            echo "  Sign in with Apple: ${APPLE_SIGN_IN:-missing}"
+            echo "  Associated Domains: ${ASSOCIATED_DOMAINS:-missing}"
 
             if [ "$APP_IDENTIFIER" = "${APPLE_TEAM_ID}.${BUNDLE_ID}" ]; then
               if [ "$APS_ENV" != "production" ]; then
-                echo "STOP: matching beta profile does not contain aps-environment=production."
-                echo "Regenerate the App Store provisioning profile after enabling Push Notifications for com.iumrah.beta."
+                echo "STOP: matching production profile does not contain aps-environment=production."
+                echo "Regenerate the App Store provisioning profile after enabling Push Notifications for com.iumrah.app."
+                exit 1
+              fi
+              if [ "$APPLE_SIGN_IN" != "Default" ]; then
+                echo "STOP: production profile is missing Sign in with Apple."
+                exit 1
+              fi
+              if [ -z "$ASSOCIATED_DOMAINS" ]; then
+                echo "STOP: production profile is missing Associated Domains."
                 exit 1
               fi
               PROFILE_PATH="$candidate"
@@ -154,8 +172,8 @@ jobs:
           done
 
           test -n "$PROFILE_PATH" || {
-            echo "No App Store provisioning profile matching ${APPLE_TEAM_ID}.${BUNDLE_ID} was found in Signing/."
-            echo "Do NOT use iumrah-business.mobileprovision; it is for com.iumrah.business."
+            echo "No App Store provisioning profile matching ${APPLE_TEAM_ID}.${BUNDLE_ID} was found in Signing/. Add the production com.iumrah.app profile."
+            echo "Do NOT use Iumrah_Beta.mobileprovision or iumrah-business.mobileprovision; those are different App IDs."
             exit 1
           }
 
@@ -168,7 +186,6 @@ jobs:
           echo "Using provisioning profile: $PROFILE_PATH"
 
       - name: Install signing assets
-        if: ${{ inputs.upload_to_testflight }}
         env:
           IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
@@ -178,8 +195,8 @@ jobs:
           PRIVATE_KEY="$RUNNER_TEMP/distribution-private-key.pem"
           CERT_PEM="$RUNNER_TEMP/distribution-certificate.pem"
           P12_PATH="$RUNNER_TEMP/distribution.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/iumrah-beta-signing.keychain-db"
-          P12_PASSWORD="iumrah-beta-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEYCHAIN_PATH="$RUNNER_TEMP/iumrah-app-signing.keychain-db"
+          P12_PASSWORD="iumrah-app-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
           openssl enc \
             -d \
@@ -262,12 +279,14 @@ jobs:
           echo "Signing identity: $SIGNING_IDENTITY"
 
       - name: Archive signed app
-        if: ${{ inputs.upload_to_testflight }}
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -o pipefail
           mkdir -p build
+          BUILD_NUMBER=$((20000 + GITHUB_RUN_NUMBER))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "Building iUmra 2.0.0 ($BUILD_NUMBER)"
 
           xcodebuild \
             -project "$PROJECT" \
@@ -279,11 +298,11 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY='Apple Distribution' \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
-            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            MARKETING_VERSION="2.0.0" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive
 
       - name: Repair and verify archived app metadata
-        if: ${{ inputs.upload_to_testflight }}
         run: |
           set -euo pipefail
 
@@ -304,10 +323,25 @@ jobs:
             exit 1
           }
 
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
+          test "$VERSION" = "2.0.0" || { echo "Archive version mismatch: $VERSION"; exit 1; }
+          test "$BUILD" -ge 15 || { echo "Archive build must be > legacy build 14. Got: $BUILD"; exit 1; }
+
           codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null
           ARCHIVE_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
           test "$ARCHIVE_APS" = "production" || {
             echo "Archive is missing production APNs entitlement. Found: ${ARCHIVE_APS:-missing}"
+            exit 1
+          }
+          ARCHIVE_APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_APPLE_SIGN_IN" = "Default" || {
+            echo "Archive is missing Sign in with Apple entitlement."
+            exit 1
+          }
+          ARCHIVE_ASSOCIATED_DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_ASSOCIATED_DOMAIN" = "applinks:iumrah.app" || {
+            echo "Archive is missing applinks:iumrah.app entitlement."
             exit 1
           }
 
@@ -362,7 +396,6 @@ jobs:
           echo "Archive preflight passed."
 
       - name: Export IPA
-        if: ${{ inputs.upload_to_testflight }}
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
@@ -392,7 +425,6 @@ jobs:
           ls -lah build/export
 
       - name: Preflight exported IPA
-        if: ${{ inputs.upload_to_testflight }}
         run: |
           set -euo pipefail
 
@@ -416,12 +448,21 @@ jobs:
             exit 1
           }
 
+          FINAL_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")
+          FINAL_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
+          test "$FINAL_VERSION" = "2.0.0" || { echo "FINAL IPA version mismatch: $FINAL_VERSION"; exit 1; }
+          test "$FINAL_BUILD" -ge 15 || { echo "FINAL IPA build must be > legacy build 14. Got: $FINAL_BUILD"; exit 1; }
+
           codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null
           FINAL_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
           test "$FINAL_APS" = "production" || {
             echo "FINAL IPA is missing aps-environment=production. Found: ${FINAL_APS:-missing}"
             exit 1
           }
+          FINAL_APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_APPLE_SIGN_IN" = "Default" || { echo "FINAL IPA is missing Sign in with Apple entitlement."; exit 1; }
+          FINAL_ASSOCIATED_DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_ASSOCIATED_DOMAIN" = "applinks:iumrah.app" || { echo "FINAL IPA is missing applinks:iumrah.app entitlement."; exit 1; }
 
           ICON_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$INFO_PLIST" 2>/dev/null || true)
           test "$ICON_NAME" = "AppIcon" || {
@@ -450,11 +491,55 @@ jobs:
           echo "FINAL IPA PRECHECK PASSED."
           echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
 
-      - name: Validate and upload to TestFlight without p8
-        if: ${{ inputs.upload_to_testflight }}
+      - name: Set up Ruby for fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      - name: Prepare App Store Connect API key
         env:
-          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing GitHub secret: $name"
+              exit 1
+            fi
+          done
+
+          P8_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          JSON_PATH="$RUNNER_TEMP/app-store-connect-api-key.json"
+          printf '%s' "$ASC_API_KEY_P8" > "$P8_PATH"
+          chmod 600 "$P8_PATH"
+
+          ASC_P8_PATH="$P8_PATH" ASC_JSON_PATH="$JSON_PATH" python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+
+          p8 = Path(os.environ["ASC_P8_PATH"]).read_text()
+          payload = {
+              "key_id": os.environ["ASC_KEY_ID"],
+              "issuer_id": os.environ["ASC_ISSUER_ID"],
+              "key": p8,
+              "duration": 1200,
+              "in_house": False,
+          }
+          Path(os.environ["ASC_JSON_PATH"]).write_text(json.dumps(payload))
+          PYCODE
+
+          echo "ASC_API_KEY_PATH=$JSON_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload IPA to TestFlight
+        env:
+          TESTFLIGHT_CHANGELOG: ${{ inputs.what_to_test }}
         run: |
           set -euo pipefail
           set +x
@@ -463,24 +548,38 @@ jobs:
             echo "IPA_PATH was not produced by final IPA preflight."
             exit 1
           }
+          test -f "$ASC_API_KEY_PATH"
 
-          xcrun altool --validate-app \
-            --type ios \
-            -f "$IPA_PATH" \
-            -u "$APPLE_ID_EMAIL" \
-            -p "$APPLE_APP_SPECIFIC_PASSWORD"
+          args=(
+            pilot upload
+            --ipa "$IPA_PATH"
+            --api_key_path "$ASC_API_KEY_PATH"
+            --app_identifier "$BUNDLE_ID"
+            --skip_submission true
+            --skip_waiting_for_build_processing true
+          )
 
-          xcrun altool --upload-app \
-            --type ios \
-            -f "$IPA_PATH" \
-            -u "$APPLE_ID_EMAIL" \
-            -p "$APPLE_APP_SPECIFIC_PASSWORD"
+          if [ -n "${TESTFLIGHT_CHANGELOG:-}" ]; then
+            args+=(--changelog "$TESTFLIGHT_CHANGELOG")
+          fi
+
+          fastlane "${args[@]}"
+
+      - name: TestFlight summary
+        run: |
+          {
+            echo "## iUmra TestFlight upload"
+            echo "- Bundle ID: \`$BUNDLE_ID\`"
+            echo "- Version: \`2.0.0\`"
+            echo "- Build: \`${BUILD_NUMBER:-unknown}\`"
+            echo "- The binary was uploaded only to TestFlight/App Store Connect; it was not submitted to App Review."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload build diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: iumrah-beta-build-${{ github.run_number }}
+          name: iumrah-2.0.0-build-${{ github.run_number }}
           path: |
             build/export/*.ipa
             build/*.xcarchive/Info.plist

@@ -1,0 +1,184 @@
+name: iUmra 2.0.0 — App Store Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Exact TestFlight build number to submit (for example 20001)'
+        required: true
+        type: string
+      automatic_release:
+        description: 'Automatically publish after Apple approves the version'
+        required: true
+        type: boolean
+        default: false
+      phased_release:
+        description: 'Use Apple 7-day phased release after publication'
+        required: true
+        type: boolean
+        default: false
+      confirm_submit:
+        description: 'Confirm real submission to App Review'
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: iumrah-2-0-0-app-store-review
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  submit-review:
+    runs-on: macos-26
+    env:
+      BUNDLE_ID: com.iumrah.app
+      APP_VERSION: 2.0.0
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      AUTO_RELEASE: ${{ inputs.automatic_release }}
+      PHASED_RELEASE: ${{ inputs.phased_release }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Safety gate and production identity check
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.confirm_submit }}" != "true" ]; then
+            echo "STOP: confirm_submit must be enabled before a real App Review submission."
+            exit 1
+          fi
+
+          [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || {
+            echo "STOP: build_number must contain digits only. Got: $BUILD_NUMBER"
+            exit 1
+          }
+
+          test "$BUILD_NUMBER" -ge 15 || {
+            echo "STOP: build must be greater than the published legacy build 14."
+            exit 1
+          }
+
+          test -f project.yml || { echo "STOP: project.yml is missing."; exit 1; }
+          test -f IUMRAH_PRODUCTION_2_0_0_APPLIED.txt || {
+            echo "STOP: production 2.0.0 migration marker is missing."
+            exit 1
+          }
+
+          grep -F 'MARKETING_VERSION: "2.0.0"' project.yml >/dev/null || {
+            echo "STOP: repository MARKETING_VERSION is not 2.0.0."
+            exit 1
+          }
+
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
+            echo "STOP: repository is not targeting the existing App Store app com.iumrah.app."
+            exit 1
+          }
+
+          if grep -R --line-number --fixed-strings 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta' project.yml Resources Sources 2>/dev/null; then
+            echo "STOP: active app files still contain the beta bundle identifier."
+            exit 1
+          fi
+
+          echo "Submitting existing TestFlight build $BUILD_NUMBER of iUmra $APP_VERSION."
+
+      - name: Set up Ruby for fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      - name: Prepare App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing GitHub secret: $name"
+              exit 1
+            fi
+          done
+
+          P8_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_API_KEY_P8" > "$P8_PATH"
+          chmod 600 "$P8_PATH"
+          echo "ASC_P8_PATH=$P8_PATH" >> "$GITHUB_ENV"
+
+      - name: Submit selected TestFlight build to App Review
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          mkdir -p "$RUNNER_TEMP/fastlane"
+
+          cat > "$RUNNER_TEMP/fastlane/Fastfile" <<'RUBY'
+          default_platform(:ios)
+
+          platform :ios do
+            lane :submit_review do
+              api_key = app_store_connect_api_key(
+                key_id: ENV.fetch("ASC_KEY_ID"),
+                issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+                key_filepath: ENV.fetch("ASC_P8_PATH"),
+                duration: 1200,
+                in_house: false
+              )
+
+              deliver(
+                api_key: api_key,
+                app_identifier: ENV.fetch("BUNDLE_ID"),
+                app_version: ENV.fetch("APP_VERSION"),
+                build_number: ENV.fetch("BUILD_NUMBER"),
+                platform: "ios",
+                submit_for_review: true,
+                automatic_release: ENV.fetch("AUTO_RELEASE") == "true",
+                phased_release: ENV.fetch("PHASED_RELEASE") == "true",
+                force: true,
+                skip_binary_upload: true,
+                skip_metadata: true,
+                skip_screenshots: true,
+                run_precheck_before_submit: true,
+                precheck_include_in_app_purchases: false,
+                precheck_default_rule_level: :warn
+              )
+            end
+          end
+          RUBY
+
+          (
+            cd "$RUNNER_TEMP"
+            fastlane ios submit_review
+          )
+
+      - name: App Store Review summary
+        if: ${{ success() }}
+        run: |
+          {
+            echo "## iUmra submitted to App Store Review"
+            echo "- Bundle ID: \`$BUNDLE_ID\`"
+            echo "- Version: \`$APP_VERSION\`"
+            echo "- Build: \`$BUILD_NUMBER\`"
+            if [ "$AUTO_RELEASE" = "true" ]; then
+              if [ "$PHASED_RELEASE" = "true" ]; then
+                echo "- Release: automatic after approval, with Apple's phased release enabled."
+              else
+                echo "- Release: automatic after approval."
+              fi
+            else
+              echo "- Release: manual after approval; approval alone will not publish the update."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
