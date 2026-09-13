@@ -1,274 +1,598 @@
 import SwiftUI
 
 struct CareHomeView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
 
+    @State private var careProfile: IumrahPublicProfile?
+    @State private var isLoadingCareProfile = false
+
+    private var activeSession: StoredBookingSession? {
+        bookings.sessions.first { session in
+            !["COMPLETED", "CANCELLED"].contains(session.effectiveStatus.uppercased())
+        }
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_care", settings.language))
+        ScrollView(showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                IumrahRootPageTitle(title: "iumrah Care")
+                    .padding(.bottom, 14)
+
+                intro
+                    .padding(.bottom, 24)
+
                 careHero
+                    .padding(.bottom, 28)
 
-                if bookings.sessions.isEmpty {
-                    lockedChatCard
-                } else {
-                    SectionHeader(
-                        L10n.text("care_chats", settings.language),
-                        eyebrow: "iumrah Care",
-                        subtitle: L10n.text("care_chats_subtitle", settings.language)
-                    )
+                bookingHelpCard
+                    .padding(.bottom, 30)
 
-                    ForEach(bookings.sessions) { session in
-                        NavigationLink {
-                            BookingChatView(bookingID: session.id)
-                        } label: {
-                            chatCard(session)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                helpTopics
+                    .padding(.bottom, 30)
 
-                supportPromise
+                quickAnswers
+                    .padding(.bottom, 14)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
-            .padding(.bottom, 42)
+            .padding(.bottom, 46)
         }
-        .background {
-            ZStack {
-                Color.iumrahPageBackground
-                RadialGradient(
-                    colors: [Color.iumrahCareLight.opacity(0.10), Color.clear],
-                    center: .topTrailing,
-                    startRadius: 20,
-                    endRadius: 420
-                )
-            }
-            .ignoresSafeArea()
-        }
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await bookings.refreshAll() }
+        .refreshable {
+            await refreshCare()
+        }
+        .task {
+            await refreshCare()
+        }
     }
+
+    // MARK: - Intro
+
+    private var intro: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text(tr(
+                "We’ll help you build and arrange your Umrah",
+                "Поможем собрать и оформить вашу Умру",
+                "Umra safaringizni yig‘ish va rasmiylashtirishga yordam beramiz",
+                "Умра сафарингизни тузиш ва расмийлаштиришга ёрдам берамиз"
+            ))
+            .font(.system(size: 27, weight: .bold, design: .rounded))
+            .tracking(-0.5)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Text(tr(
+                "If you do not want to handle every detail yourself, iumrah Care can help with the route, hotel and services, review the details and guide the booking through to a ready trip.",
+                "Если не хочется разбираться во всём самостоятельно, iumrah Care поможет подобрать маршрут, отель и услуги, проверить детали и довести бронирование до готовой поездки.",
+                "Agar barcha tafsilotlarni o‘zingiz hal qilishni istamasangiz, iumrah Care yo‘nalish, mehmonxona va xizmatlarni tanlashga, tafsilotlarni tekshirishga va bronni tayyor safargacha olib borishga yordam beradi.",
+                "Агар барча тафсилотларни ўзингиз ҳал қилишни истамасангиз, iumrah Care йўналиш, меҳмонхона ва хизматларни танлашга, тафсилотларни текширишга ва бронни тайёр сафаргача олиб боришга ёрдам беради."
+            ))
+            .font(.system(size: 16, weight: .regular))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - Care hero
 
     private var careHero: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            HStack(alignment: .top) {
-                Image("CareMark")
+        VStack(spacing: 0) {
+            ZStack(alignment: .bottomLeading) {
+                Image("IumrahCareTeamHero")
                     .resizable()
-                    .scaledToFit()
-                    .frame(width: 74, height: 74)
-                    .padding(7)
-                    .background(Color.white.opacity(0.96))
-                    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.12), radius: 18, y: 8)
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 236)
+                    .clipped()
 
-                Spacer()
-
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 6, height: 6)
-                    Text("24/7")
-                        .font(.caption2.weight(.bold))
-                        .tracking(0.45)
-                }
-                .padding(.horizontal, 11)
-                .frame(height: 32)
-                .foregroundStyle(.white)
-                .background(Color.white.opacity(0.13))
-                .clipShape(Capsule())
-                .overlay { Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1) }
-            }
-
-            VStack(alignment: .leading, spacing: 9) {
-                Text("iumrah Care")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .tracking(-0.8)
-                    .foregroundStyle(.white)
-
-                Text(L10n.text("care_subtitle", settings.language))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.96))
-
-                Text(L10n.text("care_promise_body", settings.language))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.76))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack(spacing: 8) {
-                careMetric(icon: "message.fill", text: L10n.text("care_metric_answers", settings.language))
-                careMetric(icon: "bell.fill", text: L10n.text("care_metric_updates", settings.language))
-                careMetric(icon: "heart.fill", text: L10n.text("care_metric_care", settings.language))
-            }
-
-            Label(L10n.text("care_free_year", settings.language), systemImage: "gift.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(Color.white.opacity(0.13))
-                .clipShape(Capsule())
-        }
-        .padding(22)
-        .background {
-            ZStack {
                 LinearGradient(
-                    colors: [Color.iumrahCareDark.opacity(0.98), Color(red: 0.12, green: 0.33, blue: 0.23), Color.iumrahCareLight.opacity(0.92)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    colors: [Color.clear, Color.black.opacity(0.10), Color.black.opacity(0.74)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
 
-                Circle()
-                    .fill(Color.white.opacity(0.10))
-                    .frame(width: 210, height: 210)
-                    .blur(radius: 2)
-                    .offset(x: 145, y: -115)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("iumrah Care")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .tracking(-0.65)
+                        .foregroundStyle(.white)
 
+                    Text(tr(
+                        "Help before, during and after your journey",
+                        "Помощь до, во время и после поездки",
+                        "Safardan oldin, davomida va undan keyin yordam",
+                        "Сафардан олдин, давомида ва ундан кейин ёрдам"
+                    ))
+                    .font(.system(size: 14.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.82))
+                }
+                .padding(20)
+            }
+
+            VStack(spacing: 18) {
+                careActions
+
+                if let activeSession {
+                    activeBookingContext(activeSession)
+                } else {
+                    lockedChatNote
+                }
+            }
+            .padding(18)
+        }
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.07), radius: 24, y: 12)
+    }
+
+    @ViewBuilder
+    private var careActions: some View {
+        HStack(alignment: .top, spacing: 9) {
+            if let activeSession {
+                NavigationLink {
+                    BookingChatView(bookingID: activeSession.id)
+                } label: {
+                    careActionTile(
+                        icon: "message.fill",
+                        title: tr("Chat", "Чат", "Chat", "Чат"),
+                        subtitle: tr("Available", "Доступен", "Mavjud", "Мавжуд"),
+                        enabled: true
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                careActionTile(
+                    icon: "lock.fill",
+                    title: tr("Chat", "Чат", "Chat", "Чат"),
+                    subtitle: tr("After booking", "После брони", "Brondan keyin", "Брондан кейин"),
+                    enabled: false
+                )
+            }
+
+            Button {
+                openPhone()
+            } label: {
+                careActionTile(
+                    icon: "phone.fill",
+                    title: tr("Call", "Позвонить", "Qo‘ng‘iroq", "Қўнғироқ"),
+                    subtitle: contactActionSubtitle,
+                    enabled: !preferredPhone.isEmpty
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(preferredPhone.isEmpty)
+
+            Button {
+                openTelegram()
+            } label: {
+                careActionTile(
+                    icon: "paperplane.fill",
+                    title: "Telegram",
+                    subtitle: contactActionSubtitle,
+                    enabled: telegramURL != nil
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(telegramURL == nil)
+        }
+    }
+
+    private func careActionTile(
+        icon: String,
+        title: String,
+        subtitle: String,
+        enabled: Bool
+    ) -> some View {
+        VStack(spacing: 9) {
+            ZStack {
                 Circle()
-                    .fill(Color.iumrahCareDark.opacity(0.20))
-                    .frame(width: 160, height: 160)
-                    .offset(x: -150, y: 155)
+                    .fill(enabled ? Color.iumrahCareLight.opacity(0.17) : Color.primary.opacity(0.055))
+                    .frame(width: 48, height: 48)
+
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(enabled ? careAccent : Color.secondary.opacity(0.56))
+            }
+
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(enabled ? Color.primary : Color.secondary)
+                    .lineLimit(1)
+
+                Text(subtitle)
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 36, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
-        }
-        .shadow(color: Color.iumrahCareDark.opacity(0.25), radius: 30, y: 16)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 96)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 12)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .opacity(enabled ? 1 : 0.72)
     }
 
-    private func careMetric(icon: String, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            IumrahIconBadge(systemName: icon, size: 30, symbolSize: 14, cornerRadius: 15, shape: .circle)
-            Text(text)
-                .font(.caption2.weight(.semibold))
-                .lineLimit(2)
-        }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-        .padding(11)
-        .background(Color.black.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-        }
-    }
+    private func activeBookingContext(_ session: StoredBookingSession) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color(uiColor: .systemGreen).opacity(0.13))
+                    .frame(width: 38, height: 38)
+                Circle()
+                    .fill(Color(uiColor: .systemGreen))
+                    .frame(width: 8, height: 8)
+            }
 
-    private func chatCard(_ session: StoredBookingSession) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image("CareMark")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 46, height: 46)
-                .padding(4)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.iumrahCareLight.opacity(0.18), lineWidth: 1)
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(tr(
+                    "Care is linked to your active trip",
+                    "Care привязан к вашей активной поездке",
+                    "Care faol safaringizga bog‘langan",
+                    "Care фаол сафарингизга боғланган"
+                ))
+                .font(.system(size: 14.5, weight: .semibold, design: .rounded))
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.iumrahCareLight)
-                        .frame(width: 7, height: 7)
-                    Text("iumrah Care")
-                        .font(.headline)
-                }
-                Text(careTripSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
-                        .monospaced()
+                    Text("·")
+                    Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
                     Text("·")
                     Text(L10n.status(session.effectiveStatus, settings.language))
                 }
-                .font(.caption.weight(.semibold))
+                .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
             }
 
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
-                .frame(width: 34, height: 34)
+            Spacer(minLength: 0)
         }
-        .padding(17)
+        .padding(13)
+        .background(Color(uiColor: .systemGreen).opacity(0.055), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var lockedChatNote: some View {
+        HStack(alignment: .top, spacing: 11) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 30, height: 30)
+                .background(Color.primary.opacity(0.055), in: Circle())
+
+            Text(tr(
+                "One-to-one Care chat opens automatically when you have an active booking. Until then, you can call us or write in Telegram.",
+                "Личный чат с iumrah Care откроется автоматически, когда появится активное бронирование. До этого можно позвонить или написать в Telegram.",
+                "iumrah Care bilan shaxsiy chat faol bron paydo bo‘lganda avtomatik ochiladi. Ungacha qo‘ng‘iroq qilishingiz yoki Telegram’da yozishingiz mumkin.",
+                "iumrah Care билан шахсий чат фаол брон пайдо бўлганда автоматик очилади. Унгача қўнғироқ қилишингиз ёки Telegram’da ёзишингиз мумкин."
+            ))
+            .font(.system(size: 12.5, weight: .regular))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 2)
+    }
+
+    // MARK: - Booking help
+
+    private var bookingHelpCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(Color.iumrahCareLight.opacity(0.14))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(careAccent)
+                }
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(tr(
+                        "Need help with your booking?",
+                        "Нужна помощь с бронированием?",
+                        "Bron qilishda yordam kerakmi?",
+                        "Брон қилишда ёрдам керакми?"
+                    ))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .tracking(-0.35)
+
+                    Text(tr(
+                        "Tell us your approximate dates, departure city and who is travelling. We will help you choose a suitable route, hotel and services without making you rebuild everything yourself.",
+                        "Расскажите примерные даты, город вылета и кто едет. Мы поможем подобрать подходящий маршрут, отель и услуги — вам не придётся заново разбираться во всём самостоятельно.",
+                        "Taxminiy sanalar, uchish shahri va kimlar safarga chiqishini ayting. Biz mos yo‘nalish, mehmonxona va xizmatlarni tanlashga yordam beramiz — hammasini boshidan o‘zingiz yig‘ishingiz shart emas.",
+                        "Тахминий саналар, учиш шаҳри ва кимлар сафарга чиқишини айтинг. Биз мос йўналиш, меҳмонхона ва хизматларни танлашга ёрдам берамиз — ҳаммасини бошидан ўзингиз тузишингиз шарт эмас."
+                    ))
+                    .font(.system(size: 14.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Button {
+                requestBookingHelp()
+            } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: "message.fill")
+                    Text(tr(
+                        "Ask iumrah Care",
+                        "Посоветоваться с iumrah Care",
+                        "iumrah Care bilan maslahatlashish",
+                        "iumrah Care билан маслаҳатлашиш"
+                    ))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(telegramURL == nil && preferredPhone.isEmpty)
+            .opacity((telegramURL == nil && preferredPhone.isEmpty) ? 0.54 : 1)
+
+            NavigationLink {
+                TripBuilderView()
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "slider.horizontal.3")
+                    Text(tr(
+                        "Or open the Configurator",
+                        "Или открыть Конфигуратор",
+                        "Yoki Konfiguratorni ochish",
+                        "Ёки Конфигураторни очиш"
+                    ))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .font(.system(size: 14.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 4)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
         .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.iumrahCareLight.opacity(0.13), lineWidth: 1)
-        }
-        .shadow(color: Color.iumrahCareDark.opacity(0.07), radius: 20, y: 10)
-    }
-
-    private var careTripSubtitle: String {
-        switch settings.language {
-        case .russian: return "Поддержка рядом на всех этапах вашей поездки"
-        case .english: return "Support by your side throughout your journey"
-        case .uzbek: return "Safaringizning barcha bosqichlarida yoningizdagi yordam"
-        case .uzbekCyrillic: return "Сафарингизнинг барча босқичларида ёнингиздаги ёрдам"
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
         }
     }
 
-    private var lockedChatCard: some View {
-        HStack(alignment: .top, spacing: 14) {
-            IumrahIconBadge(systemName: "lock.fill", role: .security, size: 40, symbolSize: 15, shape: .circle)
+    // MARK: - Topics
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.text("care_locked_title", settings.language))
-                    .font(.headline)
-                Text(L10n.text("care_locked_body", settings.language))
-                    .font(.subheadline)
+    private var helpTopics: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            sectionTitle(
+                tr("How we can help", "Чем мы можем помочь", "Nimada yordam bera olamiz", "Нимада ёрдам бера оламиз"),
+                subtitle: tr(
+                    "One place for the practical parts of your journey.",
+                    "Один контакт для практических вопросов по вашей поездке.",
+                    "Safaringizdagi amaliy savollar uchun bitta aloqa nuqtasi.",
+                    "Сафарингиздаги амалий саволлар учун битта алоқа нуқтаси."
+                )
+            )
+
+            VStack(spacing: 0) {
+                helpTopicRow(icon: "airplane", title: tr("Flights and route", "Перелёт и маршрут", "Parvoz va yo‘nalish", "Парвоз ва йўналиш"))
+                divider
+                helpTopicRow(icon: "building.2.fill", title: tr("Hotel and accommodation", "Отель и размещение", "Mehmonxona va joylashish", "Меҳмонхона ва жойлашиш"))
+                divider
+                helpTopicRow(icon: "car.fill", title: tr("Transfer and services", "Трансфер и услуги", "Transfer va xizmatlar", "Трансфер ва хизматлар"))
+                divider
+                helpTopicRow(icon: "arrow.triangle.2.circlepath", title: tr("Booking changes", "Изменения бронирования", "Bronni o‘zgartirish", "Бронни ўзгартириш"))
+            }
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+            }
+        }
+    }
+
+    private func helpTopicRow(icon: String, title: String) -> some View {
+        HStack(spacing: 13) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(careAccent)
+                .frame(width: 36, height: 36)
+                .background(Color.iumrahCareLight.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Text(title)
+                .font(.system(size: 15.5, weight: .semibold, design: .rounded))
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+    }
+
+    private var divider: some View {
+        Divider()
+            .padding(.leading, 65)
+            .opacity(0.55)
+    }
+
+    // MARK: - Quick answers
+
+    private var quickAnswers: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            sectionTitle(
+                tr("Quick answers", "Быстрые ответы", "Tezkor javoblar", "Тезкор жавоблар"),
+                subtitle: tr(
+                    "The essentials before you contact Care.",
+                    "Самое важное до обращения в Care.",
+                    "Care’ga murojaat qilishdan oldingi asosiy ma’lumotlar.",
+                    "Care’га мурожаат қилишдан олдинги асосий маълумотлар."
+                )
+            )
+
+            VStack(spacing: 0) {
+                answerRow(
+                    icon: "message.fill",
+                    title: tr("When does personal chat open?", "Когда откроется личный чат?", "Shaxsiy chat qachon ochiladi?", "Шахсий чат қачон очилади?"),
+                    body: tr(
+                        "It opens automatically for an active booking, so the conversation stays linked to the correct trip.",
+                        "Он открывается автоматически для активного бронирования, чтобы переписка всегда была привязана к конкретной поездке.",
+                        "U faol bron uchun avtomatik ochiladi, shunda yozishmalar aynan shu safarga bog‘langan bo‘ladi.",
+                        "У фаол брон учун автоматик очилади, шунда ёзишмалар айнан шу сафарга боғланган бўлади."
+                    )
+                )
+                divider
+                answerRow(
+                    icon: "phone.fill",
+                    title: tr("Can I ask before booking?", "Можно обратиться до бронирования?", "Brondan oldin murojaat qilsa bo‘ladimi?", "Брондан олдин мурожаат қилса бўладими?"),
+                    body: tr(
+                        "Yes. Call us or write in Telegram and we will help you understand the options before you create a booking.",
+                        "Да. Позвоните или напишите в Telegram — поможем разобраться с вариантами ещё до создания бронирования.",
+                        "Ha. Qo‘ng‘iroq qiling yoki Telegram’da yozing — bron yaratishdan oldin variantlarni tushunishga yordam beramiz.",
+                        "Ҳа. Қўнғироқ қилинг ёки Telegram’da ёзинг — брон яратишдан олдин вариантларни тушунишга ёрдам берамиз."
+                    )
+                )
+                divider
+                answerRow(
+                    icon: "checkmark.shield.fill",
+                    title: tr("What can Care handle?", "С чем поможет Care?", "Care nimalarda yordam beradi?", "Care нималарда ёрдам беради?"),
+                    body: tr(
+                        "Route, hotel, transfer, services, booking questions and practical changes connected to your journey.",
+                        "Маршрут, отель, трансфер, услуги, вопросы по бронированию и практические изменения, связанные с поездкой.",
+                        "Yo‘nalish, mehmonxona, transfer, xizmatlar, bron savollari va safarga bog‘liq amaliy o‘zgarishlar.",
+                        "Йўналиш, меҳмонхона, трансфер, хизматлар, брон саволлари ва сафарга боғлиқ амалий ўзгаришлар."
+                    )
+                )
+            }
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+            }
+        }
+    }
+
+    private func answerRow(icon: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 13) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(careAccent)
+                .frame(width: 34, height: 34)
+                .background(Color.iumrahCareLight.opacity(0.11), in: Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                Text(body)
+                    .font(.system(size: 13.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahCard()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 15)
     }
 
-    private var supportPromise: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                IumrahInlineIcon(systemName: "heart.circle.fill", role: .care, size: 23)
-                Spacer()
-                Text("iumrah Care")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.74))
-            }
-            Text(L10n.text("care_promise_title", settings.language))
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .tracking(-0.5)
-                .foregroundStyle(.white)
-            Text(L10n.text("care_promise_body", settings.language))
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.78))
-                .fixedSize(horizontal: false, vertical: true)
+    private func sectionTitle(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .tracking(-0.35)
+            Text(subtitle)
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(22)
-        .background {
-            LinearGradient(
-                colors: [Color.iumrahCareDark.opacity(0.98), Color(red: 0.12, green: 0.33, blue: 0.23), Color.iumrahCareLight.opacity(0.90)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+    }
+
+
+    private var careAccent: Color {
+        colorScheme == .dark ? Color.iumrahCareLight : Color.iumrahCareDark
+    }
+
+    // MARK: - Contact actions
+
+    private var preferredPhone: String {
+        let sa = careProfile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !sa.isEmpty { return sa }
+        return careProfile?.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private var telegramURL: URL? {
+        guard let raw = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+
+        if raw.lowercased().hasPrefix("http") {
+            return URL(string: raw)
+        }
+
+        let username = raw
+            .replacingOccurrences(of: "@", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        guard !username.isEmpty else { return nil }
+        return URL(string: "https://t.me/\(username)")
+    }
+
+    private var contactActionSubtitle: String {
+        if isLoadingCareProfile {
+            return tr("Loading", "Загрузка", "Yuklanmoqda", "Юкланмоқда")
+        }
+        return tr("Contact", "Связаться", "Bog‘lanish", "Боғланиш")
+    }
+
+    private func openPhone() {
+        let digits = preferredPhone.filter { $0.isNumber || $0 == "+" }
+        guard !digits.isEmpty, let url = URL(string: "tel:\(digits)") else { return }
+        openURL(url)
+    }
+
+    private func openTelegram() {
+        guard let telegramURL else { return }
+        openURL(telegramURL)
+    }
+
+    private func requestBookingHelp() {
+        if telegramURL != nil {
+            openTelegram()
+        } else {
+            openPhone()
+        }
+    }
+
+    @MainActor
+    private func refreshCare() async {
+        await bookings.refreshAll()
+
+        guard !isLoadingCareProfile else { return }
+        isLoadingCareProfile = true
+        defer { isLoadingCareProfile = false }
+
+        if let profile = try? await ChatService().loadCareProfile() {
+            careProfile = profile
+        }
+    }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language {
+        case .english: return en
+        case .russian: return ru
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
         }
     }
 }
