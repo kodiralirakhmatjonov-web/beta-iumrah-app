@@ -3,11 +3,14 @@ import SwiftUI
 
 enum BookingStoreError: LocalizedError {
     case permanentDeleteUnavailable
+    case authoritativeQuoteRequired
 
     var errorDescription: String? {
         switch self {
         case .permanentDeleteUnavailable:
             return "Permanent booking deletion is not available on the server."
+        case .authoritativeQuoteRequired:
+            return "The package price must be confirmed by the secure iumrah PackageEngine before booking."
         }
     }
 }
@@ -19,6 +22,7 @@ final class BookingStore: ObservableObject {
     @Published private(set) var itineraries: [String: [BookingItineraryItem]] = [:]
 
     private let bookingService = BookingService()
+    private let packageEngine = RemotePackageEngineClient()
     private let hotelCatalogService = HotelCatalogService()
     private let chatService = ChatService()
     private let clientPushService = ClientPushService()
@@ -47,6 +51,13 @@ final class BookingStore: ObservableObject {
         language: AppSettingsStore.Language,
         pilgrimProfile: BookingPilgrimProfile?
     ) async throws -> StoredBookingSession {
+        guard let quoteID = quote.quoteId,
+              quoteID.hasPrefix("server-"),
+              let quoteProof = quote.quoteProof,
+              !quoteProof.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw BookingStoreError.authoritativeQuoteRequired
+        }
+
         let payload = BookingDraftBuilder.make(
             trip: trip,
             hotel: hotel,
@@ -81,38 +92,74 @@ final class BookingStore: ObservableObject {
             hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory, authoritativeRoomId: authoritativeMakkahRoomId),
             madinahHotelSelection: madinahHotel.map { BookingHotelSelectionSnapshot(hotel: $0, room: madinahRoom, roomCategory: madinahRoomCategory, authoritativeRoomId: authoritativeMadinahRoomId) }
         )
+        // Keep only the opaque proof until PackageEngine accepts responsibility for
+        // the server-owned cost report. Persist immediately after the canonical booking
+        // response so an app termination during Business/profile synchronization cannot
+        // lose the reconciliation job. No supplier pricing is readable here.
+        session.pendingGeneratorQuoteProof = quote.quoteProof
+        upsert(session)
+
+        // Hand the confidential report to PackageEngine immediately after the
+        // canonical booking exists. PackageEngine either commits it to an existing
+        // Business trip or durably queues it server-side until that trip is created.
+        // This closes the crash window before account/profile synchronization.
+        var pricingReportCommitted = false
+        if let proof = session.pendingGeneratorQuoteProof, !proof.isEmpty {
+            pricingReportCommitted = await commitPricingReportWithRetry(
+                id: session.id,
+                accessToken: session.accessToken,
+                quoteProof: proof
+            )
+            if pricingReportCommitted {
+                session.pendingGeneratorQuoteProof = nil
+                upsert(session)
+            }
+        }
+
         if let accountToken, !accountToken.isEmpty,
            let linked = try? await accountService.linkBooking(bookingID: session.id, bookingToken: session.accessToken, token: accountToken) {
             session.pilgrimID = linked.pilgrimID
             session.bookingNumber = linked.bookingNumber
             session.bookingDisplayNumber = linked.bookingDisplayNumber
         }
-        // Send the generator's complete supplier-cost audit independently from the
-        // public booking API. iumrah Business stores this snapshot verbatim and uses
-        // it for "Цена под капотом". A short retry window protects a newly-created
-        // booking from propagation races between the booking and operations workers.
+        // First synchronize only the public generator trace. The confidential
+        // supplier-cost report is never accepted from the client anymore.
         let generatorReportResult = await syncGeneratorReportWithRetry(
             id: session.id,
             accessToken: session.accessToken,
-            generatorTrace: payload.booking.generatorTrace,
-            pricingSnapshot: payload.booking.pricingSnapshot
+            generatorTrace: payload.booking.generatorTrace
         )
         if let operational = generatorReportResult {
             session.mergeOperationalTrip(operational.trip)
             session.guide = operational.assignment?.guide
         }
+
         if let profile = serverProfile, !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            !profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             if let response = try? await bookingService.syncBookingProfile(
                 id: session.id,
                 accessToken: session.accessToken,
                 profile: profile,
-                generatorTrace: generatorReportResult == nil ? payload.booking.generatorTrace : nil,
-                pricingSnapshot: generatorReportResult == nil ? payload.booking.pricingSnapshot : nil
+                generatorTrace: generatorReportResult == nil ? payload.booking.generatorTrace : nil
             ) {
                 session.mergeOperationalTrip(response.trip)
                 session.guide = response.assignment?.guide
             }
+        }
+
+        // Profile sync may have created the Business trip after the first commit
+        // attempt. Give the server-owned report one final immediate chance here; a
+        // pending proof is also retried by refreshAll if a transient race remains.
+        if !pricingReportCommitted,
+           let proof = session.pendingGeneratorQuoteProof, !proof.isEmpty {
+            pricingReportCommitted = await commitPricingReportWithRetry(
+                id: session.id,
+                accessToken: session.accessToken,
+                quoteProof: proof
+            )
+        }
+        if pricingReportCommitted {
+            session.pendingGeneratorQuoteProof = nil
         }
         upsert(session)
         if let makkahSelection = session.hotelSelection {
@@ -137,12 +184,10 @@ final class BookingStore: ObservableObject {
     private func syncGeneratorReportWithRetry(
         id: String,
         accessToken: String,
-        generatorTrace: BookingGeneratorTrace?,
-        pricingSnapshot: GeneratorPricingSnapshot?
+        generatorTrace: BookingGeneratorTrace?
     ) async -> ClientTripResponse? {
-        // No report means there is nothing useful to synchronize.
-        guard generatorTrace != nil || pricingSnapshot != nil else { return nil }
-        let retryDelaysMilliseconds = [0, 350, 900]
+        guard generatorTrace != nil else { return nil }
+        let retryDelaysMilliseconds = [0, 350, 900, 1_800]
         for (index, delayMilliseconds) in retryDelaysMilliseconds.enumerated() {
             if delayMilliseconds > 0 {
                 try? await Task.sleep(nanoseconds: UInt64(delayMilliseconds) * 1_000_000)
@@ -151,18 +196,45 @@ final class BookingStore: ObservableObject {
                 return try await bookingService.syncGeneratorReport(
                     id: id,
                     accessToken: accessToken,
-                    generatorTrace: generatorTrace,
-                    pricingSnapshot: pricingSnapshot
+                    generatorTrace: generatorTrace
                 )
             } catch {
                 if index == retryDelaysMilliseconds.count - 1 {
                     #if DEBUG
-                    print("[BookingStore] generator pricing report sync failed after retries: \(error)")
+                    print("[BookingStore] generator trace sync failed after retries: \(error)")
                     #endif
                 }
             }
         }
         return nil
+    }
+
+    private func commitPricingReportWithRetry(
+        id: String,
+        accessToken: String,
+        quoteProof: String
+    ) async -> Bool {
+        let retryDelaysMilliseconds = [0, 350, 900, 1_800]
+        for (index, delayMilliseconds) in retryDelaysMilliseconds.enumerated() {
+            if delayMilliseconds > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delayMilliseconds) * 1_000_000)
+            }
+            do {
+                try await packageEngine.commitPricingReport(
+                    bookingID: id,
+                    bookingToken: accessToken,
+                    quoteProof: quoteProof
+                )
+                return true
+            } catch {
+                if index == retryDelaysMilliseconds.count - 1 {
+                    #if DEBUG
+                    print("[BookingStore] server pricing report commit failed after retries: \(error)")
+                    #endif
+                }
+            }
+        }
+        return false
     }
 
     func refreshAll() async {
@@ -195,6 +267,14 @@ final class BookingStore: ObservableObject {
                         operational: ClientTripResponse(ok: true, trip: detail.trip, assignment: detail.assignment),
                         bookingID: session.id
                     )
+                }
+
+                if !bookingToken.isEmpty,
+                   let pendingProof = session.pendingGeneratorQuoteProof,
+                   !pendingProof.isEmpty,
+                   await commitPricingReportWithRetry(id: session.id, accessToken: bookingToken, quoteProof: pendingProof),
+                   let index = sessions.firstIndex(where: { $0.id == session.id }) {
+                    sessions[index].pendingGeneratorQuoteProof = nil
                 }
 
                 if let current = booking(id: session.id) {

@@ -5,7 +5,7 @@ import test from "node:test";
 const root = new URL("../../../", import.meta.url);
 const journey = fs.readFileSync(new URL("Sources/State/JourneyStore.swift", root), "utf8");
 const finalPackage = fs.readFileSync(new URL("Sources/Views/Package/FinalPackageView.swift", root), "utf8");
-const pricing = fs.readFileSync(new URL("Sources/Services/LocalPackagePricingEngine.swift", root), "utf8");
+const pricing = fs.readFileSync(new URL("Backend/PackageEngine/src/pricing.ts", root), "utf8");
 
 const comparisonBuilder = journey.slice(
   journey.indexOf("func buildPackageTierComparisons"),
@@ -23,9 +23,8 @@ test("final package comparison keeps the exact selected flight itinerary and far
   assert.match(comparisonBuilder, /returnOffer\(value, matches: outbound\)/);
   assert.match(comparisonBuilder, /pricingOffer = value/);
   assert.match(comparisonBuilder, /pricingOffer = outbound/);
-  assert.match(comparisonBuilder, /LocalFXRateService\.shared\.usd\(rawFare, currency: pricingOffer\.currency\)/);
-  assert.match(comparisonPricing, /journeyFareUsd: flight\.journeyFareUsd/);
-  assert.match(comparisonPricing, /journeyFareScope: flight\.fareScope/);
+  assert.doesNotMatch(comparisonBuilder, /LocalFXRateService\.shared\.usd/);
+  assert.match(comparisonPricing, /packageEngine\.packageQuote\(/);
   assert.match(comparisonPricing, /pricingOffer: flight\.pricingOffer/);
   assert.match(comparisonPricing, /outboundOffer: flight\.outboundOffer/);
   assert.match(comparisonPricing, /inboundOffer: flight\.inboundOffer/);
@@ -43,18 +42,17 @@ test("comparison hotel policy uses the agreed named hotels and Business Primary 
 });
 
 test("comparison recomputes hotel room nights but does not silently add Luxury Yukon or paid Comfort-Luxury meals", () => {
-  assert.match(comparisonPricing, /TripStayPlanner\.windows\(for: comparisonTrip/);
-  assert.match(comparisonPricing, /nightlyUsd: makkahNightly/);
-  assert.match(comparisonPricing, /nights: windows\.makkah\.nights/);
-  assert.match(comparisonPricing, /rooms: rooms/);
+  assert.match(comparisonPricing, /trip: comparisonTrip/);
+  assert.match(comparisonPricing, /makkahHotelID: makkahHotel\.id/);
+  assert.match(comparisonPricing, /madinahHotelID: madinahHotel\?\.id/);
   assert.match(comparisonPricing, /makkahLunch: false/);
   assert.match(comparisonPricing, /makkahDinner: false/);
   assert.match(comparisonPricing, /madinahDinner: false/);
   assert.match(comparisonPricing, /transferVehicle: selectedTransferVehicle/);
   assert.doesNotMatch(comparisonPricing, /transferVehicle:\s*\.yukon/);
   assert.doesNotMatch(comparisonPricing, /selectedTransferVehicle\s*=\s*\.yukon/);
-  assert.match(pricing, /luxuryPackageMarkupRate\s*=\s*Decimal\(string:\s*"0\.35"\)!/);
-  assert.match(pricing, /tier == \.luxury \? luxuryPackageMarkupRate : standardPackageMarkupRate/);
+  assert.match(pricing, /const LUXURY_MARKUP = 0\.35/);
+  assert.match(pricing, /input\.tier === "luxury" \? LUXURY_MARKUP : STANDARD_MARKUP/);
 });
 
 test("carousel comparison is explicit, reversible UX and opens on the configured package", () => {

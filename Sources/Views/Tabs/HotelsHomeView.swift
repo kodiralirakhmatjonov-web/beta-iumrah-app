@@ -1004,6 +1004,8 @@ struct StorefrontUmrahPackageDetailView: View {
     @State private var showMadinahFirstCityPicker = false
     @State private var mealsExpanded = false
     @State private var shareArtifacts: IumrahPackageShareArtifacts?
+    @State private var soloComparisonServerQuote: PackageQuote?
+    @State private var twoPersonComparisonServerQuote: PackageQuote?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1624,7 +1626,7 @@ struct StorefrontUmrahPackageDetailView: View {
     }
 
     private func mealToggleRow(_ meal: HotelMealKind, city: HotelMealCity) -> some View {
-        let unit = LocalPackagePricingEngine.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
+        let unit = PackagePricingPresentation.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
         let binding = Binding(
             get: { journey.isMealEnabled(meal, city: city) },
             set: { journey.setMealEnabled($0, meal: meal, city: city) }
@@ -1856,14 +1858,14 @@ struct StorefrontUmrahPackageDetailView: View {
         journey.quote ?? preview.packageQuote
     }
 
-    private func hypotheticalQuote(adults: Int, children: Int, infants: Int, rooms: Int) -> PackageQuote? {
+    private func hypotheticalQuote(adults: Int, children: Int, infants: Int, rooms: Int) async -> PackageQuote? {
         guard isPrepared, let makkahHotel = journey.selectedHotel else { return nil }
         var trip = journey.trip
         trip.adults = max(1, adults)
         trip.children = max(0, children)
         trip.infants = max(0, infants)
         trip.rooms = max(1, rooms)
-        return storefront.checkoutQuote(
+        return await storefront.checkoutQuote(
             for: preview,
             trip: trip,
             makkahHotel: makkahHotel,
@@ -1873,26 +1875,35 @@ struct StorefrontUmrahPackageDetailView: View {
             transferVehicle: journey.selectedTransferVehicle,
             includeHaramainTrain: journey.haramainTrainSelected,
             haramainPublicAddOnUsd: journey.haramainTrainAddOnUsd,
+            haramainFareClass: journey.haramainFareClass,
+            haramainTicketCount: journey.haramainTicketCount,
             journeyFarePerPersonUSD: currentJourneyFarePerPerson,
             outboundOffer: journey.selectedOutbound,
             inboundOffer: journey.selectedInbound
         )
     }
 
-    private var soloComparisonQuote: PackageQuote? {
-        hypotheticalQuote(adults: 1, children: 0, infants: 0, rooms: 1)
-    }
+    private var soloComparisonQuote: PackageQuote? { soloComparisonServerQuote }
 
     private var twoPersonSavings: StorefrontGroupSavings? {
-        guard let solo = soloComparisonQuote,
-              let pair = hypotheticalQuote(adults: 2, children: 0, infants: 0, rooms: 1) else { return nil }
+        guard let solo = soloComparisonServerQuote,
+              let pair = twoPersonComparisonServerQuote else { return nil }
         return savings(comparedWithSolo: solo, groupQuote: pair, people: 2)
     }
 
     private var currentPartySavings: StorefrontGroupSavings? {
         let people = max(1, journey.trip.travelerCount)
-        guard people > 1, let solo = soloComparisonQuote else { return nil }
+        guard people > 1, let solo = soloComparisonServerQuote else { return nil }
         return savings(comparedWithSolo: solo, groupQuote: currentQuote, people: people)
+    }
+
+    @MainActor
+    private func refreshComparisonQuotes() async {
+        async let solo = hypotheticalQuote(adults: 1, children: 0, infants: 0, rooms: 1)
+        async let pair = hypotheticalQuote(adults: 2, children: 0, infants: 0, rooms: 1)
+        let values = await (solo, pair)
+        soloComparisonServerQuote = values.0
+        twoPersonComparisonServerQuote = values.1
     }
 
     private func savings(comparedWithSolo solo: PackageQuote, groupQuote: PackageQuote, people: Int) -> StorefrontGroupSavings? {
@@ -2054,7 +2065,7 @@ struct StorefrontUmrahPackageDetailView: View {
 
     private var canBook: Bool {
         guard isPrepared,
-              journey.quote != nil,
+              journey.hasFinalGeneratorQuote,
               journey.selectedHotel != nil,
               journey.selectedOutbound != nil,
               journey.selectedInbound != nil else { return false }
@@ -2203,12 +2214,10 @@ struct StorefrontUmrahPackageDetailView: View {
         isPrepared = true
         suppressQuoteRefresh = false
 
-        // Hotel cards and the hotel detail use the same two-person storefront quote.
-        // Preserve that exact number only for the untouched default Hotel First entry.
-        // Shared/configured packages must be recalculated from their restored snapshot.
-        if !isHotelFirst || shared != nil {
-            refreshQuote()
-        }
+        // Keep the already-rendered storefront number on screen, then obtain the
+        // authoritative dated server quote (and opaque booking proof) in-place.
+        // The UI does not change; only the pricing owner moves to PackageEngine.
+        refreshQuote()
     }
 
     @MainActor
@@ -2216,26 +2225,49 @@ struct StorefrontUmrahPackageDetailView: View {
         guard isPrepared,
               let makkahHotel = journey.selectedHotel else { return }
 
-        let quote = storefront.checkoutQuote(
-            for: preview,
-            trip: journey.trip,
-            makkahHotel: makkahHotel,
-            madinahHotel: journey.selectedMadinahHotel,
-            makkahRoomID: journey.selectedRoom?.id ?? journey.selectedRoomCategory?.id,
-            madinahRoomID: journey.selectedMadinahRoom?.id ?? journey.selectedMadinahRoomCategory?.id,
-            transferVehicle: journey.selectedTransferVehicle,
-            includeHaramainTrain: journey.haramainTrainSelected,
-            haramainPublicAddOnUsd: journey.haramainTrainAddOnUsd,
-            journeyFarePerPersonUSD: currentJourneyFarePerPerson,
-            outboundOffer: journey.selectedOutbound,
-            inboundOffer: journey.selectedInbound
-        )
+        let expectedTrip = journey.trip
+        let expectedMakkahID = makkahHotel.id
+        let expectedMadinahID = journey.selectedMadinahHotel?.id
+        let makkahRoomID = journey.selectedRoom?.id ?? journey.selectedRoomCategory?.id
+        let madinahRoomID = journey.selectedMadinahRoom?.id ?? journey.selectedMadinahRoomCategory?.id
+        let transferVehicle = journey.selectedTransferVehicle
+        let includeTrain = journey.haramainTrainSelected
+        let trainAddOn = journey.haramainTrainAddOnUsd
+        let trainClass = journey.haramainFareClass
+        let trainTickets = journey.haramainTicketCount
+        let outbound = journey.selectedOutbound
+        let inbound = journey.selectedInbound
+        let fare = currentJourneyFarePerPerson
+        let madinahHotel = journey.selectedMadinahHotel
 
-        if let quote {
-            journey.quote = quote
-            bookingError = nil
-        } else {
-            bookingError = priceRefreshErrorText
+        Task { @MainActor in
+            let quote = await storefront.checkoutQuote(
+                for: preview,
+                trip: expectedTrip,
+                makkahHotel: makkahHotel,
+                madinahHotel: madinahHotel,
+                makkahRoomID: makkahRoomID,
+                madinahRoomID: madinahRoomID,
+                transferVehicle: transferVehicle,
+                includeHaramainTrain: includeTrain,
+                haramainPublicAddOnUsd: trainAddOn,
+                haramainFareClass: trainClass,
+                haramainTicketCount: trainTickets,
+                journeyFarePerPersonUSD: fare,
+                outboundOffer: outbound,
+                inboundOffer: inbound
+            )
+
+            guard journey.trip == expectedTrip,
+                  journey.selectedHotel?.id == expectedMakkahID,
+                  journey.selectedMadinahHotel?.id == expectedMadinahID else { return }
+            if let quote {
+                journey.quote = quote
+                bookingError = nil
+                await refreshComparisonQuotes()
+            } else {
+                bookingError = priceRefreshErrorText
+            }
         }
     }
 
@@ -2543,7 +2575,7 @@ struct StorefrontUmrahPackageDetailView: View {
     private var mealsTitle: String { tr("Питание", "Meals", "Ovqatlanish", "Овқатланиш") }
     private var mealsSummary: String {
         if supportsOptionalMeals {
-            let unit = LocalPackagePricingEngine.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
+            let unit = PackagePricingPresentation.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
             let amount = NSDecimalNumber(decimal: unit).intValue
             return tr(
                 "Завтрак включён · обед и ужин по желанию · $\(amount) / человек / день",

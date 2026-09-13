@@ -9,6 +9,9 @@ import { handleClientAccountSecurity } from "./client-account-security";
 import { cleanupExpiredFlightCache, flightCalendarResponse } from "./flight-cache";
 import { deleteCuratedFlightAdmin, listCuratedFlightsAdmin, publicCuratedFlightRecommendations, resolvePublicCuratedFlightRecommendation, saveCuratedFlightAdmin } from "./curated-flights";
 import { appleAppSiteAssociation, hotelWebFallback, publicStorefrontFlightBoard } from "./storefront";
+import { generatePackageQuote, generateStorefrontPackageQuote } from "./package-search";
+import { commitPackageQuoteReport } from "./booking-gateway";
+import { quoteSealingMode } from "./quote-audit";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -32,6 +35,7 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      quoteSealingMode: quoteSealingMode(env),
     });
   }
 
@@ -70,6 +74,7 @@ async function publicHealth(env: Env) {
       bookingRoomColumnsReady: Boolean(env.BOOKINGS_DB),
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      quoteSealingMode: quoteSealingMode(env),
     });
   } catch (error) {
     return json({
@@ -82,6 +87,7 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      quoteSealingMode: quoteSealingMode(env),
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);
   }
@@ -172,6 +178,19 @@ export default {
 
     if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {
       return publicHealth(env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/quote") {
+      return generatePackageQuote(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/storefront/quote") {
+      return generateStorefrontPackageQuote(request, env);
+    }
+
+    const quoteCommitMatch = url.pathname.match(/^\/api\/package\/quote\/commit\/(IUM-\d{4}-[A-Z2-9]{7})$/);
+    if (request.method === "POST" && quoteCommitMatch) {
+      return commitPackageQuoteReport(request, quoteCommitMatch[1], env);
     }
 
     if (request.method === "POST" && url.pathname === "/api/package/flights/search") {

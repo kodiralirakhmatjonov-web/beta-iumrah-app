@@ -66,13 +66,12 @@ test('invalid Primary Hotel query fails closed', async () => {
   assert.equal(response.status, 400);
 });
 
-test('all removed flight/search/quote routes are 404 on the active worker', async () => {
+test('removed legacy package routes stay 404 on the active worker', async () => {
   const removed = [
     '/api/package/flights/provider-search',
     '/api/package/search-sessions',
     '/api/package/search-sessions/abc',
     '/api/package/flight-options/quote',
-    '/api/package/quote',
     '/api/package/bookings',
     '/api/package/hotel-component-price',
   ];
@@ -80,6 +79,16 @@ test('all removed flight/search/quote routes are 404 on the active worker', asyn
     const response = await worker.fetch(new Request(`https://iumrah.app${path}`, { method: path.includes('primary-hotels') ? 'GET' : 'POST' }), {});
     assert.equal(response.status, 404, `${path} must stay removed`);
   }
+});
+
+test('server package quote route is active and rejects malformed input without writing anything', async () => {
+  const response = await worker.fetch(new Request('https://iumrah.app/api/package/quote', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{',
+  }), {});
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'INVALID_JSON');
 });
 
 function searchBody(overrides = {}) {

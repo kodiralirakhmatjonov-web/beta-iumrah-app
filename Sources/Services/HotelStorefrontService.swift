@@ -6,6 +6,37 @@ private struct StorefrontFareCalendarEnvelope: Decodable {
     let suggestions: [FlightFareCalendarEntry]
 }
 
+private struct ServerStorefrontQuoteRequest: Encodable {
+    struct Flight: Encodable {
+        let outboundOfferId: String
+        let inboundOfferId: String
+        let outboundOrigin: String
+        let outboundDestination: String
+        let outboundDate: String
+        let inboundOrigin: String
+        let inboundDestination: String
+        let inboundDate: String
+    }
+    let tier: String
+    let travelers: Int
+    let rooms: Int
+    let hotelId: String
+    let hotelNights: Int
+    let flight: Flight
+}
+
+private struct ServerStorefrontQuoteEnvelope: Decodable {
+    struct Quote: Decodable {
+        let totalPackagePrice: Decimal
+        let pricePerPerson: Decimal
+        let currency: String
+        let isEstimated: Bool
+        let quoteId: String
+    }
+    let ok: Bool
+    let quote: Quote
+}
+
 struct HotelStorefrontService {
     private let api = APIClient.shared
 
@@ -51,43 +82,55 @@ struct HotelStorefrontService {
         tier: PackageTier,
         baseline: StorefrontFlightBaseline,
         price overridePrice: HotelCatalogPrice? = nil
-    ) throws -> HotelStorefrontQuote {
-        guard baseline.currency.uppercased() == "USD", baseline.perTravelerFareUsd > 0 else {
+    ) async throws -> HotelStorefrontQuote {
+        guard baseline.currency.uppercased() == "USD" else {
             throw LocalPricingError.invalidFlightFare
         }
-        // The 48-hour refresh policy is owned by the hotel-price backend. For the
-        // storefront preview, a positive normalized cached nightly price is enough
-        // to run the arithmetic immediately. Requiring the client to re-validate the
-        // server's freshness metadata was causing every card to remain stuck in
-        // "Calculating package…" even though the price already existed in D1.
-        guard let catalog = overridePrice ?? hotel.price,
-              let nightly = catalog.nightlyUSD,
-              nightly.isFinite,
-              nightly > 0 else {
-            throw LocalPricingError.missingHotelPrice(hotel.city)
-        }
-
-        let nights = max(1, packageNights(from: baseline) ?? catalog.nights ?? fallbackNights(for: hotel.city))
-        let rooms = max(1, catalog.rooms ?? 1)
+        // Night count is public itinerary geometry only. Hotel and flight supplier
+        // prices are resolved again by PackageEngine from D1; the client never
+        // participates in package arithmetic.
+        let nights = max(1, packageNights(from: baseline) ?? overridePrice?.nights ?? hotel.price?.nights ?? fallbackNights(for: hotel.city))
+        let rooms = max(1, overridePrice?.rooms ?? hotel.price?.rooms ?? 1)
         let travelers = 2
-        let nightlyDecimal = Decimal(nightly)
-        let fareDecimal = Decimal(baseline.perTravelerFareUsd)
-        let packageQuote = try LocalPackagePricingEngine.calculateStorefrontPreview(
-            tier: tier,
-            flightFarePerTravelerUsd: fareDecimal,
-            hotelNightlyUsd: nightlyDecimal,
-            hotelNights: nights,
+        let request = ServerStorefrontQuoteRequest(
+            tier: tier.rawValue,
+            travelers: travelers,
             rooms: rooms,
-            travelers: travelers
+            hotelId: hotel.id,
+            hotelNights: nights,
+            flight: .init(
+                outboundOfferId: baseline.outboundOfferID,
+                inboundOfferId: baseline.inboundOfferID,
+                outboundOrigin: baseline.outbound.origin,
+                outboundDestination: baseline.outbound.destination,
+                outboundDate: String(baseline.outbound.departureAt.prefix(10)),
+                inboundOrigin: baseline.inbound.origin,
+                inboundDestination: baseline.inbound.destination,
+                inboundDate: String(baseline.inbound.departureAt.prefix(10))
+            )
+        )
+        let response: ServerStorefrontQuoteEnvelope = try await api.post(
+            "/api/package/storefront/quote",
+            body: request,
+            timeoutInterval: 12
+        )
+        guard response.ok else { throw APIError.invalidResponse }
+        let packageQuote = PackageQuote(
+            totalPackagePrice: response.quote.totalPackagePrice,
+            pricePerPerson: response.quote.pricePerPerson,
+            currency: response.quote.currency,
+            isEstimated: response.quote.isEstimated,
+            quoteId: response.quote.quoteId,
+            quoteProof: nil
         )
         return HotelStorefrontQuote(
             tier: tier,
             packageQuote: packageQuote,
-            hotelNightlyUsd: nightlyDecimal,
+            hotelNightlyUsd: 0,
             hotelNights: nights,
             rooms: rooms,
             travelers: travelers,
-            flightFarePerTravelerUsd: fareDecimal
+            flightFarePerTravelerUsd: 0
         )
     }
 

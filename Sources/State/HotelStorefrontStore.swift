@@ -19,6 +19,7 @@ final class HotelStorefrontStore: ObservableObject {
 
     private let catalog = HotelCatalogService()
     private let storefront = HotelStorefrontService()
+    private let packageEngine = RemotePackageEngineClient()
     private let favoritesKey = "iumrah.hotelStorefront.favorites.v1"
     private let snapshotURL: URL
     private var preparationTask: Task<Void, Never>?
@@ -79,9 +80,11 @@ final class HotelStorefrontStore: ObservableObject {
 
     func ingest(detail: HotelDetail) {
         details[detail.id] = detail
-        rebuildQuotes()
-        rebuildFlightPackagePreviews()
-        persistDiskSnapshot()
+        Task { @MainActor in
+            await rebuildQuotes()
+            await rebuildFlightPackagePreviews()
+            persistDiskSnapshot()
+        }
         startImageWarmup()
     }
 
@@ -102,8 +105,8 @@ final class HotelStorefrontStore: ObservableObject {
         do {
             let board = try await storefront.resilientFlightBoard(origin: normalized)
             flightBoard = board
-            rebuildQuotes()
-            rebuildFlightPackagePreviews()
+            await rebuildQuotes()
+            await rebuildFlightPackagePreviews()
             hasPrepared = !allHotels.isEmpty && baseline != nil && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty)
             errorMessage = nil
             persistDiskSnapshot()
@@ -263,54 +266,35 @@ final class HotelStorefrontStore: ObservableObject {
         transferVehicle: TransferVehicleKind?,
         includeHaramainTrain: Bool = false,
         haramainPublicAddOnUsd: Decimal = 0,
+        haramainFareClass: HaramainFareClass = .economy,
+        haramainTicketCount: Int? = nil,
         journeyFarePerPersonUSD: Decimal? = nil,
         outboundOffer selectedOutboundOffer: FlightOffer? = nil,
         inboundOffer selectedInboundOffer: FlightOffer? = nil
-    ) -> PackageQuote? {
-        let resolvedFare = journeyFarePerPersonUSD ?? preview.flightFarePerPersonUSD
-        guard resolvedFare > 0,
-              let previewOffers = bookingFlightOffers(for: preview),
-              let makkahNightly = nightlyUSD(for: makkahHotel) else { return nil }
+    ) async -> PackageQuote? {
+        // `journeyFarePerPersonUSD` and `haramainPublicAddOnUsd` remain in the
+        // signature for source compatibility only. PackageEngine re-resolves all
+        // supplier values and public add-ons from identifiers + selections.
+        _ = journeyFarePerPersonUSD
+        _ = haramainPublicAddOnUsd
+        guard let previewOffers = bookingFlightOffers(for: preview) else { return nil }
         let outboundOffer = selectedOutboundOffer ?? previewOffers.outbound
         let inboundOffer = selectedInboundOffer ?? previewOffers.inbound
+        guard trip.scope != .makkahAndMadinah || madinahHotel != nil else { return nil }
 
-        let windows = TripStayPlanner.windows(for: trip, calendar: storefrontCalendar)
-        let makkah = LocalHotelPriceComponent(
-            nightlyUsd: makkahNightly,
-            nights: windows.makkah.nights,
-            rooms: max(1, trip.rooms),
-            hotelId: makkahHotel.id,
-            roomId: makkahRoomID,
-            source: "iumrah-flights-scanner-checkout-makkah"
-        )
-
-        var madinah: LocalHotelPriceComponent?
-        if trip.scope == .makkahAndMadinah {
-            guard let madinahHotel,
-                  let madinahWindow = windows.madinah,
-                  let madinahNightly = nightlyUSD(for: madinahHotel) else { return nil }
-            madinah = LocalHotelPriceComponent(
-                nightlyUsd: madinahNightly,
-                nights: madinahWindow.nights,
-                rooms: max(1, trip.rooms),
-                hotelId: madinahHotel.id,
-                roomId: madinahRoomID,
-                source: "iumrah-flights-scanner-checkout-madinah"
-            )
-        }
-
-        return try? LocalPackagePricingEngine.calculate(
+        return try? await packageEngine.packageQuote(
             trip: trip,
-            journeyFareUsd: resolvedFare,
-            journeyFareScope: .perPassenger,
             pricingOffer: inboundOffer,
             outboundOffer: outboundOffer,
-            inboundOffer: inboundOffer,
-            makkahHotel: makkah,
-            madinahHotel: madinah,
+            inboundOffer: trip.isRoundTripFlight ? inboundOffer : nil,
+            makkahHotelID: makkahHotel.id,
+            makkahRoomID: makkahRoomID,
+            madinahHotelID: trip.scope == .makkahAndMadinah ? madinahHotel?.id : nil,
+            madinahRoomID: trip.scope == .makkahAndMadinah ? madinahRoomID : nil,
             includeHaramainTrain: includeHaramainTrain,
             transferVehicle: transferVehicle,
-            haramainPublicAddOnUsd: haramainPublicAddOnUsd
+            haramainFareClass: haramainFareClass,
+            haramainTicketCount: haramainTicketCount ?? max(0, trip.adults + trip.children)
         )
     }
 
@@ -403,8 +387,8 @@ final class HotelStorefrontStore: ObservableObject {
 
         // Most catalogue responses already contain the fresh 48h nightly rate,
         // so quotes normally become available here before detail/gallery requests.
-        rebuildQuotes()
-        rebuildFlightPackagePreviews()
+        await rebuildQuotes()
+        await rebuildFlightPackagePreviews()
         startImageWarmup()
 
         // Hotel detail is also a price fallback. Some catalogue deployments expose
@@ -415,8 +399,8 @@ final class HotelStorefrontStore: ObservableObject {
         if !hotels.isEmpty {
             let loadedDetails = await fetchDetails(for: hotels)
             for detail in loadedDetails { details[detail.id] = detail }
-            rebuildQuotes()
-            rebuildFlightPackagePreviews()
+            await rebuildQuotes()
+            await rebuildFlightPackagePreviews()
             persistDiskSnapshot()
             startImageWarmup()
         }
@@ -482,32 +466,43 @@ final class HotelStorefrontStore: ObservableObject {
         }
     }
 
-    private func rebuildQuotes() {
+    private func rebuildQuotes() async {
         guard let baseline else {
-            // Keep the last valid local quotes from the disk snapshot while the
-            // flight baseline refreshes. A transient network failure must never
-            // turn already calculated hotel cards back into endless spinners.
+            // Keep the last valid public server quotes while the baseline refreshes.
             return
+        }
+
+        let hotels = allHotels
+        let storefrontService = storefront
+        let results = await withTaskGroup(of: (String, PackageTier, HotelStorefrontQuote?).self, returning: [(String, PackageTier, HotelStorefrontQuote?)].self) { group in
+            for hotel in hotels {
+                let price = bestFreshPrice(for: hotel)
+                for tier in [PackageTier.standard, .comfort, .luxury] {
+                    group.addTask {
+                        let quote = try? await storefrontService.quote(hotel: hotel, tier: tier, baseline: baseline, price: price)
+                        return (hotel.id, tier, quote)
+                    }
+                }
+            }
+            var values: [(String, PackageTier, HotelStorefrontQuote?)] = []
+            for await value in group { values.append(value) }
+            return values
         }
 
         var standard: [String: HotelStorefrontQuote] = [:]
         var comfort: [String: HotelStorefrontQuote] = [:]
         var luxury: [String: HotelStorefrontQuote] = [:]
-        for hotel in allHotels {
-            let price = bestFreshPrice(for: hotel)
-            if let quote = try? storefront.quote(hotel: hotel, tier: .standard, baseline: baseline, price: price) {
-                standard[hotel.id] = quote
-            }
-            if let quote = try? storefront.quote(hotel: hotel, tier: .comfort, baseline: baseline, price: price) {
-                comfort[hotel.id] = quote
-            }
-            if let quote = try? storefront.quote(hotel: hotel, tier: .luxury, baseline: baseline, price: price) {
-                luxury[hotel.id] = quote
+        for (hotelID, tier, quote) in results {
+            guard let quote else { continue }
+            switch tier {
+            case .luxury: luxury[hotelID] = quote
+            case .comfort: comfort[hotelID] = quote
+            case .economy, .standard: standard[hotelID] = quote
             }
         }
-        standardQuotes = standard
-        comfortQuotes = comfort
-        luxuryQuotes = luxury
+        if !standard.isEmpty { standardQuotes = standard }
+        if !comfort.isEmpty { comfortQuotes = comfort }
+        if !luxury.isEmpty { luxuryQuotes = luxury }
     }
 
     private func bestFreshPrice(for hotel: HotelSummary) -> HotelCatalogPrice? {
@@ -522,7 +517,7 @@ final class HotelStorefrontStore: ObservableObject {
     /// Uzbekistan → Saudi Arabia rows are package anchors. The scanner pairs each
     /// anchor with a Saudi Arabia → Uzbekistan return and mirrors the same composed
     /// package price onto that return row. Raw ticket prices stay internal.
-    private func rebuildFlightPackagePreviews() {
+    private func rebuildFlightPackagePreviews() async {
         guard let board = flightBoard else {
             flightPackagePreviews = [:]
             return
@@ -551,7 +546,7 @@ final class HotelStorefrontStore: ObservableObject {
         // This prevents the same return flight from independently inventing a second price.
         for option in board.options where isPackageAnchor(option) {
             guard let pair = packagePair(forOutbound: option, among: board.options),
-                  let preview = makePackagePreview(
+                  let preview = await makePackagePreview(
                     pair: pair,
                     standardMakkahHotel: standardMakkahHotel,
                     standardMadinahHotel: standardMadinahHotel,
@@ -790,7 +785,7 @@ final class HotelStorefrontStore: ObservableObject {
         standardMakkahHotel: HotelSummary?,
         standardMadinahHotel: HotelSummary?,
         comfortMakkahHotel: HotelSummary?
-    ) -> StorefrontFlightPackagePreview? {
+    ) async -> StorefrontFlightPackagePreview? {
         guard pair.farePerPersonUSD > 0,
               let outboundDeparture = isoDate(pair.outbound.departureAt),
               let outboundArrival = isoDate(pair.outbound.arrivalAt),
@@ -843,33 +838,6 @@ final class HotelStorefrontStore: ObservableObject {
             return nil
         }
 
-        guard let makkahNightly = nightlyUSD(for: makkahHotel) else { return nil }
-        let windows = TripStayPlanner.windows(for: trip, calendar: storefrontCalendar)
-        let makkahComponent = LocalHotelPriceComponent(
-            nightlyUsd: makkahNightly,
-            nights: windows.makkah.nights,
-            rooms: 1,
-            hotelId: makkahHotel.id,
-            roomId: nil,
-            source: pair.kind == .makkahComfortShort
-                ? "iumrah-storefront-comfort-shohada"
-                : "iumrah-storefront-standard-nawazi"
-        )
-
-        var madinahComponent: LocalHotelPriceComponent?
-        if let madinahHotel,
-           let window = windows.madinah,
-           let nightly = nightlyUSD(for: madinahHotel) {
-            madinahComponent = LocalHotelPriceComponent(
-                nightlyUsd: nightly,
-                nights: window.nights,
-                rooms: 1,
-                hotelId: madinahHotel.id,
-                roomId: nil,
-                source: "iumrah-storefront-standard-mihrab-tayyiba"
-            )
-        }
-
         let outboundOffer = syntheticOffer(
             id: pair.outboundOptionID,
             leg: pair.outbound,
@@ -889,18 +857,19 @@ final class HotelStorefrontStore: ObservableObject {
             observedAt: pair.observedAt
         )
 
-        guard let quote = try? LocalPackagePricingEngine.calculate(
+        guard let quote = try? await packageEngine.packageQuote(
             trip: trip,
-            journeyFareUsd: pair.farePerPersonUSD,
-            journeyFareScope: .perPassenger,
             pricingOffer: pricingOffer,
             outboundOffer: outboundOffer,
             inboundOffer: pricingOffer,
-            makkahHotel: makkahComponent,
-            madinahHotel: madinahComponent,
+            makkahHotelID: makkahHotel.id,
+            makkahRoomID: nil,
+            madinahHotelID: madinahHotel?.id,
+            madinahRoomID: nil,
             includeHaramainTrain: false,
             transferVehicle: nil,
-            haramainPublicAddOnUsd: 0
+            haramainFareClass: .economy,
+            haramainTicketCount: 0
         ) else { return nil }
 
         let stay = TripStayPlanner.breakdown(for: trip, calendar: storefrontCalendar)
@@ -1090,8 +1059,10 @@ final class HotelStorefrontStore: ObservableObject {
         details = Dictionary(uniqueKeysWithValues: snapshot.hotelDetails.map { ($0.id, $0) })
         flightBoard = snapshot.flightBoard
         departureOriginCode = snapshot.flightBoard?.origin.uppercased() ?? "TAS"
-        rebuildQuotes()
-        rebuildFlightPackagePreviews()
+        Task { @MainActor in
+            await rebuildQuotes()
+            await rebuildFlightPackagePreviews()
+        }
         // Disk data renders immediately, then the app refreshes prices/flight baseline
         // once per launch. Photo bytes themselves live in the persistent image cache.
         hasPrepared = false

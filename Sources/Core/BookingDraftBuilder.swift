@@ -102,8 +102,7 @@ enum BookingDraftBuilder {
                 inbound: inbound.map(generatorFlight),
                 makkahHotel: generatorHotel(hotel, room: room, roomCategory: roomCategory, authoritativeRoomId: authoritativeMakkahRoomId),
                 madinahHotel: madinahHotel.map { generatorHotel($0, room: madinahRoom, roomCategory: madinahRoomCategory, authoritativeRoomId: authoritativeMadinahRoomId) }
-            ),
-            pricingSnapshot: quote.pricingSnapshot
+            )
         )
         return BookingCreateEnvelope(lang: language.rawValue, booking: draft)
     }

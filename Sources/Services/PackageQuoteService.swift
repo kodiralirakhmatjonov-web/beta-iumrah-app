@@ -6,16 +6,16 @@ protocol PackageQuoteServicing {
 }
 
 enum PackageQuoteServiceError: LocalizedError {
-    case localPricingRequired
+    case serverPricingContextRequired
 
     var errorDescription: String? {
-        "Final package pricing is calculated only by LocalPackagePricingEngine after verified flight and hotel costs are available."
+        "Final package pricing requires the secure iumrah PackageEngine with verified flight and hotel identifiers."
     }
 }
 
 @MainActor
 struct LocalOnlyPackageQuoteService: PackageQuoteServicing {
     func quote(trip: TripDraft, hotel: HotelSummary, outbound: FlightOffer, inbound: FlightOffer) async throws -> PackageQuote {
-        throw PackageQuoteServiceError.localPricingRequired
+        throw PackageQuoteServiceError.serverPricingContextRequired
     }
 }

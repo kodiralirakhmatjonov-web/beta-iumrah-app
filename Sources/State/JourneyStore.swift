@@ -16,8 +16,6 @@ private struct PackageTierComparisonFlightContext {
     let pricingOffer: FlightOffer
     let outboundOffer: FlightOffer
     let inboundOffer: FlightOffer?
-    let journeyFareUsd: Decimal
-    let fareScope: FlightFareScope
 }
 
 @MainActor
@@ -667,62 +665,37 @@ final class JourneyStore: ObservableObject {
         direction: FlightDirection,
         oppositeLeg: FlightOffer?
     ) async -> [String: Decimal] {
-        guard !offers.isEmpty, let hotel = selectedHotel, let snapshot = hotelPriceSnapshot,
-              isCompleteHotelSnapshot(snapshot) else { return [:] }
+        guard !offers.isEmpty, let hotel = selectedHotel else { return [:] }
         if trip.scope == .makkahAndMadinah, selectedMadinahHotel == nil { return [:] }
 
-        do {
-            let makkah = try await resolveHotelComponent(
-                hotel: hotel,
-                city: "Makkah",
-                roomID: selectedRoom?.id ?? selectedRoomCategory?.id,
-                roomCapacity: selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests,
-                observations: snapshot.makkah
-            )
-            let madinah: LocalHotelPriceComponent?
-            if trip.scope == .makkahAndMadinah, let selectedMadinahHotel {
-                madinah = try await resolveHotelComponent(
-                    hotel: selectedMadinahHotel,
-                    city: "Madinah",
-                    roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
-                    roomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
-                    observations: snapshot.madinah
-                )
-            } else {
-                madinah = nil
-            }
-
-            var output: [String: Decimal] = [:]
-            for offer in offers where offer.isVerifiedForBooking {
-                guard let fare = offer.fareAmount, let scope = offer.fareScope else { continue }
-                let outbound = direction == .outbound ? offer : oppositeLeg
-                guard let outbound, outbound.isVerifiedForBooking else { continue }
-
-                let journeyFareUsd = try await LocalFXRateService.shared.usd(fare, currency: offer.currency)
-                let preview = try LocalPackagePricingEngine.calculate(
-                    trip: trip,
-                    journeyFareUsd: journeyFareUsd,
-                    journeyFareScope: scope,
-                    pricingOffer: offer,
-                    outboundOffer: outbound,
-                    inboundOffer: direction == .inbound ? offer : nil,
-                    makkahHotel: makkah,
-                    madinahHotel: madinah,
-                    includeHaramainTrain: haramainTrainSelected,
-                    transferVehicle: selectedTransferVehicle,
-                    haramainPublicAddOnUsd: haramainTrainAddOnUsd
-                )
+        var output: [String: Decimal] = [:]
+        for offer in offers where offer.isVerifiedForBooking {
+            let outbound = direction == .outbound ? offer : oppositeLeg
+            guard let outbound, outbound.isVerifiedForBooking else { continue }
+            let inbound = direction == .inbound ? offer : nil
+            if let preview = try? await packageEngine.packageQuote(
+                trip: trip,
+                pricingOffer: offer,
+                outboundOffer: outbound,
+                inboundOffer: inbound,
+                makkahHotelID: hotel.id,
+                makkahRoomID: selectedRoom?.id ?? selectedRoomCategory?.id,
+                madinahHotelID: selectedMadinahHotel?.id,
+                madinahRoomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
+                includeHaramainTrain: haramainTrainSelected,
+                transferVehicle: selectedTransferVehicle,
+                haramainFareClass: haramainFareClass,
+                haramainTicketCount: haramainTicketCount
+            ) {
                 output[offer.id] = preview.pricePerPerson
             }
-            return output
-        } catch {
-            return [:]
         }
+        return output
     }
 
     var hasFinalGeneratorQuote: Bool {
-        guard let quote, let id = quote.quoteId else { return false }
-        return id.hasPrefix("local-") && quote.totalPackagePrice > 0 && quote.pricePerPerson > 0
+        guard let quote, let id = quote.quoteId, let proof = quote.quoteProof else { return false }
+        return id.hasPrefix("server-") && !proof.isEmpty && quote.totalPackagePrice > 0 && quote.pricePerPerson > 0
     }
 
     func buildQuote(forceHotelRefresh: Bool = false) async {
@@ -740,18 +713,15 @@ final class JourneyStore: ObservableObject {
             guard let value = selectedInbound,
                   value.isVerifiedForBooking,
                   returnOffer(value, matches: outbound),
-                  value.fareAmount != nil,
-                  value.fareScope != nil else {
+                  value.providerItineraryID != nil else {
                 errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
                 quote = nil
                 return
             }
             inbound = value
-            // The return row represents the exact selected outbound+return Ignav
-            // itinerary, so its fare is the authoritative complete-journey fare.
             pricingOffer = value
         } else {
-            guard outbound.fareAmount != nil, outbound.fareScope != nil else {
+            guard outbound.providerItineraryID != nil else {
                 errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
                 quote = nil
                 return
@@ -767,6 +737,8 @@ final class JourneyStore: ObservableObject {
         }
 
         do {
+            // Keep the existing refresh UX, but the client no longer performs any
+            // supplier-cost arithmetic. The Worker always re-reads accepted D1 rates.
             if let task = hotelPricePrefetchTask { await task.value }
             if forceHotelRefresh, let components = flightService as? GeneratorComponentProviding {
                 hotelPriceSnapshot = await components.ensureHotelPrices(
@@ -782,51 +754,22 @@ final class JourneyStore: ObservableObject {
                     forceRefresh: true
                 )
             }
-            guard let currentHotelSnapshot = hotelPriceSnapshot, isCompleteHotelSnapshot(currentHotelSnapshot) else {
-                throw LocalPricingError.missingHotelPrice(
-                    hotelPriceSnapshot?.makkah.isEmpty == false ? "Madinah" : "Makkah"
-                )
-            }
 
-            guard let rawFare = pricingOffer.fareAmount, let fareScope = pricingOffer.fareScope else {
-                throw LocalPricingError.invalidFlightFare
-            }
-            let journeyFareUsd = try await LocalFXRateService.shared.usd(rawFare, currency: pricingOffer.currency)
-
-            let makkah = try await resolveHotelComponent(
-                hotel: hotel,
-                city: "Makkah",
-                roomID: selectedRoom?.id ?? selectedRoomCategory?.id,
-                roomCapacity: selectedRoom?.maxGuests ?? selectedRoomCategory?.maxGuests,
-                observations: currentHotelSnapshot.makkah
-            )
-            let madinah: LocalHotelPriceComponent?
-            if trip.scope == .makkahAndMadinah, let hotel = selectedMadinahHotel {
-                madinah = try await resolveHotelComponent(
-                    hotel: hotel,
-                    city: "Madinah",
-                    roomID: selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id,
-                    roomCapacity: selectedMadinahRoom?.maxGuests ?? selectedMadinahRoomCategory?.maxGuests,
-                    observations: currentHotelSnapshot.madinah
-                )
-            } else {
-                madinah = nil
-            }
-            pricingMakkahRoomID = makkah.roomId
-            pricingMadinahRoomID = madinah?.roomId
-
-            quote = try LocalPackagePricingEngine.calculate(
+            pricingMakkahRoomID = selectedRoom?.id ?? selectedRoomCategory?.id
+            pricingMadinahRoomID = selectedMadinahRoom?.id ?? selectedMadinahRoomCategory?.id
+            quote = try await packageEngine.packageQuote(
                 trip: trip,
-                journeyFareUsd: journeyFareUsd,
-                journeyFareScope: fareScope,
                 pricingOffer: pricingOffer,
                 outboundOffer: outbound,
                 inboundOffer: inbound,
-                makkahHotel: makkah,
-                madinahHotel: madinah,
+                makkahHotelID: hotel.id,
+                makkahRoomID: pricingMakkahRoomID,
+                madinahHotelID: selectedMadinahHotel?.id,
+                madinahRoomID: pricingMadinahRoomID,
                 includeHaramainTrain: haramainTrainSelected,
                 transferVehicle: selectedTransferVehicle,
-                haramainPublicAddOnUsd: haramainTrainAddOnUsd
+                haramainFareClass: haramainFareClass,
+                haramainTicketCount: haramainTicketCount
             )
             errorMessage = nil
         } catch {
@@ -938,25 +881,19 @@ final class JourneyStore: ObservableObject {
             guard let value = selectedInbound,
                   value.isVerifiedForBooking,
                   returnOffer(value, matches: outbound),
-                  value.fareAmount != nil,
-                  value.fareScope != nil else { return nil }
+                  value.providerItineraryID != nil else { return nil }
             inbound = value
             pricingOffer = value
         } else {
-            guard outbound.fareAmount != nil, outbound.fareScope != nil else { return nil }
+            guard outbound.providerItineraryID != nil else { return nil }
             inbound = nil
             pricingOffer = outbound
         }
 
-        guard let rawFare = pricingOffer.fareAmount, let fareScope = pricingOffer.fareScope else { return nil }
-        guard let journeyFareUsd = try? await LocalFXRateService.shared.usd(rawFare, currency: pricingOffer.currency) else { return nil }
-
         return PackageTierComparisonFlightContext(
             pricingOffer: pricingOffer,
             outboundOffer: outbound,
-            inboundOffer: inbound,
-            journeyFareUsd: journeyFareUsd,
-            fareScope: fareScope
+            inboundOffer: inbound
         )
     }
 
@@ -986,26 +923,6 @@ final class JourneyStore: ObservableObject {
             madinahHotel = nil
         }
 
-        guard let makkahNightly = await comparisonNightlyUsd(for: makkahHotel) else {
-            return PackageTierComparisonOption(
-                tier: tier, quote: nil, makkahHotel: makkahHotel, madinahHotel: madinahHotel,
-                unavailableReason: "MAKKAH_PRICE_UNAVAILABLE"
-            )
-        }
-
-        let madinahNightly: Decimal?
-        if let madinahHotel {
-            guard let value = await comparisonNightlyUsd(for: madinahHotel) else {
-                return PackageTierComparisonOption(
-                    tier: tier, quote: nil, makkahHotel: makkahHotel, madinahHotel: madinahHotel,
-                    unavailableReason: "MADINAH_PRICE_UNAVAILABLE"
-                )
-            }
-            madinahNightly = value
-        } else {
-            madinahNightly = nil
-        }
-
         var comparisonTrip = trip
         comparisonTrip.packageTier = tier
         comparisonTrip.hotelStars = tier.primaryHotelStars
@@ -1019,44 +936,20 @@ final class JourneyStore: ObservableObject {
             comparisonTrip.mealSelection = nil
         }
 
-        let windows = TripStayPlanner.windows(for: comparisonTrip, calendar: Calendar(identifier: .gregorian))
-        let rooms = max(1, comparisonTrip.rooms)
-        let makkahComponent = LocalHotelPriceComponent(
-            nightlyUsd: makkahNightly,
-            nights: windows.makkah.nights,
-            rooms: rooms,
-            hotelId: makkahHotel.id,
-            roomId: nil,
-            source: "iumrah-business-catalog-comparison"
-        )
-
-        let madinahComponent: LocalHotelPriceComponent?
-        if let madinahHotel, let madinahWindow = windows.madinah, let madinahNightly {
-            madinahComponent = LocalHotelPriceComponent(
-                nightlyUsd: madinahNightly,
-                nights: madinahWindow.nights,
-                rooms: rooms,
-                hotelId: madinahHotel.id,
-                roomId: nil,
-                source: "iumrah-business-catalog-comparison"
-            )
-        } else {
-            madinahComponent = nil
-        }
-
         do {
-            let comparisonQuote = try LocalPackagePricingEngine.calculate(
+            let comparisonQuote = try await packageEngine.packageQuote(
                 trip: comparisonTrip,
-                journeyFareUsd: flight.journeyFareUsd,
-                journeyFareScope: flight.fareScope,
                 pricingOffer: flight.pricingOffer,
                 outboundOffer: flight.outboundOffer,
                 inboundOffer: flight.inboundOffer,
-                makkahHotel: makkahComponent,
-                madinahHotel: madinahComponent,
+                makkahHotelID: makkahHotel.id,
+                makkahRoomID: nil,
+                madinahHotelID: madinahHotel?.id,
+                madinahRoomID: nil,
                 includeHaramainTrain: haramainTrainSelected,
                 transferVehicle: selectedTransferVehicle,
-                haramainPublicAddOnUsd: haramainTrainAddOnUsd
+                haramainFareClass: haramainFareClass,
+                haramainTicketCount: haramainTicketCount
             )
             return PackageTierComparisonOption(
                 tier: tier,
@@ -1199,53 +1092,6 @@ final class JourneyStore: ObservableObject {
             abs(paired.departureAt.timeIntervalSince(outbound.departureAt)) < 5 * 60
     }
 
-    private func resolveHotelComponent(
-        hotel: HotelSummary,
-        city: String,
-        roomID: String?,
-        roomCapacity: Int?,
-        observations: [HotelPriceObservation]
-    ) async throws -> LocalHotelPriceComponent {
-        let windows = TripStayPlanner.windows(for: trip, calendar: Calendar(identifier: .gregorian))
-        let window: TripStayWindow
-        if city == "Makkah" {
-            window = windows.makkah
-        } else if let madinah = windows.madinah {
-            window = madinah
-        } else {
-            throw LocalPricingError.missingHotelPrice(city)
-        }
-
-        _ = roomCapacity
-        let effectiveRooms = max(1, trip.rooms)
-
-        // Production hotel pricing has exactly one unit. Any legacy total-stay or
-        // per-room-stay observation is rejected instead of silently applying a
-        // different multiplication rule.
-        for observation in observations where observation.unit == .perRoomNight && observation.isUsable(
-            for: hotel,
-            city: city,
-            window: window,
-            roomId: roomID
-        ) {
-            do {
-                let nightlyUsd = try await LocalFXRateService.shared.usd(observation.amount, currency: observation.currency)
-                guard nightlyUsd >= 15, nightlyUsd <= 10_000 else { continue }
-                return LocalHotelPriceComponent(
-                    nightlyUsd: nightlyUsd,
-                    nights: max(1, window.nights),
-                    rooms: effectiveRooms,
-                    hotelId: hotel.id,
-                    roomId: roomID,
-                    source: observation.providerName
-                )
-            } catch {
-                continue
-            }
-        }
-
-        throw LocalPricingError.missingHotelPrice(city)
-    }
 
     private func travelCalendarDay(for date: Date, airportCode: String) -> Date {
         var source = Calendar(identifier: .gregorian)

@@ -1,0 +1,169 @@
+{
+  "name": "iumrah Beta server generator final v2",
+  "date": "2026-09-13",
+  "root": "repository root",
+  "purpose": "Move generator pricing to Cloudflare PackageEngine without changing UI; no pre-booking D1 writes; durable Business pricing report after booking.",
+  "zip_applier_compatibility": "Filename matches iumrah-beta-update-*.zip and archive contains no protected .github/workflows paths.",
+  "files": [
+    {
+      "path": "BETA_SERVER_GENERATOR_FINAL_20260913_APPLIED.txt",
+      "bytes": 634,
+      "sha256": "d48a8a96842d453406dd429cb55183d8dec92884027028d0bfcdbfcb7c03ec35"
+    },
+    {
+      "path": "Backend/PackageEngine/README.md",
+      "bytes": 4679,
+      "sha256": "39a9561c0d962d7e94cfb9230d72fde8337c58e4064aa41d8f122eaa92ebb591"
+    },
+    {
+      "path": "Backend/PackageEngine/migrations/0007_pending_package_pricing_reports.sql",
+      "bytes": 527,
+      "sha256": "4d03ce79bde94b9b7233a43b7bed3fc52bae7efb3b863f1f6c1a7e1a53d5413f"
+    },
+    {
+      "path": "Backend/PackageEngine/src/booking-gateway.ts",
+      "bytes": 9719,
+      "sha256": "277b24fffaeebe6e7e5911b005c715047211d3a00b3856d2e16f00b9f78c5e85"
+    },
+    {
+      "path": "Backend/PackageEngine/src/env.ts",
+      "bytes": 461,
+      "sha256": "da4920590b24b65740eb89800401cd3978327523a83090286a19d49fbbe68659"
+    },
+    {
+      "path": "Backend/PackageEngine/src/hotel-costs.ts",
+      "bytes": 3159,
+      "sha256": "cee8007d092e8f2531743c1cf9ebbc655f38962e8fafbe006d9ae0728101129f"
+    },
+    {
+      "path": "Backend/PackageEngine/src/index.ts",
+      "bytes": 11757,
+      "sha256": "4559add538d0c528ad7f9f5aa7ad59dfa0b0d3582b611c5e555e3eb6eb9fdecb"
+    },
+    {
+      "path": "Backend/PackageEngine/src/package-search.ts",
+      "bytes": 16947,
+      "sha256": "52d22672b8c01caee3cb4fdba0045f93f24047f64f6fd47eac47a908d75fba30"
+    },
+    {
+      "path": "Backend/PackageEngine/src/pricing.ts",
+      "bytes": 13038,
+      "sha256": "b2c6a9dfa28cb238cde4ba60fec38438917d32431191a11b937bd999002d7ba9"
+    },
+    {
+      "path": "Backend/PackageEngine/src/quote-audit.ts",
+      "bytes": 3604,
+      "sha256": "81d4010b1b52750e3824c9317d38b6fdacfa826b3580137d3befeb0cd2a833c1"
+    },
+    {
+      "path": "Backend/PackageEngine/test/client-hotel-flight-package-contract.test.mjs",
+      "bytes": 5676,
+      "sha256": "2588ef39967bcd9f89d4712aaf6728059b1190895209303f773f4856624fb02f"
+    },
+    {
+      "path": "Backend/PackageEngine/test/final-package-tier-comparison-contract.test.mjs",
+      "bytes": 4539,
+      "sha256": "fe212db11c15f67ad4db99a5f33741a360a6252a1e8d1880884133e887b5d717"
+    },
+    {
+      "path": "Backend/PackageEngine/test/fx-contract.test.mjs",
+      "bytes": 1015,
+      "sha256": "d4d004c566d77cb133e525b690ef361936d90efe9c7a9c44abd4ac943f97f157"
+    },
+    {
+      "path": "Backend/PackageEngine/test/generator-production-pricing.test.mjs",
+      "bytes": 5438,
+      "sha256": "38fd68a0ebfe532a26b9da7769dd4a7c5695ef5b730bc50c0705f4de0142430d"
+    },
+    {
+      "path": "Backend/PackageEngine/test/live-hotel-pricing.test.mjs",
+      "bytes": 1436,
+      "sha256": "edd69abb26f28ba887d510aacc816d8e5a20d026372625bf95260a7041db6495"
+    },
+    {
+      "path": "Backend/PackageEngine/test/pricing-report-durability.test.mjs",
+      "bytes": 2237,
+      "sha256": "d7dacdb2043d416a6fd1fb6872c9729e069eb364eb653a5cb5540bd5ea783c22"
+    },
+    {
+      "path": "Backend/PackageEngine/test/pricing.test.mjs",
+      "bytes": 1120,
+      "sha256": "021678770d003fece6f8fbde36d5fb784cde34462c1102a31b518215d872bef3"
+    },
+    {
+      "path": "Backend/PackageEngine/test/runtime-production.runtime.mjs",
+      "bytes": 39294,
+      "sha256": "8d2d7e23bbea44e93d8c3a609785bbaea6d464650628d75f3e4fb686cd489a84"
+    },
+    {
+      "path": "Backend/PackageEngine/test/storefront-package-booking-contract.test.mjs",
+      "bytes": 5239,
+      "sha256": "e119596da8af5ce4fe2b3a92ab3d776ab0aaaf3409973d05ae143e80e34b6792"
+    },
+    {
+      "path": "Sources/Core/BookingDraftBuilder.swift",
+      "bytes": 9716,
+      "sha256": "08a7edaa5dbee4b184c9a8b5620dc168f74d1320906fe69ae3132234f1b75dfd"
+    },
+    {
+      "path": "Sources/Models/BookingModels.swift",
+      "bytes": 13977,
+      "sha256": "99b4090f98e04ea4826b0f461513a2efa1d8d90d1a52e2e55bb823435cd1c07b"
+    },
+    {
+      "path": "Sources/Models/FlightModels.swift",
+      "bytes": 16826,
+      "sha256": "b045e9c7eebc60954d07b7877d49ed209ab4f5cc883ca85e3a14e7ab6b69a92e"
+    },
+    {
+      "path": "Sources/Services/BookingService.swift",
+      "bytes": 9121,
+      "sha256": "c0eea8588b7efb4faee02653e92ace17dd6a73036ff89e4336880d2695467097"
+    },
+    {
+      "path": "Sources/Services/HotelStorefrontService.swift",
+      "bytes": 12989,
+      "sha256": "81ed335d00c1e930f8bc55900064e20c243e7096c754459f2c422c55f65d5a4a"
+    },
+    {
+      "path": "Sources/Services/LocalPackagePricingEngine.swift",
+      "bytes": 1879,
+      "sha256": "94867ee7ed5478eb86757d8a33bdda12e2b0488ed493966ab7562a447fb31b18"
+    },
+    {
+      "path": "Sources/Services/PackageQuoteService.swift",
+      "bytes": 719,
+      "sha256": "daf69b8a62cab4366306f76bfd49c2875277e301a242034eef22729d5ea972c9"
+    },
+    {
+      "path": "Sources/Services/RemotePackageEngineClient.swift",
+      "bytes": 9296,
+      "sha256": "e6d1e01f89cd72522ccbd13a29f7653e02d47a9e3d3ef9fecf60c96a3368def0"
+    },
+    {
+      "path": "Sources/State/BookingStore.swift",
+      "bytes": 33569,
+      "sha256": "9a1d6b1198162c750ce652161b147887857e09babd80a0f94bc19c6f4cd3ef47"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 47890,
+      "sha256": "2b668be53219201c29e36a4b359c8357ec5e5ffcad329ce17f5e7090249f2e95"
+    },
+    {
+      "path": "Sources/State/JourneyStore.swift",
+      "bytes": 46743,
+      "sha256": "ae387c56355f0fbb422d26d9566708c08c2e908e8cf3ef51d349c7a303495d8c"
+    },
+    {
+      "path": "Sources/Views/Hotels/PrimaryHotelView.swift",
+      "bytes": 22176,
+      "sha256": "1dbdd233e5487cacdb7fe209b97c074c77c2c5c805fb07381fd3494937afeee9"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 178674,
+      "sha256": "86a6d454d199aacff07836a984594e9bef892af3e2e66aec63582b8e59a19207"
+    }
+  ]
+}

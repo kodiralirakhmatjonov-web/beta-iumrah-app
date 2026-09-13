@@ -36,14 +36,15 @@ test("package checkout recalculates from the original generated fare and persist
   assert.match(models, /let flightFarePerPersonUSD: Decimal/);
   assert.match(models, /let fareObservedAt: String/);
   assert.match(store, /func checkoutQuote\(/);
-  assert.match(store, /LocalPackagePricingEngine\.calculate\(/);
+  assert.match(store, /packageEngine\.packageQuote\(/);
+  assert.doesNotMatch(store, /LocalPackagePricingEngine\.calculate\(/);
   assert.match(store, /func bookingFlightOffers\(/);
   assert.match(detail, /CounterRow\(/);
   assert.match(detail, /\$journey\.trip\.adults/);
   assert.match(detail, /\$journey\.trip\.children/);
   assert.match(detail, /\$journey\.trip\.infants/);
   assert.match(detail, /\$journey\.trip\.rooms/);
-  assert.match(detail, /storefront\.checkoutQuote\(/);
+  assert.match(detail, /await storefront\.checkoutQuote\(/);
   assert.match(detail, /BookingProfileCaptureSheet/);
   assert.match(detail, /let session = try await bookings\.create\(/);
   assert.match(detail, /createdBookingID = session\.id/);

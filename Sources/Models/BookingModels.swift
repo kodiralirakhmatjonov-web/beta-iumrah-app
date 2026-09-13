@@ -19,7 +19,6 @@ struct BookingDraftRequest: Encodable {
     let flight: String
     let pilgrimProfile: BookingPilgrimProfile?
     let generatorTrace: BookingGeneratorTrace?
-    let pricingSnapshot: GeneratorPricingSnapshot?
 }
 
 
@@ -343,6 +342,9 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var paymentConfirmationDeadlineAt: String? = nil
     var documentsStartedAt: String? = nil
     var documentsDeadlineAt: String? = nil
+    /// Opaque encrypted server quote retained only until the Business pricing report
+    /// has been committed. It contains no client-readable supplier pricing.
+    var pendingGeneratorQuoteProof: String? = nil
 
     mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot) {
         operationStatus = trip.status

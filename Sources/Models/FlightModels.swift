@@ -144,7 +144,7 @@ struct FlightOffer: Identifiable, Hashable, Codable {
 
     /// Historical property name retained for source compatibility. In Generator V2
     /// this is the displayed airline fare for this flight option. The final Umrah
-    /// package selling price is calculated separately by LocalPackagePricingEngine.
+    /// package selling price is calculated separately by the server PackageEngine.
     let totalPackagePrice: Decimal
     let currency: String
     let sourceLabel: String
@@ -367,110 +367,30 @@ struct FlightOffer: Identifiable, Hashable, Codable {
 
 }
 
-struct GeneratorPricingSnapshot: Hashable, Codable {
-    let quoteId: String
-    let pricingVersion: String
-    let currency: String
-    let context: GeneratorPricingContext
-    let selectedPricingInputs: GeneratorPricingInputs
-    let components: [GeneratorPricingComponent]
-    let totals: GeneratorPricingTotals
-}
-
-struct GeneratorPricingContext: Hashable, Codable {
-    let tier: String
-    let tripType: String
-    let includeMadinah: Bool
-    let totalDays: Int
-    let travelers: BookingTravelers
-    let roomCount: Int
-    let vehicleCount: Int
-}
-
-struct GeneratorPricingInputs: Hashable, Codable {
-    let journeyFare: GeneratorPricingFare?
-    let outbound: GeneratorPricingFare?
-    let inbound: GeneratorPricingFare?
-    let makkahHotel: GeneratorPricingHotelInput
-    let madinahHotel: GeneratorPricingHotelInput?
-
-    init(
-        journeyFare: GeneratorPricingFare? = nil,
-        outbound: GeneratorPricingFare? = nil,
-        inbound: GeneratorPricingFare? = nil,
-        makkahHotel: GeneratorPricingHotelInput,
-        madinahHotel: GeneratorPricingHotelInput?
-    ) {
-        self.journeyFare = journeyFare
-        self.outbound = outbound
-        self.inbound = inbound
-        self.makkahHotel = makkahHotel
-        self.madinahHotel = madinahHotel
-    }
-}
-
-struct GeneratorPricingFare: Hashable, Codable {
-    let candidateId: String
-    let amount: Decimal
-    let currency: String
-    let fareScope: String
-    let providerId: String
-    let observedAt: String
-    let travelDate: String
-    let normalizedGroupUsd: Decimal
-}
-
-struct GeneratorPricingHotelInput: Hashable, Codable {
-    let amountUsd: Decimal
-    let unit: String
-    let nights: Int
-    let hotelId: String?
-    let roomId: String?
-    let pricingMode: String?
-}
-
-struct GeneratorPricingComponent: Hashable, Codable {
-    let code: String
-    let label: String
-    let supplierCostUsd: Decimal
-}
-
-struct GeneratorPricingTotals: Hashable, Codable {
-    let supplierCostUsd: Decimal
-    let markupRate: Decimal
-    let markupAmountUsd: Decimal
-    let subtotalAfterMarkupUsd: Decimal
-    let paymentFeeRate: Decimal
-    let paymentFeeAmountUsd: Decimal
-    let calculatedSellingPriceUsd: Decimal
-    let publicPricePerPilgrimUsd: Decimal
-    let publicTotalUsd: Decimal
-    let roundingDifferenceUsd: Decimal
-    let estimatedProfitUsd: Decimal
-}
-
 struct PackageQuote: Hashable, Codable {
     let totalPackagePrice: Decimal
     let pricePerPerson: Decimal
     let currency: String
     let isEstimated: Bool
     let quoteId: String?
-    let pricingSnapshot: GeneratorPricingSnapshot?
-
+    /// Opaque server-encrypted proof containing the confidential generator report.
+    /// It is intentionally unreadable by iOS/Android/Web and is submitted only
+    /// after a real booking exists so PackageEngine can persist the Business audit.
+    let quoteProof: String?
     init(
         totalPackagePrice: Decimal,
         pricePerPerson: Decimal,
         currency: String,
         isEstimated: Bool,
         quoteId: String?,
-        pricingSnapshot: GeneratorPricingSnapshot? = nil
+        quoteProof: String? = nil
     ) {
         self.totalPackagePrice = totalPackagePrice
         self.pricePerPerson = pricePerPerson
         self.currency = currency
         self.isEstimated = isEstimated
         self.quoteId = quoteId
-        self.pricingSnapshot = pricingSnapshot
+        self.quoteProof = quoteProof
     }
 }
 

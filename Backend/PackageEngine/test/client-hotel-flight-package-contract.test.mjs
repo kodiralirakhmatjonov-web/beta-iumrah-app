@@ -38,9 +38,9 @@ test("Flights Scanner composes short Comfort and 4-15 day Standard packages from
   assert.match(store, /trip\.packageTier = \.comfort/);
   assert.match(store, /trip\.packageTier = \.standard/);
   assert.match(store, /trip\.adults = 1/);
-  assert.match(store, /LocalPackagePricingEngine\.calculate\(/);
-  assert.match(store, /journeyFareScope: \.perPassenger/);
-  assert.match(store, /TripStayPlanner\.windows/);
+  assert.match(store, /packageEngine\.packageQuote\(/);
+  assert.doesNotMatch(store, /LocalPackagePricingEngine\.calculate\(/);
+  assert.match(store, /TripStayPlanner\.breakdown/);
 });
 
 test("Flights storefront filters airports, shows package imagery and opens a full generated-package page without exposing raw fare", () => {

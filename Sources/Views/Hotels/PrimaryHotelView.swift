@@ -374,7 +374,7 @@ struct PrimaryHotelView: View {
     }
 
     private func selectableMealRow(_ meal: HotelMealKind, city: HotelMealCity) -> some View {
-        let price = LocalPackagePricingEngine.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
+        let price = PackagePricingPresentation.optionalMealUnitPriceUsd(for: journey.trip.packageTier) ?? 0
         let isOn = Binding(
             get: { journey.isMealEnabled(meal, city: city) },
             set: { journey.setMealEnabled($0, meal: meal, city: city) }

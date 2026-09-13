@@ -1,0 +1,6 @@
+iumrah Beta server generator final root update — 2026-09-13
+
+Moves package pricing/generator ownership from the iOS client to Cloudflare PackageEngine while preserving the existing mobile UI flow.
+Pre-booking quote generation remains stateless: no configurator package/components are persisted to D1.
+After a token-authorized booking, the immutable internal pricing report is committed to the Business trip or queued server-side until the trip exists.
+The pending durability table is created lazily with CREATE TABLE IF NOT EXISTS after booking so this patch remains compatible with the repository's protected-workflow ZIP applier.
