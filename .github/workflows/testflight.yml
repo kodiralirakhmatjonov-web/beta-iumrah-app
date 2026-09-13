@@ -92,7 +92,13 @@ jobs:
             echo "STOP: active production files still contain com.iumrah.beta"; exit 1;
           }
 
-          echo "Production identity OK: Iumrah / com.iumrah.app / 2.0.0"
+          GOOGLE_IOS_ID=$(/usr/libexec/PlistBuddy -c 'Print :GIDClientID' Resources/Info.plist 2>/dev/null || true)
+          GOOGLE_SERVER_ID=$(/usr/libexec/PlistBuddy -c 'Print :GIDServerClientID' Resources/Info.plist 2>/dev/null || true)
+          test "$GOOGLE_IOS_ID" = "863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te.apps.googleusercontent.com" || { echo "STOP: production Google iOS Client ID mismatch"; exit 1; }
+          test "$GOOGLE_SERVER_ID" = "863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com" || { echo "STOP: production Google Server Client ID mismatch"; exit 1; }
+          grep -F 'com.googleusercontent.apps.863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te' Resources/Info.plist >/dev/null || { echo "STOP: Google callback URL scheme missing"; exit 1; }
+
+          echo "Production identity OK: Iumrah / com.iumrah.app / 2.0.0 / Google Sign-In"
 
       - name: Prepare complete iPhone and iPad app icon catalogs
         run: |
@@ -371,10 +377,8 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/$ARCHIVE_PATH" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY='Apple Distribution' \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            IUMRAH_APPLE_TEAM_ID="$APPLE_TEAM_ID" \
+            IUMRAH_PROFILE_NAME="$PROFILE_NAME" \
             MARKETING_VERSION="2.0.0" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive
