@@ -62,6 +62,7 @@ final class IumrahAccountStore: ObservableObject {
     func login(identifier: String, password: String, locale: String = Locale.current.identifier) async throws -> IumrahAccountProfile {
         let response = try await service.login(identifier: identifier, password: password, locale: locale)
         setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: locale)
         return response.account
     }
 
@@ -69,6 +70,7 @@ final class IumrahAccountStore: ObservableObject {
     func signInWithApple(_ credential: IumrahAppleCredential, locale: String) async throws -> IumrahAccountProfile {
         let response = try await service.signInWithApple(credential, locale: locale)
         setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: locale)
         return response.account
     }
 
@@ -76,6 +78,7 @@ final class IumrahAccountStore: ObservableObject {
     func signInWithGoogle(_ credential: IumrahGoogleCredential, locale: String) async throws -> IumrahAccountProfile {
         let response = try await service.signInWithGoogle(credential, locale: locale)
         setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: locale)
         return response.account
     }
 

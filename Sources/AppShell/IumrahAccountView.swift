@@ -1,5 +1,4 @@
 import AuthenticationServices
-import GoogleSignInSwift
 import SwiftUI
 import UserNotifications
 import UIKit
@@ -817,19 +816,15 @@ struct IumrahAccountView: View {
             }
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
             .frame(height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
             .disabled(isAppleSigningIn || isGoogleSigningIn || isLoggingIn)
 
-            GoogleSignInButton(
-                scheme: colorScheme == .dark ? .dark : .light,
-                style: .wide,
-                state: (isGoogleSigningIn || isAppleSigningIn || isLoggingIn) ? .disabled : .normal
+            IumrahGoogleAuthButton(
+                title: "Sign in with Google",
+                isDisabled: isGoogleSigningIn || isAppleSigningIn || isLoggingIn
             ) {
                 startGoogleSignIn()
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             Text(tr(
                 "Apple or Google opens the same account after the sign-in method is connected to your six-digit iumrah ID in Account Security.",

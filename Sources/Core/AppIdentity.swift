@@ -4,7 +4,7 @@ enum AppIdentity {
     /// Immutable App Store identity inherited from the published iUmra app.
     static let productionBundleID = "com.iumrah.app"
     static let appStoreID = "6759577859"
-    static let displayName = "iUmra"
+    static let displayName = "iumrah"
     static let marketingVersion = "2.0.0"
 
     /// Preserved from the Flutter production app.

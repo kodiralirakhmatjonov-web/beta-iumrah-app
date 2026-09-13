@@ -20,6 +20,17 @@ test("Apple identity tokens are verified server-side and cannot be replayed", ()
   assert.match(source, /APPLE_TOKEN_REPLAYED/);
 });
 
+
+test("re-authentication on the same installation rotates the token instead of duplicating the device session", () => {
+  assert.match(source, /A security session represents one physical app installation, not one login/);
+  assert.match(source, /WHERE pilgrim_id=\?1 AND device_id=\?2/);
+  assert.match(source, /SET token_hash=\?1,last_seen_at=\?2/);
+  assert.match(source, /b\.device_id=\?2 AND b\.token_hash<>\?3/);
+  assert.match(source, /UPDATE iumrah_account_sessions SET revoked_at=\?1 WHERE token_hash=\?2 AND revoked_at IS NULL/);
+  assert.match(source, /collapseDuplicateDeviceSessions/);
+  assert.match(source, /const keptDevices = new Set<string>\(\)/);
+});
+
 test("secondary sessions can terminate only themselves", () => {
   assert.match(source, /if \(!self && !auth\.isPrimary\) throw new RouteError\("PRIMARY_DEVICE_REQUIRED", 403\)/);
   assert.match(source, /canTerminate: isCurrent \|\| auth\.isPrimary/);

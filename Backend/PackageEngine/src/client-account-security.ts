@@ -281,14 +281,61 @@ async function bindCurrentSession(
   if (binding?.device_id && binding.device_id !== deviceRow.id) {
     throw new RouteError("SESSION_ALREADY_BOUND", 409);
   }
+
+  // A security session represents one physical app installation, not one login
+  // token. Re-authenticating with password, Apple or Google on the same trusted
+  // installation rotates the bearer token while keeping one logical device row.
+  // This prevents a single iPhone from appearing several times in Active Sessions.
+  const retireOtherDeviceTokens = async () => {
+    const duplicates = await db.prepare(
+      `SELECT b.token_hash
+       FROM iumrah_client_session_bindings b
+       INNER JOIN iumrah_account_sessions s ON s.token_hash=b.token_hash
+       WHERE b.pilgrim_id=?1 AND b.device_id=?2 AND b.token_hash<>?3
+         AND s.revoked_at IS NULL AND s.expires_at>?4`,
+    ).bind(auth.pilgrimID, deviceRow.id, auth.tokenHash, now).all<{ token_hash: string }>();
+    for (const duplicate of duplicates.results ?? []) {
+      await db.prepare(
+        "UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2 AND revoked_at IS NULL",
+      ).bind(now, duplicate.token_hash).run();
+    }
+  };
+
   if (binding) {
     await db.prepare(
       `UPDATE iumrah_client_session_bindings
        SET device_id=?1,last_seen_at=?2,last_city=?3,last_region=?4,last_country=?5
        WHERE token_hash=?6`,
     ).bind(deviceRow.id, now, location.city, location.region, location.country, auth.tokenHash).run();
+    await retireOtherDeviceTokens();
     return binding.session_id;
   }
+
+  const deviceBinding = await db.prepare(
+    `SELECT session_id,token_hash
+     FROM iumrah_client_session_bindings
+     WHERE pilgrim_id=?1 AND device_id=?2
+     ORDER BY last_seen_at DESC LIMIT 1`,
+  ).bind(auth.pilgrimID, deviceRow.id).first<{ session_id: string; token_hash: string }>();
+
+  if (deviceBinding) {
+    const previousTokenHash = deviceBinding.token_hash;
+    await db.prepare(
+      `UPDATE iumrah_client_session_bindings
+       SET token_hash=?1,last_seen_at=?2,last_city=?3,last_region=?4,last_country=?5
+       WHERE session_id=?6`,
+    ).bind(
+      auth.tokenHash, now, location.city, location.region, location.country, deviceBinding.session_id,
+    ).run();
+    if (previousTokenHash !== auth.tokenHash) {
+      await db.prepare(
+        "UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2 AND revoked_at IS NULL",
+      ).bind(now, previousTokenHash).run();
+    }
+    await retireOtherDeviceTokens();
+    return deviceBinding.session_id;
+  }
+
   const sessionID = `session-${crypto.randomUUID()}`;
   await db.prepare(
     `INSERT INTO iumrah_client_session_bindings(
@@ -364,8 +411,42 @@ async function ensureLegacySessionHandles(db: D1Like, pilgrimID: number) {
   }
 }
 
+async function collapseDuplicateDeviceSessions(
+  db: D1Like,
+  pilgrimID: number,
+  currentTokenHash: string,
+) {
+  const now = new Date().toISOString();
+  const rows = await db.prepare(
+    `SELECT b.device_id,b.token_hash,COALESCE(s.last_used_at,b.last_seen_at) AS last_active_at
+     FROM iumrah_account_sessions s
+     INNER JOIN iumrah_client_session_bindings b ON b.token_hash=s.token_hash
+     WHERE s.pilgrim_id=?1 AND s.revoked_at IS NULL AND s.expires_at>?2
+       AND b.device_id IS NOT NULL
+     ORDER BY b.device_id ASC,
+              CASE WHEN b.token_hash=?3 THEN 0 ELSE 1 END,
+              COALESCE(s.last_used_at,b.last_seen_at) DESC`,
+  ).bind(pilgrimID, now, currentTokenHash).all<{
+    device_id: string;
+    token_hash: string;
+    last_active_at: string;
+  }>();
+
+  const keptDevices = new Set<string>();
+  for (const row of rows.results ?? []) {
+    if (!keptDevices.has(row.device_id)) {
+      keptDevices.add(row.device_id);
+      continue;
+    }
+    await db.prepare(
+      "UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2 AND revoked_at IS NULL",
+    ).bind(now, row.token_hash).run();
+  }
+}
+
 async function securityOverview(db: D1Like, auth: DeviceAuth) {
   await ensureLegacySessionHandles(db, auth.pilgrimID);
+  await collapseDuplicateDeviceSessions(db, auth.pilgrimID, auth.tokenHash);
   const now = new Date().toISOString();
   const result = await db.prepare(
     `SELECT b.session_id,b.token_hash,s.created_at,s.expires_at,

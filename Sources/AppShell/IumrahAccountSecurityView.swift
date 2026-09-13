@@ -1,6 +1,5 @@
 import AuthenticationServices
 import Foundation
-import GoogleSignInSwift
 import SwiftUI
 
 struct IumrahAccountSecurityView: View {
@@ -268,8 +267,8 @@ struct IumrahAccountSecurityView: View {
                     completeApple(result)
                 }
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                .frame(height: IumrahDesign.controlHeight)
+                .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
                 .disabled(!value.currentDeviceIsPrimary || isLinkingApple || isLinkingGoogle)
                 .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
 
@@ -313,17 +312,12 @@ struct IumrahAccountSecurityView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                GoogleSignInButton(
-                    scheme: colorScheme == .dark ? .dark : .light,
-                    style: .wide,
-                    state: (!value.currentDeviceIsPrimary || isLinkingGoogle || isLinkingApple) ? .disabled : .normal
+                IumrahGoogleAuthButton(
+                    title: "Continue with Google",
+                    isDisabled: !value.currentDeviceIsPrimary || isLinkingGoogle || isLinkingApple
                 ) {
                     connectGoogle()
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
 
                 if !value.currentDeviceIsPrimary {
                     Label(
