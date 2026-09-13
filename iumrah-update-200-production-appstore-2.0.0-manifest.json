@@ -1,0 +1,171 @@
+{
+  "patch": "iumrah-beta-update-200-production-appstore-2.0.0",
+  "source": "kepler-ios-beta-main 2.zip",
+  "app_store_id": "6759577859",
+  "bundle_id": "com.iumrah.app",
+  "marketing_version": "2.0.0",
+  "legacy_version": "1.0.4+14",
+  "note": "GitHub workflow files are delivered separately because the current ZIP updater protects .github/workflows/.",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "adcd6d010bff108de7c867beeee9e552cbbbf0d11d7dc254d931e366ca66b733",
+      "bytes": 74
+    },
+    {
+      "path": "APP_STORE_2_0_0_RELEASE.md",
+      "sha256": "de6ba98a1120dcfdc2d27d8bdfdcdacec29c78bc02d07d4d29d9d28bf3e664a9",
+      "bytes": 987
+    },
+    {
+      "path": "Backend/PackageEngine/README.md",
+      "sha256": "2e37dc60299fb229ae3694c18e4d15d28e54f7e5f5ee70ea77cfa7cefba08f74",
+      "bytes": 4674
+    },
+    {
+      "path": "Backend/PackageEngine/package.json",
+      "sha256": "464444d1a16ed3de088e45817a185552f29b01ff9f154e901b9be4dc766ff10a",
+      "bytes": 383
+    },
+    {
+      "path": "Backend/PackageEngine/src/client-account-security.ts",
+      "sha256": "baa0a51753200322ed07d1809a059e6d91f9929512bc6b839010d61e26382b05",
+      "bytes": 71051
+    },
+    {
+      "path": "Backend/PackageEngine/src/storefront.ts",
+      "sha256": "0f63bcb449a7f254db8e9ccc0f575cc3c64340b23d06f49a7114acb5b1f4b98e",
+      "bytes": 13153
+    },
+    {
+      "path": "Backend/PackageEngine/test/storefront-flight-board-contract.test.mjs",
+      "sha256": "1e13828e78c3639674495d4f6b5feb4d057c9ee9e46c3a185eb58e63f63a8a9d",
+      "bytes": 2215
+    },
+    {
+      "path": "Backend/PackageEngine/wrangler.template.jsonc",
+      "sha256": "af87df2e092147e2039b8248374f56344f2d066e3ebbd94a89b73ae93717c205",
+      "bytes": 1511
+    },
+    {
+      "path": "GOOGLE_SIGNIN_SETUP.md",
+      "sha256": "ffcad264f6a69fb24bc43556d0f5c5099ac3f81f4a3f4d4178cbc83fab784397",
+      "bytes": 3499
+    },
+    {
+      "path": "IUMRAH_PRODUCTION_2_0_0_APPLIED.txt",
+      "sha256": "cc0e3cf21ecdb6c3ef261b4686916832e3404ffea8fce5581c8a9afe20217267",
+      "bytes": 278
+    },
+    {
+      "path": "Resources/Info.plist",
+      "sha256": "8b52e738e7059c2ec86cef58db30cc1939be142e13014ed70cbe5faf471fe988",
+      "bytes": 4295
+    },
+    {
+      "path": "Resources/iUmra.entitlements",
+      "sha256": "39de080a2f3bfe66fc67ffb6de6d076175f59e773d830ed337f29e38e90e017e",
+      "bytes": 444
+    },
+    {
+      "path": "SIGNING_REQUIRED.txt",
+      "sha256": "eb9ad213de545e639f7f3633855543562a4702702993aa15333716a78ee2f61b",
+      "bytes": 879
+    },
+    {
+      "path": "Sources/App/IumrahApp.swift",
+      "sha256": "fd3d3d4f70d68615e44382b2d22bcb2f555bfb493da517858638e7265044b9ec",
+      "bytes": 655
+    },
+    {
+      "path": "Sources/App/IumrahBetaApp.swift",
+      "sha256": "71a0d0cc5b69ac3cd12e5b1f5d4368bb1af78f263033f8b5df21374f78b7e4fb",
+      "bytes": 93
+    },
+    {
+      "path": "Sources/Core/AppConfig.swift",
+      "sha256": "aeadc6b83024578fae8bcd14bad93ced1f4305e82fdf9fc4757ee894be71ff93",
+      "bytes": 954
+    },
+    {
+      "path": "Sources/Core/AppIdentity.swift",
+      "sha256": "d824aa2bcbab00c030bc0b09704c25bb5dcc112a99dd0b3cc7e8975f8789f6b4",
+      "bytes": 634
+    },
+    {
+      "path": "Sources/Core/AppInstallationLifecycle.swift",
+      "sha256": "55fde090dbbb400220832bcbc2d9e8dc5c064eec811b72d034206109f1d3f389",
+      "bytes": 7646
+    },
+    {
+      "path": "Sources/Core/BookingSessionVault.swift",
+      "sha256": "3099c0e359858c915860aab6573530d1e486d639fc5b9223c07c6f88f0529f8d",
+      "bytes": 2322
+    },
+    {
+      "path": "Sources/Core/IumrahAccountSecurityIdentity.swift",
+      "sha256": "93cb26b172aace065f06463fdcad765327ae7d0f12ee5da7b30d6369b064fd10",
+      "bytes": 9480
+    },
+    {
+      "path": "Sources/HotelPricing/HotelLivePriceSearchService.swift",
+      "sha256": "545160316a765379731d9ad5745354fb0e06e294c7c4b5a6a3f58069ae690eb7",
+      "bytes": 555
+    },
+    {
+      "path": "Sources/HotelPricing/HotelPriceBotRunner.swift",
+      "sha256": "545160316a765379731d9ad5745354fb0e06e294c7c4b5a6a3f58069ae690eb7",
+      "bytes": 555
+    },
+    {
+      "path": "Sources/HotelPricing/HotelPriceBotScripts.swift",
+      "sha256": "545160316a765379731d9ad5745354fb0e06e294c7c4b5a6a3f58069ae690eb7",
+      "bytes": 555
+    },
+    {
+      "path": "Sources/HotelPricing/HotelPriceProvider.swift",
+      "sha256": "545160316a765379731d9ad5745354fb0e06e294c7c4b5a6a3f58069ae690eb7",
+      "bytes": 555
+    },
+    {
+      "path": "Sources/HotelPricing/HotelPriceTextParser.swift",
+      "sha256": "545160316a765379731d9ad5745354fb0e06e294c7c4b5a6a3f58069ae690eb7",
+      "bytes": 555
+    },
+    {
+      "path": "Sources/Services/ClientNotificationCenter.swift",
+      "sha256": "f11afa2995685ebb5d543aa4074f2690f71cf51657fcf386866ed088cbaf4e48",
+      "bytes": 6999
+    },
+    {
+      "path": "Sources/Services/ClientPushService.swift",
+      "sha256": "7be3684f319053f98c3fd118a76538518b7fe48cb7aa5573e2eca0af88e01656",
+      "bytes": 1039
+    },
+    {
+      "path": "Sources/Services/IumrahConnectivityMonitor.swift",
+      "sha256": "a5a123c01d8545d3d0ac946d9423d1a8f968da74f550d6a5dc6034628f2db567",
+      "bytes": 3458
+    },
+    {
+      "path": "Sources/Services/PushNotificationManager.swift",
+      "sha256": "66bf66751cfbd2b471f1f2cdcad12dd89660c37b51dc84a2431cc4e8264da5e2",
+      "bytes": 4539
+    },
+    {
+      "path": "Sources/State/IumrahAccountStore.swift",
+      "sha256": "4f5925be7c8b1594cf1cb923ec605f5154dbfca5d2aea895f788702203e12468",
+      "bytes": 9630
+    },
+    {
+      "path": "Sources/Store/IumrahPlusStore.swift",
+      "sha256": "cb39b9af83aa37fb27531812036348e434f07999d7ab26e57732256d2bf0675b",
+      "bytes": 4278
+    },
+    {
+      "path": "project.yml",
+      "sha256": "b6b37e49543cdf34694b6fa0383740ba5848582f59d939b42370272aef2bbce9",
+      "bytes": 2041
+    }
+  ]
+}

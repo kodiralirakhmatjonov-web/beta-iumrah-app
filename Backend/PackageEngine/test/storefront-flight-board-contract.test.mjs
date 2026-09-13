@@ -37,7 +37,7 @@ test("public storefront and universal-link routes are wired", () => {
   assert.match(wrangler, /iumrah\.app\/hotel\/\*/);
   assert.match(wrangler, /iumrah\.app\/h\/\*/);
   assert.match(storefront, /supplier identifiers/);
-  assert.match(storefront, /2DQ678JTNG\.com\.iumrah\.beta/);
+  assert.match(storefront, /2DQ678JTNG\.com\.iumrah\.app/);
   assert.match(storefront, /iumrahapp:\/\/hotel\//);
   assert.match(storefront, /max-age=300/);
   assert.doesNotMatch(storefront, /<div class="id">Hotel:/);

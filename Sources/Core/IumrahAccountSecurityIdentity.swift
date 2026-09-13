@@ -22,7 +22,7 @@ enum IumrahAccountDeviceIdentity {
         let secret: String
     }
 
-    private static let service = "com.iumrah.beta.account-device"
+    private static let service = "com.iumrah.app.account-device"
     private static let account = "installation"
 
     static func current(locale: String = Locale.current.identifier) -> IumrahClientDevice {

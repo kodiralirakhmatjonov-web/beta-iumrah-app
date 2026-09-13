@@ -237,7 +237,7 @@ export function appleAppSiteAssociation(): Response {
   const body = {
     applinks: {
       details: [{
-        appIDs: ["2DQ678JTNG.com.iumrah.beta", "2DQ678JTNG.com.iumrah.app"],
+        appIDs: ["2DQ678JTNG.com.iumrah.app"],
         components: [
           { "/": "/h/*", comment: "Open public iumrah hotel links in the iOS app without exposing supplier identifiers." },
           { "/": "/hotel/*", comment: "Backward compatibility for hotel links shared by older beta builds." },

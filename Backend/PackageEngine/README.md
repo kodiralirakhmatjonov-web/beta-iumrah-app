@@ -1,4 +1,4 @@
-# iumrah Beta Package Engine
+# iumrah Package Engine
 
 Production hotel pricing comes from the shared iumrah Hotels catalog maintained by iumrah Business. Production flight discovery uses one complete round-trip/open-jaw provider itinerary per fare and exposes a sequential customer UX: choose the outbound leg first, then choose a compatible return leg from the same complete itinerary inventory.
 

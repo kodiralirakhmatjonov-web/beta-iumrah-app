@@ -14,16 +14,16 @@ import Security
 /// Keychain state belongs to another installation and must be discarded.
 enum AppInstallationLifecycle {
     private static let markerFilename = ".iumrah-installation-v1"
-    private static let sentinelService = "com.iumrah.beta.installation-lifecycle"
+    private static let sentinelService = "com.iumrah.app.installation-lifecycle"
     private static let sentinelAccount = "installation-marker-v1"
     private static let onboardingKey = "iumrah.hasCompletedOnboarding.cinematic.v4"
 
     private static let protectedItems: [(service: String, account: String)] = [
-        ("com.iumrah.beta.iumrah-account", "session"),
-        ("com.iumrah.beta.booking-sessions", "sessions"),
-        ("com.iumrah.beta.account-device", "installation"),
-        ("com.iumrah.beta.client-identity", "client-user-id"),
-        ("com.iumrah.beta.client-identity", "stable-client-id"),
+        ("com.iumrah.app.iumrah-account", "session"),
+        ("com.iumrah.app.booking-sessions", "sessions"),
+        ("com.iumrah.app.account-device", "installation"),
+        ("com.iumrah.app.client-identity", "client-user-id"),
+        ("com.iumrah.app.client-identity", "stable-client-id"),
     ]
 
     static func prepare() {

@@ -31,7 +31,7 @@ final class IumrahConnectivityMonitor: ObservableObject {
     @Published private(set) var status: IumrahConnectivityStatus = .checking
 
     private let pathMonitor = NWPathMonitor()
-    private let pathQueue = DispatchQueue(label: "com.iumrah.beta.connectivity-path", qos: .utility)
+    private let pathQueue = DispatchQueue(label: "com.iumrah.app.connectivity-path", qos: .utility)
     private let probeSession: URLSession
     private var probeTask: Task<Void, Never>?
 

@@ -52,7 +52,7 @@
     }
   ],
   "vars": {
-    "APPLE_BUNDLE_ID": "com.iumrah.beta",
+    "APPLE_BUNDLE_ID": "com.iumrah.app",
     "GOOGLE_SERVER_CLIENT_ID": "__GOOGLE_SERVER_CLIENT_ID__",
     "IGNAV_MONTHLY_REQUEST_BUDGET": "3000",
     "ACCOUNT_EMAIL_FROM": "security@iumrah.app",

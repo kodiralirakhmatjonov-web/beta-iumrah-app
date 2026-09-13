@@ -56,9 +56,9 @@ final class ClientNotificationCenter: ObservableObject {
     @Published private(set) var dismissedHomeIDs: Set<String> = []
 
     private let api = APIClient.shared
-    private let installationKey = "iumrah.beta.client-notification-installation.v1"
-    private let cacheKey = "iumrah.beta.client-notification-cache.v1"
-    private let dismissedHomeKey = "iumrah.beta.client-notification-dismissed-home.v1"
+    private let installationKey = "iumrah.app.client-notification-installation.v1"
+    private let cacheKey = "iumrah.app.client-notification-cache.v1"
+    private let dismissedHomeKey = "iumrah.app.client-notification-dismissed-home.v1"
     private(set) lazy var installationID: String = resolvedInstallationID()
 
     private init() {
@@ -93,7 +93,7 @@ final class ClientNotificationCenter: ObservableObject {
                     installationID: installationID,
                     deviceToken: normalizedToken(deviceToken),
                     environment: "production",
-                    appBundleID: "com.iumrah.beta",
+                    appBundleID: "com.iumrah.app",
                     locale: locale,
                     hasTrip: hasTrip
                 ),

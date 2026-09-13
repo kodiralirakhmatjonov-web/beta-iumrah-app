@@ -1,23 +1,22 @@
-TestFlight signing for iumrah Beta.
+iUmra 2.0.0 App Store signing requirement
 
-Bundle identifier:
-  com.iumrah.beta
+Bundle ID / explicit App ID:
+  com.iumrah.app
+Team ID:
+  2DQ678JTNG
 
-Required files after repository is PRIVATE:
-  Signing/distribution-private-key.enc
-  Signing/iumrah-beta.mobileprovision
+The old repository proves that the published 1.0.4 app uses com.iumrah.app.
+Do NOT create or use code.iOmra.app or com.iumrah.beta for this update.
 
-The provisioning profile must contain:
-  application-identifier = 2DQ678JTNG.com.iumrah.beta
-  aps-environment = production
+Create/regenerate an App Store Connect distribution provisioning profile for the existing com.iumrah.app App ID with:
+  - Push Notifications (aps-environment=production)
+  - Sign in with Apple
+  - Associated Domains
 
-Required GitHub repository secrets:
-  APPLE_TEAM_ID
-  APPLE_ID_EMAIL
-  APPLE_APP_SPECIFIC_PASSWORD
-  IOS_SIGNING_KEY_PASSWORD
+Choose the Apple Distribution certificate whose subject is:
+  Apple Distribution: Kodirali Rakhmatjonov (2DQ678JTNG)
+Certificate SHA-256:
+  B2:3E:90:D0:0D:03:59:A8:25:81:E7:46:78:EB:94:CF:E4:A9:F8:35:B9:F3:B8:46:C5:9F:BB:2A:1D:1E:CB:F5
 
-APPLE_TEAM_ID for this Apple Developer team is 2DQ678JTNG.
-
-Do not commit the APNs .p8 key to GitHub. It belongs in Cloudflare Secrets when
-server-side push delivery is connected.
+Put that .mobileprovision file into Signing/.
+The existing Signing/distribution-private-key.enc can be reused only when the profile contains this same certificate.

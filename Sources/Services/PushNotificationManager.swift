@@ -24,7 +24,7 @@ final class PushNotificationManager: ObservableObject {
     @Published private(set) var eventRevision: Int = 0
     @Published private(set) var openRevision: Int = 0
 
-    private let tokenDefaultsKey = "iumrah.beta.apns.device-token"
+    private let tokenDefaultsKey = "iumrah.app.apns.device-token"
 
     private init() {
         deviceToken = UserDefaults.standard.string(forKey: tokenDefaultsKey)
@@ -99,14 +99,14 @@ final class PushNotificationManager: ObservableObject {
         lastError = nil
 
         #if DEBUG
-        print("[iumrah Beta] APNs device token registered")
+        print("[iUmra] APNs device token registered")
         #endif
     }
 
     func didFailToRegister(error: Error) {
         lastError = error.localizedDescription
         #if DEBUG
-        print("[iumrah Beta] APNs registration failed: \(error.localizedDescription)")
+        print("[iUmra] APNs registration failed: \(error.localizedDescription)")
         #endif
     }
 

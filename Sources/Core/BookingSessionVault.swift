@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum BookingSessionVault {
-    private static let service = "com.iumrah.beta.booking-sessions"
+    private static let service = "com.iumrah.app.booking-sessions"
     private static let account = "sessions"
 
     static func load() -> [StoredBookingSession] {
@@ -47,7 +47,7 @@ enum LegacyClientIdentityCleanup {
         for account in ["client-user-id", "stable-client-id"] {
             let query: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: "com.iumrah.beta.client-identity",
+                kSecAttrService as String: "com.iumrah.app.client-identity",
                 kSecAttrAccount as String: account,
             ]
             SecItemDelete(query as CFDictionary)

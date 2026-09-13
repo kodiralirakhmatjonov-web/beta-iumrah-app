@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppConfig {
-    static let appName = "iumrah Beta"
+    static let appName = "iUmra"
     static let apiBaseURL = URL(string: "https://iumrah.app")!
 
     /// Flight inventory is resolved only through the iumrah backend, which keeps

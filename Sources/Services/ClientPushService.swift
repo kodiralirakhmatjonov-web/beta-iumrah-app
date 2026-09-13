@@ -16,7 +16,7 @@ struct ClientPushService {
                 deviceToken: deviceToken,
                 bookingID: bookingID,
                 environment: environment,
-                appBundleID: "com.iumrah.beta",
+                appBundleID: "com.iumrah.app",
                 locale: locale
             ),
             headers: headers

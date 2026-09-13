@@ -191,7 +191,7 @@ private struct StoredIumrahAccountSession: Codable {
 }
 
 private enum IumrahAccountVault {
-    private static let service = "com.iumrah.beta.iumrah-account"
+    private static let service = "com.iumrah.app.iumrah-account"
     private static let account = "session"
 
     static func load() -> StoredIumrahAccountSession? {

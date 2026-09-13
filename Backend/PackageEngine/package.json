@@ -1,5 +1,5 @@
 {
-  "name": "iumrah-beta-package-engine",
+  "name": "iumrah-package-engine",
   "private": true,
   "version": "1.0.0-clean",
   "type": "module",

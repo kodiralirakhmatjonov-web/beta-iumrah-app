@@ -1,4 +1,4 @@
-name: iumrahBeta
+name: iUmra
 options:
   bundleIdPrefix: com.iumrah
   deploymentTarget:
@@ -9,11 +9,11 @@ settings:
   base:
     SWIFT_VERSION: 5.0
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "2.0.0"
+    CURRENT_PROJECT_VERSION: "20000"
 
 targets:
-  iumrahBeta:
+  iUmra:
     type: application
     platform: iOS
     sources:
@@ -40,15 +40,15 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.beta
-        PRODUCT_NAME: iumrahBeta
-        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app
+        PRODUCT_NAME: iUmra
+        TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Resources/Info.plist
-        CODE_SIGN_ENTITLEMENTS: Resources/iumrahBeta.entitlements
+        CODE_SIGN_ENTITLEMENTS: Resources/iUmra.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconBlue AppIconCyan AppIconDeepBlue AppIconWorld AppIconMakkah"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES

@@ -6,7 +6,7 @@ The repository already contains the complete Google sign-in client/backend flow.
 
 In Google Cloud Console, use the same project for both credentials:
 
-1. Create an **iOS OAuth client** with bundle identifier `com.iumrah.beta`.
+1. Create an **iOS OAuth client** with bundle identifier `com.iumrah.app`.
 2. Create a **Web application OAuth client** for the iumrah backend.
 
 Keep these three public values:

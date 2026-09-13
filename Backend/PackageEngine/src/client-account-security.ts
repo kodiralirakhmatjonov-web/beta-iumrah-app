@@ -1061,7 +1061,7 @@ async function linkApple(request: Request, env: Env, db: D1Like) {
   const apple = await verifyAppleIdentity(
     payload?.identityToken,
     payload?.nonce,
-    env.APPLE_BUNDLE_ID ?? "com.iumrah.beta",
+    env.APPLE_BUNDLE_ID ?? "com.iumrah.app",
   );
   await consumeAppleAssertion(db, apple.token);
   const subjectOwner = await db.prepare(
@@ -1109,7 +1109,7 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
   const apple = await verifyAppleIdentity(
     payload?.identityToken,
     payload?.nonce,
-    env.APPLE_BUNDLE_ID ?? "com.iumrah.beta",
+    env.APPLE_BUNDLE_ID ?? "com.iumrah.app",
   );
   await consumeAppleAssertion(db, apple.token);
   let row = await db.prepare(

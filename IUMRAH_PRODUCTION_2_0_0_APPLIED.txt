@@ -1,0 +1,7 @@
+iUmra production App Store migration applied.
+Version: 2.0.0
+Bundle ID: com.iumrah.app
+Previous App Store version: 1.0.4 (build 14 in legacy source)
+Legacy IAP preserved: iumrah.plus (non-consumable)
+Legacy URL scheme preserved: iumrah://
+Device family preserved: iPhone + iPad
