@@ -18,6 +18,13 @@ function base64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 function fromBase64Url(value: string): Uint8Array {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
   const binary = atob(padded);
@@ -42,7 +49,7 @@ async function quoteKey(env: Env): Promise<CryptoKey> {
     const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`iumrah:package-quote:v1:${fallback}`));
     raw = new Uint8Array(digest);
   }
-  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", toArrayBuffer(raw), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 export function quoteSealingMode(env: Env): "dedicated" | "derived" | "unavailable" {
@@ -74,7 +81,7 @@ export async function unsealPricingSnapshot(token: string, env: Env): Promise<Ge
   const key = await quoteKey(env);
   let plaintext: ArrayBuffer;
   try {
-    plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, key, ciphertext);
+    plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: toArrayBuffer(nonce) }, key, toArrayBuffer(ciphertext));
   } catch {
     throw new Error("INVALID_QUOTE_PROOF");
   }
