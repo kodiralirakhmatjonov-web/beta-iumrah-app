@@ -305,6 +305,14 @@ struct ClientTripSnapshot: Decodable, Hashable {
     let startDate: String?
     let endDate: String?
     let updatedAt: String?
+    let availabilityStartedAt: String?
+    let availabilityDeadlineAt: String?
+    let priceLockStartedAt: String?
+    let priceLockExpiresAt: String?
+    let paymentReceivedAt: String?
+    let paymentConfirmationDeadlineAt: String?
+    let documentsStartedAt: String?
+    let documentsDeadlineAt: String?
 }
 
 struct StoredBookingSession: Codable, Identifiable, Hashable {
@@ -327,6 +335,29 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var pilgrimID: String? = nil
     var bookingNumber: Int? = nil
     var bookingDisplayNumber: String? = nil
+    var availabilityStartedAt: String? = nil
+    var availabilityDeadlineAt: String? = nil
+    var priceLockStartedAt: String? = nil
+    var priceLockExpiresAt: String? = nil
+    var paymentReceivedAt: String? = nil
+    var paymentConfirmationDeadlineAt: String? = nil
+    var documentsStartedAt: String? = nil
+    var documentsDeadlineAt: String? = nil
+
+    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot) {
+        operationStatus = trip.status
+        pilgrimID = trip.pilgrimID ?? pilgrimID
+        bookingNumber = trip.bookingNumber ?? bookingNumber
+        bookingDisplayNumber = trip.bookingDisplayNumber ?? bookingDisplayNumber
+        availabilityStartedAt = trip.availabilityStartedAt
+        availabilityDeadlineAt = trip.availabilityDeadlineAt
+        priceLockStartedAt = trip.priceLockStartedAt
+        priceLockExpiresAt = trip.priceLockExpiresAt
+        paymentReceivedAt = trip.paymentReceivedAt
+        paymentConfirmationDeadlineAt = trip.paymentConfirmationDeadlineAt
+        documentsStartedAt = trip.documentsStartedAt
+        documentsDeadlineAt = trip.documentsDeadlineAt
+    }
 
     var displayPilgrimID: String? {
         guard let raw = pilgrimID?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }

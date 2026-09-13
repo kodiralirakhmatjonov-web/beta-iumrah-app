@@ -26,7 +26,14 @@ struct BookingsHomeView: View {
             }
         }
         .refreshable { await bookings.refreshAll() }
-        .task { await bookings.refreshAll() }
+        .task {
+            await bookings.refreshAll()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard !Task.isCancelled else { break }
+                await bookings.refreshAll()
+            }
+        }
         .confirmationDialog(
             L10n.text("booking_delete_confirm_title", settings.language),
             isPresented: Binding(
@@ -262,7 +269,7 @@ struct BookingsHomeView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     } else if active {
-                        Text(effectiveStage.activeSubtitle)
+                        Text(activeStageSubtitle(session, fallback: effectiveStage.activeSubtitle))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -307,17 +314,19 @@ struct BookingsHomeView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(stage.cardTitle)
+                    Text(activeCardTitle(session, fallback: stage.cardTitle))
                         .font(.system(size: 20, weight: .bold, design: .rounded))
                         .tracking(-0.25)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(stage.cardBody)
+                    Text(activeCardBody(session, fallback: stage.cardBody))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
+
+            lifecycleTimerPanel(session, tint: tint)
 
             Divider()
                 .overlay(Color.primary.opacity(0.05))
@@ -349,7 +358,7 @@ struct BookingsHomeView: View {
                 BookingDetailView(bookingID: session.id)
             } label: {
                 HStack(spacing: 10) {
-                    Text(activeActionTitle(for: session.effectiveStatus))
+                    Text(activeActionTitle(for: session))
                     Spacer()
                     Image(systemName: "arrow.up.right")
                 }
@@ -377,6 +386,167 @@ struct BookingsHomeView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(tint.opacity(0.22), lineWidth: 0.8)
+        }
+    }
+
+    @ViewBuilder
+    private func lifecycleTimerPanel(_ session: StoredBookingSession, tint: Color) -> some View {
+        if let phase = lifecyclePhase(for: session), let deadline = phase.deadline {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let remaining = max(0, deadline.timeIntervalSince(context.date))
+                let expired = remaining <= 0
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(lifecycleTimerTitle(phase, expired: expired))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(lifecycleCountdown(remaining))
+                                .font(.system(size: 31, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .tracking(-0.7)
+                                .contentTransition(.numericText())
+                        }
+                        Spacer(minLength: 12)
+                        Image(systemName: phase.symbol)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(tint)
+                            .frame(width: 38, height: 38)
+                            .background(tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    }
+
+                    Text(lifecycleTimerFootnote(phase, expired: expired))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(14)
+                .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+        }
+    }
+
+    private func lifecyclePhase(for session: StoredBookingSession) -> BookingLifecyclePhase? {
+        switch session.effectiveStatus.uppercased() {
+        case "NEW", "AVAILABILITY_CHECK":
+            let deadline = lifecycleDeadline(
+                explicit: session.availabilityDeadlineAt,
+                start: session.availabilityStartedAt ?? session.booking.createdAt,
+                duration: 6 * 60 * 60
+            )
+            return .availability(deadline)
+        case "PAYMENT_PENDING":
+            if session.paymentReceivedAt != nil {
+                let deadline = lifecycleDeadline(
+                    explicit: session.paymentConfirmationDeadlineAt,
+                    start: session.paymentReceivedAt,
+                    duration: 10 * 60
+                )
+                return .paymentConfirmation(deadline)
+            }
+            let deadline = lifecycleDeadline(
+                explicit: session.priceLockExpiresAt,
+                start: session.priceLockStartedAt,
+                duration: 30 * 60
+            )
+            return .priceLock(deadline)
+        case "PAID", "BOOKING_CONFIRMED":
+            let deadline = lifecycleDeadline(
+                explicit: session.documentsDeadlineAt,
+                start: session.documentsStartedAt,
+                duration: 24 * 60 * 60
+            )
+            return .documents(deadline)
+        default:
+            return nil
+        }
+    }
+
+    private func lifecycleDeadline(explicit: String?, start: String?, duration: TimeInterval) -> Date? {
+        if let explicit, let value = Self.isoDate(explicit) { return value }
+        guard let start, let value = Self.isoDate(start) else { return nil }
+        return value.addingTimeInterval(duration)
+    }
+
+    private func lifecycleCountdown(_ interval: TimeInterval) -> String {
+        let total = max(0, Int(interval.rounded(.down)))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    private func lifecycleTimerTitle(_ phase: BookingLifecyclePhase, expired: Bool) -> String {
+        switch phase {
+        case .availability:
+            return expired
+                ? localized("Проверка занимает дольше обычного", "The check is taking longer than usual", "Tekshiruv odatdagidan uzoqroq davom etmoqda", "Текширув одатдагидан узоқроқ давом этмоқда")
+                : localized("До максимального срока проверки", "Until the maximum check time", "Tekshiruvning maksimal muddatigacha", "Текширувнинг максимал муддатигача")
+        case .priceLock:
+            return expired
+                ? localized("Срок фиксации цены завершён", "Price hold has ended", "Narxni saqlash muddati tugadi", "Нархни сақлаш муддати тугади")
+                : localized("Цена зафиксирована ещё", "Price held for", "Narx yana shuncha vaqtga saqlanadi", "Нарх яна шунча вақтга сақланади")
+        case .paymentConfirmation:
+            return expired
+                ? localized("Подтверждение занимает дольше обычного", "Confirmation is taking longer than usual", "Tasdiqlash odatdagidan uzoqroq davom etmoqda", "Тасдиқлаш одатдагидан узоқроқ давом этмоқда")
+                : localized("Подтверждаем оплату", "Confirming payment", "To‘lov tasdiqlanmoqda", "Тўлов тасдиқланмоқда")
+        case .documents:
+            return expired
+                ? localized("Подготовка занимает дольше обычного", "Preparation is taking longer than usual", "Tayyorlash odatdagidan uzoqroq davom etmoqda", "Тайёрлаш одатдагидан узоқроқ давом этмоқда")
+                : localized("Плановый срок подготовки", "Planned preparation time", "Rejalashtirilgan tayyorlash muddati", "Режалаштирилган тайёрлаш муддати")
+        }
+    }
+
+    private func lifecycleTimerFootnote(_ phase: BookingLifecyclePhase, expired: Bool) -> String {
+        switch phase {
+        case .availability:
+            return expired
+                ? localized("Мы продолжаем проверку. Статус обновится автоматически, как только все компоненты будут подтверждены.", "We are continuing the check. The status will update automatically once all components are confirmed.", "Tekshiruv davom etmoqda. Barcha qismlar tasdiqlangach holat avtomatik yangilanadi.", "Текширув давом этмоқда. Барча қисмлар тасдиқлангач ҳолат автоматик янгиланади.")
+                : localized("Обычно подтверждение занимает 1–2 часа. Можно закрыть приложение — статус обновится автоматически.", "Confirmation usually takes 1–2 hours. You can close the app — the status will update automatically.", "Tasdiqlash odatda 1–2 soat davom etadi. Ilovani yopishingiz mumkin — holat avtomatik yangilanadi.", "Тасдиқлаш одатда 1–2 соат давом этади. Иловани ёпишингиз мумкин — ҳолат автоматик янгиланади.")
+        case .priceLock:
+            return expired
+                ? localized("Перед подтверждением оплаты iumrah повторно проверит актуальную итоговую стоимость.", "Before confirming payment, iumrah will recheck the current total price.", "To‘lovni tasdiqlashdan oldin iumrah yakuniy narxning dolzarbligini qayta tekshiradi.", "Тўловни тасдиқлашдан олдин iumrah якуний нархнинг долзарблигини қайта текширади.")
+                : localized("Авиабилеты и некоторые другие компоненты имеют динамическую стоимость и после окончания периода могут потребовать повторной проверки.", "Flights and some other components have dynamic pricing and may require a fresh check after this period.", "Aviachiptalar va ayrim boshqa qismlar dinamik narxga ega, muddat tugagach qayta tekshiruv talab qilinishi mumkin.", "Авиачипталар ва айрим бошқа қисмлар динамик нархга эга, муддат тугагач қайта текширув талаб қилиниши мумкин.")
+        case .paymentConfirmation:
+            return localized("Оплата получена. Обычно проверка и окончательная фиксация бронирования занимают до 10 минут.", "Payment received. Verification and final booking confirmation usually take up to 10 minutes.", "To‘lov qabul qilindi. Tekshiruv va bronni yakuniy tasdiqlash odatda 10 daqiqagacha davom etadi.", "Тўлов қабул қилинди. Текширув ва бронни якуний тасдиқлаш одатда 10 дақиқагача давом этади.")
+        case .documents:
+            return localized("Обычно доступные документы готовятся в течение 24 часов. Срок визы может зависеть от доступности официальных визовых систем Саудовской Аравии и внешних ограничений.", "Available travel documents are usually prepared within 24 hours. Visa timing can depend on the availability of Saudi Arabia’s official visa systems and external restrictions.", "Mavjud safar hujjatlari odatda 24 soat ichida tayyorlanadi. Viza muddati Saudiya Arabistonining rasmiy viza tizimlari mavjudligi va tashqi cheklovlarga bog‘liq bo‘lishi mumkin.", "Мавжуд сафар ҳужжатлари одатда 24 соат ичида тайёрланади. Виза муддати Саудия Арабистонининг расмий виза тизимлари мавжудлиги ва ташқи чекловларга боғлиқ бўлиши мумкин.")
+        }
+    }
+
+    private func activeStageSubtitle(_ session: StoredBookingSession, fallback: String) -> String {
+        switch lifecyclePhase(for: session) {
+        case .paymentConfirmation:
+            return localized("Оплата получена · подтверждаем бронирование", "Payment received · confirming booking", "To‘lov qabul qilindi · bron tasdiqlanmoqda", "Тўлов қабул қилинди · брон тасдиқланмоқда")
+        case .documents:
+            return localized("Бронирование подтверждено · готовим документы", "Booking confirmed · preparing documents", "Bron tasdiqlandi · hujjatlar tayyorlanmoqda", "Брон тасдиқланди · ҳужжатлар тайёрланмоқда")
+        default:
+            return fallback
+        }
+    }
+
+    private func activeCardTitle(_ session: StoredBookingSession, fallback: String) -> String {
+        switch lifecyclePhase(for: session) {
+        case .priceLock: return localized("Цена зафиксирована", "Price held", "Narx saqlandi", "Нарх сақланди")
+        case .paymentConfirmation: return localized("Оплата получена", "Payment received", "To‘lov qabul qilindi", "Тўлов қабул қилинди")
+        case .documents: return localized("Подготавливаем документы", "Preparing documents", "Hujjatlar tayyorlanmoqda", "Ҳужжатлар тайёрланмоқда")
+        default: return fallback
+        }
+    }
+
+    private func activeCardBody(_ session: StoredBookingSession, fallback: String) -> String {
+        switch lifecyclePhase(for: session) {
+        case .availability:
+            return localized("iumrah подтверждает перелёт, отель и выбранные услуги. Обычно это занимает 1–2 часа, максимальный срок — до 6 часов.", "iumrah is confirming your flight, hotel and selected services. This usually takes 1–2 hours, with a maximum target of 6 hours.", "iumrah parvoz, mehmonxona va tanlangan xizmatlarni tasdiqlamoqda. Odatda 1–2 soat, maksimal muddat 6 soatgacha.", "iumrah парвоз, меҳмонхона ва танланган хизматларни тасдиқламоқда. Одатда 1–2 соат, максимал муддат 6 соатгача.")
+        case .priceLock:
+            return localized("Итоговая цена пакета зафиксирована на время оплаты.", "Your package total is held during the payment window.", "Paketning yakuniy narxi to‘lov oynasi davomida saqlanadi.", "Пакетнинг якуний нархи тўлов ойнаси давомида сақланади.")
+        case .paymentConfirmation:
+            return localized("Проверяем полученную оплату и окончательно фиксируем бронирование.", "We are verifying the payment and finalizing your booking.", "Qabul qilingan to‘lov tekshirilmoqda va bron yakuniy tasdiqlanmoqda.", "Қабул қилинган тўлов текширилмоқда ва брон якуний тасдиқланмоқда.")
+        case .documents:
+            return localized("Бронирование подтверждено. Теперь готовим доступные документы поездки.", "Your booking is confirmed. We are now preparing the available travel documents.", "Bron tasdiqlandi. Endi mavjud safar hujjatlari tayyorlanmoqda.", "Брон тасдиқланди. Энди мавжуд сафар ҳужжатлари тайёрланмоқда.")
+        case nil:
+            return fallback
         }
     }
 
@@ -897,10 +1067,13 @@ struct BookingsHomeView: View {
         }
     }
 
-    private func activeActionTitle(for status: String) -> String {
-        switch status.uppercased() {
+    private func activeActionTitle(for session: StoredBookingSession) -> String {
+        switch session.effectiveStatus.uppercased() {
         case "PAYMENT_PENDING":
-            return localized("Продолжить", "Continue", "Davom etish", "Давом этиш")
+            if session.paymentReceivedAt != nil {
+                return localized("Открыть статус оплаты", "Open payment status", "To‘lov holatini ochish", "Тўлов ҳолатини очиш")
+            }
+            return localized("Продолжить оплату", "Continue to payment", "To‘lovni davom ettirish", "Тўловни давом эттириш")
         case "READY_TO_TRAVEL", "DOCUMENTS_READY":
             return localized("Открыть документы", "Open documents", "Hujjatlarni ochish", "Ҳужжатларни очиш")
         case "IN_TRIP":
@@ -1010,6 +1183,29 @@ struct BookingsHomeView: View {
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
+        }
+    }
+}
+
+private enum BookingLifecyclePhase {
+    case availability(Date?)
+    case priceLock(Date?)
+    case paymentConfirmation(Date?)
+    case documents(Date?)
+
+    var deadline: Date? {
+        switch self {
+        case .availability(let value), .priceLock(let value), .paymentConfirmation(let value), .documents(let value):
+            return value
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .availability: return "clock.badge.checkmark"
+        case .priceLock: return "lock.clock"
+        case .paymentConfirmation: return "creditcard.and.123"
+        case .documents: return "doc.badge.clock"
         }
     }
 }

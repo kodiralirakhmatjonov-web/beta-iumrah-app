@@ -98,10 +98,7 @@ final class BookingStore: ObservableObject {
             pricingSnapshot: payload.booking.pricingSnapshot
         )
         if let operational = generatorReportResult {
-            session.pilgrimID = operational.trip.pilgrimID
-            session.bookingNumber = operational.trip.bookingNumber ?? session.bookingNumber
-            session.bookingDisplayNumber = operational.trip.bookingDisplayNumber ?? session.bookingDisplayNumber
-            session.operationStatus = operational.trip.status
+            session.mergeOperationalTrip(operational.trip)
             session.guide = operational.assignment?.guide
         }
         if let profile = serverProfile, !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -113,10 +110,7 @@ final class BookingStore: ObservableObject {
                 generatorTrace: generatorReportResult == nil ? payload.booking.generatorTrace : nil,
                 pricingSnapshot: generatorReportResult == nil ? payload.booking.pricingSnapshot : nil
             ) {
-                session.pilgrimID = response.trip.pilgrimID
-                session.bookingNumber = response.trip.bookingNumber ?? session.bookingNumber
-                session.bookingDisplayNumber = response.trip.bookingDisplayNumber ?? session.bookingDisplayNumber
-                session.operationStatus = response.trip.status
+                session.mergeOperationalTrip(response.trip)
                 session.guide = response.assignment?.guide
             }
         }
@@ -233,16 +227,13 @@ final class BookingStore: ObservableObject {
             guard let detail = try? await accountService.tripDetail(bookingID: trip.bookingID, token: token) else { continue }
             if let index = sessions.firstIndex(where: { $0.id == trip.bookingID }) {
                 sessions[index].booking = detail.booking
-                sessions[index].operationStatus = detail.trip.status
-                sessions[index].pilgrimID = detail.trip.pilgrimID
-                sessions[index].bookingNumber = detail.trip.bookingNumber
-                sessions[index].bookingDisplayNumber = detail.trip.bookingDisplayNumber
+                sessions[index].mergeOperationalTrip(detail.trip)
                 sessions[index].guide = detail.assignment?.guide ?? sessions[index].guide
                 mergeRemoteHotelSelection(detail.booking.hotelSelection, into: &sessions[index].hotelSelection)
                 mergeRemoteHotelSelection(detail.booking.madinahHotelSelection, into: &sessions[index].madinahHotelSelection)
             } else {
                 let profile = detail.booking.pilgrimProfile
-                let restored = StoredBookingSession(
+                var restored = StoredBookingSession(
                     id: trip.bookingID,
                     accessToken: "",
                     booking: detail.booking,
@@ -253,12 +244,9 @@ final class BookingStore: ObservableObject {
                     inboundFlight: nil,
                     hotelSelection: detail.booking.hotelSelection,
                     madinahHotelSelection: detail.booking.madinahHotelSelection,
-                    guide: detail.assignment?.guide,
-                    operationStatus: detail.trip.status,
-                    pilgrimID: detail.trip.pilgrimID,
-                    bookingNumber: detail.trip.bookingNumber,
-                    bookingDisplayNumber: detail.trip.bookingDisplayNumber
+                    guide: detail.assignment?.guide
                 )
+                restored.mergeOperationalTrip(detail.trip)
                 sessions.append(restored)
             }
         }
@@ -277,10 +265,7 @@ final class BookingStore: ObservableObject {
     private func mergeRemoteBooking(_ booking: RemoteBooking, operational: ClientTripResponse?, bookingID: String) {
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
         sessions[index].booking = booking
-        sessions[index].operationStatus = operational?.trip.status ?? sessions[index].operationStatus
-        sessions[index].pilgrimID = operational?.trip.pilgrimID ?? sessions[index].pilgrimID
-        sessions[index].bookingNumber = operational?.trip.bookingNumber ?? sessions[index].bookingNumber
-        sessions[index].bookingDisplayNumber = operational?.trip.bookingDisplayNumber ?? sessions[index].bookingDisplayNumber
+        if let trip = operational?.trip { sessions[index].mergeOperationalTrip(trip) }
         sessions[index].guide = operational?.assignment?.guide ?? sessions[index].guide
         if let profile = booking.pilgrimProfile {
             sessions[index].travelerName = profile.displayName
@@ -479,8 +464,7 @@ final class BookingStore: ObservableObject {
                 accessToken: session.accessToken,
                 profile: updatedProfile
             ) {
-                sessions[index].pilgrimID = response.trip.pilgrimID ?? sessions[index].pilgrimID
-                sessions[index].operationStatus = response.trip.status
+                sessions[index].mergeOperationalTrip(response.trip)
                 sessions[index].guide = response.assignment?.guide ?? sessions[index].guide
             }
         }
