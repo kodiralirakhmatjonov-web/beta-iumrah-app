@@ -1,0 +1,10 @@
+{
+  "update": "iumrah-beta-update-20260913-server-generator-final-v3",
+  "cumulative": true,
+  "includes": [
+    "server-generator-final-v2",
+    "webcrypto-type-fix-v3",
+    "booking-error-localization-fix-v4"
+  ],
+  "root_update": true
+}

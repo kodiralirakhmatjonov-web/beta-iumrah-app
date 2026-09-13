@@ -1,0 +1,2 @@
+Cumulative server-generator update v3.
+Includes the Cloudflare generator migration, WebCrypto TypeScript build fix, and BookingStore authoritativeQuoteRequired localization build fix.
