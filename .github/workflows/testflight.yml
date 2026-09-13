@@ -1,4 +1,4 @@
-name: iUmra 2.0.0 — TestFlight
+name: Iumrah 2.0.0 — TestFlight
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify iUmra 2.0.0 production identity
+      - name: Verify Iumrah 2.0.0 production identity
         run: |
           set -euo pipefail
           test -f IUMRAH_PRODUCTION_2_0_0_APPLIED.txt
@@ -52,7 +52,7 @@ jobs:
           grep -F 'TARGETED_DEVICE_FAMILY: "1,2"' project.yml >/dev/null || {
             echo "STOP: keep iPhone + iPad support from the published app"; exit 1;
           }
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist | grep -Fx 'iUmra' >/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist | grep -Fx 'Iumrah' >/dev/null
           /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' Resources/Info.plist | grep -Fx 'iumrah' >/dev/null || {
             echo "STOP: legacy iumrah:// URL scheme is missing"; exit 1;
           }
@@ -286,7 +286,7 @@ jobs:
           mkdir -p build
           BUILD_NUMBER=$((20000 + GITHUB_RUN_NUMBER))
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
-          echo "Building iUmra 2.0.0 ($BUILD_NUMBER)"
+          echo "Building Iumrah 2.0.0 ($BUILD_NUMBER)"
 
           xcodebuild \
             -project "$PROJECT" \
@@ -346,11 +346,14 @@ jobs:
           }
 
           echo "Archived app: $APP_PATH"
-          echo "Info.plist before repair:"
+          echo "Info.plist before compatibility repair:"
           plutil -p "$INFO_PLIST"
 
           cp "$RUNNER_TEMP/archive-entitlements.plist" "$RUNNER_TEMP/app-entitlements.plist"
 
+          # Keep Xcode's asset-catalog icon metadata (including alternate icons).
+          # Add explicit fallback files for both iPhone and iPad so App Store
+          # validation can never reject the binary for a missing 152x152 iPad icon.
           /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$INFO_PLIST"
 
@@ -358,15 +361,34 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles array" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles:0 string AppIcon60x60" "$INFO_PLIST"
 
-          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$INFO_PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$INFO_PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFiles~ipad" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles~ipad array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles~ipad:0 string AppIcon76x76" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles~ipad:1 string AppIcon83.5x83.5" "$INFO_PLIST"
+
+          # Ensure primary icon dictionaries exist without deleting alternate icons.
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles" "$INFO_PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60" "$INFO_PLIST"
 
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons~ipad" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons~ipad:CFBundlePrimaryIcon" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon76x76" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:1 string AppIcon83.5x83.5" "$INFO_PLIST"
+
           sips -z 120 120 "$ICON_SOURCE" --out "$APP_PATH/AppIcon60x60@2x.png" >/dev/null
           sips -z 180 180 "$ICON_SOURCE" --out "$APP_PATH/AppIcon60x60@3x.png" >/dev/null
+          sips -z 76 76 "$ICON_SOURCE" --out "$APP_PATH/AppIcon76x76.png" >/dev/null
+          sips -z 152 152 "$ICON_SOURCE" --out "$APP_PATH/AppIcon76x76@2x.png" >/dev/null
+          sips -z 167 167 "$ICON_SOURCE" --out "$APP_PATH/AppIcon83.5x83.5@2x.png" >/dev/null
 
           if [ -s "$RUNNER_TEMP/app-entitlements.plist" ]; then
             codesign \
@@ -386,14 +408,20 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$INFO_PLIST")" = "AppIcon"
           test -f "$APP_PATH/AppIcon60x60@2x.png"
           test -f "$APP_PATH/AppIcon60x60@3x.png"
+          test -f "$APP_PATH/AppIcon76x76@2x.png"
+          test -f "$APP_PATH/AppIcon83.5x83.5@2x.png"
           test -f "$APP_PATH/Assets.car"
 
-          WIDTH=$(sips -g pixelWidth "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelWidth/ {print $2}')
-          HEIGHT=$(sips -g pixelHeight "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelHeight/ {print $2}')
-          test "$WIDTH" = "120"
-          test "$HEIGHT" = "120"
+          IPAD152_W=$(sips -g pixelWidth "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD152_H=$(sips -g pixelHeight "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD152_W" = "152" && test "$IPAD152_H" = "152" || { echo "iPad 152x152 fallback icon is invalid"; exit 1; }
 
-          echo "Archive preflight passed."
+          IPAD167_W=$(sips -g pixelWidth "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD167_H=$(sips -g pixelHeight "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD167_W" = "167" && test "$IPAD167_H" = "167" || { echo "iPad 167x167 fallback icon is invalid"; exit 1; }
+
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles' "$INFO_PLIST"
+          echo "Archive preflight passed, including iPad 152x152 + 167x167 icons."
 
       - name: Export IPA
         env:
@@ -488,7 +516,35 @@ jobs:
             exit 1
           }
 
-          echo "FINAL IPA PRECHECK PASSED."
+          test -f "$APP_PATH/AppIcon76x76@2x.png" || {
+            echo "FINAL IPA is missing required iPad 152x152 icon"
+            exit 1
+          }
+          test -f "$APP_PATH/AppIcon83.5x83.5@2x.png" || {
+            echo "FINAL IPA is missing required iPad 167x167 icon"
+            exit 1
+          }
+
+          IPAD152_W=$(sips -g pixelWidth "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD152_H=$(sips -g pixelHeight "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD152_W" = "152" && test "$IPAD152_H" = "152" || {
+            echo "FINAL IPA iPad icon has wrong size: ${IPAD152_W}x${IPAD152_H}"
+            exit 1
+          }
+
+          IPAD167_W=$(sips -g pixelWidth "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD167_H=$(sips -g pixelHeight "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD167_W" = "167" && test "$IPAD167_H" = "167" || {
+            echo "FINAL IPA iPad icon has wrong size: ${IPAD167_W}x${IPAD167_H}"
+            exit 1
+          }
+
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles' "$INFO_PLIST" >/dev/null || {
+            echo "FINAL IPA is missing CFBundleIcons~ipad primary icon metadata"
+            exit 1
+          }
+
+          echo "FINAL IPA PRECHECK PASSED, including iPad 152x152 + 167x167 icons."
           echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
 
       - name: Set up Ruby for fastlane
@@ -568,7 +624,7 @@ jobs:
       - name: TestFlight summary
         run: |
           {
-            echo "## iUmra TestFlight upload"
+            echo "## Iumrah TestFlight upload"
             echo "- Bundle ID: \`$BUNDLE_ID\`"
             echo "- Version: \`2.0.0\`"
             echo "- Build: \`${BUILD_NUMBER:-unknown}\`"
