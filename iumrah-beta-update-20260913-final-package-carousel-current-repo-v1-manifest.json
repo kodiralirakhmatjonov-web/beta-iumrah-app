@@ -1,0 +1,50 @@
+{
+  "name": "iumrah Beta final package carousel current repo compatible v1",
+  "date": "2026-09-13",
+  "root": "beta-iumrah-app-main",
+  "base_layer": "iumrah-beta-update-20260913-care-home-redesign-v1(1).zip",
+  "purpose": "One-shot root ZIP that preserves the supplied Care Home redesign and adds the complete final package tier carousel/pricing/recommendation/support update without requiring any prior carousel ZIP.",
+  "selected_tier_focus": "Captures journey.trip.packageTier before async comparison loading and reapplies it without animation after comparison options resolve; scrollPosition is center-anchored.",
+  "files": [
+    {
+      "path": "BETA_FINAL_PACKAGE_CAROUSEL_CURRENT_REPO_117_APPLIED.txt",
+      "bytes": 1205,
+      "sha256": "225c2504659cf0bbf68d1a7027f83efd62109529d0c00e5d8b97915a7df2aabd"
+    },
+    {
+      "path": "Backend/PackageEngine/test/final-package-tier-comparison-contract.test.mjs",
+      "bytes": 4784,
+      "sha256": "8490d7482e94b34b0ea5a241b05ef4a1ae6dee707b1329225133cdcca7270e2b"
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahCareTeamHero.imageset/Contents.json",
+      "bytes": 187,
+      "sha256": "69fa4d15ccc5171a94fa51eb3bc4885dfb6638c6ed429c5a750f55e89ac92ed8"
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahCareTeamHero.imageset/care-team-hero.jpeg",
+      "bytes": 253376,
+      "sha256": "b42eb31ee1a9d3568dbf3d7136105447398ca59c28ef6bad45a74a44b34e130a"
+    },
+    {
+      "path": "Sources/State/JourneyStore.swift",
+      "bytes": 53325,
+      "sha256": "4ba189e477a41c20c2773f13b483b08d1b8fe341115a8177f8a0fd853b79e383"
+    },
+    {
+      "path": "Sources/Views/Package/FinalPackageView.swift",
+      "bytes": 108661,
+      "sha256": "0207926d8e011d93f37f61e6b29ee233e531efb7d05cd19bd36d8a8ae81ddff8"
+    },
+    {
+      "path": "Sources/Views/Tabs/CareHomeView.swift",
+      "bytes": 27395,
+      "sha256": "a9450f6a3eb759686e4e605a3c16f1000906065ec07527cf62f0eed6fae6e7a3"
+    }
+  ],
+  "validation": [
+    "Overlay simulation used the supplied prior full repository plus the supplied 2026-09-13 Care Home update, then this patch.",
+    "Swift syntax parse passed for all 191 Swift files.",
+    "Focused final-package comparison contract tests passed 4/4."
+  ]
+}

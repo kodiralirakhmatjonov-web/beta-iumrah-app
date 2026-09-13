@@ -57,16 +57,19 @@ test("comparison recomputes hotel room nights but does not silently add Luxury Y
   assert.match(pricing, /tier == \.luxury \? luxuryPackageMarkupRate : standardPackageMarkupRate/);
 });
 
-test("carousel comparison is explicit, reversible UX and keeps booking details below it", () => {
+test("carousel comparison is explicit, reversible UX and opens on the configured package", () => {
   assert.match(finalPackage, /ScrollView\(\.horizontal, showsIndicators: false\)/);
   assert.match(finalPackage, /PackageTier\.allCases/);
   assert.match(finalPackage, /\.scrollTargetBehavior\(\.viewAligned\)/);
-  assert.match(finalPackage, /\.scrollPosition\(id: \$focusedComparisonTier\)/);
+  assert.match(finalPackage, /\.scrollPosition\(id: \$focusedComparisonTier, anchor: \.center\)/);
   assert.match(finalPackage, /option\.tier != journey\.trip\.packageTier/);
   assert.match(finalPackage, /Task \{ await applyPackageTierComparison\(option\) \}/);
   assert.match(finalPackage, /packageRecommendationCard/);
   assert.match(finalPackage, /packageDifferenceCard/);
   assert.match(finalPackage, /includedServicesCard/);
-  assert.match(finalPackage, /safeAreaInset\(edge: \.bottom/);
   assert.match(finalPackage, /fixedFlightComparisonNote/);
+  assert.match(finalPackage, /let selectedTier = journey\.trip\.packageTier/);
+  assert.match(finalPackage, /comparisonOptions = options[\s\S]*?focusedComparisonTier = selectedTier/);
+  assert.match(finalPackage, /Text\(continueBookingTitle\)/);
+  assert.doesNotMatch(finalPackage, /safeAreaInset\(edge: \.bottom/);
 });

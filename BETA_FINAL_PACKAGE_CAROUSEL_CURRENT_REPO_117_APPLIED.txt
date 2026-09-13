@@ -1,0 +1,19 @@
+iumrah Beta update 117
+Date: 2026-09-13
+
+This one-shot update is adapted for the current repository layer supplied as:
+iumrah-beta-update-20260913-care-home-redesign-v1(1).zip
+
+Included:
+- Preserves the supplied Care Home redesign and IumrahCareTeamHero asset.
+- Adds the complete final package tier carousel Economy / Standard / Comfort / Luxury.
+- Opens the carousel on the exact package tier already configured by the pilgrim, including after async comparison data resolves.
+- Keeps selected flights and dates fixed during package comparison.
+- Reprices named/primary hotels and package-tier pricing according to the final package comparison rules.
+- Uses distinct smooth package gradients, compact cards, and softer Apple-like ambient/contact shadows.
+- Includes expanded iumrah recommendations and Visa / iumrah Care / iumrah Guide explanation surfaces.
+- Removes the previously fixed bottom booking CTA; booking continuation is handled in the selected package card.
+
+Compatibility validation performed against the supplied prior full repository with the 2026-09-13 Care Home layer applied first:
+- Swift syntax parse: 191 / 191 files passed.
+- Final package comparison contract tests: 4 / 4 passed.
