@@ -43,16 +43,20 @@ struct HomeEmotionalJourneyPrompt: View {
             } label: {
                 HStack(spacing: 7) {
                     Text(HomeEmotionalCopy.tryButton(settings.language))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                     Image(systemName: "play.fill")
                         .font(.system(size: 11, weight: .bold))
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .foregroundStyle(.primary)
                 .padding(.horizontal, 17)
                 .frame(height: 44)
-                .background(Color.iumrahPrimaryButtonBackground)
-                .clipShape(Capsule(style: .continuous))
-                .shadow(color: .black.opacity(0.09), radius: 12, y: 6)
+                .iumrahGlass(
+                    in: Capsule(style: .continuous),
+                    interactive: true,
+                    chrome: true
+                )
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.emotionalJourney.open")
@@ -60,20 +64,31 @@ struct HomeEmotionalJourneyPrompt: View {
         .padding(.horizontal, 2)
         .padding(.vertical, 2)
         .fullScreenCover(isPresented: $isPresented) {
-            HomeEmotionalJourneyFullscreen(language: settings.language)
+            HomeEmotionalJourneyFullscreen(language: settings.language, initialStoryID: nil)
         }
     }
 }
 
-private struct HomeEmotionalJourneyFullscreen: View {
+struct HomeEmotionalJourneyFullscreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
     let language: AppSettingsStore.Language
 
-    @State private var activeStoryID: String? = HomeEmotionalStory.all.first?.id
+    @State private var activeStoryID: String?
     @State private var isMuted = false
     @State private var captionVisible = false
+
+    init(language: AppSettingsStore.Language, initialStoryID: String? = nil) {
+        self.language = language
+        let resolvedID: String?
+        if let initialStoryID, HomeEmotionalStory.all.contains(where: { $0.id == initialStoryID }) {
+            resolvedID = initialStoryID
+        } else {
+            resolvedID = HomeEmotionalStory.all.first?.id
+        }
+        _activeStoryID = State(initialValue: resolvedID)
+    }
 
     private var activeStory: HomeEmotionalStory? {
         guard let activeStoryID else { return HomeEmotionalStory.all.first }
@@ -180,7 +195,7 @@ private struct HomeEmotionalJourneyFullscreen: View {
                     .foregroundStyle(.white.opacity(0.82))
                     .padding(.horizontal, 13)
                     .frame(height: 40)
-                    .iumrahGlass(in: Capsule(style: .continuous))
+                    .iumrahGlass(in: Capsule(style: .continuous), allowsStaticGlass: true, chrome: true)
 
                 Spacer()
 
@@ -192,7 +207,7 @@ private struct HomeEmotionalJourneyFullscreen: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .iumrahGlass(in: Circle(), interactive: true)
+                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isMuted ? "Unmute" : "Mute")
@@ -205,7 +220,7 @@ private struct HomeEmotionalJourneyFullscreen: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .iumrahGlass(in: Circle(), interactive: true)
+                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
@@ -317,10 +332,10 @@ private enum HomeEmotionalCopy {
 
     static func tryButton(_ language: AppSettingsStore.Language) -> String {
         switch language {
-        case .russian: return "Попробовать"
-        case .english: return "Experience"
-        case .uzbek: return "His etish"
-        case .uzbekCyrillic: return "Ҳис этиш"
+        case .russian: return "Почувствовать сейчас"
+        case .english: return "Experience now"
+        case .uzbek: return "Hozir his eting"
+        case .uzbekCyrillic: return "Ҳозир ҳис этинг"
         }
     }
 

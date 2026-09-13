@@ -45,6 +45,7 @@ struct IumrahAccountView: View {
                         activeTripCard(active)
                     }
                     tripsSection
+                    paymentSecuritySection
                     profileSection(profile)
                     settingsSection
                     signOutButton
@@ -54,6 +55,7 @@ struct IumrahAccountView: View {
                     if let pending = pendingActivationTrip {
                         activationShortcut(pending)
                     }
+                    paymentSecuritySection
                     guestSettingsSection
                 }
             }
@@ -531,10 +533,135 @@ struct IumrahAccountView: View {
         }
     }
 
+    private var paymentSecuritySection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            sectionHeader(
+                icon: "lock.shield.fill",
+                title: tr("Payment & security", "Оплата и безопасность", "To‘lov va xavfsizlik", "Тўлов ва хавфсизлик"),
+                subtitle: tr(
+                    "Payment, policies, KYC and account protection",
+                    "Оплата, правила, KYC и защита аккаунта",
+                    "To‘lov, qoidalar, KYC va akkaunt himoyasi",
+                    "Тўлов, қоидалар, KYC ва аккаунт ҳимояси"
+                )
+            )
+            .padding(.bottom, 8)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .paymentSecurity)
+            } label: {
+                settingsRow(
+                    icon: "creditcard.fill",
+                    title: tr("Payment", "Оплата", "To‘lov", "Тўлов"),
+                    value: tr(
+                        "Method, confirmation and payment security",
+                        "Способ, подтверждение и безопасность платежа",
+                        "Usul, tasdiqlash va to‘lov xavfsizligi",
+                        "Усул, тасдиқлаш ва тўлов хавфсизлиги"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .refund)
+            } label: {
+                settingsRow(
+                    icon: "arrow.uturn.backward.circle.fill",
+                    title: IumrahPolicyKind.refund.title(settings.language),
+                    value: tr(
+                        "Flights, hotels, transfer and services",
+                        "Авиабилеты, отели, трансфер и сервисы",
+                        "Aviachipta, mehmonxona, transfer va xizmatlar",
+                        "Авиачипта, меҳмонхона, трансфер ва хизматлар"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .privacy)
+            } label: {
+                settingsRow(
+                    icon: "hand.raised.fill",
+                    title: IumrahPolicyKind.privacy.title(settings.language),
+                    value: tr(
+                        "Personal data and privacy",
+                        "Персональные данные и конфиденциальность",
+                        "Shaxsiy ma’lumotlar va maxfiylik",
+                        "Шахсий маълумотлар ва махфийлик"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            if let trip = kycTrip {
+                NavigationLink {
+                    IumrahSecurityConfirmationView(bookingID: trip.id)
+                } label: {
+                    settingsRow(
+                        icon: "person.text.rectangle.fill",
+                        title: "KYC · iumrah Security",
+                        value: tr(
+                            "Identity confirmation for booking \(trip.displayBookingNumber)",
+                            "Подтверждение личности для брони \(trip.displayBookingNumber)",
+                            "\(trip.displayBookingNumber) broni uchun shaxsni tasdiqlash",
+                            "\(trip.displayBookingNumber) брони учун шахсни тасдиқлаш"
+                        )
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                settingsRow(
+                    icon: "person.text.rectangle.fill",
+                    title: "KYC · iumrah Security",
+                    value: tr(
+                        "Available when you have a booking",
+                        "Доступно после создания бронирования",
+                        "Bron yaratilgandan keyin mavjud",
+                        "Брон яратилгандан кейин мавжуд"
+                    )
+                )
+                .opacity(0.58)
+            }
+
+            if account.isAuthenticated {
+                Divider().padding(.leading, 54)
+
+                NavigationLink {
+                    IumrahAccountSecurityView()
+                } label: {
+                    settingsRow(
+                        icon: "lock.shield.fill",
+                        title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"),
+                        value: tr("Apple and active sessions", "Apple и активные сеансы", "Apple va faol seanslar", "Apple ва фаол сеанслар")
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .iumrahCard()
+    }
+
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader(icon: "gearshape.fill", title: tr("Settings", "Настройки", "Sozlamalar", "Созламалар"), subtitle: tr("App, language, appearance and notifications", "Приложение, язык, оформление и уведомления", "Ilova, til, ko‘rinish va bildirishnomalar", "Илова, тил, кўриниш ва билдиришномалар"))
-                .padding(.bottom, 8)
+            sectionHeader(
+                icon: "gearshape.fill",
+                title: tr("Settings", "Настройки", "Sozlamalar", "Созламалар"),
+                subtitle: tr(
+                    "Language, appearance and notifications",
+                    "Язык, оформление и уведомления",
+                    "Til, ko‘rinish va bildirishnomalar",
+                    "Тил, кўриниш ва билдиришномалар"
+                )
+            )
+            .padding(.bottom, 8)
 
             Menu {
                 Picker(tr("Language", "Язык", "Til", "Тил"), selection: $settings.language) {
@@ -574,59 +701,10 @@ struct IumrahAccountView: View {
             Button {
                 openSystemSettings()
             } label: {
-                settingsRow(icon: "bell.badge.fill", title: tr("Notifications", "Уведомления", "Bildirishnomalar", "Билдиришномалар"), value: notificationStatusText)
-            }
-            .buttonStyle(.plain)
-
-            Divider().padding(.leading, 54)
-
-            NavigationLink {
-                IumrahAccountSecurityView()
-            } label: {
                 settingsRow(
-                    icon: "lock.shield.fill",
-                    title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"),
-                    value: tr("Apple and active sessions", "Apple и активные сеансы", "Apple va faol seanslar", "Apple ва фаол сеанслар")
-                )
-            }
-            .buttonStyle(.plain)
-
-
-            Divider().padding(.leading, 54)
-
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .privacy)
-            } label: {
-                settingsRow(
-                    icon: "hand.raised.fill",
-                    title: IumrahPolicyKind.privacy.title(settings.language),
-                    value: tr("Data and privacy", "Данные и конфиденциальность", "Ma’lumotlar va maxfiylik", "Маълумотлар ва махфийлик")
-                )
-            }
-            .buttonStyle(.plain)
-
-            Divider().padding(.leading, 54)
-
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .refund)
-            } label: {
-                settingsRow(
-                    icon: "arrow.uturn.backward.circle.fill",
-                    title: IumrahPolicyKind.refund.title(settings.language),
-                    value: tr("Flights, hotels, transfer and services", "Авиабилеты, отели, трансфер и сервисы", "Aviachipta, mehmonxona, transfer va xizmatlar", "Авиачипта, меҳмонхона, трансфер ва хизматлар")
-                )
-            }
-            .buttonStyle(.plain)
-
-            Divider().padding(.leading, 54)
-
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .paymentSecurity)
-            } label: {
-                settingsRow(
-                    icon: "creditcard.and.123",
-                    title: IumrahPolicyKind.paymentSecurity.title(settings.language),
-                    value: tr("Manual payment · first 35 days", "Ручная оплата · первые 35 дней", "Qo‘lda to‘lov · dastlabki 35 kun", "Қўлда тўлов · дастлабки 35 кун")
+                    icon: "bell.badge.fill",
+                    title: tr("Notifications", "Уведомления", "Bildirishnomalar", "Билдиришномалар"),
+                    value: notificationStatusText
                 )
             }
             .buttonStyle(.plain)
@@ -782,8 +860,13 @@ struct IumrahAccountView: View {
 
     private var guestSettingsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader(icon: "slider.horizontal.3", title: tr("App settings", "Настройки приложения", "Ilova sozlamalari", "Илова созламалари"), subtitle: nil)
-                .padding(.bottom, 8)
+            sectionHeader(
+                icon: "slider.horizontal.3",
+                title: tr("App settings", "Настройки приложения", "Ilova sozlamalari", "Илова созламалари"),
+                subtitle: nil
+            )
+            .padding(.bottom, 8)
+
             Menu {
                 Picker(tr("Language", "Язык", "Til", "Тил"), selection: $settings.language) {
                     ForEach(AppSettingsStore.Language.allCases) { language in Text(language.title).tag(language) }
@@ -792,7 +875,9 @@ struct IumrahAccountView: View {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
             .tint(Color.primary)
+
             Divider().padding(.leading, 54)
+
             NavigationLink {
                 IumrahAppearanceView()
             } label: {
@@ -803,7 +888,9 @@ struct IumrahAccountView: View {
                 )
             }
             .buttonStyle(.plain)
+
             Divider().padding(.leading, 54)
+
             NavigationLink {
                 AccountNotificationsView()
             } label: {
@@ -812,26 +899,15 @@ struct IumrahAccountView: View {
             .buttonStyle(.plain)
 
             Divider().padding(.leading, 54)
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .privacy)
-            } label: {
-                settingsRow(icon: "hand.raised.fill", title: IumrahPolicyKind.privacy.title(settings.language), value: tr("Data and privacy", "Данные и конфиденциальность", "Ma’lumotlar va maxfiylik", "Маълумотлар ва махфийлик"))
-            }
-            .buttonStyle(.plain)
 
-            Divider().padding(.leading, 54)
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .refund)
+            Button {
+                openSystemSettings()
             } label: {
-                settingsRow(icon: "arrow.uturn.backward.circle.fill", title: IumrahPolicyKind.refund.title(settings.language), value: tr("Component refund rules", "Правила возврата компонентов", "Komponentlarni qaytarish", "Компонентларни қайтариш"))
-            }
-            .buttonStyle(.plain)
-
-            Divider().padding(.leading, 54)
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .paymentSecurity)
-            } label: {
-                settingsRow(icon: "creditcard.and.123", title: IumrahPolicyKind.paymentSecurity.title(settings.language), value: tr("Manual payment · first 35 days", "Ручная оплата · первые 35 дней", "Qo‘lda to‘lov · dastlabki 35 kun", "Қўлда тўлов · дастлабки 35 кун"))
+                settingsRow(
+                    icon: "bell.badge.fill",
+                    title: tr("Notifications", "Уведомления", "Bildirishnomalar", "Билдиришномалар"),
+                    value: notificationStatusText
+                )
             }
             .buttonStyle(.plain)
         }
@@ -952,6 +1028,10 @@ struct IumrahAccountView: View {
             .filter { !["COMPLETED", "CANCELLED"].contains($0.effectiveStatus.uppercased()) }
             .sorted { tripPriority($0) < tripPriority($1) }
             .first
+    }
+
+    private var kycTrip: StoredBookingSession? {
+        activeTrip ?? allTrips.first
     }
 
     private var allTrips: [StoredBookingSession] {

@@ -7,6 +7,7 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @State private var showZiyarats = false
+    @State private var expandedHomeFAQID: String?
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { $0.effectiveStatus.uppercased() != "COMPLETED" }
@@ -53,7 +54,7 @@ struct HomeDashboardView: View {
                 careCard
                 hotelCard
                 flightsHomeCard
-                flightsWorldFooter
+                personalUmrahFAQ
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -312,7 +313,7 @@ struct HomeDashboardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 7) {
                         Image(systemName: "map.fill")
-                        Text("iumrah Ziyarats")
+                        Text("MAKKAH · MADINAH")
                     }
                     .font(.caption.weight(.bold))
                     .tracking(0.5)
@@ -325,8 +326,9 @@ struct HomeDashboardView: View {
 
                     Text(ziyaratsHomeSubtitle)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.78))
-                        .lineLimit(2)
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     HStack(spacing: 6) {
                         Text(ziyaratsHomeCTA)
@@ -352,29 +354,24 @@ struct HomeDashboardView: View {
     }
 
     private var ziyaratsHomeTitle: String {
-        switch settings.language {
-        case .russian: return "Зияраты Медины"
-        case .english: return "Medina Ziyarat"
-        case .uzbek: return "Madina ziyorati"
-        case .uzbekCyrillic: return "Мадина зиёрати"
-        }
+        "iumrah Ziyarats"
     }
 
     private var ziyaratsHomeSubtitle: String {
         switch settings.language {
-        case .russian: return "Точные места, фотографии и единый маршрут по Медине."
-        case .english: return "Exact places, photos and one beautifully organized route through Madinah."
-        case .uzbek: return "Aniq joylar, suratlar va Madina bo‘ylab yagona yo‘nalish."
-        case .uzbekCyrillic: return "Аниқ жойлар, суратлар ва Мадина бўйлаб ягона йўналиш."
+        case .russian: return "Священные и исторические места Мекки и Медины — в одном маршруте. Доступ к iumrah Ziyarats включён в iumrah Services вашего пакета."
+        case .english: return "Sacred and historic places across Makkah and Madinah in one journey. Access to iumrah Ziyarats is included with your package’s iumrah Services."
+        case .uzbek: return "Makka va Madinadagi muqaddas hamda tarixiy joylar — bitta yo‘nalishda. iumrah Ziyarats sizning paketingizdagi iumrah Services tarkibiga kiradi."
+        case .uzbekCyrillic: return "Макка ва Мадинадаги муқаддас ҳамда тарихий жойлар — битта йўналишда. iumrah Ziyarats сизнинг пакетингиздаги iumrah Services таркибига киради."
         }
     }
 
     private var ziyaratsHomeCTA: String {
         switch settings.language {
-        case .russian: return "Открыть карту"
-        case .english: return "Open map"
-        case .uzbek: return "Xaritani ochish"
-        case .uzbekCyrillic: return "Харитани очиш"
+        case .russian: return "Открыть Ziyarats"
+        case .english: return "Open Ziyarats"
+        case .uzbek: return "Ziyarats’ni ochish"
+        case .uzbekCyrillic: return "Ziyarats’ни очиш"
         }
     }
 
@@ -457,50 +454,138 @@ struct HomeDashboardView: View {
     }
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text(L10n.text("home_hero_kicker", settings.language))
-                    .font(.caption.weight(.bold))
-                    .tracking(1.2)
-                    .foregroundStyle(.white.opacity(0.62))
-                Spacer()
-                Image(systemName: "sparkles")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.88))
-            }
+        Button {
+            IumrahHaptics.soft()
+            chrome.startNewTrip()
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack {
+                    Color.white
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.text("home_hero_title", settings.language))
-                    .font(.system(size: 39, weight: .bold, design: .rounded))
-                    .tracking(-1.1)
-                    .foregroundStyle(.white)
-                Text(L10n.text("home_hero_body", settings.language))
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-
-            Button {
-                chrome.startNewTrip()
-            } label: {
-                HStack {
-                    Text(L10n.text("home_hero_cta", settings.language))
-                    Spacer()
-                    Image(systemName: "arrow.right")
+                    Image("IumrahConfiguratorHero")
+                        .resizable()
+                        .scaledToFit()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
                 }
-                .font(.headline)
-                .padding(.horizontal, 18)
-                .frame(height: 56)
-                .foregroundColor(.black)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            }
-            .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .frame(height: 210)
+                .clipped()
 
-            Label(L10n.text("home_hero_badge", settings.language), systemImage: "checkmark.seal.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.72))
+                VStack(alignment: .leading, spacing: 15) {
+                    HStack(spacing: 8) {
+                        Label("iumrah Configurator", systemImage: "slider.horizontal.3")
+                            .font(.caption.weight(.bold))
+                            .tracking(0.45)
+                            .foregroundStyle(Color.black.opacity(0.58))
+                        Spacer(minLength: 8)
+                        Text(configuratorTimeBadge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.black.opacity(0.62))
+                            .padding(.horizontal, 10)
+                            .frame(height: 29)
+                            .background(Color.white.opacity(0.72), in: Capsule())
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(configuratorHeroTitle)
+                            .font(.system(size: 31, weight: .bold, design: .rounded))
+                            .tracking(-0.75)
+                            .foregroundStyle(.black)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(configuratorHeroBody)
+                            .font(.system(size: 15, weight: .regular, design: .rounded))
+                            .foregroundStyle(Color.black.opacity(0.64))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    HStack(spacing: 8) {
+                        configuratorChip("airplane")
+                        configuratorChip("building.2.fill")
+                        configuratorChip("car.fill")
+                        configuratorChip("heart.fill")
+                        Spacer(minLength: 0)
+                    }
+
+                    HStack(spacing: 10) {
+                        Text(configuratorHeroCTA)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(height: 54)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .padding(20)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.92, green: 0.95, blue: 1.00),
+                            Color(red: 0.96, green: 0.93, blue: 1.00),
+                            Color(red: 0.98, green: 0.96, blue: 0.93)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
+            }
+            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
+            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
-        .iumrahMarketingCard(dark: true)
+        .buttonStyle(.plain)
+        .accessibilityLabel(configuratorHeroTitle)
+    }
+
+    private func configuratorChip(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Color.black.opacity(0.72))
+            .frame(width: 35, height: 35)
+            .background(Color.white.opacity(0.70), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+
+    private var configuratorTimeBadge: String {
+        switch settings.language {
+        case .russian: return "≈ 5 минут"
+        case .english: return "≈ 5 min"
+        case .uzbek: return "≈ 5 daqiqa"
+        case .uzbekCyrillic: return "≈ 5 дақиқа"
+        }
+    }
+
+    private var configuratorHeroTitle: String {
+        switch settings.language {
+        case .russian: return "Соберите свою Умру за 5 минут"
+        case .english: return "Build your Umrah in 5 minutes"
+        case .uzbek: return "Umrangizni 5 daqiqada tuzing"
+        case .uzbekCyrillic: return "Умрангизни 5 дақиқада тузинг"
+        }
+    }
+
+    private var configuratorHeroBody: String {
+        switch settings.language {
+        case .russian: return "Персональный пакет для вас, вашей семьи или друзей — без обязательной туристической группы из 30–50 человек. Перелёт, отель, трансфер и iumrah Services собираются в одну поездку."
+        case .english: return "A personal package for you, your family or friends — without having to join a 30–50 person tour group. Flights, hotel, transfer and iumrah Services come together as one journey."
+        case .uzbek: return "Siz, oilangiz yoki do‘stlaringiz uchun shaxsiy paket — 30–50 kishilik majburiy tur guruhisiz. Parvoz, mehmonxona, transfer va iumrah Services bitta safarga birlashadi."
+        case .uzbekCyrillic: return "Сиз, оилангиз ёки дўстларингиз учун шахсий пакет — 30–50 кишилик мажбурий тур гуруҳисиз. Парвоз, меҳмонхона, трансфер ва iumrah Services битта сафарга бирлашади."
+        }
+    }
+
+    private var configuratorHeroCTA: String {
+        switch settings.language {
+        case .russian: return "Создать мою Умру"
+        case .english: return "Create my Umrah"
+        case .uzbek: return "Umramni yaratish"
+        case .uzbekCyrillic: return "Умрамни яратиш"
+        }
     }
 
     private var friendsHomeCard: some View {
@@ -791,6 +876,133 @@ struct HomeDashboardView: View {
         .buttonStyle(.plain)
     }
 
+    private var personalUmrahFAQ: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("iumrah")
+                    .font(.caption.weight(.bold))
+                    .tracking(0.9)
+                    .foregroundStyle(.secondary)
+
+                Text(personalUmrahFAQTitle)
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .tracking(-0.6)
+
+                Text(personalUmrahFAQSubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(spacing: 0) {
+                ForEach(Array(homeFAQItems.enumerated()), id: \.element.id) { index, item in
+                    Button {
+                        IumrahHaptics.selection()
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                            expandedHomeFAQID = expandedHomeFAQID == item.id ? nil : item.id
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(alignment: .center, spacing: 12) {
+                                Text(item.question)
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                Spacer(minLength: 8)
+
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                                    .rotationEffect(.degrees(expandedHomeFAQID == item.id ? 180 : 0))
+                            }
+                            .padding(.vertical, 16)
+
+                            if expandedHomeFAQID == item.id {
+                                Text(item.answer)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.bottom, 17)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < homeFAQItems.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.8)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 92)
+    }
+
+    private var personalUmrahFAQTitle: String {
+        switch settings.language {
+        case .russian: return "Персональная Умра — для вас и ваших близких"
+        case .english: return "A personal Umrah — for you and the people you choose"
+        case .uzbek: return "Shaxsiy Umra — siz va yaqinlaringiz uchun"
+        case .uzbekCyrillic: return "Шахсий Умра — сиз ва яқинларингиз учун"
+        }
+    }
+
+    private var personalUmrahFAQSubtitle: String {
+        switch settings.language {
+        case .russian: return "iumrah не привязывает вас к стандартной группе. Соберите поездку для себя, семьи или друзей и управляйте ею как одной персональной Umrah."
+        case .english: return "iumrah does not tie you to a standard tour group. Build one personal Umrah for yourself, your family or friends and manage the journey in one place."
+        case .uzbek: return "iumrah sizni standart tur guruhiga bog‘lamaydi. O‘zingiz, oilangiz yoki do‘stlaringiz uchun shaxsiy Umra tuzing va safarni bitta joydan boshqaring."
+        case .uzbekCyrillic: return "iumrah сизни стандарт тур гуруҳига боғламайди. Ўзингиз, оилангиз ёки дўстларингиз учун шахсий Умра тузинг ва сафарни битта жойдан бошқаринг."
+        }
+    }
+
+    private var homeFAQItems: [HomeFAQItem] {
+        switch settings.language {
+        case .russian:
+            return [
+                HomeFAQItem(id: "what", question: "Что такое iumrah?", answer: "iumrah — платформа для самостоятельной и персональной Умры. Она помогает собрать перелёт, отель, трансфер и сервисы в один понятный пакет и затем вести поездку в одном приложении."),
+                HomeFAQItem(id: "why", question: "Почему был создан iumrah?", answer: "Чтобы паломнику не приходилось зависеть от большой туристической группы или разбираться в десятках разрозненных бронирований. Идея iumrah — дать больше контроля, прозрачности и заботы на каждом этапе поездки."),
+                HomeFAQItem(id: "personal", question: "Что значит «персональная Умра»?", answer: "Поездка собирается вокруг вас: ваших дат, бюджета, уровня отеля и выбранных услуг. Это не обязательная группа из 30–50 незнакомых людей — вы сами выбираете, с кем совершать Умру."),
+                HomeFAQItem(id: "family", question: "Можно поехать только с семьёй или друзьями?", answer: "Да. Пакет можно собрать для одного человека, пары, семьи или друзей. В поездке остаются только те люди, которых вы сами добавили."),
+                HomeFAQItem(id: "care", question: "А если я не хочу собирать всё самостоятельно?", answer: "Обратитесь в iumrah Care. Мы поможем подобрать вариант, проверить детали и оформить поездку, сохранив персональный формат без обязательной большой группы.")
+            ]
+        case .english:
+            return [
+                HomeFAQItem(id: "what", question: "What is iumrah?", answer: "iumrah is a platform for independent, personal Umrah. It brings flights, hotel, transfer and services into one clear package and then keeps the journey in one app."),
+                HomeFAQItem(id: "why", question: "Why was iumrah created?", answer: "So a pilgrim does not have to depend on a large tour group or manage many disconnected bookings. iumrah is built around more control, transparency and care throughout the journey."),
+                HomeFAQItem(id: "personal", question: "What does ‘personal Umrah’ mean?", answer: "The journey is built around your dates, budget, hotel level and chosen services. There is no required group of 30–50 strangers — you decide who travels with you."),
+                HomeFAQItem(id: "family", question: "Can I travel only with family or friends?", answer: "Yes. Build a package for one person, a couple, family or friends. Your journey contains only the people you choose to add."),
+                HomeFAQItem(id: "care", question: "What if I do not want to build everything myself?", answer: "Contact iumrah Care. We can help select, verify and arrange the trip while keeping the personal format without a required large group.")
+            ]
+        case .uzbek:
+            return [
+                HomeFAQItem(id: "what", question: "iumrah nima?", answer: "iumrah — mustaqil va shaxsiy Umra uchun platforma. U parvoz, mehmonxona, transfer va xizmatlarni bitta tushunarli paketga birlashtiradi va safarni bitta ilovada boshqarishga yordam beradi."),
+                HomeFAQItem(id: "why", question: "iumrah nima uchun yaratildi?", answer: "Ziyoratchi katta tur guruhiga bog‘lanib qolmasligi va ko‘plab alohida bronlarni boshqarmasligi uchun. iumrah safar davomida ko‘proq nazorat, shaffoflik va g‘amxo‘rlik berish uchun yaratilgan."),
+                HomeFAQItem(id: "personal", question: "«Shaxsiy Umra» nimani anglatadi?", answer: "Safar sizning sanalaringiz, budjetingiz, mehmonxona darajasi va tanlagan xizmatlaringiz asosida tuziladi. 30–50 nafar notanish kishilik majburiy guruh yo‘q — kim bilan borishni o‘zingiz tanlaysiz."),
+                HomeFAQItem(id: "family", question: "Faqat oilam yoki do‘stlarim bilan bora olamanmi?", answer: "Ha. Paketni bir kishi, juftlik, oila yoki do‘stlar uchun tuzish mumkin. Safarda faqat o‘zingiz qo‘shgan insonlar bo‘ladi."),
+                HomeFAQItem(id: "care", question: "Hammasini o‘zim tuzishni istamasam-chi?", answer: "iumrah Care’ga murojaat qiling. Biz variant tanlash, tafsilotlarni tekshirish va safarni rasmiylashtirishga yordam beramiz — majburiy katta guruhsiz.")
+            ]
+        case .uzbekCyrillic:
+            return [
+                HomeFAQItem(id: "what", question: "iumrah нима?", answer: "iumrah — мустақил ва шахсий Умра учун платформа. У парвоз, меҳмонхона, трансфер ва хизматларни битта тушунарли пакетга бирлаштиради ва сафарни битта иловада бошқаришга ёрдам беради."),
+                HomeFAQItem(id: "why", question: "iumrah нима учун яратилди?", answer: "Зиёратчи катта тур гуруҳига боғланиб қолмаслиги ва кўплаб алоҳида бронларни бошқармаслиги учун. iumrah сафар давомида кўпроқ назорат, шаффофлик ва ғамхўрлик бериш учун яратилган."),
+                HomeFAQItem(id: "personal", question: "«Шахсий Умра» нимани англатади?", answer: "Сафар сизнинг саналарингиз, бюджетингиз, меҳмонхона даражаси ва танлаган хизматларингиз асосида тузилади. 30–50 нафар нотаниш кишилик мажбурий гуруҳ йўқ — ким билан боришни ўзингиз танлайсиз."),
+                HomeFAQItem(id: "family", question: "Фақат оилам ёки дўстларим билан бора оламанми?", answer: "Ҳа. Пакетни бир киши, жуфтлик, оила ёки дўстлар учун тузиш мумкин. Сафарда фақат ўзингиз қўшган инсонлар бўлади."),
+                HomeFAQItem(id: "care", question: "Ҳаммасини ўзим тузишни истамасам-чи?", answer: "iumrah Care’га мурожаат қилинг. Биз вариант танлаш, тафсилотларни текшириш ва сафарни расмийлаштиришга ёрдам берамиз — мажбурий катта гуруҳсиз.")
+            ]
+        }
+    }
+
     private func money(_ amount: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -799,4 +1011,10 @@ struct HomeDashboardView: View {
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSNumber(value: amount)) ?? "$\(Int(amount.rounded()))"
     }
+}
+
+private struct HomeFAQItem: Identifiable {
+    let id: String
+    let question: String
+    let answer: String
 }

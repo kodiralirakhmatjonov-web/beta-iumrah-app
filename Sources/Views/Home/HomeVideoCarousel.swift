@@ -3,12 +3,14 @@ import UIKit
 
 struct HomeVideoCarousel: View {
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var settings: AppSettingsStore
 
     private let stories = HomeEmotionalStory.all
 
     @State private var activeStoryID: String? = HomeEmotionalStory.all.first?.id
     @State private var isVisible = false
     @State private var isMuted = true
+    @State private var presentedStory: HomeEmotionalStory?
 
     private var carouselHeight: CGFloat {
         min(max(UIScreen.main.bounds.height * 0.72, 460), 680)
@@ -54,18 +56,27 @@ struct HomeVideoCarousel: View {
         .onDisappear {
             isVisible = false
         }
+        .fullScreenCover(item: $presentedStory) { story in
+            HomeEmotionalJourneyFullscreen(language: settings.language, initialStoryID: story.id)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("iumrah video stories")
     }
 
     private func videoCard(_ story: HomeEmotionalStory) -> some View {
-        LoopingVideoView(
-            resource: story.resource,
-            isPlaying: isVisible && scenePhase == .active && activeStoryID == story.id,
-            isMuted: isMuted
-        )
+        ZStack {
+            LoopingVideoView(
+                resource: story.resource,
+                isPlaying: isVisible && scenePhase == .active && activeStoryID == story.id,
+                isMuted: isMuted
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .onTapGesture {
+                openStory(story)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay(alignment: .bottomTrailing) {
+        .overlay(alignment: .topTrailing) {
             Button {
                 isMuted.toggle()
                 IumrahHaptics.soft()
@@ -73,13 +84,40 @@ struct HomeVideoCarousel: View {
                 Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
+                    .frame(width: 44, height: 44)
                     .contentShape(Circle())
-                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
+                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.06), chrome: true)
             }
             .buttonStyle(.plain)
             .padding(16)
             .opacity(activeStoryID == story.id ? 1 : 0.78)
+        }
+        .overlay(alignment: .bottomLeading) {
+            if activeStoryID == story.id {
+                Button {
+                    openStory(story)
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(openVideoTitle)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 15)
+                    .frame(height: 43)
+                    .iumrahGlass(
+                        in: Capsule(style: .continuous),
+                        interactive: true,
+                        tint: .black.opacity(0.08),
+                        chrome: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 16)
+                .padding(.bottom, 38)
+                .transition(.opacity)
+            }
         }
         .overlay {
             RoundedRectangle(cornerRadius: 34, style: .continuous)
@@ -88,6 +126,7 @@ struct HomeVideoCarousel: View {
         .shadow(color: Color.black.opacity(0.14), radius: 24, y: 12)
         .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityLabel("Video \(storyIndex(story) + 1) of \(stories.count)")
+        .accessibilityHint(openVideoTitle)
     }
 
     private var pageIndicator: some View {
@@ -104,6 +143,21 @@ struct HomeVideoCarousel: View {
         .iumrahGlass(in: Capsule(style: .continuous), allowsStaticGlass: true, chrome: true)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    private var openVideoTitle: String {
+        switch settings.language {
+        case .russian: return "Почувствовать"
+        case .english: return "Experience"
+        case .uzbek: return "His etish"
+        case .uzbekCyrillic: return "Ҳис этиш"
+        }
+    }
+
+    private func openStory(_ story: HomeEmotionalStory) {
+        IumrahHaptics.soft()
+        activeStoryID = story.id
+        presentedStory = story
     }
 
     private func storyIndex(_ story: HomeEmotionalStory) -> Int {
