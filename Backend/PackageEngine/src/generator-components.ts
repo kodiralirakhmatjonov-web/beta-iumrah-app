@@ -51,7 +51,7 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
   }
 
   try {
-    const curatedCitySQL = NORMALIZED_CITY_SQL.replace("%COLUMN%", "p.city");
+    const curatedCitySQL = NORMALIZED_CITY_SQL.split("%COLUMN%").join("p.city");
     const curated = await env.HOTELS_DB.prepare(
       `SELECT p.position, h.id AS hotel_id, h.stars, h.city
        FROM primary_hotels p
@@ -86,7 +86,7 @@ export async function curatedPrimaryHotel(url: URL, env: Env) {
 
     // Keep generation usable when Business has not curated a slot yet, but this
     // is still only hotel selection. It never fabricates a price.
-    const catalogCitySQL = NORMALIZED_CITY_SQL.replace("%COLUMN%", "h.city");
+    const catalogCitySQL = NORMALIZED_CITY_SQL.split("%COLUMN%").join("h.city");
     const catalog = await env.HOTELS_DB.prepare(
       `SELECT h.id, h.stars, h.city
        FROM hotels h

@@ -18,6 +18,7 @@ function statementFor(handler) {
 function hotelDb({ curated = null, fallback = null, publishedHotel = null, sources = [] } = {}) {
   return {
     prepare(sql) {
+      assert.equal(sql.includes('%COLUMN%'), false, 'Primary Hotel SQL must not leak the normalization placeholder into D1');
       if (sql.includes('FROM primary_hotels p')) return statementFor(async () => curated);
       if (sql.includes('FROM hotels h') && sql.includes('ORDER BY h.rating DESC')) return statementFor(async () => fallback);
       if (sql.includes("SELECT id FROM hotels WHERE id = ?")) return statementFor(async (_kind, values) => values[0] === publishedHotel?.id ? publishedHotel : null);
