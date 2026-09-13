@@ -61,6 +61,8 @@ struct L10n {
             switch bookingError {
             case .permanentDeleteUnavailable:
                 return text("booking_delete_server_required", language)
+            case .authoritativeQuoteRequired:
+                return text("booking_authoritative_quote_required", language)
             }
         }
         if let flightError = error as? FlightEngineAvailabilityError {
@@ -671,6 +673,7 @@ struct L10n {
             "flight_departure_terminal": "Departure terminal",
             "flight_arrival_terminal": "Arrival terminal",
             "booking_delete_server_required": "Permanent deletion is not enabled by the booking server yet. The booking was not removed from this iPhone.",
+            "booking_authoritative_quote_required": "The package price must be securely confirmed before booking. Please wait a moment and try again.",
             "booking_delete_failed": "The booking could not be deleted from the server. Nothing was removed from this iPhone.",
             "booking_update_failed": "We could not save the hotel change. Your current booking was left unchanged.",
             "hotel_not_available": "This hotel is no longer available for selection.",
@@ -1213,6 +1216,7 @@ struct L10n {
             "flight_departure_terminal": "Терминал вылета",
             "flight_arrival_terminal": "Терминал прилёта",
             "booking_delete_server_required": "Сервер бронирований пока не поддерживает полное удаление. Бронирование не удалено с iPhone.",
+            "booking_authoritative_quote_required": "Перед бронированием стоимость пакета должна быть безопасно подтверждена сервером iumrah. Подождите немного и попробуйте снова.",
             "booking_delete_failed": "Не удалось удалить бронирование с сервера. На iPhone ничего не удалено.",
             "booking_update_failed": "Не удалось сохранить изменение отеля. Текущее бронирование осталось без изменений.",
             "hotel_not_available": "Этот отель больше недоступен для выбора.",
@@ -1755,6 +1759,7 @@ struct L10n {
             "flight_departure_terminal": "Uchish terminali",
             "flight_arrival_terminal": "Kelish terminali",
             "booking_delete_server_required": "Bron serverida to‘liq o‘chirish hali yoqilmagan. Bron iPhone’dan o‘chirilmadi.",
+            "booking_authoritative_quote_required": "Bron qilishdan oldin paket narxi iumrah xavfsiz serverida tasdiqlanishi kerak. Biroz kutib, qayta urinib ko‘ring.",
             "booking_delete_failed": "Bronni serverdan o‘chirib bo‘lmadi. iPhone’da hech narsa o‘chirilmadi.",
             "booking_update_failed": "Mehmonxona o‘zgarishini saqlab bo‘lmadi. Joriy bron o‘zgarishsiz qoldi.",
             "hotel_not_available": "Bu mehmonxona endi tanlash uchun mavjud emas.",
@@ -2297,6 +2302,7 @@ struct L10n {
             "flight_departure_terminal": "Учиш терминали",
             "flight_arrival_terminal": "Келиш терминали",
             "booking_delete_server_required": "Брон серверида тўлиқ ўчириш ҳали ёқилмаган. Брон iPhone’дан ўчирилмади.",
+            "booking_authoritative_quote_required": "Брон қилишдан олдин пакет нархи iumrah хавфсиз серверида тасдиқланиши керак. Бироз кутиб, қайта уриниб кўринг.",
             "booking_delete_failed": "Бронни сервердан ўчириб бўлмади. iPhone’да ҳеч нарса ўчирилмади.",
             "booking_update_failed": "Меҳмонхона ўзгаришини сақлаб бўлмади. Жорий брон ўзгаришсиз қолди.",
             "hotel_not_available": "Бу меҳмонхона энди танлаш учун мавжуд эмас.",
