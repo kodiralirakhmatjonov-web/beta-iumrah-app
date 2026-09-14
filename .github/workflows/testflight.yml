@@ -59,17 +59,7 @@ jobs:
           p.write_text(text)
           PYCODE
 
-          MARKETING_VERSION=$(python3 - <<'PYCODE'
-          import re
-          from pathlib import Path
-
-          text = Path("project.yml").read_text()
-          match = re.search(r'(?m)^\s*MARKETING_VERSION:\s*["\']?([0-9]+(?:\.[0-9]+){1,2})["\']?\s*$', text)
-          if not match:
-              raise SystemExit("STOP: MARKETING_VERSION is missing or invalid in project.yml")
-          print(match.group(1))
-          PYCODE
-          )
+          MARKETING_VERSION=$(python3 -c 'import re; from pathlib import Path; text=Path("project.yml").read_text(); match=re.search(r"(?m)^\s*MARKETING_VERSION:\s*\"?([0-9]+(?:\.[0-9]+){1,2})\"?\s*$", text); print(match.group(1) if match else "")')
           test -n "$MARKETING_VERSION" || { echo "STOP: MARKETING_VERSION could not be resolved"; exit 1; }
           echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
           grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
