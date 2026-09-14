@@ -1,4 +1,4 @@
-name: Iumrah 2.0.0 — TestFlight
+name: Iumrah — TestFlight
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
         default: ''
 
 concurrency:
-  group: iumrah-2-0-0-testflight
+  group: iumrah-testflight-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Normalize and verify Iumrah 2.0.0 production identity
+      - name: Resolve release version and verify production identity
         run: |
           set -euo pipefail
 
@@ -59,9 +59,19 @@ jobs:
           p.write_text(text)
           PYCODE
 
-          grep -F 'MARKETING_VERSION: "2.0.0"' project.yml >/dev/null || {
-            echo "STOP: MARKETING_VERSION must be 2.0.0"; exit 1;
-          }
+          MARKETING_VERSION=$(python3 - <<'PYCODE'
+          import re
+          from pathlib import Path
+
+          text = Path("project.yml").read_text()
+          match = re.search(r'(?m)^\s*MARKETING_VERSION:\s*["\']?([0-9]+(?:\.[0-9]+){1,2})["\']?\s*$', text)
+          if not match:
+              raise SystemExit("STOP: MARKETING_VERSION is missing or invalid in project.yml")
+          print(match.group(1))
+          PYCODE
+          )
+          test -n "$MARKETING_VERSION" || { echo "STOP: MARKETING_VERSION could not be resolved"; exit 1; }
+          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
           grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
             echo "STOP: Bundle ID must be the published App Store ID com.iumrah.app"; exit 1;
           }
@@ -98,7 +108,7 @@ jobs:
           test "$GOOGLE_SERVER_ID" = "863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com" || { echo "STOP: production Google Server Client ID mismatch"; exit 1; }
           grep -F 'com.googleusercontent.apps.863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te' Resources/Info.plist >/dev/null || { echo "STOP: Google callback URL scheme missing"; exit 1; }
 
-          echo "Production identity OK: Iumrah / com.iumrah.app / 2.0.0 / Google Sign-In"
+          echo "Production identity OK: Iumrah / com.iumrah.app / $MARKETING_VERSION / Google Sign-In"
 
       - name: Prepare complete iPhone and iPad app icon catalogs
         run: |
@@ -369,7 +379,7 @@ jobs:
           mkdir -p build
           BUILD_NUMBER=$((20000 + GITHUB_RUN_NUMBER))
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
-          echo "Building Iumrah 2.0.0 ($BUILD_NUMBER)"
+          echo "Building Iumrah $MARKETING_VERSION ($BUILD_NUMBER)"
 
           xcodebuild \
             -project "$PROJECT" \
@@ -379,7 +389,7 @@ jobs:
             -archivePath "$PWD/$ARCHIVE_PATH" \
             IUMRAH_APPLE_TEAM_ID="$APPLE_TEAM_ID" \
             IUMRAH_PROFILE_NAME="$PROFILE_NAME" \
-            MARKETING_VERSION="2.0.0" \
+            MARKETING_VERSION="$MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive
 
@@ -406,7 +416,7 @@ jobs:
 
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")
           BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
-          test "$VERSION" = "2.0.0" || { echo "Archive version mismatch: $VERSION"; exit 1; }
+          test "$VERSION" = "$MARKETING_VERSION" || { echo "Archive version mismatch: expected $MARKETING_VERSION, got $VERSION"; exit 1; }
           test "$BUILD" -ge 15 || { echo "Archive build must be > legacy build 14. Got: $BUILD"; exit 1; }
 
           codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null
@@ -559,7 +569,7 @@ jobs:
 
           FINAL_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")
           FINAL_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
-          test "$FINAL_VERSION" = "2.0.0" || { echo "FINAL IPA version mismatch: $FINAL_VERSION"; exit 1; }
+          test "$FINAL_VERSION" = "$MARKETING_VERSION" || { echo "FINAL IPA version mismatch: expected $MARKETING_VERSION, got $FINAL_VERSION"; exit 1; }
           test "$FINAL_BUILD" -ge 15 || { echo "FINAL IPA build must be > legacy build 14. Got: $FINAL_BUILD"; exit 1; }
 
           codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null
@@ -707,7 +717,7 @@ jobs:
           {
             echo "## Iumrah TestFlight upload"
             echo "- Bundle ID: \`$BUNDLE_ID\`"
-            echo "- Version: \`2.0.0\`"
+            echo "- Version: \`$MARKETING_VERSION\`"
             echo "- Build: \`${BUILD_NUMBER:-unknown}\`"
             echo "- The binary was uploaded only to TestFlight/App Store Connect; it was not submitted to App Review."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -716,7 +726,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: iumrah-2.0.0-build-${{ github.run_number }}
+          name: iumrah-testflight-build-${{ github.run_number }}
           path: |
             build/export/*.ipa
             build/*.xcarchive/Info.plist
