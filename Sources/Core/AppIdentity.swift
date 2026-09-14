@@ -5,7 +5,15 @@ enum AppIdentity {
     static let productionBundleID = "com.iumrah.app"
     static let appStoreID = "6759577859"
     static let displayName = "iumrah"
-    static let marketingVersion = "2.0.1"
+    /// Runtime release version comes from the built app bundle. `project.yml` is
+    /// the single source of truth for MARKETING_VERSION; do not duplicate it here.
+    static var marketingVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    }
+
+    static var buildNumber: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    }
 
     /// Preserved from the Flutter production app.
     static let legacyURLScheme = "iumrah"

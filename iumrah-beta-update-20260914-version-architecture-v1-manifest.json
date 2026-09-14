@@ -1,0 +1,10 @@
+{
+  "name": "iumrah-beta-update-20260914-version-architecture-v1",
+  "base_version": "2.0.1",
+  "single_source_of_truth": "project.yml -> settings.base.MARKETING_VERSION",
+  "future_release_process": "Change MARKETING_VERSION only; generic TestFlight workflow reads it automatically.",
+  "changed_files": [
+    "project.yml",
+    "Sources/Core/AppIdentity.swift"
+  ]
+}

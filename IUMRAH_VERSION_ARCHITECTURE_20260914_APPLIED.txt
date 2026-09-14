@@ -1,0 +1,6 @@
+Iumrah release version architecture
+
+- project.yml is the single repository source of truth for MARKETING_VERSION.
+- AppIdentity.marketingVersion is resolved at runtime from CFBundleShortVersionString.
+- TestFlight workflow must be the generic testflight.yml supplied separately once.
+- Future releases do not require editing .github/workflows/testflight.yml.
