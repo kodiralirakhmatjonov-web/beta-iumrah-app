@@ -18,6 +18,8 @@ struct TripBuilderView: View {
     @State private var curatedFlights: [CuratedFlightRecommendation] = []
     @State private var isLoadingCuratedFlights = false
     @State private var curatedDisplayMode: CuratedDisplayMode = .roundTrip
+    @State private var groupSavingsQuotes: GeneratorGroupSavingsQuoteSet?
+    @State private var isLoadingGroupSavings = false
 
     var body: some View {
         ScrollView {
@@ -53,6 +55,9 @@ struct TripBuilderView: View {
         .iumrahInternalNavigation(progress: .trip, showsGeneratorAmbient: true)
         .task(id: curatedFlightsQueryKey) {
             await loadCuratedFlights()
+        }
+        .task(id: groupSavingsQueryKey) {
+            await refreshGroupSavings()
         }
         .onChange(of: routeSelectionKey) { _, _ in
             guard !journey.trip.isWeekendUmrah else { return }
@@ -1315,15 +1320,16 @@ struct TripBuilderView: View {
     }
 
     private var travelersCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            groupSavingsCard
+
             Label(L10n.text("trip_travelers_title", settings.language), systemImage: "person.2")
                 .font(.headline)
-                .padding(.bottom, 4)
+                .padding(.top, 2)
 
             Text(L10n.text("trip_travelers_body", settings.language))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 4)
 
             CounterRow(
                 title: L10n.text("adults", settings.language),
@@ -1352,6 +1358,223 @@ struct TripBuilderView: View {
             CounterRow(title: L10n.text("rooms", settings.language), subtitle: nil, value: $journey.trip.rooms, minimum: 1, maximum: 6)
         }
         .iumrahCard()
+    }
+
+    @ViewBuilder
+    private var groupSavingsCard: some View {
+        let count = max(1, journey.trip.travelerCount)
+        if count == 1 {
+            let comparison = twoPersonSavings
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.2.fill")
+                    Text(singleTravelerWarningTitle)
+                        .font(.subheadline.weight(.bold))
+                    if isLoadingGroupSavings && comparison == nil {
+                        Spacer(minLength: 4)
+                        ProgressView()
+                            .controlSize(.mini)
+                    }
+                }
+                .foregroundStyle(Color(uiColor: .systemOrange))
+
+                if let comparison, comparison.percent > 0 {
+                    Text(singleTravelerWarningBody(percent: comparison.percent, savings: comparison.totalSavings))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(singleTravelerFallbackBody)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(uiColor: .systemOrange).opacity(0.11), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        } else if let savings = currentPartySavings, savings.percent > 0 {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(count == 2 ? "iumrah Family Package" : "iumrah Friends Package")
+                            .font(.headline)
+                        Text(groupSavingsComparisonCaption)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("−\(savings.percent)%")
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
+                }
+
+                HStack(alignment: .firstTextBaseline) {
+                    Text(groupSavingsTotalText(savings.totalSavings))
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(groupSavingsPerPersonText(savings.perPersonSavings))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                (count == 2 ? Color(uiColor: .systemPurple) : Color(uiColor: .systemTeal)).opacity(0.10),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+        } else if isLoadingGroupSavings {
+            HStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(groupSavingsLoadingText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.iumrahRaisedBackground.opacity(0.72), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    private struct BuilderGroupSavings {
+        let percent: Int
+        let totalSavings: Decimal
+        let perPersonSavings: Decimal
+    }
+
+    private var twoPersonSavings: BuilderGroupSavings? {
+        guard let values = groupSavingsQuotes else { return nil }
+        return savings(comparedWithSolo: values.solo, groupQuote: values.pair, people: 2)
+    }
+
+    private var currentPartySavings: BuilderGroupSavings? {
+        let people = max(1, journey.trip.travelerCount)
+        guard people > 1, let values = groupSavingsQuotes else { return nil }
+        return savings(comparedWithSolo: values.solo, groupQuote: values.current, people: people)
+    }
+
+    private func savings(comparedWithSolo solo: PackageQuote, groupQuote: PackageQuote, people: Int) -> BuilderGroupSavings? {
+        let count = max(1, people)
+        let comparisonTotal = solo.totalPackagePrice * Decimal(count)
+        guard comparisonTotal > 0 else { return nil }
+        let saved = max(0, comparisonTotal - groupQuote.totalPackagePrice)
+        let perPerson = saved / Decimal(count)
+        let ratio = NSDecimalNumber(decimal: (saved / comparisonTotal) * 100).doubleValue
+        return BuilderGroupSavings(
+            percent: max(0, Int(ratio.rounded())),
+            totalSavings: saved,
+            perPersonSavings: perPerson
+        )
+    }
+
+    private var groupSavingsQueryKey: String {
+        [
+            journey.packageFlightPath.rawValue,
+            journey.selectedPublishedCompleteID ?? "-",
+            journey.selectedPublishedOutboundID ?? "-",
+            journey.selectedPublishedReturnID ?? "-",
+            journey.trip.packageTier.rawValue,
+            journey.trip.scope.rawValue,
+            journey.trip.arrivalAirport.rawValue,
+            String(journey.trip.adults),
+            String(journey.trip.children),
+            String(journey.trip.infants),
+            String(journey.trip.rooms),
+            String(Int(journey.trip.departureDate.timeIntervalSince1970)),
+            String(Int(journey.trip.returnDate.timeIntervalSince1970))
+        ].joined(separator: "|")
+    }
+
+    @MainActor
+    private func refreshGroupSavings() async {
+        guard journey.packageFlightPath == .publishedDirect, journey.hasCompletePublishedFlightSelection else {
+            groupSavingsQuotes = nil
+            isLoadingGroupSavings = false
+            return
+        }
+
+        let requestKey = groupSavingsQueryKey
+        groupSavingsQuotes = nil
+        isLoadingGroupSavings = true
+
+        try? await Task.sleep(for: .milliseconds(180))
+        guard !Task.isCancelled else { return }
+        let values = await journey.tripBuilderGroupSavingsQuotes()
+        guard !Task.isCancelled, requestKey == groupSavingsQueryKey else { return }
+        groupSavingsQuotes = values
+        isLoadingGroupSavings = false
+    }
+
+    private var singleTravelerWarningTitle: String {
+        tr("Для одного человека пакет дороже", "Solo travel costs more", "Bir kishi uchun paket qimmatroq", "Бир киши учун пакет қимматроқ")
+    }
+
+    private func singleTravelerWarningBody(percent: Int, savings: Decimal) -> String {
+        tr(
+            "Если ехать вдвоём, цена на человека сейчас ниже примерно на \(percent)%. Вместе двое экономят \(money(savings)) по сравнению с двумя отдельными такими поездками.",
+            "For two pilgrims, the current per-person price is about \(percent)% lower. Together, two save \(money(savings)) versus two separate solo packages.",
+            "Ikki kishi bo‘lib borsangiz, kishi boshiga narx hozir taxminan \(percent)% arzon. Ikki alohida yakka paketga nisbatan jami \(money(savings)) tejaysiz.",
+            "Икки киши бўлиб борсангиз, киши бошига нарх ҳозир тахминан \(percent)% арзон. Икки алоҳида якка пакетга нисбатан жами \(money(savings)) тежайсиз."
+        )
+    }
+
+    private var singleTravelerFallbackBody: String {
+        tr(
+            "Совместная поездка обычно снижает цену на человека, потому что номер, трансфер, сопровождение и часть сервисов распределяются на группу.",
+            "Travelling together usually lowers the per-person price because rooms, transfers, assistance and group services are shared.",
+            "Birga safar qilish odatda kishi boshiga narxni pasaytiradi: xona, transfer, hamrohlik va guruh xizmatlari bo‘linadi.",
+            "Бирга сафар қилиш одатда киши бошига нархни пасайтиради: хона, трансфер, ҳамроҳлик ва гуруҳ хизматлари бўлинади."
+        )
+    }
+
+    private var groupSavingsComparisonCaption: String {
+        tr(
+            "Сравнение с таким же пакетом для 1 паломника",
+            "Compared with the same package for 1 pilgrim",
+            "Xuddi shu 1 kishilik paket bilan solishtirganda",
+            "Худди шу 1 кишилик пакет билан солиштирганда"
+        )
+    }
+
+    private func groupSavingsTotalText(_ value: Decimal) -> String {
+        tr(
+            "Экономия группы \(money(value))",
+            "Group saves \(money(value))",
+            "Guruh tejaydi: \(money(value))",
+            "Гуруҳ тежайди: \(money(value))"
+        )
+    }
+
+    private func groupSavingsPerPersonText(_ value: Decimal) -> String {
+        tr(
+            "\(money(value)) на человека",
+            "\(money(value)) per person",
+            "kishi boshiga \(money(value))",
+            "киши бошига \(money(value))"
+        )
+    }
+
+    private var groupSavingsLoadingText: String {
+        tr(
+            "Пересчитываем экономию для вашей группы…",
+            "Recalculating savings for your group…",
+            "Guruhingiz uchun tejash qayta hisoblanmoqda…",
+            "Гуруҳингиз учун тежаш қайта ҳисобланмоқда…"
+        )
+    }
+
+    private func money(_ value: Decimal) -> String {
+        String(format: "$%.0f", NSDecimalNumber(decimal: value).doubleValue)
+    }
+
+    private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCy
+        }
     }
 
     private var packageCard: some View {

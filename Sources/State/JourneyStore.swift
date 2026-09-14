@@ -18,6 +18,12 @@ private struct PackageTierComparisonFlightContext {
     let inboundOffer: FlightOffer?
 }
 
+struct GeneratorGroupSavingsQuoteSet: Hashable {
+    let solo: PackageQuote
+    let pair: PackageQuote
+    let current: PackageQuote
+}
+
 @MainActor
 final class JourneyStore: ObservableObject {
     @Published var trip = TripDraft()
@@ -280,6 +286,125 @@ final class JourneyStore: ObservableObject {
         selectedPublishedCompleteID = nil
         selectedPublishedOutboundID = nil
         selectedPublishedReturnID = nil
+    }
+
+    /// Reprices the same hidden Primary Hotel + published-flight package for a solo
+    /// pilgrim, a pair and the user's current party. TripBuilder uses this only for
+    /// the live group-savings explanation; it does not mutate the selected journey
+    /// or expose supplier/component prices. The arithmetic is therefore identical
+    /// to the Hotel-first configurator and remains server-authoritative.
+    func tripBuilderGroupSavingsQuotes() async -> GeneratorGroupSavingsQuoteSet? {
+        guard packageFlightPath == .publishedDirect, hasCompletePublishedFlightSelection else { return nil }
+
+        let baseTrip = trip
+        let selection = publishedFlightSelection
+
+        do {
+            let makkah = try await groupSavingsPrimaryHotel(
+                tier: baseTrip.packageTier,
+                stars: baseTrip.hotelStars,
+                cityAliases: ["Makkah"]
+            )
+
+            let madinah: PrimaryHotelResolutionResponse?
+            if baseTrip.scope == .makkahAndMadinah {
+                madinah = try await groupSavingsPrimaryHotel(
+                    tier: baseTrip.packageTier,
+                    stars: baseTrip.hotelStars,
+                    cityAliases: ["Madinah", "Medina", "Madina", "Al Madinah"]
+                )
+            } else {
+                madinah = nil
+            }
+
+            var soloTrip = baseTrip
+            soloTrip.adults = 1
+            soloTrip.children = 0
+            soloTrip.infants = 0
+            soloTrip.rooms = 1
+
+            var pairTrip = baseTrip
+            pairTrip.adults = 2
+            pairTrip.children = 0
+            pairTrip.infants = 0
+            pairTrip.rooms = 1
+
+            var currentTrip = baseTrip
+            currentTrip.adults = max(1, currentTrip.adults)
+            currentTrip.children = max(0, currentTrip.children)
+            currentTrip.infants = max(0, currentTrip.infants)
+            currentTrip.rooms = max(1, currentTrip.rooms)
+
+            async let solo = groupSavingsQuote(
+                trip: soloTrip,
+                selection: selection,
+                makkah: makkah,
+                madinah: madinah
+            )
+            async let pair = groupSavingsQuote(
+                trip: pairTrip,
+                selection: selection,
+                makkah: makkah,
+                madinah: madinah
+            )
+            async let current = groupSavingsQuote(
+                trip: currentTrip,
+                selection: selection,
+                makkah: makkah,
+                madinah: madinah
+            )
+
+            let values = try await (solo, pair, current)
+            return GeneratorGroupSavingsQuoteSet(solo: values.0, pair: values.1, current: values.2)
+        } catch {
+            // Savings guidance is supplemental. The main generator must remain usable
+            // if this background comparison cannot be refreshed.
+            return nil
+        }
+    }
+
+    private func groupSavingsPrimaryHotel(
+        tier: PackageTier,
+        stars: Int,
+        cityAliases: [String]
+    ) async throws -> PrimaryHotelResolutionResponse {
+        var lastError: Error?
+        for city in cityAliases {
+            do {
+                let value = try await packageEngine.primaryHotel(tier: tier, stars: stars, city: city)
+                if value.ok { return value }
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? APIError.invalidResponse
+    }
+
+    private func groupSavingsQuote(
+        trip: TripDraft,
+        selection: CuratedPublishedFlightSelection,
+        makkah: PrimaryHotelResolutionResponse,
+        madinah: PrimaryHotelResolutionResponse?
+    ) async throws -> PackageQuote {
+        let resolved = try await CuratedFlightRecommendationService.shared.resolvePublishedSelection(
+            trip: trip,
+            selection: selection
+        )
+
+        return try await packageEngine.packageQuote(
+            trip: trip,
+            pricingOffer: resolved.inbound,
+            outboundOffer: resolved.outbound,
+            inboundOffer: resolved.inbound,
+            makkahHotelID: makkah.hotelId,
+            makkahRoomID: makkah.roomId,
+            madinahHotelID: madinah?.hotelId,
+            madinahRoomID: madinah?.roomId,
+            includeHaramainTrain: false,
+            transferVehicle: nil,
+            haramainFareClass: .economy,
+            haramainTicketCount: 0
+        )
     }
 
     /// Converts the selected D1-published direct itinerary into verified FlightOffer

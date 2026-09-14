@@ -331,12 +331,6 @@ struct RootView: View {
         // the richer semantic palette. This keeps the native tab bar adult and legible.
         .tint(IumrahIconRole.umrah.color)
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
-        .fullScreenCover(isPresented: $chrome.isESIMPresented) {
-            ESIMView()
-                .environmentObject(settings)
-                .environmentObject(chrome)
-                .environmentObject(bookings)
-        }
     }
 
     private func tabScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {

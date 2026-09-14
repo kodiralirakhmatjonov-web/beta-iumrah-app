@@ -1,0 +1,23 @@
+iumrah update — 2026-09-14
+Base repository: kepler-ios-main 2.zip
+
+Included changes:
+- Main date-first Configurator now mirrors the Hotel-first group-savings logic and presentation: solo warning, iumrah Family Package / iumrah Friends Package, live savings percentage, total group savings and savings per pilgrim, with the same orange / purple / teal visual states.
+- Savings previews stay server-authoritative: the same published flight selection and Primary Hotel package are repriced for solo, pair and current-party scenarios without exposing component prices.
+- Home removes the old Hotels shortcut card and old compact Care card.
+- Home eSIM becomes a large editorial card using the supplied eSIM artwork, with a dark image half and white information half.
+- The same supplied eSIM artwork is used as the eSIM page hero.
+- eSIM is no longer a full-screen modal. It is pushed inside the native SwiftUI NavigationStack, so the system back control and interactive back swipe are used. No custom/fake back glass button was added.
+- eSIM CTA buttons remain non-Liquid-Glass; the previous glass secondary refresh CTA was replaced by a normal raised control.
+- The Hotels-style HotelCareShowcaseCard is reused at the very end of Home and routes to iumrah Care.
+- Care Call and Telegram are available immediately from local product defaults (+998 50 889 88 45 / @saudiclub966), while the server profile may still refresh/override them in the background.
+
+Not touched:
+- TestFlight / GitHub workflow files
+- signing files
+- Google Sign-In setup
+- existing Hotel-first savings UI
+
+Validation:
+- Swift frontend syntax parse passed for all 200 Swift source files.
+- New eSIM asset catalog JSON and 1536×864 JPEG validated.

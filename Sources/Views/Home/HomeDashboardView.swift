@@ -15,6 +15,9 @@ struct HomeDashboardView: View {
 
     var body: some View {
         marketingHome
+            .navigationDestination(isPresented: $chrome.isESIMPresented) {
+                ESIMView()
+            }
             .task(id: activeSession?.id) {
                 await bookings.refreshAll()
                 while !Task.isCancelled {
@@ -51,10 +54,11 @@ struct HomeDashboardView: View {
                 philosophyCard
                 connectedTripCard
                 esimHomeCard
-                careCard
-                hotelCard
                 flightsHomeCard
                 personalUmrahFAQ
+                HotelCareShowcaseCard(language: settings.language) {
+                    chrome.navigate(to: .care)
+                }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -703,69 +707,73 @@ struct HomeDashboardView: View {
     }
 
     private var esimHomeCard: some View {
-        Button { chrome.presentESIM() } label: {
-            HStack(spacing: 16) {
-                if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
-                    ZStack {
-                        Circle().stroke(Color.primary.opacity(0.08), lineWidth: 8)
-                        if profile.usageAvailable {
-                            Circle()
-                                .trim(from: 0, to: profile.remainingFraction)
-                                .stroke(Color.iumrahCareDark, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                .rotationEffect(.degrees(-90))
-                            VStack(spacing: 0) {
-                                Text(homeDataText(profile.remainingMB))
-                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                Text(homeESIMCopy(.left))
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            VStack(spacing: 4) {
-                                ProgressView().controlSize(.small)
-                                Text("AUTO")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .frame(width: 82, height: 82)
+        Button {
+            chrome.presentESIM()
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                Image("IumrahESIMShowcaseHero")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 220)
+                    .clipped()
 
-                    VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 13) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("iumrah eSIM")
-                            .font(.headline)
-                        Text(profile.hasActivationData ? homeESIMCopy(.ready) : homeESIMCopy(.assigned))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                        Text(profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(IumrahIconRole.connectivity.color)
-                    }
-                } else {
-                    IumrahIconBadge(systemName: "simcard.fill", role: .message, size: 82, symbolSize: 27, cornerRadius: 22)
+                            .font(.system(size: 29, weight: .bold, design: .rounded))
+                            .tracking(-0.55)
+                            .foregroundStyle(.black)
 
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("iumrah eSIM")
-                            .font(.headline)
-                        Text(homeESIMCopy(.packageOnly))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                        Text(homeESIMCopy(.details))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(IumrahIconRole.connectivity.color)
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Color.black.opacity(0.56))
                     }
+
+                    Text(esimHomeSummary)
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .foregroundStyle(Color.black.opacity(0.62))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(esimHomeAction)
+                            .font(.caption.weight(.bold))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(Color.black.opacity(0.78))
                 }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .iumrahCard()
+            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.8)
+            }
+            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
+            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("iumrah eSIM")
+    }
+
+    private var esimHomeSummary: String {
+        if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
+            return profile.hasActivationData ? homeESIMCopy(.ready) : homeESIMCopy(.assigned)
+        }
+        return homeESIMCopy(.packageOnly)
+    }
+
+    private var esimHomeAction: String {
+        if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
+            return profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open)
+        }
+        return homeESIMCopy(.details)
     }
 
     private enum HomeESIMCopyKey { case left, ready, assigned, activate, open, packageOnly, details }
@@ -817,63 +825,6 @@ struct HomeDashboardView: View {
             .fill(Color.primary.opacity(0.10))
             .frame(maxWidth: .infinity)
             .frame(height: 2)
-    }
-
-    private var careCard: some View {
-        Button {
-            chrome.navigate(to: .care)
-        } label: {
-            HStack(alignment: .center, spacing: 16) {
-                Image("CareMark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
-                    .padding(8)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("iumrah Care")
-                        .font(.headline)
-                    Text(L10n.text("care_subtitle", settings.language))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .iumrahCard()
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var hotelCard: some View {
-        Button {
-            chrome.navigate(to: .hotels)
-        } label: {
-            HStack(alignment: .center, spacing: 16) {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(LinearGradient(colors: [Color.iumrahCareLight.opacity(0.35), Color.iumrahRaisedBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 88, height: 88)
-                    .overlay(IumrahIconBadge(systemName: "building.2", role: .hotel, size: 58, symbolSize: 25, cornerRadius: 18))
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(L10n.text("hotels_title", settings.language))
-                        .font(.headline)
-                    Text(L10n.text("hotels_subtitle", settings.language))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(4)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .iumrahCard()
-        }
-        .buttonStyle(.plain)
     }
 
     private var personalUmrahFAQ: some View {

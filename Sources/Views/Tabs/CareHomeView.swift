@@ -9,6 +9,12 @@ struct CareHomeView: View {
     @State private var careProfile: IumrahPublicProfile?
     @State private var isLoadingCareProfile = false
 
+    // The primary Care channels are product configuration, not network content.
+    // Keep them available on the very first frame; the public team profile can
+    // still override them after its background refresh completes.
+    private let localCarePhone = "+998 50 889 88 45"
+    private let localCareTelegram = "saudiclub966"
+
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { session in
             !["COMPLETED", "CANCELLED"].contains(session.effectiveStatus.uppercased())
@@ -528,31 +534,27 @@ struct CareHomeView: View {
     private var preferredPhone: String {
         let sa = careProfile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !sa.isEmpty { return sa }
-        return careProfile?.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let uz = careProfile?.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return uz.isEmpty ? localCarePhone : uz
     }
 
     private var telegramURL: URL? {
-        guard let raw = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
-            return nil
-        }
+        let remote = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let raw = remote.isEmpty ? localCareTelegram : remote
 
         if raw.lowercased().hasPrefix("http") {
-            return URL(string: raw)
+            return URL(string: raw) ?? URL(string: "https://t.me/\(localCareTelegram)")
         }
 
         let username = raw
             .replacingOccurrences(of: "@", with: "")
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
-        guard !username.isEmpty else { return nil }
-        return URL(string: "https://t.me/\(username)")
+        return URL(string: "https://t.me/\(username.isEmpty ? localCareTelegram : username)")
     }
 
     private var contactActionSubtitle: String {
-        if isLoadingCareProfile {
-            return tr("Loading", "Загрузка", "Yuklanmoqda", "Юкланмоқда")
-        }
-        return tr("Contact", "Связаться", "Bog‘lanish", "Боғланиш")
+        tr("Contact", "Связаться", "Bog‘lanish", "Боғланиш")
     }
 
     private func openPhone() {

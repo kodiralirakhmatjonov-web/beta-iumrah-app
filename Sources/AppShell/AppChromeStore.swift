@@ -84,6 +84,10 @@ final class AppChromeStore: ObservableObject {
 
     func presentESIM() {
         closeSidebar()
+        // eSIM is a normal destination in the Home NavigationStack. Keeping it out
+        // of a modal preserves the system back button and interactive edge-swipe.
+        currentTab = .home
+        requestedTab = nil
         isESIMPresented = true
         IumrahHaptics.selection()
     }

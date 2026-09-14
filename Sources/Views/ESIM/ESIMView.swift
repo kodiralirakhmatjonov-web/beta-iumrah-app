@@ -36,7 +36,6 @@ struct ESIMView: View {
             Color.iumrahPageBackground.ignoresSafeArea()
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
-                    header
                     introCard
 
                     if profiles.isEmpty {
@@ -67,70 +66,58 @@ struct ESIMView: View {
             guard phase == .active else { return }
             Task { await refresh() }
         }
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("iumrah eSIM")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .tracking(-0.8)
-                Text(copy(.headerSubtitle))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button {
-                chrome.isESIMPresented = false
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
-            }
-            .buttonStyle(.plain)
-        }
+        .navigationTitle("iumrah eSIM")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private var introCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
-                Image(systemName: "simcard.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .iumrahGlass(
-                        in: RoundedRectangle(cornerRadius: 20, style: .continuous),
-                        tint: Color.white.opacity(0.12)
-                    )
-                Spacer()
-                Text(copy(.packageBadge))
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.5)
-                    .padding(.horizontal, 11)
-                    .frame(height: 30)
-                    .background(Color.white.opacity(0.12), in: Capsule())
-                    .foregroundStyle(.white.opacity(0.86))
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            Image("IumrahESIMShowcaseHero")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 228)
+                .clipped()
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 10) {
+                    Text(copy(.packageBadge))
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.5)
+                        .padding(.horizontal, 11)
+                        .frame(height: 30)
+                        .background(Color.black.opacity(0.055), in: Capsule())
+                        .foregroundStyle(Color.black.opacity(0.70))
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.black.opacity(0.52))
+                }
+
                 Text(copy(.introTitle))
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .tracking(-0.55)
+                    .foregroundStyle(.black)
+
                 Text(copy(.introBody))
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(Color.black.opacity(0.62))
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white)
         }
-        .padding(22)
-        .background {
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .overlay {
             RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(LinearGradient(colors: [Color.iumrahCareDark, Color.iumrahGraphite], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.8)
         }
-        .overlay { RoundedRectangle(cornerRadius: 34, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1) }
-        .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+        .shadow(color: .black.opacity(0.10), radius: 24, y: 12)
     }
 
     @ViewBuilder
@@ -157,7 +144,19 @@ struct ESIMView: View {
                         ProgressView().controlSize(.small)
                     } else {
                         Button(copy(.refresh)) { Task { await refresh() } }
-                            .buttonStyle(IumrahSecondaryButtonStyle())
+                            .buttonStyle(.plain)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: IumrahDesign.controlHeight)
+                            .background(
+                                Color.iumrahRaisedBackground,
+                                in: RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
+                                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+                            }
                     }
                 }
 
@@ -176,7 +175,6 @@ struct ESIMView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button(copy(.buildPackage)) {
-                    chrome.isESIMPresented = false
                     dismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { chrome.startNewTrip() }
                 }

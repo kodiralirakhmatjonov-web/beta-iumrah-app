@@ -1,0 +1,64 @@
+{
+  "name": "iumrah main configurator group savings + Home eSIM/Care update v1",
+  "date": "2026-09-14",
+  "base_layer": "kepler-ios-main 2.zip",
+  "purpose": "One-shot root overlay for the supplied repository: mirror Hotel-first group savings in the main Configurator, rebuild Home eSIM/Care surfaces, convert eSIM from modal to native navigation, and make Care contacts immediately local.",
+  "native_navigation": "ESIMView is presented through NavigationStack navigationDestination; default iOS back control and interactive edge swipe are preserved. No simulated Liquid Glass back control is used.",
+  "files": [
+    {
+      "path": "IUMRAH_GROUP_SAVINGS_ESIM_CARE_HOME_20260914_APPLIED.txt",
+      "bytes": 1720,
+      "sha256": "1482eb84184718e9e19e51e702a76d2530c315455db4bfd95d2c4059db971bf9"
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahESIMShowcaseHero.imageset/Contents.json",
+      "bytes": 248,
+      "sha256": "e8f65f75a82df5441802c47c5665da219b199af06a68e666c18312db00cb90e7"
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahESIMShowcaseHero.imageset/esim-showcase.jpeg",
+      "bytes": 390596,
+      "sha256": "b2c85e95b67b2f16c588469dfa7bea80f7ee7fc7b84d02b625b1c40cb7dc7628"
+    },
+    {
+      "path": "Sources/AppShell/AppChromeStore.swift",
+      "bytes": 3233,
+      "sha256": "9abc849013760f132bb3905e794d8acbf1ce9af8b70828688c0458b970c5ddaa"
+    },
+    {
+      "path": "Sources/State/JourneyStore.swift",
+      "bytes": 51306,
+      "sha256": "8fcd310eb2eeaf860b158e81b4829dc62ddfb7c2d61631b1a8772b6ac4aa32d3"
+    },
+    {
+      "path": "Sources/Views/ESIM/ESIMView.swift",
+      "bytes": 34631,
+      "sha256": "32297655a130889a1cc37e423159d86b40cc03c3bd822cabdfe8c6068876fc2d"
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "bytes": 49046,
+      "sha256": "aa4dd563d78c1f4df71f9d2c0e8bc134baf6a7794597ad382c20470ce7e66af8"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 14669,
+      "sha256": "628994225cf461dcef7da30a540e0cbcb61402ea95a8980d8a2d9406e590e992"
+    },
+    {
+      "path": "Sources/Views/Tabs/CareHomeView.swift",
+      "bytes": 27685,
+      "sha256": "4992cd89925f493ef43d2c909a4a3074de7676331c378870379674124360fb9d"
+    },
+    {
+      "path": "Sources/Views/Trip/TripBuilderView.swift",
+      "bytes": 73422,
+      "sha256": "c6b1fecc682b6f6d13a60938ca517de55974fb3d5fad02bb63ec1ddb3c9ac93e"
+    }
+  ],
+  "validation": [
+    "Swift frontend syntax parse passed for all 200 Swift files.",
+    "New IumrahESIMShowcaseHero asset JSON parsed successfully and the supplied JPEG validated at 1536x864.",
+    "No workflow, signing, TestFlight, or project.yml files were modified."
+  ]
+}
