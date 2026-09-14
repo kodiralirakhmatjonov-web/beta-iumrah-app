@@ -1,0 +1,16 @@
+{
+  "name": "iumrah-beta-update-20260914-home-layout-esim-generator-fix-v3-buildfix",
+  "base": "v2 update / current repository after v2 overlay",
+  "build_fix": "HomeDashboardView.homeDataText now accepts Double, matching ClientESIMProfile.remainingMB.",
+  "files": [
+    "IUMRAH_HOME_LAYOUT_ESIM_GENERATOR_FIX_V3_20260914_APPLIED.txt",
+    "Sources/AppShell/AppNavigationContainer.swift",
+    "Sources/Views/RootView.swift",
+    "Sources/Views/Trip/TripBuilderView.swift",
+    "Sources/Views/ESIM/ESIMView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Resources/Assets.xcassets/IumrahESIMHomeCard.imageset/Contents.json",
+    "Resources/Assets.xcassets/IumrahESIMHomeCard.imageset/iumrah-esim-home-card.png"
+  ]
+}

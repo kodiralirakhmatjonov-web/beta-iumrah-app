@@ -1,0 +1,1 @@
+V3 includes the full Home/eSIM/Care/generator layout update plus the simulator build fix for ClientESIMProfile.remainingMB being Double. No workflows, signing, TestFlight or project generation files are changed.

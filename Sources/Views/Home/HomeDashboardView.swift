@@ -749,8 +749,11 @@ struct HomeDashboardView: View {
         return profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open)
     }
 
-    private func homeDataText(_ value: Int) -> String {
-        value >= 1024 ? String(format: "%.1f GB", Double(value) / 1024) : "\(value) MB"
+    private func homeDataText(_ value: Double) -> String {
+        if value >= 1024 {
+            return String(format: "%.1f GB", value / 1024)
+        }
+        return "\(Int(max(0, value).rounded())) MB"
     }
 
     private func journeyIcon(_ name: String) -> some View {
