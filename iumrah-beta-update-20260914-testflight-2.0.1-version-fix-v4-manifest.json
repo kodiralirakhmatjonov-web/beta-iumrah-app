@@ -1,0 +1,19 @@
+{
+  "name": "iumrah-beta-update-20260914-testflight-2.0.1-version-fix-v4",
+  "reason": "App Store Connect errors 90062 and 90186: version 2.0.0 already approved and pre-release train closed.",
+  "version_before": "2.0.0",
+  "version_after": "2.0.1",
+  "files": [
+    "project.yml",
+    "Sources/Core/AppIdentity.swift",
+    ".github/workflows/testflight.yml"
+  ],
+  "untouched": [
+    "signing assets",
+    "bundle identifier",
+    "entitlements",
+    "provisioning profile",
+    "build-number formula",
+    "export/upload logic"
+  ]
+}

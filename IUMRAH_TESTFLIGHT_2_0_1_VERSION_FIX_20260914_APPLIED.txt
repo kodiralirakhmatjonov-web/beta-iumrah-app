@@ -1,0 +1,4 @@
+TestFlight upload fix only.
+Reason: App Store Connect has approved 2.0.0 and closed the 2.0.0 pre-release train.
+Marketing version bumped to 2.0.1 in project.yml, AppIdentity.swift, and the existing TestFlight workflow validation/archive/upload metadata.
+Signing, bundle ID, entitlements, provisioning profile installation, build number logic, export and upload commands are otherwise unchanged.

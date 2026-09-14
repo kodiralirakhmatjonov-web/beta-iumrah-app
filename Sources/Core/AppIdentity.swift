@@ -5,7 +5,7 @@ enum AppIdentity {
     static let productionBundleID = "com.iumrah.app"
     static let appStoreID = "6759577859"
     static let displayName = "iumrah"
-    static let marketingVersion = "2.0.0"
+    static let marketingVersion = "2.0.1"
 
     /// Preserved from the Flutter production app.
     static let legacyURLScheme = "iumrah"
