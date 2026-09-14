@@ -1,0 +1,32 @@
+{
+  "name": "iumrah-beta-update-20260914-home-care-esim-layout-fix-v2",
+  "base": "kepler-ios-main 3.zip",
+  "date": "2026-09-14",
+  "files": [
+    {
+      "path": "IUMRAH_HOME_CARE_ESIM_LAYOUT_FIX_V2_20260914_APPLIED.txt",
+      "sha256": "aef7ec2a4ebd25f5607e95ac82692f7d52dbdc4f94e02d320d9b47e8855f68fe",
+      "bytes": 933
+    },
+    {
+      "path": "Sources/Views/ESIM/ESIMView.swift",
+      "sha256": "a568684069c4fe8b720ea0deac9f582354bd560fd32a5ce2270884fa3b1d33a8",
+      "bytes": 34366
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "sha256": "0a141b77c5868a070c62a1675587819bb757027940ffd01d1ba202e9dc3f9b0c",
+      "bytes": 55243
+    },
+    {
+      "path": "Sources/Views/Tabs/CareHomeView.swift",
+      "sha256": "1d1f8ca0c61da95c4bd94a1d369df00377edbe2c4d494797b3f758930756ee66",
+      "bytes": 28523
+    }
+  ],
+  "protected_areas_unchanged": [
+    ".github/workflows",
+    "project.yml",
+    "signing/auth/backend"
+  ]
+}

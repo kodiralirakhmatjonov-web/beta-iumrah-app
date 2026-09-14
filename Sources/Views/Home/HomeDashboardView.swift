@@ -56,11 +56,10 @@ struct HomeDashboardView: View {
                 careShowcaseCard
                 homeAboutFooter
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
             .padding(.bottom, 128)
         }
-        .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
         .background(Color.iumrahPageBackground)
     }
 
@@ -432,7 +431,6 @@ struct HomeDashboardView: View {
         }
         .frame(maxWidth: .infinity)
         .background(pageBackground)
-        .padding(.horizontal, -IumrahDesign.pagePadding)
     }
 
     private var hero: some View {
@@ -913,7 +911,6 @@ struct HomeDashboardView: View {
             }
             .padding(22)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
         .overlay {

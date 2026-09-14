@@ -39,11 +39,10 @@ struct CareHomeView: View {
                 quickAnswers
                     .padding(.bottom, 14)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
-            .padding(.bottom, 124)
+            .padding(.bottom, 112)
         }
-        .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
         .background(Color.iumrahPageBackground.ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -128,7 +127,6 @@ struct CareHomeView: View {
             }
             .padding(18)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .overlay {
@@ -373,7 +371,6 @@ struct CareHomeView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
@@ -412,7 +409,6 @@ struct CareHomeView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func helpTopicRow(icon: String, title: String) -> some View {
@@ -494,7 +490,6 @@ struct CareHomeView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func answerRow(icon: String, title: String, body: String) -> some View {

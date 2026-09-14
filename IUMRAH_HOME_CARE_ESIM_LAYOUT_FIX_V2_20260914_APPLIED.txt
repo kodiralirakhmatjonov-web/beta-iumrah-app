@@ -1,0 +1,14 @@
+Iumrah Home/Care/eSIM layout fix v2 — 2026-09-14
+
+Scope:
+- Home: restored normal page-padding layout and removed the negative horizontal padding from the World-to-Makkah block that could expand the entire vertical ScrollView content width.
+- Home: eSIM and Flights cards now use a proper full-width primary CTA with icon, title and arrow.
+- Care: restored standard page padding (no ScrollView contentMargins override), equalized the three action columns, and added safe bottom scroll room above the native tab bar.
+- eSIM: switched to the app's existing iumrahInternalNavigation lifecycle (native back, tab bar hidden on the pushed detail screen), kept the root content width bounded, and moved the package badge below the intro title so localized copy cannot force horizontal overflow.
+
+Not changed:
+- workflows / TestFlight
+- signing / project configuration
+- authentication
+- backend / pricing / booking business logic
+- assets

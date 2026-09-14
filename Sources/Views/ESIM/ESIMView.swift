@@ -50,6 +50,7 @@ struct ESIMView: View {
 
                     privacyCard
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 10)
                 .padding(.bottom, 110)
@@ -67,10 +68,7 @@ struct ESIMView: View {
             guard phase == .active else { return }
             Task { await refresh() }
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(false)
-        .toolbar(.visible, for: .navigationBar)
+        .iumrahInternalNavigation()
     }
 
     private var header: some View {
@@ -97,17 +95,18 @@ struct ESIMView: View {
                 .background(Color(red: 0.015, green: 0.035, blue: 0.09))
 
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .center, spacing: 12) {
-                    Text(copy(.introTitle))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Spacer(minLength: 8)
-                    Text(copy(.packageBadge))
-                        .font(.caption2.weight(.bold))
-                        .tracking(0.45)
-                        .padding(.horizontal, 11)
-                        .frame(height: 30)
-                        .background(Color.iumrahRaisedBackground, in: Capsule())
-                }
+                Text(copy(.introTitle))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .tracking(-0.45)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(copy(.packageBadge))
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.45)
+                    .padding(.horizontal, 11)
+                    .frame(height: 30)
+                    .background(Color.iumrahRaisedBackground, in: Capsule())
 
                 Text(copy(.introBody))
                     .font(.subheadline)
@@ -120,6 +119,7 @@ struct ESIMView: View {
             }
             .padding(22)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
         .overlay {
