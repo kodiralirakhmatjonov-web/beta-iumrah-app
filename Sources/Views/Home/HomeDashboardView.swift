@@ -15,9 +15,6 @@ struct HomeDashboardView: View {
 
     var body: some View {
         marketingHome
-            .navigationDestination(isPresented: $chrome.isESIMPresented) {
-                ESIMView()
-            }
             .task(id: activeSession?.id) {
                 await bookings.refreshAll()
                 while !Task.isCancelled {
@@ -56,13 +53,12 @@ struct HomeDashboardView: View {
                 esimHomeCard
                 flightsHomeCard
                 personalUmrahFAQ
-                HotelCareShowcaseCard(language: settings.language) {
-                    chrome.navigate(to: .care)
-                }
+                careShowcaseCard
+                homeAboutFooter
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
-            .padding(.bottom, 0)
+            .padding(.bottom, 128)
         }
         .background(Color.iumrahPageBackground)
     }
@@ -379,25 +375,6 @@ struct HomeDashboardView: View {
         }
     }
 
-    private var flightsHomeCard: some View {
-        NavigationLink {
-            IumrahFlightsView()
-        } label: {
-            Image("IumrahFlightsHomeCard")
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.18), radius: 24, y: 12)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("iumrah Flights")
-    }
-
     private var flightsWorldFooter: some View {
         let pageBackground = Color.iumrahPageBackground
 
@@ -707,73 +684,19 @@ struct HomeDashboardView: View {
     }
 
     private var esimHomeCard: some View {
-        Button {
-            chrome.presentESIM()
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                Image("IumrahESIMShowcaseHero")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 220)
-                    .clipped()
-
-                VStack(alignment: .leading, spacing: 13) {
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text("iumrah eSIM")
-                            .font(.system(size: 29, weight: .bold, design: .rounded))
-                            .tracking(-0.55)
-                            .foregroundStyle(.black)
-
-                        Spacer(minLength: 8)
-
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Color.black.opacity(0.56))
-                    }
-
-                    Text(esimHomeSummary)
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                        .foregroundStyle(Color.black.opacity(0.62))
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(esimHomeAction)
-                            .font(.caption.weight(.bold))
-                        Spacer(minLength: 0)
-                    }
-                    .foregroundStyle(Color.black.opacity(0.78))
-                }
-                .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.8)
-            }
-            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
-            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        Button { chrome.presentESIM() } label: {
+            homeFeatureCard(
+                imageName: "IumrahESIMHomeCard",
+                title: "iumrah eSIM",
+                body: homeESIMFeatureBody,
+                ctaTitle: homeESIMCopy(.details),
+                ctaIcon: "antenna.radiowaves.left.and.right",
+                ctaRole: .connectivity,
+                statusText: homeESIMStatusLine,
+                accent: Color(uiColor: .systemTeal)
+            )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("iumrah eSIM")
-    }
-
-    private var esimHomeSummary: String {
-        if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
-            return profile.hasActivationData ? homeESIMCopy(.ready) : homeESIMCopy(.assigned)
-        }
-        return homeESIMCopy(.packageOnly)
-    }
-
-    private var esimHomeAction: String {
-        if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
-            return profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open)
-        }
-        return homeESIMCopy(.details)
     }
 
     private enum HomeESIMCopyKey { case left, ready, assigned, activate, open, packageOnly, details }
@@ -785,35 +708,49 @@ struct HomeDashboardView: View {
         case (.russian, .assigned): return "eSIM привязана к вашей поездке."
         case (.russian, .activate): return "Активировать eSIM"
         case (.russian, .open): return "Открыть eSIM"
-        case (.russian, .packageOnly): return "В первой версии eSIM доступна только внутри Umrah-пакета."
+        case (.russian, .packageOnly): return "В1 версии eSIM доступна только внутри Umra-пакета."
         case (.russian, .details): return "Тарифы и активация"
         case (.english, .left): return "left"
-        case (.english, .ready): return "Your profile is ready. Activate eSIM on iPhone."
-        case (.english, .assigned): return "eSIM is assigned to your trip."
+        case (.english, .ready): return "Profile ready. Activate the eSIM on your iPhone."
+        case (.english, .assigned): return "eSIM is linked to your trip."
         case (.english, .activate): return "Activate eSIM"
         case (.english, .open): return "Open eSIM"
-        case (.english, .packageOnly): return "In V1, eSIM is available only inside an Umrah package."
+        case (.english, .packageOnly): return "In V1, eSIM is available only as part of the Umrah package."
         case (.english, .details): return "Plans & activation"
         case (.uzbek, .left): return "qoldi"
-        case (.uzbek, .ready): return "Profil tayyor. iPhone’da eSIM’ni faollashtiring."
+        case (.uzbek, .ready): return "Profil tayyor. eSIM’ni iPhone’da faollashtiring."
         case (.uzbek, .assigned): return "eSIM safaringizga biriktirilgan."
         case (.uzbek, .activate): return "eSIM’ni faollashtirish"
         case (.uzbek, .open): return "eSIM’ni ochish"
         case (.uzbek, .packageOnly): return "V1’da eSIM faqat Umra paketi tarkibida mavjud."
         case (.uzbek, .details): return "Tariflar va faollashtirish"
         case (.uzbekCyrillic, .left): return "қолди"
-        case (.uzbekCyrillic, .ready): return "Профил тайёр. iPhone’да eSIM’ни фаоллаштиринг."
+        case (.uzbekCyrillic, .ready): return "Профиль тайёр. eSIM’ни iPhone’да фаоллаштиринг."
         case (.uzbekCyrillic, .assigned): return "eSIM сафарингизга бириктирилган."
         case (.uzbekCyrillic, .activate): return "eSIM’ни фаоллаштириш"
         case (.uzbekCyrillic, .open): return "eSIM’ни очиш"
-        case (.uzbekCyrillic, .packageOnly): return "V1’да eSIM фақат Умра пакети таркибида мавжуд."
+        case (.uzbekCyrillic, .packageOnly): return "V1’да eSIM фақат Umra пакети таркибида мавжуд."
         case (.uzbekCyrillic, .details): return "Тарифлар ва фаоллаштириш"
         }
     }
 
-    private func homeDataText(_ mb: Double) -> String {
-        if mb >= 1024 { return String(format: "%.1f GB", mb / 1024) }
-        return "\(Int(max(0, mb).rounded())) MB"
+    private var homeESIMFeatureBody: String {
+        if let session = activeSession, let profile = bookings.primaryESIM(for: session.id) {
+            return profile.hasActivationData ? homeESIMCopy(.ready) : homeESIMCopy(.assigned)
+        }
+        return homeESIMCopy(.packageOnly)
+    }
+
+    private var homeESIMStatusLine: String? {
+        guard let session = activeSession, let profile = bookings.primaryESIM(for: session.id) else { return nil }
+        if profile.usageAvailable {
+            return "\(homeDataText(profile.remainingMB)) \(homeESIMCopy(.left))"
+        }
+        return profile.hasActivationData ? homeESIMCopy(.activate) : homeESIMCopy(.open)
+    }
+
+    private func homeDataText(_ value: Int) -> String {
+        value >= 1024 ? String(format: "%.1f GB", Double(value) / 1024) : "\(value) MB"
     }
 
     private func journeyIcon(_ name: String) -> some View {
@@ -825,6 +762,213 @@ struct HomeDashboardView: View {
             .fill(Color.primary.opacity(0.10))
             .frame(maxWidth: .infinity)
             .frame(height: 2)
+    }
+
+    private var flightsHomeCard: some View {
+        NavigationLink {
+            IumrahFlightsView()
+        } label: {
+            homeFeatureCard(
+                imageName: "IumrahFlightsHomeCard",
+                title: "iumrah Flights",
+                body: homeFlightsFeatureBody,
+                ctaTitle: homeFlightsCTA,
+                ctaIcon: "airplane",
+                ctaRole: .travel,
+                statusText: nil,
+                accent: Color(uiColor: .systemBlue)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var careShowcaseCard: some View {
+        Button {
+            chrome.navigate(to: .care)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                Image("IumrahCareShowcaseCard")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(red: 0.015, green: 0.035, blue: 0.09))
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("iumrah Care")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .tracking(-0.55)
+                    Text(L10n.text("hotel_care_card_body", settings.language))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 9) {
+                        Image(systemName: "phone.fill")
+                        Text(homeCareCTA)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 16)
+                    .frame(height: 52)
+                    .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .foregroundStyle(Color.iumrahPrimaryButtonText)
+                }
+                .padding(20)
+            }
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var homeAboutFooter: some View {
+        VStack(spacing: 8) {
+            Text(homeSinceTitle)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.8)
+
+            Text(homeSinceBody)
+                .font(.system(size: 13.5, weight: .regular))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 14)
+    }
+
+    private func homeFeatureCard(
+        imageName: String,
+        title: String,
+        body: String,
+        ctaTitle: String,
+        ctaIcon: String,
+        ctaRole: IumrahIconRole,
+        statusText: String?,
+        accent: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(imageName)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 214)
+                .clipped()
+                .background(Color(red: 0.015, green: 0.035, blue: 0.09))
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(title)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .tracking(-0.6)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(body)
+                    .font(.system(size: 15.5, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(alignment: .center, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: ctaIcon)
+                        Text(ctaTitle)
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                    Spacer(minLength: 8)
+
+                    if let statusText, !statusText.isEmpty {
+                        Text(statusText)
+                            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(accent)
+                            .padding(.horizontal, 11)
+                            .frame(height: 30)
+                            .background(accent.opacity(0.10), in: Capsule())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
+            }
+            .padding(22)
+        }
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+    }
+
+    private var homeFlightsFeatureBody: String {
+        switch settings.language {
+        case .russian:
+            return "Опубликованные рейсы Umrah, подбор направления и перелёта под ваш пакет в одном месте."
+        case .english:
+            return "Published Umrah flights and route selection for your package in one place."
+        case .uzbek:
+            return "Umra uchun e’lon qilingan reyslar va paketingizga mos parvozni bitta joyda tanlash."
+        case .uzbekCyrillic:
+            return "Умра учун эълон қилинган рейслар ва пакетингизга мос парвозни битта жойда танлаш."
+        }
+    }
+
+    private var homeFlightsCTA: String {
+        switch settings.language {
+        case .russian: return "Подобрать перелёт"
+        case .english: return "Choose flights"
+        case .uzbek: return "Parvozni tanlash"
+        case .uzbekCyrillic: return "Парвозни танлаш"
+        }
+    }
+
+    private var homeCareCTA: String {
+        switch settings.language {
+        case .russian: return "Связаться с Care"
+        case .english: return "Contact Care"
+        case .uzbek: return "Care bilan bog‘lanish"
+        case .uzbekCyrillic: return "Care билан боғланиш"
+        }
+    }
+
+    private var homeSinceTitle: String {
+        switch settings.language {
+        case .russian: return "Since 2026"
+        case .english: return "Since 2026"
+        case .uzbek: return "Since 2026"
+        case .uzbekCyrillic: return "Since 2026"
+        }
+    }
+
+    private var homeSinceBody: String {
+        switch settings.language {
+        case .russian:
+            return "iumrah — проект персональной и независимой Умры: собрать маршрут, отель, трансфер и сопровождение в одном спокойном приложении."
+        case .english:
+            return "iumrah is a personal independent Umrah project: build your route, hotel, transfer and care in one calm application."
+        case .uzbek:
+            return "iumrah — shaxsiy va mustaqil Umra loyihasi: yo‘nalish, mehmonxona, transfer va yordamni bitta sokin ilovada jamlash uchun yaratilgan."
+        case .uzbekCyrillic:
+            return "iumrah — шахсий ва мустақил Умра лойиҳаси: йўналиш, меҳмонхона, трансфер ва ёрдамни битта сокин иловада жамлаш учун яратилган."
+        }
     }
 
     private var personalUmrahFAQ: some View {
@@ -896,7 +1040,7 @@ struct HomeDashboardView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 92)
+        .padding(.bottom, 0)
     }
 
     private var personalUmrahFAQTitle: String {

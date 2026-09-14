@@ -1,0 +1,22 @@
+{
+  "name": "iumrah-beta-update-20260914-home-layout-esim-generator-fix-v2",
+  "base_repo": "kepler-ios-main 2.zip",
+  "changes": [
+    "Reworked HomeDashboard cards for eSIM and Flights with consistent top-image/bottom-content card layout.",
+    "Removed old Home hotel card, moved Care showcase to footer area, added Since 2026 project footer, increased safe bottom spacing.",
+    "Converted eSIM opening flow from modal to in-stack navigation destination to enable native back button and swipe-back.",
+    "Updated ESIMView hero to use provided eSIM artwork and page-safe bottom spacing.",
+    "Cached Care contact phone and Telegram locally for immediate availability before remote fetch completes.",
+    "Added dynamic group-savings summary card to the manual TripBuilder travelers section for solo and group cases."
+  ],
+  "files": [
+    "Sources/AppShell/AppNavigationContainer.swift",
+    "Sources/Views/ESIM/ESIMView.swift",
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/RootView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "Sources/Views/Trip/TripBuilderView.swift",
+    "Resources/Assets.xcassets/IumrahESIMHomeCard.imageset/Contents.json",
+    "Resources/Assets.xcassets/IumrahESIMHomeCard.imageset/iumrah-esim-home-card.png"
+  ]
+}

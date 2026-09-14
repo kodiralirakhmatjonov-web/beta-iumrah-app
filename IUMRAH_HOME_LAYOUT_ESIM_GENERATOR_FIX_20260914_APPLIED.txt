@@ -1,0 +1,1 @@
+Applied fixes: responsive home cards for eSIM and Flights, home footer, FAQ spacing, standalone pushed eSIM page with native back, cached Care contacts, and dynamic group savings in TripBuilder.

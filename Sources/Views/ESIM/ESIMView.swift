@@ -36,6 +36,7 @@ struct ESIMView: View {
             Color.iumrahPageBackground.ignoresSafeArea()
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
+                    header
                     introCard
 
                     if profiles.isEmpty {
@@ -51,7 +52,7 @@ struct ESIMView: View {
                 }
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 10)
-                .padding(.bottom, 36)
+                .padding(.bottom, 110)
             }
             .refreshable { await refresh() }
         }
@@ -66,58 +67,66 @@ struct ESIMView: View {
             guard phase == .active else { return }
             Task { await refresh() }
         }
-        .navigationTitle("iumrah eSIM")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(false)
         .toolbar(.visible, for: .navigationBar)
-        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("iumrah eSIM")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .tracking(-0.8)
+            Text(copy(.headerSubtitle))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Image("IumrahESIMShowcaseHero")
+            Image("IumrahESIMHomeCard")
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity)
                 .frame(height: 228)
                 .clipped()
+                .background(Color(red: 0.015, green: 0.035, blue: 0.09))
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 12) {
+                    Text(copy(.introTitle))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Spacer(minLength: 8)
                     Text(copy(.packageBadge))
                         .font(.caption2.weight(.bold))
-                        .tracking(0.5)
+                        .tracking(0.45)
                         .padding(.horizontal, 11)
                         .frame(height: 30)
-                        .background(Color.black.opacity(0.055), in: Capsule())
-                        .foregroundStyle(Color.black.opacity(0.70))
-
-                    Spacer(minLength: 0)
-
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.black.opacity(0.52))
+                        .background(Color.iumrahRaisedBackground, in: Capsule())
                 }
-
-                Text(copy(.introTitle))
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
-                    .tracking(-0.55)
-                    .foregroundStyle(.black)
 
                 Text(copy(.introBody))
                     .font(.subheadline)
-                    .foregroundStyle(Color.black.opacity(0.62))
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Label(copy(.tariffsTitle), systemImage: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(IumrahIconRole.connectivity.color)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white)
+            .padding(22)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
         }
-        .shadow(color: .black.opacity(0.10), radius: 24, y: 12)
+        .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
     }
 
     @ViewBuilder
@@ -144,19 +153,7 @@ struct ESIMView: View {
                         ProgressView().controlSize(.small)
                     } else {
                         Button(copy(.refresh)) { Task { await refresh() } }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: IumrahDesign.controlHeight)
-                            .background(
-                                Color.iumrahRaisedBackground,
-                                in: RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous)
-                                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
-                            }
+                            .buttonStyle(IumrahSecondaryButtonStyle())
                     }
                 }
 
@@ -175,8 +172,9 @@ struct ESIMView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button(copy(.buildPackage)) {
+                    chrome.isESIMPresented = false
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { chrome.startNewTrip() }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { chrome.startNewTrip() }
                 }
                 .buttonStyle(IumrahPrimaryButtonStyle())
             }

@@ -8,12 +8,9 @@ struct CareHomeView: View {
 
     @State private var careProfile: IumrahPublicProfile?
     @State private var isLoadingCareProfile = false
-
-    // The primary Care channels are product configuration, not network content.
-    // Keep them available on the very first frame; the public team profile can
-    // still override them after its background refresh completes.
-    private let localCarePhone = "+998 50 889 88 45"
-    private let localCareTelegram = "saudiclub966"
+    @AppStorage("iumrah.care.cachedPhoneSA") private var cachedPhoneSA = ""
+    @AppStorage("iumrah.care.cachedPhoneUZ") private var cachedPhoneUZ = "+998 50 889 88 45"
+    @AppStorage("iumrah.care.cachedTelegram") private var cachedTelegram = "@saudiclub966"
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { session in
@@ -534,23 +531,28 @@ struct CareHomeView: View {
     private var preferredPhone: String {
         let sa = careProfile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !sa.isEmpty { return sa }
+        let cachedSA = cachedPhoneSA.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cachedSA.isEmpty { return cachedSA }
         let uz = careProfile?.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return uz.isEmpty ? localCarePhone : uz
+        if !uz.isEmpty { return uz }
+        return cachedPhoneUZ.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var telegramURL: URL? {
-        let remote = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let raw = remote.isEmpty ? localCareTelegram : remote
+        let live = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let raw = live.isEmpty ? cachedTelegram.trimmingCharacters(in: .whitespacesAndNewlines) : live
+        guard !raw.isEmpty else { return nil }
 
         if raw.lowercased().hasPrefix("http") {
-            return URL(string: raw) ?? URL(string: "https://t.me/\(localCareTelegram)")
+            return URL(string: raw)
         }
 
         let username = raw
             .replacingOccurrences(of: "@", with: "")
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
-        return URL(string: "https://t.me/\(username.isEmpty ? localCareTelegram : username)")
+        guard !username.isEmpty else { return nil }
+        return URL(string: "https://t.me/\(username)")
     }
 
     private var contactActionSubtitle: String {
@@ -586,6 +588,15 @@ struct CareHomeView: View {
 
         if let profile = try? await ChatService().loadCareProfile() {
             careProfile = profile
+            if !profile.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                cachedPhoneSA = profile.phoneSA
+            }
+            if !profile.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                cachedPhoneUZ = profile.phoneUZ
+            }
+            if !profile.telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                cachedTelegram = profile.telegram
+            }
         }
     }
 

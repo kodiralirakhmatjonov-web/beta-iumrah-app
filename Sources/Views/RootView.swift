@@ -307,23 +307,23 @@ struct RootView: View {
 
     private var tabs: some View {
         TabView(selection: $chrome.currentTab) {
-            tabScreen { HomeDashboardView() }
+            tabScreen(for: .home) { HomeDashboardView() }
                 .tabItem { Label(L10n.text("tab_home", settings.language), systemImage: "house") }
                 .tag(AppTab.home)
 
-            tabScreen { HotelsHomeView() }
+            tabScreen(for: .hotels) { HotelsHomeView() }
                 .tabItem { Label(L10n.text("tab_hotels", settings.language), systemImage: "building.2") }
                 .tag(AppTab.hotels)
 
-            tabScreen { BookingsHomeView() }
+            tabScreen(for: .booking) { BookingsHomeView() }
                 .tabItem { Label(L10n.text("tab_booking", settings.language), systemImage: "suitcase") }
                 .tag(AppTab.booking)
 
-            tabScreen { CareHomeView() }
+            tabScreen(for: .care) { CareHomeView() }
                 .tabItem { Label(L10n.text("tab_care", settings.language), systemImage: "heart.fill") }
                 .tag(AppTab.care)
 
-            tabScreen { IumrahAccountView() }
+            tabScreen(for: .account) { IumrahAccountView() }
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
                 .tag(AppTab.account)
         }
@@ -333,7 +333,7 @@ struct RootView: View {
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
     }
 
-    private func tabScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        AppNavigationContainer { content() }
+    private func tabScreen<Content: View>(for tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
+        AppNavigationContainer(tab: tab) { content() }
     }
 }
