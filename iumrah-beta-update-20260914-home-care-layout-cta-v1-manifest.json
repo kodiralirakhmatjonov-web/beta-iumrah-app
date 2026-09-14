@@ -1,0 +1,35 @@
+{
+  "name": "iumrah-beta-update-20260914-home-care-layout-cta-v1",
+  "date": "2026-09-14",
+  "base": "kepler-ios-main 3.zip supplied in this chat",
+  "purpose": "Restore deterministic responsive page insets on Home and Care and replace the compact eSIM/Flights pills with full-width primary CTA controls.",
+  "files": [
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "bytes": 55442,
+      "sha256": "46a4b8b55e1e062824d64022531aea1a07822bc3814c41d6057fc1cb16e2d8fd"
+    },
+    {
+      "path": "Sources/Views/Tabs/CareHomeView.swift",
+      "bytes": 28836,
+      "sha256": "30d7b02a04c39dfd09b2bc8c6f786868281832f2054bcbe8a2660627b01cd417"
+    },
+    {
+      "path": "IUMRAH_HOME_CARE_LAYOUT_CTA_20260914_APPLIED.txt",
+      "bytes": 1394,
+      "sha256": "4fab9c516802b3f5be6a31606c3ca77d13dc6ea10352d78be14dbb774783869c"
+    }
+  ],
+  "protected_files_unchanged": [
+    ".github/workflows/*",
+    "project.yml",
+    "Signing/*",
+    "Resources/Info.plist"
+  ],
+  "validation": [
+    "Swift frontend syntax parse: 200/200 files",
+    "git diff --check: passed",
+    "project.yml/workflow YAML + root JSON parse: passed",
+    "fresh-overlay ZIP validation: passed"
+  ]
+}

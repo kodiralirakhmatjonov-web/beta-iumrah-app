@@ -1,0 +1,23 @@
+iumrah update — Home + Care responsive layout and Home CTA controls
+Date: 2026-09-14
+Base: kepler-ios-main 3.zip supplied in this chat
+
+Changes:
+- Home scroll content now uses native ScrollView content margins instead of relying on an outer VStack padding, keeping the complete Home content column inside the same left/right inset on different iPhone widths.
+- Home feature cards are explicitly constrained to the content column.
+- iumrah eSIM and iumrah Flights now use a full-width primary CTA row with icon, label and arrow instead of the small accent pill. Existing whole-card navigation behavior is preserved.
+- Care uses the same native ScrollView content-margin strategy and an explicit full-width content column.
+- Care contact actions receive equal flexible widths so Russian/Uzbek/English labels do not push the hero beyond the page bounds on smaller screens.
+- Care gets additional bottom scroll clearance for the floating system tab bar.
+
+Not changed:
+- .github/workflows/testflight.yml or any workflow
+- project.yml
+- signing / provisioning files
+- authentication, booking, pricing, eSIM business logic, or navigation destinations
+
+Preflight:
+- Swift frontend syntax parse passed for all 200 Swift files.
+- git diff --check passed.
+- project/workflow YAML and root JSON parsed successfully.
+- Update ZIP was overlaid onto a fresh copy of the supplied repository and revalidated.

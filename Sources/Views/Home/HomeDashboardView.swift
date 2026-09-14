@@ -30,7 +30,7 @@ struct HomeDashboardView: View {
     }
 
     private var marketingHome: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
                 if !clientNotifications.homeNotifications.isEmpty {
@@ -56,10 +56,11 @@ struct HomeDashboardView: View {
                 careShowcaseCard
                 homeAboutFooter
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 10)
             .padding(.bottom, 128)
         }
+        .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
         .background(Color.iumrahPageBackground)
     }
 
@@ -869,49 +870,50 @@ struct HomeDashboardView: View {
                 .background(Color(red: 0.015, green: 0.035, blue: 0.09))
 
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(title)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .tracking(-0.6)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
+                Text(title)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .tracking(-0.6)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(body)
                     .font(.system(size: 15.5, weight: .regular))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack(alignment: .center, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: ctaIcon)
-                        Text(ctaTitle)
-                    }
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
-                    .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-
-                    Spacer(minLength: 8)
-
-                    if let statusText, !statusText.isEmpty {
-                        Text(statusText)
-                            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
-                            .foregroundStyle(accent)
-                            .padding(.horizontal, 11)
-                            .frame(height: 30)
-                            .background(accent.opacity(0.10), in: Capsule())
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
+                if let statusText, !statusText.isEmpty {
+                    Text(statusText)
+                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 11)
+                        .frame(height: 30)
+                        .background(accent.opacity(0.10), in: Capsule())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
+
+                HStack(spacing: 10) {
+                    Image(systemName: ctaIcon)
+                        .symbolRenderingMode(.monochrome)
+                    Text(ctaTitle)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .font(.system(size: 15.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .padding(.horizontal, 17)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(
+                    Color.iumrahPrimaryButtonBackground,
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
             }
             .padding(22)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
         .overlay {
