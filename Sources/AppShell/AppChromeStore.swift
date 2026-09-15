@@ -29,6 +29,7 @@ final class AppChromeStore: ObservableObject {
     @Published var requestedHotelID: String?
     @Published var requestedHotelConfiguratorID: String?
     @Published var requestedHotelConfiguratorDeepLink: HotelConfiguratorDeepLink?
+    @Published var requestedHotelsBoard: HotelsShowcaseBoard?
     @Published var isImmersiveMode = false
     @Published var isSidebarOpen = false
     @Published var isESIMPresented = false
@@ -57,6 +58,13 @@ final class AppChromeStore: ObservableObject {
         requestedHotelConfiguratorDeepLink = openConfigurator
             ? (configuratorDeepLink ?? HotelConfiguratorDeepLink(hotelID: id))
             : nil
+        currentTab = .hotels
+        requestedTab = .hotels
+        IumrahHaptics.selection()
+    }
+
+    func openHotels(board: HotelsShowcaseBoard) {
+        requestedHotelsBoard = board
         currentTab = .hotels
         requestedTab = .hotels
         IumrahHaptics.selection()

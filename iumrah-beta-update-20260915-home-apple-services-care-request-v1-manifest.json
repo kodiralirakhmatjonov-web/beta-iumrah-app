@@ -1,0 +1,21 @@
+{
+  "name": "iumrah-beta-update-20260915-home-apple-services-care-request-v1",
+  "date": "2026-09-15",
+  "scope": "iOS Home redesign, ready packages, Iumrah Care request workflow, PackageEngine request persistence",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Home/HomeVideoCarousel.swift",
+    "Sources/Views/Home/HomeAppleStoreSections.swift",
+    "Sources/Views/Home/IumrahCareRequestView.swift",
+    "Sources/Models/IumrahCareRequestModels.swift",
+    "Sources/Services/IumrahCareRequestService.swift",
+    "Sources/AppShell/AppChromeStore.swift",
+    "Sources/Views/Tabs/HotelsHomeView.swift",
+    "Backend/PackageEngine/src/care-requests.ts",
+    "Backend/PackageEngine/src/index.ts",
+    "IUMRAH_HOME_APPLE_SERVICES_CARE_REQUEST_20260915_APPLIED.txt"
+  ],
+  "protected_files_changed": false,
+  "workflow_files_changed": false,
+  "signing_files_changed": false
+}

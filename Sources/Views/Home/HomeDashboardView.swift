@@ -5,9 +5,20 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var account: IumrahAccountStore
+    @EnvironmentObject private var storefront: HotelStorefrontStore
+    @EnvironmentObject private var journey: JourneyStore
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @State private var showZiyarats = false
+    @State private var showCareRequestBuilder = false
+    @State private var showFlightsService = false
+    @State private var selectedFlightPackage: StorefrontFlightPackagePreview?
     @State private var expandedHomeFAQID: String?
+
+    private struct ReadyPackageItem: Identifiable {
+        let option: StorefrontFlightOption
+        let preview: StorefrontFlightPackagePreview
+        var id: String { option.id }
+    }
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { $0.effectiveStatus.uppercased() != "COMPLETED" }
@@ -22,44 +33,79 @@ struct HomeDashboardView: View {
                     try? await Task.sleep(nanoseconds: 120_000_000_000)
                 }
             }
+            .task(id: journey.trip.originCode.uppercased()) {
+                await storefront.prepareIfNeeded()
+                await storefront.updateDepartureAirport(journey.trip.originCode)
+            }
             .fullScreenCover(isPresented: $showZiyarats) {
                 ZiyaratJourneyView()
                     .environmentObject(settings)
                     .environmentObject(chrome)
             }
+            .navigationDestination(isPresented: $showCareRequestBuilder) {
+                IumrahCareRequestView()
+            }
+            .navigationDestination(isPresented: $showFlightsService) {
+                IumrahFlightsView()
+            }
+            .navigationDestination(item: $selectedFlightPackage) { preview in
+                StorefrontUmrahPackageDetailView(preview: preview)
+            }
     }
 
     private var marketingHome: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
-                if !clientNotifications.homeNotifications.isEmpty {
-                    SystemNotificationsCarouselView(
-                        notifications: Array(clientNotifications.homeNotifications.prefix(5)),
-                        onOpen: { openSystemNotification($0) },
-                        onDismiss: { dismissSystemNotification($0) }
+        GeometryReader { viewport in
+            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 22) {
+                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
+                    if !clientNotifications.homeNotifications.isEmpty {
+                        SystemNotificationsCarouselView(
+                            notifications: Array(clientNotifications.homeNotifications.prefix(5)),
+                            onOpen: { openSystemNotification($0) },
+                            onDismiss: { dismissSystemNotification($0) }
+                        )
+                    }
+                    HomeEmotionalJourneyPrompt()
+                    HomeVideoCarousel()
+
+                    IumrahHomeAudienceSection(language: settings.language)
+
+                    IumrahHomeServicesSection(
+                        language: settings.language,
+                        onESIM: { chrome.presentESIM() },
+                        onFlights: { showFlightsService = true },
+                        onZiyarats: { showZiyarats = true },
+                        onCare: { chrome.navigate(to: .care) }
                     )
+
+                    readyPackagesSection
+                    buildMyUmrahSection
+
+                    VStack(alignment: .leading, spacing: 15) {
+                        IumrahHomeSectionHeader(title: homeProductsTitle)
+                        IumrahBackendSystemHomeCard()
+                    }
+
+                    friendsHomeCard
+                    UmrahAdvisorHomeCard()
+                    confidenceStrip
+                    philosophyCard
+                    connectedTripCard
+                    personalUmrahFAQ
+                    homeAboutFooter
                 }
-                HomeEmotionalJourneyPrompt()
-                HomeVideoCarousel()
-                IumrahBackendSystemHomeCard()
-                hero
-                friendsHomeCard
-                UmrahAdvisorHomeCard()
-                ziyaratsHomeCard
-                confidenceStrip
-                philosophyCard
-                connectedTripCard
-                esimHomeCard
-                flightsHomeCard
-                personalUmrahFAQ
-                careShowcaseCard
-                homeAboutFooter
+                // Keep the same single content-column discipline used by Account.
+                // The explicit viewport width prevents any carousel/card from enlarging
+                // the vertical ScrollView's horizontal content size and cancelling the
+                // standard page insets for every sibling below it.
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 128)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
-            .padding(.bottom, 46)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(width: viewport.size.width, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground)
     }
@@ -434,6 +480,336 @@ struct HomeDashboardView: View {
         .background(pageBackground)
     }
 
+    private var readyPackageEntries: [ReadyPackageItem] {
+        (storefront.flightBoard?.options ?? [])
+            .compactMap { option in
+                guard let preview = storefront.packagePreview(for: option) else { return nil }
+                return ReadyPackageItem(option: option, preview: preview)
+            }
+            .prefix(12)
+            .map { $0 }
+    }
+
+    private var readyPackagesSection: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            IumrahHomeSectionHeader(title: readyPackagesTitle, subtitle: readyPackagesSubtitle)
+
+            if readyPackageEntries.isEmpty {
+                HStack(spacing: 11) {
+                    ProgressView()
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(readyPackagesLoadingTitle)
+                            .font(.headline)
+                        Text(readyPackagesLoadingBody)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .iumrahCard()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 13) {
+                        ForEach(readyPackageEntries) { entry in
+                            HomeStorefrontFlightOptionCard(
+                                option: entry.option,
+                                packagePreview: entry.preview,
+                                isCalculating: storefront.isLoading,
+                                language: settings.language,
+                                onOpen: { selectedFlightPackage = entry.preview }
+                            )
+                            .frame(width: 318)
+
+                        }
+
+                        allPackagesCard
+                            .frame(width: 318)
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollClipDisabled()
+            }
+        }
+    }
+
+    private var allPackagesCard: some View {
+        Button {
+            chrome.openHotels(board: .flights)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                Image("IumrahFlightsShowcaseHero")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 118)
+                    .clipped()
+
+                VStack(alignment: .leading, spacing: 13) {
+                    Label("Iumrah Flights", systemImage: "airplane")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.black.opacity(0.52))
+
+                    Text(allPackagesTitle)
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
+                        .tracking(-0.45)
+                        .foregroundStyle(.black)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(allPackagesBody)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.black.opacity(0.58))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack {
+                        Text(allPackagesCTA)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 15)
+                    .frame(height: 45)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white)
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
+            }
+            .shadow(color: .black.opacity(0.05), radius: 16, y: 7)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var buildMyUmrahSection: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            IumrahHomeSectionHeader(title: buildUmrahSectionTitle, subtitle: buildUmrahSectionSubtitle)
+
+            GeometryReader { proxy in
+                let cardWidth = max(298, min(proxy.size.width * 0.94, 352))
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 13) {
+                        hero
+                            .frame(width: cardWidth)
+                        careRequestBuilderCard
+                            .frame(width: cardWidth)
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollClipDisabled()
+            }
+            .frame(height: 570)
+        }
+    }
+
+    private var careRequestBuilderCard: some View {
+        Button {
+            IumrahHaptics.soft()
+            showCareRequestBuilder = true
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack {
+                    Color.black
+                    Image("IumrahCareShowcaseCard")
+                        .resizable()
+                        .scaledToFit()
+                        .padding(.horizontal, 4)
+                }
+                .frame(height: 210)
+                .clipped()
+
+                VStack(alignment: .leading, spacing: 15) {
+                    HStack(spacing: 8) {
+                        Label("Iumrah Care", systemImage: "heart.fill")
+                            .font(.caption.weight(.bold))
+                            .tracking(0.45)
+                            .foregroundStyle(Color.black.opacity(0.58))
+                        Spacer(minLength: 8)
+                        Text(careRequestTimeBadge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.black.opacity(0.62))
+                            .padding(.horizontal, 10)
+                            .frame(height: 29)
+                            .background(Color.black.opacity(0.055), in: Capsule())
+                    }
+
+                    Text(careRequestCardTitle)
+                        .font(.system(size: 31, weight: .bold, design: .rounded))
+                        .tracking(-0.75)
+                        .foregroundStyle(.black)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(careRequestCardBody)
+                        .font(.system(size: 15, design: .rounded))
+                        .foregroundStyle(Color.black.opacity(0.62))
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 10) {
+                        Text(careRequestCardCTA)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(height: 54)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                    Text("Iumrah Care")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.black.opacity(0.46))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .padding(20)
+                .background(Color.white)
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
+            }
+            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
+            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var readyPackagesTitle: String {
+        switch settings.language {
+        case .russian: return "Готовые пакеты"
+        case .english: return "Ready-made packages"
+        case .uzbek: return "Tayyor paketlar"
+        case .uzbekCyrillic: return "Тайёр пакетлар"
+        }
+    }
+
+    private var readyPackagesSubtitle: String {
+        switch settings.language {
+        case .russian: return "Актуальные варианты перелёта уже собраны с отелем и сервисами в единую цену пакета."
+        case .english: return "Current flight options are already combined with hotel and services into one package price."
+        case .uzbek: return "Amaldagi parvoz variantlari mehmonxona va servislar bilan bitta paket narxiga yig‘ilgan."
+        case .uzbekCyrillic: return "Амалдаги парвоз вариантлари меҳмонхона ва сервислар билан битта пакет нархига йиғилган."
+        }
+    }
+
+    private var readyPackagesLoadingTitle: String {
+        switch settings.language {
+        case .russian: return "Подбираем актуальные пакеты"
+        case .english: return "Loading current packages"
+        case .uzbek: return "Amaldagi paketlar yuklanmoqda"
+        case .uzbekCyrillic: return "Амалдаги пакетлар юкланмоқда"
+        }
+    }
+
+    private var readyPackagesLoadingBody: String {
+        switch settings.language {
+        case .russian: return "Цены и рейсы обновляются из витрины Iumrah."
+        case .english: return "Prices and flights are refreshing from the Iumrah storefront."
+        case .uzbek: return "Narxlar va parvozlar Iumrah vitrinasidan yangilanmoqda."
+        case .uzbekCyrillic: return "Нархлар ва парвозлар Iumrah витринасидан янгиланмоқда."
+        }
+    }
+
+    private var allPackagesTitle: String {
+        switch settings.language {
+        case .russian: return "Больше вариантов поездки"
+        case .english: return "More journey options"
+        case .uzbek: return "Ko‘proq safar variantlari"
+        case .uzbekCyrillic: return "Кўпроқ сафар вариантлари"
+        }
+    }
+
+    private var allPackagesBody: String {
+        switch settings.language {
+        case .russian: return "Откройте полную витрину авиабилетов и готовых пакетов Iumrah."
+        case .english: return "Open the complete Iumrah flights and ready-package storefront."
+        case .uzbek: return "Iumrah parvozlari va tayyor paketlarining to‘liq vitrinasini oching."
+        case .uzbekCyrillic: return "Iumrah парвозлари ва тайёр пакетларининг тўлиқ витринасини очинг."
+        }
+    }
+
+    private var allPackagesCTA: String {
+        switch settings.language {
+        case .russian: return "Посмотреть все пакеты"
+        case .english: return "View all packages"
+        case .uzbek: return "Barcha paketlarni ko‘rish"
+        case .uzbekCyrillic: return "Барча пакетларни кўриш"
+        }
+    }
+
+    private var buildUmrahSectionTitle: String {
+        switch settings.language {
+        case .russian: return "Собрать свою Умру"
+        case .english: return "Build your Umrah"
+        case .uzbek: return "Umrangizni tuzing"
+        case .uzbekCyrillic: return "Умрангизни тузинг"
+        }
+    }
+
+    private var buildUmrahSectionSubtitle: String {
+        switch settings.language {
+        case .russian: return "Соберите пакет сами за несколько минут или передайте подбор Iumrah Care."
+        case .english: return "Build the package yourself in minutes or let Iumrah Care prepare it for you."
+        case .uzbek: return "Paketni bir necha daqiqada o‘zingiz tuzing yoki tanlovni Iumrah Care’ga topshiring."
+        case .uzbekCyrillic: return "Пакетни бир неча дақиқада ўзингиз тузинг ёки танловни Iumrah Care’га топширинг."
+        }
+    }
+
+    private var careRequestTimeBadge: String {
+        switch settings.language {
+        case .russian: return "ответ ≤ 2 ч"
+        case .english: return "reply ≤ 2h"
+        case .uzbek: return "javob ≤ 2 soat"
+        case .uzbekCyrillic: return "жавоб ≤ 2 соат"
+        }
+    }
+
+    private var careRequestCardTitle: String {
+        switch settings.language {
+        case .russian: return "Собрать Умру за меня"
+        case .english: return "Build my Umrah for me"
+        case .uzbek: return "Umramni men uchun tuzing"
+        case .uzbekCyrillic: return "Умрамни мен учун тузинг"
+        }
+    }
+
+    private var careRequestCardBody: String {
+        switch settings.language {
+        case .russian: return "Укажите месяц или точные даты, бюджет, уровень отеля и главный приоритет. Iumrah Care соберёт персональный вариант."
+        case .english: return "Choose a month or exact dates, budget, hotel level and your main priority. Iumrah Care will prepare a personal option."
+        case .uzbek: return "Oy yoki aniq sanalar, budjet, mehmonxona darajasi va asosiy ustuvorlikni belgilang. Iumrah Care shaxsiy variant tayyorlaydi."
+        case .uzbekCyrillic: return "Ой ёки аниқ саналар, бюджет, меҳмонхона даражаси ва асосий устуворликни белгиланг. Iumrah Care шахсий вариант тайёрлайди."
+        }
+    }
+
+    private var careRequestCardCTA: String {
+        switch settings.language {
+        case .russian: return "Рассказать о поездке"
+        case .english: return "Tell us about the trip"
+        case .uzbek: return "Safar haqida aytish"
+        case .uzbekCyrillic: return "Сафар ҳақида айтиш"
+        }
+    }
+
+    private var homeProductsTitle: String {
+        switch settings.language {
+        case .russian: return "Наши продукты"
+        case .english: return "Our products"
+        case .uzbek: return "Mahsulotlarimiz"
+        case .uzbekCyrillic: return "Маҳсулотларимиз"
+        }
+    }
+
     private var hero: some View {
         Button {
             IumrahHaptics.soft()
@@ -455,7 +831,7 @@ struct HomeDashboardView: View {
 
                 VStack(alignment: .leading, spacing: 15) {
                     HStack(spacing: 8) {
-                        Label("iumrah Configurator", systemImage: "slider.horizontal.3")
+                        Label("Iumrah Configurator", systemImage: "slider.horizontal.3")
                             .font(.caption.weight(.bold))
                             .tracking(0.45)
                             .foregroundStyle(Color.black.opacity(0.58))
@@ -501,17 +877,7 @@ struct HomeDashboardView: View {
                     .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 .padding(20)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.92, green: 0.95, blue: 1.00),
-                            Color(red: 0.96, green: 0.93, blue: 1.00),
-                            Color(red: 0.98, green: 0.96, blue: 0.93)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .background(Color.white)
             }
             .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
             .overlay {
@@ -553,10 +919,10 @@ struct HomeDashboardView: View {
 
     private var configuratorHeroBody: String {
         switch settings.language {
-        case .russian: return "Персональный пакет для вас, вашей семьи или друзей — без обязательной туристической группы из 30–50 человек. Перелёт, отель, трансфер и iumrah Services собираются в одну поездку."
-        case .english: return "A personal package for you, your family or friends — without having to join a 30–50 person tour group. Flights, hotel, transfer and iumrah Services come together as one journey."
-        case .uzbek: return "Siz, oilangiz yoki do‘stlaringiz uchun shaxsiy paket — 30–50 kishilik majburiy tur guruhisiz. Parvoz, mehmonxona, transfer va iumrah Services bitta safarga birlashadi."
-        case .uzbekCyrillic: return "Сиз, оилангиз ёки дўстларингиз учун шахсий пакет — 30–50 кишилик мажбурий тур гуруҳисиз. Парвоз, меҳмонхона, трансфер ва iumrah Services битта сафарга бирлашади."
+        case .russian: return "Персональный пакет для вас, вашей семьи или друзей — без обязательной туристической группы из 30–50 человек. Перелёт, отель, трансфер и Iumrah Services собираются в одну поездку."
+        case .english: return "A personal package for you, your family or friends — without having to join a 30–50 person tour group. Flights, hotel, transfer and Iumrah Services come together as one journey."
+        case .uzbek: return "Siz, oilangiz yoki do‘stlaringiz uchun shaxsiy paket — 30–50 kishilik majburiy tur guruhisiz. Parvoz, mehmonxona, transfer va Iumrah Services bitta safarga birlashadi."
+        case .uzbekCyrillic: return "Сиз, оилангиз ёки дўстларингиз учун шахсий пакет — 30–50 кишилик мажбурий тур гуруҳисиз. Парвоз, меҳмонхона, трансфер ва Iumrah Services битта сафарга бирлашади."
         }
     }
 
@@ -827,10 +1193,8 @@ struct HomeDashboardView: View {
                     .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
             }
             .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var homeAboutFooter: some View {

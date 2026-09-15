@@ -55,6 +55,12 @@ struct HotelsHomeView: View {
             await storefront.prepareIfNeeded()
             await storefront.updateDepartureAirport(journey.trip.originCode)
         }
+        .onAppear {
+            applyRequestedBoard()
+        }
+        .onChange(of: chrome.requestedHotelsBoard) { _, _ in
+            applyRequestedBoard()
+        }
         .onChange(of: chrome.requestedHotelID) { _, hotelID in
             openRequestedHotel(hotelID)
         }
@@ -86,6 +92,12 @@ struct HotelsHomeView: View {
         } message: {
             Text(packageShareError ?? "")
         }
+    }
+
+    private func applyRequestedBoard() {
+        guard let requested = chrome.requestedHotelsBoard else { return }
+        board = requested
+        chrome.requestedHotelsBoard = nil
     }
 
     private var pageTitle: String {

@@ -12,6 +12,7 @@ import { appleAppSiteAssociation, hotelWebFallback, publicStorefrontFlightBoard 
 import { generatePackageQuote, generateStorefrontPackageQuote } from "./package-search";
 import { commitPackageQuoteReport } from "./booking-gateway";
 import { quoteSealingMode } from "./quote-audit";
+import { createCarePackageRequest, listCarePackageRequests, updateCarePackageRequest } from "./care-requests";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -135,6 +136,17 @@ export default {
         if (request.method === "DELETE") return deleteAdminBooking(adminBookingMatch[1], env);
         return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
       }
+
+      if (url.pathname === "/api/admin/package/care-requests") {
+        if (request.method === "GET") return listCarePackageRequests(url, env);
+        return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+
+      const adminCareRequestMatch = url.pathname.match(/^\/api\/admin\/package\/care-requests\/(CARE-\d{4}-[A-Z2-9]{7})$/);
+      if (adminCareRequestMatch) {
+        if (request.method === "PATCH") return updateCarePackageRequest(request, adminCareRequestMatch[1], env);
+        return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+      }
       return json({ ok: false, error: "NOT_FOUND" }, 404);
     }
 
@@ -174,6 +186,10 @@ export default {
       if (request.method === "DELETE") return deletePilgrimBooking(request, bookingId, env);
       if (request.method === "PATCH") return updatePilgrimHotel(request, bookingId, env);
       return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/package/care-requests") {
+      return createCarePackageRequest(request, env);
     }
 
     if (request.method === "GET" && (url.pathname === "/health" || url.pathname === "/api/package/health")) {

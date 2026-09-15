@@ -13,12 +13,12 @@ struct HomeVideoCarousel: View {
     @State private var presentedStory: HomeEmotionalStory?
 
     private var carouselHeight: CGFloat {
-        min(max(UIScreen.main.bounds.height * 0.72, 460), 680)
+        min(max(UIScreen.main.bounds.height * 0.36, 250), 340)
     }
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = max(proxy.size.width * 0.968, 290)
+            let cardWidth = max(proxy.size.width * 0.91, 278)
             let sideInset = max((proxy.size.width - cardWidth) / 2, 0)
 
             ZStack(alignment: .bottom) {
@@ -70,12 +70,12 @@ struct HomeVideoCarousel: View {
                 isPlaying: isVisible && scenePhase == .active && activeStoryID == story.id,
                 isMuted: isMuted
             )
-            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .onTapGesture {
                 openStory(story)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay(alignment: .topTrailing) {
             Button {
                 isMuted.toggle()
@@ -89,7 +89,7 @@ struct HomeVideoCarousel: View {
                     .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.06), chrome: true)
             }
             .buttonStyle(.plain)
-            .padding(16)
+            .padding(12)
             .opacity(activeStoryID == story.id ? 1 : 0.78)
         }
         .overlay(alignment: .bottomLeading) {
@@ -114,17 +114,17 @@ struct HomeVideoCarousel: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .padding(.leading, 16)
-                .padding(.bottom, 38)
+                .padding(.leading, 13)
+                .padding(.bottom, 48)
                 .transition(.opacity)
             }
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.14), radius: 24, y: 12)
-        .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .shadow(color: Color.black.opacity(0.14), radius: 18, y: 9)
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .accessibilityLabel("Video \(storyIndex(story) + 1) of \(stories.count)")
         .accessibilityHint(openVideoTitle)
     }

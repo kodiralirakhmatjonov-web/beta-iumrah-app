@@ -1,0 +1,20 @@
+Iumrah Home — Apple Store cards + Services + Care request — 2026-09-15
+
+Scope:
+- Home advertising video carousel reduced to roughly half its previous height.
+- Added “Who Iumrah is for” three-card audience carousel.
+- Added Apple Store-style Iumrah Services carousel with swipeable Transfer and Ziyarat media.
+- Iumrah Flights Home card now communicates live flight-status monitoring.
+- Added live ready-package carousel sourced from the existing Hotels / Flights storefront package models.
+- Added a direct CTA from Home to the full Flights package board.
+- Moved the existing Configurator ecosystem under “Our products”.
+- Added “Build your Umrah” carousel: existing white Configurator card + new “Build my Umrah for me” Iumrah Care flow.
+- Added a full Iumrah Care preference form (dates / flexible month, travelers, route, priority, hotel level, transfer, flights, baggage, services, budget, contact and notes).
+- Added PackageEngine public Care-request creation endpoint and authenticated staff list/update endpoints.
+- New Care requests use status CARE_REQUEST and a server-owned response_due_at set to two hours after creation.
+- Authenticated Iumrah ID association is derived from the bearer session on the server; the client cannot spoof account ownership.
+
+Deployment:
+- No signing files or GitHub workflows were changed.
+- No project.yml change is required because the XcodeGen target already includes Sources recursively.
+- PackageEngine creates its Care-request table/index lazily with CREATE TABLE/INDEX IF NOT EXISTS, so the existing deployment workflow remains unchanged.
