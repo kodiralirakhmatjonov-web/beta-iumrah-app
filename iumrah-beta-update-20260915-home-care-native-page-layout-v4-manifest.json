@@ -1,0 +1,20 @@
+{
+  "name": "iumrah-beta-update-20260915-home-care-native-page-layout-v4",
+  "date": "2026-09-15",
+  "base": "kepler-ios-main 4.zip supplied in this chat",
+  "purpose": "Replace the problematic custom Home/Care root width architecture with the same simple ScrollView/VStack/pagePadding layout pattern already used by Hotels and Account.",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "IUMRAH_HOME_CARE_NATIVE_PAGE_LAYOUT_V4_20260915_APPLIED.txt",
+    "iumrah-beta-update-20260915-home-care-native-page-layout-v4-manifest.json"
+  ],
+  "protected_areas_untouched": [
+    ".github/workflows",
+    "Signing",
+    "project.yml",
+    "Resources",
+    "authentication",
+    "backend"
+  ]
+}

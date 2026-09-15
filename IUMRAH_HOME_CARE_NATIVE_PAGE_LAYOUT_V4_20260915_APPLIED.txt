@@ -1,0 +1,18 @@
+Iumrah Home + Care native page layout v4 — 2026-09-15
+
+Scope:
+- Sources/Views/Home/HomeDashboardView.swift
+- Sources/Views/Tabs/CareHomeView.swift
+
+Fix:
+- Removed the custom GeometryReader/contentWidth root wrappers from Home and Care.
+- Home now uses the same root layout structure as Hotels: ScrollView -> VStack -> shared horizontal page padding.
+- Care now uses the same root layout discipline as Account: ScrollView -> VStack -> shared horizontal page padding.
+- Existing Home/Care cards, carousels, navigation, CTA, booking logic, refresh logic and styling are unchanged.
+
+Protected areas untouched:
+- .github/workflows
+- Signing
+- project.yml
+- Resources
+- authentication/backend

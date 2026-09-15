@@ -30,45 +30,35 @@ struct HomeDashboardView: View {
     }
 
     private var marketingHome: some View {
-        GeometryReader { viewport in
-            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
-                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
-                    if !clientNotifications.homeNotifications.isEmpty {
-                        SystemNotificationsCarouselView(
-                            notifications: Array(clientNotifications.homeNotifications.prefix(5)),
-                            onOpen: { openSystemNotification($0) },
-                            onDismiss: { dismissSystemNotification($0) }
-                        )
-                    }
-                    HomeEmotionalJourneyPrompt()
-                    HomeVideoCarousel()
-                    IumrahBackendSystemHomeCard()
-                    hero
-                    friendsHomeCard
-                    UmrahAdvisorHomeCard()
-                    ziyaratsHomeCard
-                    confidenceStrip
-                    philosophyCard
-                    connectedTripCard
-                    esimHomeCard
-                    flightsHomeCard
-                    personalUmrahFAQ
-                    careShowcaseCard
-                    homeAboutFooter
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 22) {
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
+                if !clientNotifications.homeNotifications.isEmpty {
+                    SystemNotificationsCarouselView(
+                        notifications: Array(clientNotifications.homeNotifications.prefix(5)),
+                        onOpen: { openSystemNotification($0) },
+                        onDismiss: { dismissSystemNotification($0) }
+                    )
                 }
-                // Keep the same single content-column discipline used by Account.
-                // The explicit viewport width prevents any carousel/card from enlarging
-                // the vertical ScrollView's horizontal content size and cancelling the
-                // standard page insets for every sibling below it.
-                .frame(width: contentWidth, alignment: .topLeading)
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 10)
-                .padding(.bottom, 128)
+                HomeEmotionalJourneyPrompt()
+                HomeVideoCarousel()
+                IumrahBackendSystemHomeCard()
+                hero
+                friendsHomeCard
+                UmrahAdvisorHomeCard()
+                ziyaratsHomeCard
+                confidenceStrip
+                philosophyCard
+                connectedTripCard
+                esimHomeCard
+                flightsHomeCard
+                personalUmrahFAQ
+                careShowcaseCard
+                homeAboutFooter
             }
-            .frame(width: viewport.size.width, alignment: .topLeading)
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 128)
         }
         .background(Color.iumrahPageBackground)
     }
