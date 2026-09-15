@@ -1,0 +1,14 @@
+Iumrah Home + Care root layout fix — 2026-09-15
+
+Scope:
+- Sources/Views/Home/HomeDashboardView.swift
+- Sources/Views/Tabs/CareHomeView.swift
+
+What changed:
+- Home and Care now use one stable, viewport-bound content column.
+- Horizontal page insets stay at IumrahDesign.pagePadding (18 pt) regardless of child/card/carousel intrinsic width.
+- Care uses a regular VStack like Account instead of LazyVStack at the root.
+- Existing CTA, navigation, booking, eSIM, Care actions, styling and business logic remain intact.
+- No workflow, signing, project, backend or auth files are changed by this update.
+
+This patch is designed to be applied over the current repository that already includes the previous v2 Home/Care/eSIM update.

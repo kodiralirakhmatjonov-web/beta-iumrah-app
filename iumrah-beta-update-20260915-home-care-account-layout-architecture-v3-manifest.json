@@ -1,0 +1,20 @@
+{
+  "name": "iumrah-beta-update-20260915-home-care-account-layout-architecture-v3",
+  "date": "2026-09-15",
+  "base": "kepler-ios-main 3 + current Home/Care v2",
+  "purpose": "Make Home and Care use a stable Account-style root content column so child views cannot cancel page insets or widen the vertical scroll layout.",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "IUMRAH_HOME_CARE_ACCOUNT_LAYOUT_ARCHITECTURE_20260915_APPLIED.txt",
+    "iumrah-beta-update-20260915-home-care-account-layout-architecture-v3-manifest.json"
+  ],
+  "protected_areas_untouched": [
+    ".github/workflows",
+    "Signing",
+    "project.yml",
+    "Resources/Info.plist",
+    "authentication",
+    "backend"
+  ]
+}

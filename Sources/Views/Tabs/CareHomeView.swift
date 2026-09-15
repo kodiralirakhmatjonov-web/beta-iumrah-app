@@ -19,29 +19,37 @@ struct CareHomeView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                IumrahRootPageTitle(title: "iumrah Care")
-                    .padding(.bottom, 14)
+        GeometryReader { viewport in
+            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
 
-                intro
-                    .padding(.bottom, 24)
+            ScrollView(showsIndicators: false) {
+                // Match Account's root-page architecture: one regular VStack,
+                // one shared horizontal inset, and one stable content width.
+                VStack(alignment: .leading, spacing: 0) {
+                    IumrahRootPageTitle(title: "iumrah Care")
+                        .padding(.bottom, 14)
 
-                careHero
-                    .padding(.bottom, 28)
+                    intro
+                        .padding(.bottom, 24)
 
-                bookingHelpCard
-                    .padding(.bottom, 30)
+                    careHero
+                        .padding(.bottom, 28)
 
-                helpTopics
-                    .padding(.bottom, 30)
+                    bookingHelpCard
+                        .padding(.bottom, 30)
 
-                quickAnswers
-                    .padding(.bottom, 14)
+                    helpTopics
+                        .padding(.bottom, 30)
+
+                    quickAnswers
+                        .padding(.bottom, 14)
+                }
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 112)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 112)
+            .frame(width: viewport.size.width, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
         .navigationTitle("")
