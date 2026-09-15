@@ -1,4 +1,4 @@
-name: iUmra 2.0.0 — App Store Review
+name: Iumrah — App Store Review
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
         default: false
 
 concurrency:
-  group: iumrah-2-0-0-app-store-review
+  group: iumrah-app-store-review
   cancel-in-progress: false
 
 permissions:
@@ -35,7 +35,6 @@ jobs:
     runs-on: macos-26
     env:
       BUNDLE_ID: com.iumrah.app
-      APP_VERSION: 2.0.0
       BUILD_NUMBER: ${{ inputs.build_number }}
       AUTO_RELEASE: ${{ inputs.automatic_release }}
       PHASED_RELEASE: ${{ inputs.phased_release }}
@@ -44,7 +43,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Safety gate and production identity check
+      - name: Resolve version and run safety checks
+        shell: bash
         run: |
           set -euo pipefail
 
@@ -58,24 +58,41 @@ jobs:
             exit 1
           }
 
-          test "$BUILD_NUMBER" -ge 15 || {
-            echo "STOP: build must be greater than the published legacy build 14."
+          test "$BUILD_NUMBER" -ge 1 || {
+            echo "STOP: build_number must be greater than zero."
             exit 1
           }
 
-          test -f project.yml || { echo "STOP: project.yml is missing."; exit 1; }
-          test -f IUMRAH_PRODUCTION_2_0_0_APPLIED.txt || {
-            echo "STOP: production 2.0.0 migration marker is missing."
+          test -f project.yml || {
+            echo "STOP: project.yml is missing."
             exit 1
           }
 
-          grep -F 'MARKETING_VERSION: "2.0.0"' project.yml >/dev/null || {
-            echo "STOP: repository MARKETING_VERSION is not 2.0.0."
+          APP_VERSION="$({
+            awk -F ':' '
+              /^[[:space:]]*MARKETING_VERSION[[:space:]]*:/ {
+                value=$2
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                gsub(/^"|"$/, "", value)
+                gsub(/^\047|\047$/, "", value)
+                print value
+                exit
+              }
+            ' project.yml
+          })"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "STOP: MARKETING_VERSION was not found in project.yml."
+            exit 1
+          fi
+
+          [[ "$APP_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || {
+            echo "STOP: unsupported MARKETING_VERSION '$APP_VERSION'. Expected a numeric App Store version such as 2.0.2 or 2.1."
             exit 1
           }
 
           grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
-            echo "STOP: repository is not targeting the existing App Store app com.iumrah.app."
+            echo "STOP: repository is not targeting the production App Store app com.iumrah.app."
             exit 1
           }
 
@@ -84,7 +101,27 @@ jobs:
             exit 1
           fi
 
-          echo "Submitting existing TestFlight build $BUILD_NUMBER of iUmra $APP_VERSION."
+          PROJECT_BUILD="$({
+            awk -F ':' '
+              /^[[:space:]]*CURRENT_PROJECT_VERSION[[:space:]]*:/ {
+                value=$2
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                gsub(/^"|"$/, "", value)
+                gsub(/^\047|\047$/, "", value)
+                print value
+                exit
+              }
+            ' project.yml
+          })"
+
+          if [ -n "$PROJECT_BUILD" ] && [ "$PROJECT_BUILD" != "$BUILD_NUMBER" ]; then
+            echo "::warning::Selected TestFlight build $BUILD_NUMBER differs from CURRENT_PROJECT_VERSION $PROJECT_BUILD in project.yml. This is allowed, but verify that you selected the intended uploaded build."
+          fi
+
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "Resolved App Store version: $APP_VERSION"
+          echo "Selected TestFlight build: $BUILD_NUMBER"
+          echo "Bundle ID: $BUNDLE_ID"
 
       - name: Set up Ruby for fastlane
         uses: ruby/setup-ruby@v1
@@ -168,7 +205,7 @@ jobs:
         if: ${{ success() }}
         run: |
           {
-            echo "## iUmra submitted to App Store Review"
+            echo "## Iumrah submitted to App Store Review"
             echo "- Bundle ID: \`$BUNDLE_ID\`"
             echo "- Version: \`$APP_VERSION\`"
             echo "- Build: \`$BUILD_NUMBER\`"
