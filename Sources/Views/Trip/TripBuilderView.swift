@@ -49,7 +49,7 @@ struct TripBuilderView: View {
             .padding(.top, 12)
             .padding(.bottom, 42)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .iumrahInternalNavigation(progress: .trip, showsGeneratorAmbient: true)
         .task(id: curatedFlightsQueryKey) {
             await loadCuratedFlights()

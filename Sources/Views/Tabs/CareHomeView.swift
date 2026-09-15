@@ -8,6 +8,7 @@ struct CareHomeView: View {
 
     @State private var careProfile: IumrahPublicProfile?
     @State private var isLoadingCareProfile = false
+    @State private var showCareRequestBuilder = false
     @AppStorage("iumrah.care.cachedPhoneSA") private var cachedPhoneSA = ""
     @AppStorage("iumrah.care.cachedPhoneUZ") private var cachedPhoneUZ = "+998 50 889 88 45"
     @AppStorage("iumrah.care.cachedTelegram") private var cachedTelegram = "@saudiclub966"
@@ -19,37 +20,49 @@ struct CareHomeView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                IumrahRootPageTitle(title: "iumrah Care")
-                    .padding(.bottom, 14)
+        GeometryReader { viewport in
+            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
 
-                intro
-                    .padding(.bottom, 24)
+            ScrollView(showsIndicators: false) {
+                // Match Account's root-page architecture: one regular VStack,
+                // one shared horizontal inset, and one stable content width.
+                VStack(alignment: .leading, spacing: 0) {
+                    IumrahRootPageTitle(title: "iumrah Care")
+                        .padding(.bottom, 14)
 
-                careHero
-                    .padding(.bottom, 28)
+                    intro
+                        .padding(.bottom, 24)
 
-                bookingHelpCard
-                    .padding(.bottom, 30)
+                    careHero
+                        .padding(.bottom, 28)
 
-                helpTopics
-                    .padding(.bottom, 30)
+                    bookingHelpCard
+                        .padding(.bottom, 30)
 
-                quickAnswers
-                    .padding(.bottom, 14)
+                    helpTopics
+                        .padding(.bottom, 30)
+
+                    quickAnswers
+                        .padding(.bottom, 14)
+                }
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 112)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
-            .padding(.bottom, 46)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(width: viewport.size.width, alignment: .topLeading)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable {
             await refreshCare()
         }
         .task {
             await refreshCare()
+        }
+        .navigationDestination(isPresented: $showCareRequestBuilder) {
+            IumrahCareRequestView()
         }
     }
 
@@ -83,25 +96,18 @@ struct CareHomeView: View {
 
     private var careHero: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .bottomLeading) {
-                Image("IumrahCareTeamHero")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 236)
-                    .clipped()
+            Image("IumrahCareTeamHero")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 236)
+                .clipped()
 
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.10), Color.black.opacity(0.74)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text("iumrah Care")
                         .font(.system(size: 30, weight: .bold, design: .rounded))
                         .tracking(-0.65)
-                        .foregroundStyle(.white)
 
                     Text(tr(
                         "Help before, during and after your journey",
@@ -110,12 +116,9 @@ struct CareHomeView: View {
                         "Сафардан олдин, давомида ва ундан кейин ёрдам"
                     ))
                     .font(.system(size: 14.5, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.82))
+                    .foregroundStyle(.secondary)
                 }
-                .padding(20)
-            }
 
-            VStack(spacing: 18) {
                 careActions
 
                 if let activeSession {
@@ -124,7 +127,7 @@ struct CareHomeView: View {
                     lockedChatNote
                 }
             }
-            .padding(18)
+            .padding(20)
         }
         .background(Color.iumrahCardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
@@ -133,7 +136,6 @@ struct CareHomeView: View {
                 .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
         }
         .shadow(color: .black.opacity(0.07), radius: 24, y: 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -202,7 +204,7 @@ struct CareHomeView: View {
         VStack(spacing: 9) {
             ZStack {
                 Circle()
-                    .fill(enabled ? Color.iumrahCareLight.opacity(0.17) : Color.primary.opacity(0.055))
+                    .fill(enabled ? Color.primary.opacity(0.055) : Color.primary.opacity(0.055))
                     .frame(width: 48, height: 48)
 
                 Image(systemName: icon)
@@ -237,10 +239,10 @@ struct CareHomeView: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color(uiColor: .systemGreen).opacity(0.13))
+                    .fill(Color.primary.opacity(0.06))
                     .frame(width: 38, height: 38)
                 Circle()
-                    .fill(Color(uiColor: .systemGreen))
+                    .fill(Color.primary)
                     .frame(width: 8, height: 8)
             }
 
@@ -269,7 +271,7 @@ struct CareHomeView: View {
             Spacer(minLength: 0)
         }
         .padding(13)
-        .background(Color(uiColor: .systemGreen).opacity(0.055), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var lockedChatNote: some View {
@@ -301,7 +303,7 @@ struct CareHomeView: View {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(Color.iumrahCareLight.opacity(0.14))
+                        .fill(Color.primary.opacity(0.055))
                         .frame(width: 52, height: 52)
                     Image(systemName: "sparkles")
                         .font(.system(size: 20, weight: .semibold))
@@ -328,28 +330,25 @@ struct CareHomeView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
-                requestBookingHelp()
+                showCareRequestBuilder = true
+                IumrahHaptics.soft()
             } label: {
                 HStack(spacing: 9) {
-                    Image(systemName: "message.fill")
+                    Image(systemName: "square.and.pencil")
                     Text(tr(
-                        "Ask iumrah Care",
-                        "Посоветоваться с iumrah Care",
-                        "iumrah Care bilan maslahatlashish",
-                        "iumrah Care билан маслаҳатлашиш"
+                        "Leave a care request",
+                        "Оставить запрос в iumrah Care",
+                        "iumrah Care so‘rovini qoldirish",
+                        "iumrah Care сўровини қолдириш"
                     ))
                     Spacer()
-                    Image(systemName: "arrow.up.right")
+                    Image(systemName: "arrow.right")
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(telegramURL == nil && preferredPhone.isEmpty)
-            .opacity((telegramURL == nil && preferredPhone.isEmpty) ? 0.54 : 1)
 
             NavigationLink {
                 TripBuilderView()
@@ -379,7 +378,6 @@ struct CareHomeView: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Topics
@@ -412,7 +410,6 @@ struct CareHomeView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func helpTopicRow(icon: String, title: String) -> some View {
@@ -422,7 +419,7 @@ struct CareHomeView: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(careAccent)
                 .frame(width: 36, height: 36)
-                .background(Color.iumrahCareLight.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Text(title)
                 .font(.system(size: 15.5, weight: .semibold, design: .rounded))
@@ -494,7 +491,6 @@ struct CareHomeView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func answerRow(icon: String, title: String, body: String) -> some View {
@@ -504,7 +500,7 @@ struct CareHomeView: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(careAccent)
                 .frame(width: 34, height: 34)
-                .background(Color.iumrahCareLight.opacity(0.11), in: Circle())
+                .background(Color.primary.opacity(0.055), in: Circle())
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
@@ -533,7 +529,7 @@ struct CareHomeView: View {
 
 
     private var careAccent: Color {
-        colorScheme == .dark ? Color.iumrahCareLight : Color.iumrahCareDark
+        Color.primary
     }
 
     // MARK: - Contact actions

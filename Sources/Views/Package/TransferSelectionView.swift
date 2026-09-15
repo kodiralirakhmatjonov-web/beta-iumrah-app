@@ -92,13 +92,17 @@ struct TransferSelectionView: View {
 
             LinearGradient(
                 colors: [
-                    Color.iumrahPageBackground.opacity(0.96),
-                    Color.iumrahPageBackground.opacity(0.46),
+                    pageBackground,
+                    pageBackground,
+                    pageBackground.opacity(0.88),
                     .clear
                 ],
                 startPoint: .top,
-                endPoint: .center
+                endPoint: .bottom
             )
+            .frame(maxWidth: .infinity)
+            .frame(height: 248, alignment: .top)
+            .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
 
             VStack(spacing: 0) {

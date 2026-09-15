@@ -10,6 +10,7 @@ struct BookingsHomeView: View {
     @State private var pendingDeleteID: String?
     @State private var deleteError: String?
     @State private var showZiyarats = false
+    @State private var showCareRequestBuilder = false
 
     private var activeSession: StoredBookingSession? {
         bookings.sessions.first { session in
@@ -68,6 +69,9 @@ struct BookingsHomeView: View {
             ZiyaratJourneyView()
                 .environmentObject(settings)
                 .environmentObject(chrome)
+        }
+        .navigationDestination(isPresented: $showCareRequestBuilder) {
+            IumrahCareRequestView()
         }
     }
 
@@ -926,65 +930,145 @@ struct BookingsHomeView: View {
     // MARK: - Empty state
 
     private var emptyBookingHome: some View {
-        ScrollView {
-            VStack(spacing: 22) {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
                 IumrahRootPageTitle(
                     title: L10n.text("tab_booking", settings.language),
                     showsMakkahTime: true
                 )
-                builderHero
-                noBookingsCard
+
+                Text(emptyBookingNote)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                emptyConfiguratorCard
+                emptyCareCard
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
             .padding(.bottom, 42)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
     }
 
-    private var builderHero: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(L10n.text("booking_hero_kicker", settings.language))
-                        .font(.caption.weight(.bold))
-                        .tracking(1)
-                        .foregroundStyle(.secondary)
-                    Text(L10n.text("booking_hero_title", settings.language))
-                        .font(.system(size: 31, weight: .bold, design: .rounded))
-                        .tracking(-0.6)
+    private var emptyConfiguratorCard: some View {
+        emptyShowcaseCard(
+            imageName: "IumrahConfiguratorHero",
+            imageBackground: .black,
+            eyebrow: "Iumrah Configurator",
+            badge: localized("5 минут", "5 minutes", "5 daqiqa", "5 дақиқа"),
+            title: L10n.text("booking_hero_title", settings.language),
+            body: L10n.text("booking_hero_body", settings.language),
+            cta: L10n.text("booking_hero_cta", settings.language),
+            dark: true,
+            imageTopPadding: 8,
+            imageHorizontalPadding: 10,
+            action: startNewTrip
+        )
+    }
+
+    private var emptyCareCard: some View {
+        emptyShowcaseCard(
+            imageName: "IumrahCareShowcaseCard",
+            imageBackground: .white,
+            eyebrow: "Iumrah Care",
+            badge: localized("За вас", "For you", "Siz uchun", "Сиз учун"),
+            title: careBookingCardTitle,
+            body: careBookingCardBody,
+            cta: careBookingCardCTA,
+            dark: false,
+            imageTopPadding: 0,
+            imageHorizontalPadding: 4,
+            action: { showCareRequestBuilder = true }
+        )
+    }
+
+    private func emptyShowcaseCard(
+        imageName: String,
+        imageBackground: Color,
+        eyebrow: String,
+        badge: String,
+        title: String,
+        body: String,
+        cta: String,
+        dark: Bool,
+        imageTopPadding: CGFloat,
+        imageHorizontalPadding: CGFloat,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            IumrahHaptics.soft()
+            action()
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack {
+                    imageBackground
+
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(.horizontal, imageHorizontalPadding)
+                        .padding(.top, imageTopPadding)
                 }
-                Spacer()
-                IumrahIconBadge(systemName: "plus", role: .accent, size: 44, symbolSize: 19, shape: .circle)
-            }
+                .frame(maxWidth: .infinity)
+                .frame(height: 210)
+                .clipped()
 
-            Text(L10n.text("booking_hero_body", settings.language))
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 15) {
+                    HStack(spacing: 8) {
+                        Label(eyebrow, systemImage: dark ? "slider.horizontal.3" : "heart.fill")
+                            .font(.caption.weight(.bold))
+                            .tracking(0.45)
+                            .foregroundStyle(dark ? Color.white.opacity(0.78) : Color.black.opacity(0.58))
+                        Spacer(minLength: 8)
+                        Text(badge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(dark ? Color.white.opacity(0.82) : Color.black.opacity(0.62))
+                            .padding(.horizontal, 10)
+                            .frame(height: 29)
+                            .background((dark ? Color.white.opacity(0.10) : Color.black.opacity(0.055)), in: Capsule())
+                    }
 
-            Button { startNewTrip() } label: {
-                Text(L10n.text("booking_hero_cta", settings.language))
-            }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahMarketingCard()
-    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(title)
+                            .font(.system(size: 31, weight: .bold, design: .rounded))
+                            .tracking(-0.75)
+                            .foregroundStyle(dark ? .white : .black)
+                            .fixedSize(horizontal: false, vertical: true)
 
-    private var noBookingsCard: some View {
-        HStack(spacing: 14) {
-            IumrahIconBadge(systemName: "suitcase", role: .booking, size: 46, symbolSize: 20, shape: .circle)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.text("booking_empty_title", settings.language))
+                        Text(body)
+                            .font(.system(size: 15, weight: .regular, design: .rounded))
+                            .foregroundStyle(dark ? Color.white.opacity(0.68) : Color.black.opacity(0.62))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 16)
+
+                    HStack(spacing: 10) {
+                        Text(cta)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
                     .font(.headline)
-                Text(L10n.text("booking_empty_body", settings.language))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(dark ? .black : .white)
+                    .padding(.horizontal, 18)
+                    .frame(height: 54)
+                    .background(dark ? Color.white : Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(dark ? Color.black : Color.white)
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, minHeight: 458, alignment: .topLeading)
+            .background(dark ? Color.black : Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder((dark ? Color.white : Color.black).opacity(dark ? 0.06 : 0.055), lineWidth: 0.8)
+            }
         }
-        .iumrahCard()
+        .buttonStyle(.plain)
     }
 
     // MARK: - Shared helpers
@@ -1167,6 +1251,10 @@ struct BookingsHomeView: View {
     private var openFullPlanTitle: String { localized("Открыть полное расписание", "Open full schedule", "To‘liq jadvalni ochish", "Тўлиқ жадвални очиш") }
 
     private var manageSectionTitle: String { localized("Управление поездкой", "Trip management", "Safarni boshqarish", "Сафарни бошқариш") }
+    private var emptyBookingNote: String { localized("Пока здесь нет активных бронирований. Начните с Конфигуратора или передайте сборку iumrah Care.", "There are no active bookings here yet. Start with the Configurator or let iumrah Care prepare the trip for you.", "Hozircha bu yerda faol bronlar yo‘q. Konfiguratorni oching yoki safarni iumrah Care’ga topshiring.", "Ҳозирча бу ерда фаол бронлар йўқ. Конфигураторни очинг ёки сафарни iumrah Care’га топширинг.") }
+    private var careBookingCardTitle: String { localized("Соберите Umrah за меня", "Build my Umrah for me", "Umramni men uchun yig‘ing", "Умрамни мен учун йиғинг") }
+    private var careBookingCardBody: String { localized("Расскажите даты, бюджет и пожелания. Iumrah Care соберёт для вас персональный вариант поездки.", "Tell us your dates, budget and preferences. Iumrah Care will prepare a personal Umrah option for you.", "Sanalar, budjet va istaklaringizni ayting. Iumrah Care siz uchun shaxsiy Umra variantini tayyorlaydi.", "Саналар, бюджет ва истакларингизни айтинг. Iumrah Care сиз учун шахсий Умра вариантини тайёрлайди.") }
+    private var careBookingCardCTA: String { localized("Собрать мою Umrah", "Build my Umrah", "Mening Umramni yig‘ish", "Менинг Умрамни йиғиш") }
     private var newUmrahTitle: String { localized("Новая Umrah", "New Umrah", "Yangi Umra", "Янги Умра") }
     private var newUmrahSubtitle: String { localized("Собрать новый пакет", "Build a new package", "Yangi paket tuzish", "Янги пакет тузиш") }
     private var addPilgrimTitle: String { localized("Добавить паломника", "Add pilgrim", "Ziyoratchi qo‘shish", "Зиёратчи қўшиш") }

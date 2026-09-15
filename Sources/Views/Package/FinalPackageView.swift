@@ -52,7 +52,7 @@ struct FinalPackageView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                IumrahFlowProgress(stage: .ready)
+                IumrahGeneratorHeader(stage: .ready)
 
                 if let createdSession {
                     successContent(createdSession)
@@ -60,6 +60,7 @@ struct FinalPackageView: View {
                     packageHeader
                     if journey.quote != nil, journey.hasFinalGeneratorQuote {
                         packageTierCarousel
+                            .padding(.horizontal, -IumrahDesign.pagePadding)
                         packageRecommendationCard
                         packageDifferenceCard
                         packageSupportShortcutsCard
@@ -80,13 +81,14 @@ struct FinalPackageView: View {
                             .padding(.horizontal, 4)
                     }
 
+                    packagePrimaryActionButton
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
             .padding(.bottom, 32)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .iumrahInternalNavigation(progress: .ready, showsGeneratorAmbient: true)
         .task {
             if !journey.hasFinalGeneratorQuote {
@@ -269,6 +271,70 @@ struct FinalPackageView: View {
         case .english: return "Recheck package"
         case .uzbek: return "Narxni qayta olish"
         case .uzbekCyrillic: return "Нархни қайта олиш"
+        }
+    }
+
+    private var focusedComparisonOption: PackageTierComparisonOption? {
+        let tier = focusedComparisonTier ?? journey.trip.packageTier
+        return displayComparisonOptions.first { $0.tier == tier } ?? displayComparisonOptions.first
+    }
+
+    @ViewBuilder
+    private var packagePrimaryActionButton: some View {
+        if journey.quote != nil, journey.hasFinalGeneratorQuote, let option = focusedComparisonOption {
+            if option.tier == journey.trip.packageTier {
+                Button {
+                    isProfileSheetPresented = true
+                    IumrahHaptics.soft()
+                } label: {
+                    HStack(spacing: 10) {
+                        if isSubmitting { ProgressView().tint(.white).controlSize(.small) }
+                        Text(continueBookingTitle)
+                            .font(.headline.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        Spacer(minLength: 6)
+                        if !isSubmitting {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canBook || isSubmitting || isApplyingComparison)
+                .opacity(canBook && !isSubmitting && !isApplyingComparison ? 1 : 0.45)
+            } else if option.isAvailable {
+                Button {
+                    Task { await applyPackageTierComparison(option) }
+                } label: {
+                    HStack(spacing: 10) {
+                        if isApplyingComparison {
+                            ProgressView().tint(.white).controlSize(.small)
+                        }
+                        Text(selectComparisonTitle(option))
+                            .font(.headline.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                        Spacer(minLength: 6)
+                        if !isApplyingComparison {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(isApplyingComparison)
+            }
         }
     }
 
@@ -459,57 +525,25 @@ struct FinalPackageView: View {
             Spacer(minLength: 12)
 
             if isCurrent {
-                Button {
-                    isProfileSheetPresented = true
-                    IumrahHaptics.soft()
-                } label: {
-                    HStack(spacing: 10) {
-                        if isSubmitting { ProgressView().tint(.black).controlSize(.small) }
-                        Text(continueBookingTitle)
-                            .font(.headline.weight(.bold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                        Spacer(minLength: 6)
-                        if !isSubmitting {
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 14, weight: .bold))
-                        }
-                    }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(continueBelowTitle)
+                        .font(.footnote.weight(.semibold))
                 }
-                .buttonStyle(.plain)
-                .disabled(!canBook || isSubmitting || isApplyingComparison)
-                .opacity(canBook && !isSubmitting && !isApplyingComparison ? 1 : 0.45)
+                .foregroundStyle(.white.opacity(0.88))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
             } else if option.isAvailable {
-                Button {
-                    Task { await applyPackageTierComparison(option) }
-                } label: {
-                    HStack(spacing: 8) {
-                        if isApplyingComparison {
-                            ProgressView().tint(.black).controlSize(.small)
-                        }
-                        Text(selectComparisonTitle(option))
-                            .font(.headline.weight(.bold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                        Spacer(minLength: 6)
-                        if !isApplyingComparison {
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 13, weight: .bold))
-                        }
-                    }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 15)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(changePackageBelowTitle)
+                        .font(.footnote.weight(.semibold))
                 }
-                .buttonStyle(.plain)
-                .disabled(isApplyingComparison)
+                .foregroundStyle(.white.opacity(0.84))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
             }
         }
         .foregroundStyle(.white)
@@ -531,8 +565,6 @@ struct FinalPackageView: View {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .strokeBorder(Color.white.opacity(isCurrent ? 0.16 : 0.075), lineWidth: 0.7)
         }
-        .shadow(color: Color.black.opacity(focusedComparisonTier == option.tier ? 0.085 : 0.05), radius: 3, y: 2)
-        .shadow(color: Color.black.opacity(focusedComparisonTier == option.tier ? 0.115 : 0.075), radius: 22, y: 11)
     }
 
 
@@ -602,6 +634,24 @@ struct FinalPackageView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var continueBelowTitle: String {
+        switch settings.language {
+        case .russian: return "Продолжение — внизу страницы"
+        case .english: return "Continue below on this page"
+        case .uzbek: return "Davomi sahifa pastida"
+        case .uzbekCyrillic: return "Давоми саҳифа пастида"
+        }
+    }
+
+    private var changePackageBelowTitle: String {
+        switch settings.language {
+        case .russian: return "Выбор пакета — кнопкой внизу"
+        case .english: return "Choose this package with the button below"
+        case .uzbek: return "Paketni pastdagi tugma bilan tanlang"
+        case .uzbekCyrillic: return "Пакетни пастдаги тугма билан танланг"
+        }
     }
 
     private var packageRecommendationCard: some View {
@@ -1901,7 +1951,7 @@ private struct FinalPackageInformationSheet: View {
                 .padding(IumrahDesign.pagePadding)
                 .padding(.bottom, 24)
             }
-            .background(Color.iumrahPageBackground)
+            .background(Color.iumrahPageBackground.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(closeTitle) { dismiss() }

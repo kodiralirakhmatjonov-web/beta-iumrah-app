@@ -398,8 +398,8 @@ struct IumrahGeneratorHeader: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 23, weight: .semibold))
-                    .frame(width: 46, height: 46)
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 40, height: 40)
                     .contentShape(Circle())
             }
             .buttonStyle(.glass)
@@ -410,9 +410,9 @@ struct IumrahGeneratorHeader: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 23, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.primary)
-                    .frame(width: 46, height: 46)
+                    .frame(width: 40, height: 40)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
