@@ -50,45 +50,54 @@ struct FinalPackageView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                IumrahGeneratorHeader(stage: .ready)
-
-                if let createdSession {
-                    successContent(createdSession)
-                } else {
-                    packageHeader
-                    if journey.quote != nil, journey.hasFinalGeneratorQuote {
-                        packageTierCarousel
-                            .padding(.horizontal, -IumrahDesign.pagePadding)
-                        packageRecommendationCard
-                        packageDifferenceCard
-                        packageSupportShortcutsCard
-                    } else {
-                        pricingStatusCard
+        Group {
+            if let createdSession {
+                IumrahBookingCelebrationView(
+                    session: createdSession,
+                    onOpenBooking: { showCreatedBooking = true },
+                    onHome: {
+                        chrome.shouldStartTripBuilder = false
+                        journey.resetAfterTripChange()
+                        chrome.navigate(to: .home)
                     }
-                    includedServicesCard
-                    IumrahRefundPolicyCard(component: .package, compact: false)
-                    IumrahManualPaymentNotice()
-                    careReassuranceCard
-                    notificationCard
+                )
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        IumrahGeneratorHeader(stage: .ready)
+                        packageHeader
+                        if journey.quote != nil, journey.hasFinalGeneratorQuote {
+                            packageTierCarousel
+                                .padding(.horizontal, -IumrahDesign.pagePadding)
+                            packageRecommendationCard
+                            packageDifferenceCard
+                            packageSupportShortcutsCard
+                        } else {
+                            pricingStatusCard
+                        }
+                        includedServicesCard
+                        IumrahRefundPolicyCard(component: .package, compact: false)
+                        IumrahManualPaymentNotice()
+                        careReassuranceCard
+                        notificationCard
 
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 4)
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 4)
+                        }
+
+                        packagePrimaryActionButton
                     }
-
-                    packagePrimaryActionButton
+                    .padding(.horizontal, IumrahDesign.pagePadding)
+                    .padding(.top, 10)
+                    .padding(.bottom, 32)
                 }
+                .background(Color.iumrahPageBackground.ignoresSafeArea())
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 32)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .iumrahInternalNavigation(progress: .ready, showsGeneratorAmbient: true)
         .task {
             if !journey.hasFinalGeneratorQuote {
