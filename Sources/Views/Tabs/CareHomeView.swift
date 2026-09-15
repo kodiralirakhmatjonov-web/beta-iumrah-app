@@ -204,7 +204,7 @@ struct CareHomeView: View {
         VStack(spacing: 9) {
             ZStack {
                 Circle()
-                    .fill(enabled ? Color.primary.opacity(0.055) : Color.primary.opacity(0.055))
+                    .fill(enabled ? Color.iumrahCareLight.opacity(0.17) : Color.primary.opacity(0.055))
                     .frame(width: 48, height: 48)
 
                 Image(systemName: icon)
@@ -239,10 +239,10 @@ struct CareHomeView: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color.primary.opacity(0.06))
+                    .fill(Color(uiColor: .systemGreen).opacity(0.13))
                     .frame(width: 38, height: 38)
                 Circle()
-                    .fill(Color.primary)
+                    .fill(Color(uiColor: .systemGreen))
                     .frame(width: 8, height: 8)
             }
 
@@ -271,7 +271,7 @@ struct CareHomeView: View {
             Spacer(minLength: 0)
         }
         .padding(13)
-        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color(uiColor: .systemGreen).opacity(0.055), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var lockedChatNote: some View {
@@ -303,7 +303,7 @@ struct CareHomeView: View {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(Color.primary.opacity(0.055))
+                        .fill(Color.iumrahCareLight.opacity(0.14))
                         .frame(width: 52, height: 52)
                     Image(systemName: "sparkles")
                         .font(.system(size: 20, weight: .semibold))
@@ -419,7 +419,7 @@ struct CareHomeView: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(careAccent)
                 .frame(width: 36, height: 36)
-                .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(Color.iumrahCareLight.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Text(title)
                 .font(.system(size: 15.5, weight: .semibold, design: .rounded))
@@ -500,7 +500,7 @@ struct CareHomeView: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(careAccent)
                 .frame(width: 34, height: 34)
-                .background(Color.primary.opacity(0.055), in: Circle())
+                .background(Color.iumrahCareLight.opacity(0.11), in: Circle())
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
@@ -529,7 +529,7 @@ struct CareHomeView: View {
 
 
     private var careAccent: Color {
-        Color.primary
+        colorScheme == .dark ? Color.iumrahCareLight : Color.iumrahCareDark
     }
 
     // MARK: - Contact actions

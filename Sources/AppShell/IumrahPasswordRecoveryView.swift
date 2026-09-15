@@ -1,17 +1,23 @@
 import SwiftUI
 
 struct IumrahPasswordRecoveryView: View {
+    private enum RecoveryStep {
+        case email
+        case code
+        case newPassword
+        case success
+    }
+
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
 
+    @State private var step: RecoveryStep = .email
     @State private var email = ""
     @State private var challengeID = ""
     @State private var code = ""
     @State private var newPassword = ""
     @State private var confirmPassword = ""
-    @State private var isNewPasswordVisible = false
-    @State private var isConfirmPasswordVisible = false
     @State private var restoredID = ""
     @State private var isWorking = false
     @State private var errorMessage: String?
@@ -20,20 +26,21 @@ struct IumrahPasswordRecoveryView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    IumrahIconBadge(
-                        systemName: restoredID.isEmpty ? "key.viewfinder" : "checkmark.shield.fill",
-                        role: restoredID.isEmpty ? .security : .success,
-                        size: 64,
-                        symbolSize: 28,
-                        cornerRadius: 20
-                    )
+                    headerBadge
 
-                    if !restoredID.isEmpty {
-                        successContent
-                    } else if challengeID.isEmpty {
+                    if step == .code {
+                        confirmationVideoCard
+                    }
+
+                    switch step {
+                    case .email:
                         emailContent
-                    } else {
+                    case .code:
                         codeContent
+                    case .newPassword:
+                        newPasswordContent
+                    case .success:
+                        successContent
                     }
 
                     if let errorMessage {
@@ -61,12 +68,42 @@ struct IumrahPasswordRecoveryView: View {
         .presentationDetents([.large])
     }
 
+    private var headerBadge: some View {
+        IumrahIconBadge(
+            systemName: badgeSystemName,
+            role: badgeRole,
+            size: 64,
+            symbolSize: 28,
+            cornerRadius: 20
+        )
+    }
+
+    private var badgeSystemName: String {
+        switch step {
+        case .email: return "key.viewfinder"
+        case .code: return "envelope.badge.shield.half.filled"
+        case .newPassword: return "lock.rotation"
+        case .success: return "checkmark.shield.fill"
+        }
+    }
+
+    private var badgeRole: IumrahIconRole {
+        step == .success ? .success : .security
+    }
+
+    private var confirmationVideoCard: some View {
+        LoopingVideoView(resource: "password-recovery-confirmation", gravity: .resizeAspectFill)
+            .frame(height: 230)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
+    }
+
     private var emailContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("iumrah Security", systemImage: "checkmark.shield.fill")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.secondary)
-
             Text(tr("Reset with email", "Восстановление по почте", "Email orqali tiklash", "Email орқали тиклаш"))
                 .font(.system(size: 30, weight: .bold, design: .rounded))
             Text(tr(
@@ -102,17 +139,19 @@ struct IumrahPasswordRecoveryView: View {
 
     private var codeContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(tr("Check your email", "Проверьте почту", "Emailni tekshiring", "Emailни текширинг"))
+            Text(tr("Confirm your email", "Подтвердите почту", "Emailni tasdiqlang", "Emailни тасдиқланг"))
                 .font(.system(size: 30, weight: .bold, design: .rounded))
             Text(tr(
-                "If this email belongs to an iumrah account, the code is already on its way. It expires in 10 minutes.",
-                "Если эта почта подключена к аккаунту iumrah, код уже отправлен. Он действует 10 минут.",
-                "Agar bu email iumrah akkauntiga ulangan bo‘lsa, kod yuborildi. U 10 daqiqa amal qiladi.",
-                "Агар бу email iumrah аккаунтига уланган бўлса, код юборилди. У 10 дақиқа амал қилади."
+                "We sent a six-digit confirmation code to your email. Enter it below to continue to the password step.",
+                "Мы отправили шестизначный код подтверждения на вашу почту. Введите его ниже, чтобы перейти к смене пароля.",
+                "Emailingizga olti xonali tasdiqlash kodi yuborildi. Parol bosqichiga o‘tish uchun uni quyida kiriting.",
+                "Emailингизга олти хонали тасдиқлаш коди юборилди. Парол босқичига ўтиш учун уни қуйида киритинг."
             ))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            infoPill
 
             field(icon: "number.square.fill") {
                 TextField("000000", text: $code)
@@ -123,25 +162,55 @@ struct IumrahPasswordRecoveryView: View {
                         code = String(value.filter(\.isNumber).prefix(6))
                     }
             }
-            passwordField(
-                title: tr("Create a new password", "Создайте новый пароль", "Yangi parol yarating", "Янги парол яратинг"),
-                icon: "lock.fill",
-                text: $newPassword,
-                isVisible: $isNewPasswordVisible
-            )
-            passwordField(
-                title: tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
-                icon: "lock.rotation",
-                text: $confirmPassword,
-                isVisible: $isConfirmPasswordVisible
-            )
 
-            Label(tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"), systemImage: newPassword.count >= 8 ? "checkmark.circle.fill" : "circle")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(newPassword.count >= 8 ? Color.iumrahCareDark : Color.secondary)
-            Label(tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"), systemImage: !confirmPassword.isEmpty && newPassword == confirmPassword ? "checkmark.circle.fill" : "circle")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(!confirmPassword.isEmpty && newPassword == confirmPassword ? Color.iumrahCareDark : Color.secondary)
+            Button {
+                errorMessage = nil
+                step = .newPassword
+            } label: {
+                HStack {
+                    Text(tr("Continue", "Продолжить", "Davom etish", "Давом этиш"))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(code.count != 6 || isWorking)
+
+            Button {
+                resetToEmailStep()
+            } label: {
+                Text(tr("Use another email", "Указать другую почту", "Boshqa emaildan foydalanish", "Бошқа emailдан фойдаланиш"))
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var newPasswordContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(tr("Create a new password", "Создайте новый пароль", "Yangi parol yarating", "Янги парол яратинг"))
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+
+            Text(tr(
+                "Your email is confirmed. Choose a new password for the iumrah account linked to \(email).",
+                "Почта подтверждена. Придумайте новый пароль для аккаунта iumrah, связанного с \(email).",
+                "Email tasdiqlandi. \(email) bilan bog‘langan iumrah akkaunti uchun yangi parol yarating.",
+                "Email тасдиқланди. \(email) билан боғланган iumrah аккаунти учун янги парол яратинг."
+            ))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            field(icon: "lock.fill") {
+                SecureField(tr("New password", "Новый пароль", "Yangi parol", "Янги парол"), text: $newPassword)
+                    .textContentType(.newPassword)
+            }
+
+            field(icon: "lock.rotation") {
+                SecureField(tr("Confirm password", "Повторите пароль", "Parolni takrorlang", "Паролни такрорланг"), text: $confirmPassword)
+                    .textContentType(.newPassword)
+            }
 
             Button { Task { await resetPassword() } } label: {
                 HStack {
@@ -152,14 +221,13 @@ struct IumrahPasswordRecoveryView: View {
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(code.count != 6 || newPassword.count < 8 || newPassword != confirmPassword || isWorking)
+            .disabled(newPassword.count < 8 || newPassword != confirmPassword || isWorking)
 
             Button {
-                challengeID = ""
-                code = ""
                 errorMessage = nil
+                step = .code
             } label: {
-                Text(tr("Use another email", "Указать другую почту", "Boshqa emaildan foydalanish", "Бошқа emailдан фойдаланиш"))
+                Text(tr("Back to confirmation code", "Вернуться к коду подтверждения", "Tasdiqlash kodiga qaytish", "Тасдиқлаш кодига қайтиш"))
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
             }
@@ -185,6 +253,15 @@ struct IumrahPasswordRecoveryView: View {
         }
     }
 
+    private var infoPill: some View {
+        Text(email.trimmingCharacters(in: .whitespacesAndNewlines))
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.iumrahRaisedBackground, in: Capsule())
+    }
+
     private func field<Content: View>(icon: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon).foregroundStyle(.secondary).frame(width: 22)
@@ -195,31 +272,13 @@ struct IumrahPasswordRecoveryView: View {
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
     }
 
-    private func passwordField(title: String, icon: String, text: Binding<String>, isVisible: Binding<Bool>) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).foregroundStyle(.secondary).frame(width: 22)
-            Group {
-                if isVisible.wrappedValue {
-                    TextField(title, text: text)
-                        .textContentType(.newPassword)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                } else {
-                    SecureField(title, text: text)
-                        .textContentType(.newPassword)
-                }
-            }
-            Button { isVisible.wrappedValue.toggle() } label: {
-                Image(systemName: isVisible.wrappedValue ? "eye.slash.fill" : "eye.fill")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 30, height: 40)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isVisible.wrappedValue ? tr("Hide password", "Скрыть пароль", "Parolni yashirish", "Паролни яшириш") : tr("Show password", "Показать пароль", "Parolni ko‘rsatish", "Паролни кўрсатиш"))
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 56)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+    private func resetToEmailStep() {
+        step = .email
+        challengeID = ""
+        code = ""
+        newPassword = ""
+        confirmPassword = ""
+        errorMessage = nil
     }
 
     @MainActor
@@ -233,6 +292,10 @@ struct IumrahPasswordRecoveryView: View {
                 locale: settings.language.rawValue
             )
             challengeID = response.challengeID
+            code = ""
+            newPassword = ""
+            confirmPassword = ""
+            step = .code
             IumrahHaptics.success()
         } catch {
             errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
@@ -252,6 +315,7 @@ struct IumrahPasswordRecoveryView: View {
                 newPassword: newPassword
             )
             restoredID = response.iumrahID
+            step = .success
             IumrahHaptics.success()
         } catch {
             errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)

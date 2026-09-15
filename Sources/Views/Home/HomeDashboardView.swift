@@ -597,17 +597,18 @@ struct HomeDashboardView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 13) {
                         hero
-                            .frame(width: cardWidth)
+                            .frame(width: cardWidth, height: 566)
                         careRequestBuilderCard
-                            .frame(width: cardWidth)
+                            .frame(width: cardWidth, height: 566)
                     }
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                 .scrollClipDisabled()
             }
-            .frame(height: 570)
+            .frame(height: 578)
         }
+        .padding(.bottom, 6)
     }
 
     private var careRequestBuilderCard: some View {
@@ -623,7 +624,7 @@ struct HomeDashboardView: View {
                         .scaledToFit()
                         .padding(.horizontal, 4)
                 }
-                .frame(height: 210)
+                .frame(height: 240)
                 .clipped()
 
                 VStack(alignment: .leading, spacing: 15) {
@@ -641,17 +642,21 @@ struct HomeDashboardView: View {
                             .background(Color.black.opacity(0.055), in: Capsule())
                     }
 
-                    Text(careRequestCardTitle)
-                        .font(.system(size: 31, weight: .bold, design: .rounded))
-                        .tracking(-0.75)
-                        .foregroundStyle(.black)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(careRequestCardTitle)
+                            .font(.system(size: 31, weight: .bold, design: .rounded))
+                            .tracking(-0.75)
+                            .foregroundStyle(.black)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    Text(careRequestCardBody)
-                        .font(.system(size: 15, design: .rounded))
-                        .foregroundStyle(Color.black.opacity(0.62))
-                        .lineLimit(4)
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text(careRequestCardBody)
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundStyle(Color.black.opacity(0.62))
+                            .lineLimit(4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 16)
 
                     HStack(spacing: 10) {
                         Text(careRequestCardCTA)
@@ -663,13 +668,9 @@ struct HomeDashboardView: View {
                     .padding(.horizontal, 18)
                     .frame(height: 54)
                     .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                    Text("Iumrah Care")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.black.opacity(0.46))
-                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .background(Color.white)
             }
             .background(Color.white)
@@ -817,7 +818,7 @@ struct HomeDashboardView: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack {
-                    Color.white
+                    Color.black
 
                     Image("IumrahConfiguratorHero")
                         .resizable()
@@ -826,7 +827,7 @@ struct HomeDashboardView: View {
                         .padding(.vertical, 8)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 210)
+                .frame(height: 240)
                 .clipped()
 
                 VStack(alignment: .leading, spacing: 15) {
@@ -834,26 +835,26 @@ struct HomeDashboardView: View {
                         Label("Iumrah Configurator", systemImage: "slider.horizontal.3")
                             .font(.caption.weight(.bold))
                             .tracking(0.45)
-                            .foregroundStyle(Color.black.opacity(0.58))
+                            .foregroundStyle(Color.white.opacity(0.78))
                         Spacer(minLength: 8)
                         Text(configuratorTimeBadge)
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(Color.black.opacity(0.62))
+                            .foregroundStyle(Color.white.opacity(0.82))
                             .padding(.horizontal, 10)
                             .frame(height: 29)
-                            .background(Color.white.opacity(0.72), in: Capsule())
+                            .background(Color.white.opacity(0.10), in: Capsule())
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(configuratorHeroTitle)
                             .font(.system(size: 31, weight: .bold, design: .rounded))
                             .tracking(-0.75)
-                            .foregroundStyle(.black)
+                            .foregroundStyle(.white)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(configuratorHeroBody)
                             .font(.system(size: 15, weight: .regular, design: .rounded))
-                            .foregroundStyle(Color.black.opacity(0.64))
+                            .foregroundStyle(Color.white.opacity(0.68))
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
@@ -865,26 +866,30 @@ struct HomeDashboardView: View {
                         Spacer(minLength: 0)
                     }
 
+                    Spacer(minLength: 16)
+
                     HStack(spacing: 10) {
                         Text(configuratorHeroCTA)
                         Spacer(minLength: 8)
                         Image(systemName: "arrow.right")
                     }
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.black)
                     .padding(.horizontal, 18)
                     .frame(height: 54)
-                    .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 .padding(20)
-                .background(Color.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Color.black)
             }
+            .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
             }
-            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
+            .shadow(color: Color.black.opacity(0.14), radius: 24, y: 12)
             .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -894,9 +899,9 @@ struct HomeDashboardView: View {
     private func configuratorChip(_ systemName: String) -> some View {
         Image(systemName: systemName)
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.black.opacity(0.72))
+            .foregroundStyle(Color.white.opacity(0.86))
             .frame(width: 35, height: 35)
-            .background(Color.white.opacity(0.70), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 
     private var configuratorTimeBadge: String {
