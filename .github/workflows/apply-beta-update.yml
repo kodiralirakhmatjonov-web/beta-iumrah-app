@@ -93,3 +93,30 @@ jobs:
           git commit -m "Apply iumrah Beta update [skip ci]"
           git pull --rebase origin main
           git push origin HEAD:main
+
+
+      - name: Remove ZIP files after failed apply
+        if: ${{ failure() }}
+        run: |
+          set -euo pipefail
+          git config user.name "iumrah-ci"
+          git config user.email "actions@users.noreply.github.com"
+
+          # Restore the repository to the current remote state so a failed
+          # extraction can never commit partially extracted files.
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fd
+
+          # Remove update ZIP files even when extraction or validation failed.
+          rm -f -- iumrah-beta-update-*.zip
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No ZIP files to remove"
+            exit 0
+          fi
+
+          git commit -m "Remove failed iumrah Beta update ZIP [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
