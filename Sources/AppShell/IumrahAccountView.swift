@@ -5,13 +5,6 @@ import UIKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
-private enum IumrahAccountLoginMethod: String, CaseIterable, Identifiable {
-    case iumrahID
-    case email
-
-    var id: String { rawValue }
-}
-
 struct IumrahAccountView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var bookings: BookingStore
@@ -20,12 +13,8 @@ struct IumrahAccountView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
 
-    @State private var loginMethod: IumrahAccountLoginMethod = .iumrahID
     @State private var loginID = ""
-    @State private var loginEmail = ""
     @State private var loginPassword = ""
-    @State private var isLoginPasswordVisible = false
-    @State private var showPasswordRecovery = false
     @State private var isLoggingIn = false
     @State private var loginError: String?
     @State private var appleNonce = ""
@@ -45,6 +34,7 @@ struct IumrahAccountView: View {
     @State private var showProfileEditor = false
     @State private var identityCardFlipped = false
     @State private var showIdentityFullscreen = false
+    @State private var showLanguageSheet = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -90,8 +80,9 @@ struct IumrahAccountView: View {
         .sheet(isPresented: $showProfileEditor) {
             profileEditorSheet
         }
-        .sheet(isPresented: $showPasswordRecovery) {
-            IumrahPasswordRecoveryView()
+        .sheet(isPresented: $showLanguageSheet) {
+            IumrahLanguageSelectionSheet()
+                .environmentObject(settings)
         }
         .fullScreenCover(isPresented: $showIdentityFullscreen) {
             identityFullscreenView
@@ -104,7 +95,7 @@ struct IumrahAccountView: View {
                 Text("Account")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
                     .tracking(-1)
-                Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in with iumrah ID or verified email", "Войдите по iumrah ID или подтверждённой почте", "iumrah ID yoki tasdiqlangan email orqali kiring", "iumrah ID ёки тасдиқланган email орқали киринг"))
+                Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in with your permanent iumrah ID", "Войдите по постоянному iumrah ID", "Doimiy iumrah ID orqali kiring", "Доимий iumrah ID орқали киринг"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -678,16 +669,13 @@ struct IumrahAccountView: View {
             )
             .padding(.bottom, 8)
 
-            Menu {
-                Picker(tr("Language", "Язык", "Til", "Тил"), selection: $settings.language) {
-                    ForEach(AppSettingsStore.Language.allCases) { language in
-                        Text(language.title).tag(language)
-                    }
-                }
+            Button {
+                IumrahHaptics.soft()
+                showLanguageSheet = true
             } label: {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
-            .tint(Color.primary)
+            .buttonStyle(.plain)
 
             Divider().padding(.leading, 54)
 
@@ -764,84 +752,41 @@ struct IumrahAccountView: View {
     }
 
     private var loginCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                icon: "key.fill",
-                title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"),
-                subtitle: loginMethod == .iumrahID
-                    ? tr("Use your six-digit iumrah ID and password", "Введите шестизначный iumrah ID и пароль", "Olti xonali iumrah ID va parolni kiriting", "Олти хонали iumrah ID ва паролни киритинг")
-                    : tr("Use your verified email and password", "Введите подтверждённую почту и пароль", "Tasdiqlangan email va parolni kiriting", "Тасдиқланган email ва паролни киритинг")
-            )
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(icon: "key.fill", title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"), subtitle: tr("Use your six-digit iumrah ID and password", "Введите шестизначный iumrah ID и пароль", "Olti xonali iumrah ID va parolni kiriting", "Олти хонали iumrah ID ва паролни киритинг"))
 
-            Label("iumrah Security", systemImage: "checkmark.shield.fill")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.secondary)
-
-            Picker("", selection: $loginMethod) {
-                Text("iumrah ID").tag(IumrahAccountLoginMethod.iumrahID)
-                Text("Email").tag(IumrahAccountLoginMethod.email)
+            HStack(spacing: 11) {
+                Image(systemName: "number")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                TextField("000016", text: $loginID)
+                    .keyboardType(.numberPad)
+                    .font(.body.monospaced())
+                    .onChange(of: loginID) { _, value in
+                        let digits = String(value.filter(\.isNumber).prefix(6))
+                        if digits != value { loginID = digits }
+                    }
             }
-            .pickerStyle(.segmented)
-            .onChange(of: loginMethod) { _, _ in loginError = nil }
+            .padding(.horizontal, 16)
+            .frame(height: 56)
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
 
-            if loginMethod == .iumrahID {
-                HStack(spacing: 11) {
-                    Image(systemName: "number")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
-                    TextField("000016", text: $loginID)
-                        .keyboardType(.numberPad)
-                        .textContentType(.username)
-                        .font(.body.monospaced())
-                        .onChange(of: loginID) { _, value in
-                            let digits = String(value.filter(\.isNumber).prefix(6))
-                            if digits != value { loginID = digits }
-                        }
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 56)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
-            } else {
-                HStack(spacing: 11) {
-                    Image(systemName: "envelope.fill")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
-                    TextField("name@example.com", text: $loginEmail)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 56)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+            HStack(spacing: 11) {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                SecureField(tr("Password", "Пароль", "Parol", "Парол"), text: $loginPassword)
+                    .textContentType(.password)
             }
-
-            accountPasswordField(
-                title: tr("Password", "Пароль", "Parol", "Парол"),
-                text: $loginPassword,
-                isVisible: $isLoginPasswordVisible
-            )
-
-            HStack {
-                Spacer()
-                Button {
-                    showPasswordRecovery = true
-                } label: {
-                    Text(tr("Forgot password?", "Забыли пароль?", "Parolni unutdingizmi?", "Паролни унутдингизми?"))
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.plain)
-            }
+            .padding(.horizontal, 16)
+            .frame(height: 56)
+            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
 
             if let loginError {
-                Label(loginError, systemImage: "exclamationmark.triangle.fill")
+                Text(loginError)
                     .font(.footnote)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
 
             Button {
@@ -856,7 +801,7 @@ struct IumrahAccountView: View {
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(!loginCredentialsReady || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
+            .disabled(loginID.filter(\.isNumber).count != 6 || loginPassword.count < 8 || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
 
             HStack(spacing: 12) {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
@@ -884,58 +829,16 @@ struct IumrahAccountView: View {
             }
 
             Text(tr(
-                "Email, Apple and Google are alternate ways to open the same permanent iumrah account. Your six-digit iumrah ID remains the canonical account ID.",
-                "Почта, Apple и Google — дополнительные способы открыть тот же постоянный аккаунт iumrah. Ваш шестизначный iumrah ID остаётся основным ID аккаунта.",
-                "Email, Apple va Google bir xil doimiy iumrah akkauntini ochishning qo‘shimcha usullaridir. Olti xonali iumrah ID asosiy akkaunt ID bo‘lib qoladi.",
-                "Email, Apple ва Google бир хил доимий iumrah аккаунтини очишнинг қўшимча усулларидир. Олти хонали iumrah ID асосий аккаунт ID бўлиб қолади."
+                "Apple or Google opens the same account after the sign-in method is connected to your six-digit iumrah ID in Account Security.",
+                "Apple или Google открывает тот же аккаунт после привязки способа входа к шестизначному iumrah ID в разделе «Безопасность аккаунта».",
+                "Apple yoki Google kirish usuli Akkaunt xavfsizligida olti xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
+                "Apple ёки Google кириш усули Аккаунт хавфсизлигида олти хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
             ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .iumrahCard()
-    }
-
-    private var loginCredentialsReady: Bool {
-        let passwordReady = loginPassword.count >= 8
-        switch loginMethod {
-        case .iumrahID:
-            return loginID.filter(\.isNumber).count == 6 && passwordReady
-        case .email:
-            let value = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-            return value.contains("@") && value.contains(".") && passwordReady
-        }
-    }
-
-    private func accountPasswordField(title: String, text: Binding<String>, isVisible: Binding<Bool>) -> some View {
-        HStack(spacing: 11) {
-            Image(systemName: "lock.fill")
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
-            Group {
-                if isVisible.wrappedValue {
-                    TextField(title, text: text)
-                        .textContentType(.password)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                } else {
-                    SecureField(title, text: text)
-                        .textContentType(.password)
-                }
-            }
-            Button {
-                isVisible.wrappedValue.toggle()
-            } label: {
-                Image(systemName: isVisible.wrappedValue ? "eye.slash.fill" : "eye.fill")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 30, height: 40)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isVisible.wrappedValue ? tr("Hide password", "Скрыть пароль", "Parolni yashirish", "Паролни яшириш") : tr("Show password", "Показать пароль", "Parolni ko‘rsatish", "Паролни кўрсатиш"))
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 56)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
     }
 
     private func activationShortcut(_ session: StoredBookingSession) -> some View {
@@ -974,14 +877,13 @@ struct IumrahAccountView: View {
             )
             .padding(.bottom, 8)
 
-            Menu {
-                Picker(tr("Language", "Язык", "Til", "Тил"), selection: $settings.language) {
-                    ForEach(AppSettingsStore.Language.allCases) { language in Text(language.title).tag(language) }
-                }
+            Button {
+                IumrahHaptics.soft()
+                showLanguageSheet = true
             } label: {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
-            .tint(Color.primary)
+            .buttonStyle(.plain)
 
             Divider().padding(.leading, 54)
 
@@ -1190,19 +1092,12 @@ struct IumrahAccountView: View {
         loginError = nil
         defer { isLoggingIn = false }
         do {
-            let identifier = loginMethod == .iumrahID
-                ? loginID
-                : loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-            let profile = try await account.login(
-                identifier: identifier,
-                password: loginPassword,
-                locale: settings.language.rawValue
-            )
+            let profile = try await account.login(iumrahID: loginID, password: loginPassword)
             await completeAuthenticatedLogin(profile)
             loginPassword = ""
             IumrahHaptics.success()
         } catch {
-            loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            loginError = L10n.error(error, settings.language)
             IumrahHaptics.error()
         }
     }

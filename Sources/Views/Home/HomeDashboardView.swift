@@ -13,6 +13,7 @@ struct HomeDashboardView: View {
     @State private var showFlightsService = false
     @State private var selectedFlightPackage: StorefrontFlightPackagePreview?
     @State private var expandedHomeFAQID: String?
+    @State private var showAboutProject = false
 
     private struct ReadyPackageItem: Identifiable {
         let option: StorefrontFlightOption
@@ -51,6 +52,9 @@ struct HomeDashboardView: View {
             .navigationDestination(item: $selectedFlightPackage) { preview in
                 StorefrontUmrahPackageDetailView(preview: preview)
             }
+            .navigationDestination(isPresented: $showAboutProject) {
+                IumrahStoryView()
+            }
     }
 
     private var marketingHome: some View {
@@ -85,11 +89,10 @@ struct HomeDashboardView: View {
 
                     VStack(alignment: .leading, spacing: 15) {
                         IumrahHomeSectionHeader(title: homeProductsTitle)
-                        IumrahBackendSystemHomeCard()
+                        productsCarousel(contentWidth: contentWidth)
                     }
 
                     friendsHomeCard
-                    UmrahAdvisorHomeCard()
                     confidenceStrip
                     philosophyCard
                     connectedTripCard
@@ -1203,21 +1206,144 @@ struct HomeDashboardView: View {
     }
 
     private var homeAboutFooter: some View {
-        VStack(spacing: 8) {
-            Text(homeSinceTitle)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.8)
+        Button {
+            IumrahHaptics.soft()
+            showAboutProject = true
+        } label: {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    IumrahIconBadge(systemName: "sparkles.rectangle.stack.fill", role: .care, size: 46, symbolSize: 18, cornerRadius: 14)
 
-            Text(homeSinceBody)
-                .font(.system(size: 13.5, weight: .regular))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(homeSinceTitle)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.8)
+
+                        Text(homeSinceBody)
+                            .font(.system(size: 14.5, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    Text(homeAboutCTA)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.right")
+                }
+                .font(.system(size: 15.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .padding(.horizontal, 17)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(
+                    Color.iumrahPrimaryButtonBackground,
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 14)
+        .buttonStyle(.plain)
+    }
+
+    private func productsCarousel(contentWidth: CGFloat) -> some View {
+        let cardWidth = min(max(contentWidth * 0.88, 300), contentWidth)
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                IumrahBackendSystemHomeCard()
+                    .frame(width: cardWidth, height: 472)
+
+                homeAdvisorProductCard
+                    .frame(width: cardWidth, height: 472)
+            }
+            .padding(.horizontal, 1)
+        }
+        .contentMargins(.horizontal, 0, for: .scrollContent)
+    }
+
+    private var homeAdvisorProductCard: some View {
+        NavigationLink {
+            UmrahFlowRootView(initialStage: .start, guideLanguage: UmrahGuideLanguage.preferred(for: settings.language))
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .fill(Color.black)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    ZStack(alignment: .topLeading) {
+                        UmrahAdvisorHomeAura()
+                            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                            .frame(height: 228)
+
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.18), Color.black.opacity(0.62)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 228)
+                        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+
+                        HStack(alignment: .top) {
+                            Text("iumrah Advisor")
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .tracking(0.7)
+                                .foregroundStyle(.white.opacity(0.70))
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.82))
+                                .frame(width: 34, height: 34)
+                                .iumrahGlass(in: Circle(), tint: .white.opacity(0.075))
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 18)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(homeAdvisorProductTitle)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .tracking(-0.65)
+                            .foregroundStyle(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(homeAdvisorProductBody)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.64))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        HStack(spacing: 7) {
+                            Text(homeAdvisorProductCTA)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.bold))
+                        }
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.90))
+                        .padding(.top, 4)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 22)
+                }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder(.white.opacity(0.08), lineWidth: 0.8)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 26, y: 12)
+            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            TapGesture().onEnded { IumrahHaptics.soft() }
+        )
     }
 
     private func homeFeatureCard(
@@ -1320,6 +1446,42 @@ struct HomeDashboardView: View {
         case .english: return "Contact Care"
         case .uzbek: return "Care bilan bog‘lanish"
         case .uzbekCyrillic: return "Care билан боғланиш"
+        }
+    }
+
+    private var homeAdvisorProductTitle: String {
+        switch settings.language {
+        case .russian: return "Голосовой iumrah Advisor"
+        case .english: return "Voice iumrah Advisor"
+        case .uzbek: return "Ovozli iumrah Advisor"
+        case .uzbekCyrillic: return "Овозли iumrah Advisor"
+        }
+    }
+
+    private var homeAdvisorProductBody: String {
+        switch settings.language {
+        case .russian: return "Пошаговый голосовой гид по Умре с поддержкой нескольких языков, чтобы паломник не оставался один во время ритуалов."
+        case .english: return "A step-by-step voice guide for Umrah in multiple languages, so the pilgrim is not left alone during the rituals."
+        case .uzbek: return "Umra marosimlari davomida ziyoratchi yolg‘iz qolmasligi uchun bir nechta tillarda bosqichma-bosqich ovozli gid."
+        case .uzbekCyrillic: return "Умра маросимлари давомида зиёратчи ёлғиз қолмаслиги учун бир нечта тилларда босқичма-босқич овозли гид."
+        }
+    }
+
+    private var homeAdvisorProductCTA: String {
+        switch settings.language {
+        case .russian: return "Открыть Advisor"
+        case .english: return "Open Advisor"
+        case .uzbek: return "Advisorni ochish"
+        case .uzbekCyrillic: return "Advisorни очиш"
+        }
+    }
+
+    private var homeAboutCTA: String {
+        switch settings.language {
+        case .russian: return "Открыть страницу проекта"
+        case .english: return "Open the project page"
+        case .uzbek: return "Loyiha sahifasini ochish"
+        case .uzbekCyrillic: return "Лойиҳа саҳифасини очиш"
         }
     }
 

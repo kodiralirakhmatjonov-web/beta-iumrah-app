@@ -43,6 +43,28 @@ targets:
         buildPhase: resources
       - path: Resources/AlternateIcons
         buildPhase: resources
+      - path: Resources/en.lproj
+        buildPhase: resources
+      - path: Resources/ru.lproj
+        buildPhase: resources
+      - path: Resources/uz.lproj
+        buildPhase: resources
+      - path: Resources/uz-Cyrl.lproj
+        buildPhase: resources
+      - path: Resources/ar.lproj
+        buildPhase: resources
+      - path: Resources/fr.lproj
+        buildPhase: resources
+      - path: Resources/tr.lproj
+        buildPhase: resources
+      - path: Resources/id.lproj
+        buildPhase: resources
+      - path: Resources/ms.lproj
+        buildPhase: resources
+      - path: Resources/kk.lproj
+        buildPhase: resources
+      - path: Resources/bn.lproj
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app

@@ -2,6 +2,12 @@ import Foundation
 import SwiftUI
 
 struct BookingsHomeView: View {
+    private enum BookingScope: String, CaseIterable, Identifiable {
+        case active
+        case past
+
+        var id: String { rawValue }
+    }
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var chrome: AppChromeStore
@@ -11,19 +17,35 @@ struct BookingsHomeView: View {
     @State private var deleteError: String?
     @State private var showZiyarats = false
     @State private var showCareRequestBuilder = false
+    @State private var bookingScope: BookingScope = .active
+
+    private var activeSessions: [StoredBookingSession] {
+        bookings.sessions.filter { session in
+            !["COMPLETED", "CANCELLED"].contains(session.effectiveStatus.uppercased())
+        }
+    }
+
+    private var pastSessions: [StoredBookingSession] {
+        bookings.sessions.filter { session in
+            ["COMPLETED", "CANCELLED"].contains(session.effectiveStatus.uppercased())
+        }
+    }
 
     private var activeSession: StoredBookingSession? {
-        bookings.sessions.first { session in
-            !["COMPLETED", "CANCELLED"].contains(session.effectiveStatus.uppercased())
-        } ?? bookings.sessions.first
+        activeSessions.first
     }
 
     var body: some View {
         Group {
-            if let activeSession {
-                activeBookingHub(activeSession)
-            } else {
-                emptyBookingHome
+            switch bookingScope {
+            case .active:
+                if let activeSession {
+                    activeBookingHub(activeSession)
+                } else {
+                    emptyBookingHome
+                }
+            case .past:
+                pastBookingsHome
             }
         }
         .refreshable { await bookings.refreshAll() }
@@ -85,7 +107,10 @@ struct BookingsHomeView: View {
                     showsMakkahTime: true,
                     usesBrandLogo: true
                 )
-                .padding(.bottom, 30)
+                .padding(.bottom, 18)
+
+                bookingScopePicker
+                    .padding(.bottom, 28)
 
                 bookingIdentity(session)
                     .padding(.bottom, 38)
@@ -97,9 +122,9 @@ struct BookingsHomeView: View {
                     .padding(.bottom, 34)
 
                 tripManagement(session)
-                    .padding(.bottom, bookings.sessions.count > 1 ? 36 : 12)
+                    .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
 
-                if bookings.sessions.count > 1 {
+                if activeSessions.count > 1 {
                     otherTrips(excluding: session.id)
                         .padding(.bottom, 12)
                 }
@@ -856,7 +881,7 @@ struct BookingsHomeView: View {
             sectionHeader(title: otherTripsTitle, trailing: nil)
 
             VStack(spacing: 10) {
-                ForEach(bookings.sessions.filter { $0.id != bookingID }) { session in
+                ForEach(activeSessions.filter { $0.id != bookingID }) { session in
                     NavigationLink {
                         BookingDetailView(bookingID: session.id)
                     } label: {
@@ -927,6 +952,104 @@ struct BookingsHomeView: View {
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
+    private var bookingScopePicker: some View {
+        Picker(bookingScopePickerTitle, selection: $bookingScope) {
+            Text(activeScopeTitle).tag(BookingScope.active)
+            Text(pastScopeTitle).tag(BookingScope.past)
+        }
+        .pickerStyle(.segmented)
+        .onChange(of: bookingScope) { _, _ in
+            IumrahHaptics.selection()
+        }
+    }
+
+    private var pastBookingsHome: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                IumrahRootPageTitle(
+                    title: L10n.text("tab_booking", settings.language),
+                    showsMakkahTime: true
+                )
+
+                bookingScopePicker
+
+                if pastSessions.isEmpty {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                                .fill(Color.primary.opacity(0.055))
+                                .frame(width: 58, height: 58)
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 22, weight: .semibold))
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(Color.primary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(noPastBookingsTitle)
+                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                            Text(noPastBookingsBody)
+                                .font(.system(size: 14.5, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(18)
+                    .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+                    }
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(pastSessions) { session in
+                            NavigationLink {
+                                BookingDetailView(bookingID: session.id)
+                            } label: {
+                                compactBookingCard(session)
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    pendingDeleteID = session.id
+                                } label: {
+                                    Label(L10n.text("booking_delete", settings.language), systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 44)
+        }
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
+    }
+
+    private var explorePackagesButton: some View {
+        Button {
+            chrome.openHotels(board: .flights)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "suitcase.rolling.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(explorePackagesTitle)
+                    .font(.headline.weight(.semibold))
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity)
+            .frame(height: 58)
+            .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Empty state
 
     private var emptyBookingHome: some View {
@@ -937,10 +1060,11 @@ struct BookingsHomeView: View {
                     showsMakkahTime: true
                 )
 
-                Text(emptyBookingNote)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                bookingScopePicker
+
+                bookingEmptyStatusCard
+
+                explorePackagesButton
 
                 emptyConfiguratorCard
                 emptyCareCard
@@ -952,6 +1076,42 @@ struct BookingsHomeView: View {
         .background(Color.iumrahPageBackground.ignoresSafeArea())
     }
 
+    private var bookingEmptyStatusCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    .fill(Color.primary.opacity(0.055))
+                    .frame(width: 58, height: 58)
+
+                Image(systemName: "tray.fill")
+                    .font(.system(size: 23, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.primary)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(emptyBookingTitle)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Text(emptyBookingNote)
+                    .font(.system(size: 14.5, weight: .regular, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+
     private var emptyConfiguratorCard: some View {
         emptyShowcaseCard(
             imageName: "IumrahConfiguratorHero",
@@ -962,8 +1122,8 @@ struct BookingsHomeView: View {
             body: L10n.text("booking_hero_body", settings.language),
             cta: L10n.text("booking_hero_cta", settings.language),
             dark: true,
-            imageTopPadding: 8,
-            imageHorizontalPadding: 10,
+            imageTopPadding: 0,
+            imageHorizontalPadding: 0,
             action: startNewTrip
         )
     }
@@ -979,7 +1139,7 @@ struct BookingsHomeView: View {
             cta: careBookingCardCTA,
             dark: false,
             imageTopPadding: 0,
-            imageHorizontalPadding: 4,
+            imageHorizontalPadding: 0,
             action: { showCareRequestBuilder = true }
         )
     }
@@ -1007,12 +1167,14 @@ struct BookingsHomeView: View {
 
                     Image(imageName)
                         .resizable()
-                        .scaledToFit()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .scaleEffect(1.08)
                         .padding(.horizontal, imageHorizontalPadding)
                         .padding(.top, imageTopPadding)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 210)
+                .frame(height: 236)
                 .clipped()
 
                 VStack(alignment: .leading, spacing: 15) {
@@ -1251,6 +1413,13 @@ struct BookingsHomeView: View {
     private var openFullPlanTitle: String { localized("Открыть полное расписание", "Open full schedule", "To‘liq jadvalni ochish", "Тўлиқ жадвални очиш") }
 
     private var manageSectionTitle: String { localized("Управление поездкой", "Trip management", "Safarni boshqarish", "Сафарни бошқариш") }
+    private var bookingScopePickerTitle: String { localized("Поездки", "Trips", "Safarlar", "Сафарлар") }
+    private var activeScopeTitle: String { localized("Активные", "Upcoming", "Faol", "Фаол") }
+    private var pastScopeTitle: String { localized("Прошлые", "Past", "O‘tgan", "Ўтган") }
+    private var explorePackagesTitle: String { localized("Смотреть готовые пакеты", "Explore Packages", "Tayyor paketlarni ko‘rish", "Тайёр пакетларни кўриш") }
+    private var noPastBookingsTitle: String { localized("Прошлых поездок пока нет", "No past trips yet", "O‘tgan safarlar hozircha yo‘q", "Ўтган сафарлар ҳозирча йўқ") }
+    private var noPastBookingsBody: String { localized("Завершённые и отменённые поездки будут храниться здесь.", "Completed and cancelled trips will appear here.", "Yakunlangan va bekor qilingan safarlar shu yerda ko‘rinadi.", "Якунланган ва бекор қилинган сафарлар шу ерда кўринади.") }
+    private var emptyBookingTitle: String { localized("Пока бронирований нет", "No bookings yet", "Hozircha bron yo‘q", "Ҳозирча брон йўқ") }
     private var emptyBookingNote: String { localized("Пока здесь нет активных бронирований. Начните с Конфигуратора или передайте сборку iumrah Care.", "There are no active bookings here yet. Start with the Configurator or let iumrah Care prepare the trip for you.", "Hozircha bu yerda faol bronlar yo‘q. Konfiguratorni oching yoki safarni iumrah Care’ga topshiring.", "Ҳозирча бу ерда фаол бронлар йўқ. Конфигураторни очинг ёки сафарни iumrah Care’га топширинг.") }
     private var careBookingCardTitle: String { localized("Соберите Umrah за меня", "Build my Umrah for me", "Umramni men uchun yig‘ing", "Умрамни мен учун йиғинг") }
     private var careBookingCardBody: String { localized("Расскажите даты, бюджет и пожелания. Iumrah Care соберёт для вас персональный вариант поездки.", "Tell us your dates, budget and preferences. Iumrah Care will prepare a personal Umrah option for you.", "Sanalar, budjet va istaklaringizni ayting. Iumrah Care siz uchun shaxsiy Umra variantini tayyorlaydi.", "Саналар, бюджет ва истакларингизни айтинг. Iumrah Care сиз учун шахсий Умра вариантини тайёрлайди.") }
