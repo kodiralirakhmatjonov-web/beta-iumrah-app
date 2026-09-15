@@ -1,0 +1,39 @@
+{
+  "name": "iumrah-beta-update-20260915-account-activation-email-security-v6",
+  "date": "2026-09-15",
+  "base": "kepler-ios-main 4.zip; compatible with Home/Care layout v5 because file sets do not overlap",
+  "changed_files": [
+    "Sources/Models/IumrahAccountModels.swift",
+    "Sources/Services/IumrahAccountService.swift",
+    "Sources/State/IumrahAccountStore.swift",
+    "Sources/AppShell/IumrahAccountView.swift",
+    "Sources/AppShell/IumrahAccountSecurityView.swift",
+    "Sources/AppShell/IumrahPasswordRecoveryView.swift",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift",
+    "Backend/PackageEngine/src/client-account-security.ts",
+    "Backend/PackageEngine/test/client-account-security-contract.test.mjs"
+  ],
+  "root_cause": "Booking activation still called the legacy /api/catalog/hotels/client/account/activate endpoint while current password/email/Apple/Google security lives in PackageEngine. The legacy accountActive flag can also represent a provisional booking profile rather than user-established credentials.",
+  "notes": [
+    "Moves booking activation to /api/package/client/account/activate and verifies the booking with x-booking-token against BOOKINGS_DB.",
+    "Repairs provisional iumrah_accounts rows only when no established login/email/Apple/Google/device/session signal exists; established accounts return ACCOUNT_ALREADY_ACTIVE.",
+    "Adds booking activation through verified email using existing Resend challenge infrastructure.",
+    "Activation UI defaults to account creation, not legacy accountActive; native segmented iumrah ID / Email selector, create/confirm password, eye controls and iumrah Security copy.",
+    "Existing-account checkout login supports iumrah ID or verified email and links the booking to the authenticated canonical account.",
+    "Account tab supports iumrah ID or email/password login plus Forgot password; Apple and Google are preserved.",
+    "Password recovery UI now has production password confirmation, eye visibility controls and security guidance.",
+    "No TestFlight workflow, signing, project.yml, resources, Home/Care/Hotels layouts, pricing, or payment files are included.",
+    "Backend changes require running the existing “Deploy iumrah Package Engine” workflow after the ZIP is applied. Existing RESEND_API_KEY Worker secret is reused; this patch does not modify secrets."
+  ],
+  "sha256": {
+    "Sources/Models/IumrahAccountModels.swift": "64674ec09bd7bae14debd293f3436c4a5c4cf12f6f56e6b93e33465e2e36dddb",
+    "Sources/Services/IumrahAccountService.swift": "073e6f66d63fed293f63e479191c4048b8b12e49bf314d5d5acc8934eb7702c2",
+    "Sources/State/IumrahAccountStore.swift": "c8e8936d5f1ba0d38d241de4cec76fc41c58e2c8a443d5663640e9dd203b3616",
+    "Sources/AppShell/IumrahAccountView.swift": "5ca44e2f5a6dcc858669088756d6ff7c7eef2022778e0017bf04ed53bd61f698",
+    "Sources/AppShell/IumrahAccountSecurityView.swift": "13f70a824b17dcb5dae81158f88fa449ccfe4ac5cff6c7d55aeb08156ed831c0",
+    "Sources/AppShell/IumrahPasswordRecoveryView.swift": "dffcef0ad3a11e0bbf43aea41e95b0a22047a391a8dfeee09fc287dc54c395b9",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift": "0617c4f9246ae4746e1c22943ecd5c3551b99a159af7f2e7f7517e2e0d4a692b",
+    "Backend/PackageEngine/src/client-account-security.ts": "d99a89b595d1d3d735bdbe0537eff01fa1aa125054c1b558a76b6fc3293ca712",
+    "Backend/PackageEngine/test/client-account-security-contract.test.mjs": "5afbb306668b9c9a98f7af91431dd7e8dc6da896d65721703edae8c023e26fce"
+  }
+}

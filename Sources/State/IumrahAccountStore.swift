@@ -51,10 +51,44 @@ final class IumrahAccountStore: ObservableObject {
     }
 
     @discardableResult
-    func activate(bookingID: String, bookingToken: String, password: String) async throws -> IumrahAccountProfile {
-        let response = try await service.activate(bookingID: bookingID, bookingToken: bookingToken, password: password)
+    func activate(bookingID: String, bookingToken: String, password: String, locale: String = Locale.current.identifier) async throws -> IumrahAccountProfile {
+        let response = try await service.activate(
+            bookingID: bookingID,
+            bookingToken: bookingToken,
+            password: password,
+            locale: locale
+        )
         setSession(response)
-        _ = try? await service.registerCurrentSession(token: response.session.token, locale: Locale.current.identifier)
+        return response.account
+    }
+
+    func startActivationEmail(bookingID: String, bookingToken: String, email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
+        try await service.startActivationEmail(
+            bookingID: bookingID,
+            bookingToken: bookingToken,
+            email: email,
+            locale: locale
+        )
+    }
+
+    @discardableResult
+    func confirmActivationEmail(
+        bookingID: String,
+        bookingToken: String,
+        challengeID: String,
+        code: String,
+        password: String,
+        locale: String
+    ) async throws -> IumrahAccountProfile {
+        let response = try await service.confirmActivationEmail(
+            bookingID: bookingID,
+            bookingToken: bookingToken,
+            challengeID: challengeID,
+            code: code,
+            password: password,
+            locale: locale
+        )
+        setSession(response)
         return response.account
     }
 

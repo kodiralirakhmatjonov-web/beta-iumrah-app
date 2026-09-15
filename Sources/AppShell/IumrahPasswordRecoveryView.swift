@@ -10,6 +10,8 @@ struct IumrahPasswordRecoveryView: View {
     @State private var code = ""
     @State private var newPassword = ""
     @State private var confirmPassword = ""
+    @State private var isNewPasswordVisible = false
+    @State private var isConfirmPasswordVisible = false
     @State private var restoredID = ""
     @State private var isWorking = false
     @State private var errorMessage: String?
@@ -61,6 +63,10 @@ struct IumrahPasswordRecoveryView: View {
 
     private var emailContent: some View {
         VStack(alignment: .leading, spacing: 16) {
+            Label("iumrah Security", systemImage: "checkmark.shield.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+
             Text(tr("Reset with email", "Восстановление по почте", "Email orqali tiklash", "Email орқали тиклаш"))
                 .font(.system(size: 30, weight: .bold, design: .rounded))
             Text(tr(
@@ -117,14 +123,25 @@ struct IumrahPasswordRecoveryView: View {
                         code = String(value.filter(\.isNumber).prefix(6))
                     }
             }
-            field(icon: "lock.fill") {
-                SecureField(tr("New password", "Новый пароль", "Yangi parol", "Янги парол"), text: $newPassword)
-                    .textContentType(.newPassword)
-            }
-            field(icon: "lock.rotation") {
-                SecureField(tr("Confirm password", "Повторите пароль", "Parolni takrorlang", "Паролни такрорланг"), text: $confirmPassword)
-                    .textContentType(.newPassword)
-            }
+            passwordField(
+                title: tr("Create a new password", "Создайте новый пароль", "Yangi parol yarating", "Янги парол яратинг"),
+                icon: "lock.fill",
+                text: $newPassword,
+                isVisible: $isNewPasswordVisible
+            )
+            passwordField(
+                title: tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
+                icon: "lock.rotation",
+                text: $confirmPassword,
+                isVisible: $isConfirmPasswordVisible
+            )
+
+            Label(tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"), systemImage: newPassword.count >= 8 ? "checkmark.circle.fill" : "circle")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(newPassword.count >= 8 ? Color.iumrahCareDark : Color.secondary)
+            Label(tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"), systemImage: !confirmPassword.isEmpty && newPassword == confirmPassword ? "checkmark.circle.fill" : "circle")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(!confirmPassword.isEmpty && newPassword == confirmPassword ? Color.iumrahCareDark : Color.secondary)
 
             Button { Task { await resetPassword() } } label: {
                 HStack {
@@ -172,6 +189,33 @@ struct IumrahPasswordRecoveryView: View {
         HStack(spacing: 12) {
             Image(systemName: icon).foregroundStyle(.secondary).frame(width: 22)
             content()
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 56)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+    }
+
+    private func passwordField(title: String, icon: String, text: Binding<String>, isVisible: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).foregroundStyle(.secondary).frame(width: 22)
+            Group {
+                if isVisible.wrappedValue {
+                    TextField(title, text: text)
+                        .textContentType(.newPassword)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } else {
+                    SecureField(title, text: text)
+                        .textContentType(.newPassword)
+                }
+            }
+            Button { isVisible.wrappedValue.toggle() } label: {
+                Image(systemName: isVisible.wrappedValue ? "eye.slash.fill" : "eye.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 40)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isVisible.wrappedValue ? tr("Hide password", "Скрыть пароль", "Parolni yashirish", "Паролни яшириш") : tr("Show password", "Показать пароль", "Parolni ko‘rsatish", "Паролни кўрсатиш"))
         }
         .padding(.horizontal, 16)
         .frame(height: 56)

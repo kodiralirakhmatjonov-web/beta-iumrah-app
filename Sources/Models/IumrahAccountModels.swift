@@ -81,6 +81,21 @@ struct IumrahAccountLoginRequest: Encodable {
 struct IumrahAccountActivateRequest: Encodable {
     let bookingID: String
     let password: String
+    let device: IumrahClientDevice
+}
+
+struct IumrahAccountActivationEmailStartRequest: Encodable {
+    let bookingID: String
+    let email: String
+    let locale: String
+}
+
+struct IumrahAccountActivationEmailConfirmRequest: Encodable {
+    let bookingID: String
+    let challengeID: String
+    let code: String
+    let password: String
+    let device: IumrahClientDevice
 }
 
 struct IumrahAccountTripsResponse: Decodable {

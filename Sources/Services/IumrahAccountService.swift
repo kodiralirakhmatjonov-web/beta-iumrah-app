@@ -3,10 +3,47 @@ import Foundation
 struct IumrahAccountService {
     private let api = APIClient.shared
 
-    func activate(bookingID: String, bookingToken: String, password: String) async throws -> IumrahAccountAuthResponse {
+    func activate(bookingID: String, bookingToken: String, password: String, locale: String) async throws -> IumrahAccountAuthResponse {
         try await api.post(
-            "/api/catalog/hotels/client/account/activate",
-            body: IumrahAccountActivateRequest(bookingID: bookingID, password: password),
+            "/api/package/client/account/activate",
+            body: IumrahAccountActivateRequest(
+                bookingID: bookingID,
+                password: password,
+                device: IumrahAccountDeviceIdentity.current(locale: locale)
+            ),
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
+    func startActivationEmail(bookingID: String, bookingToken: String, email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
+        try await api.post(
+            "/api/package/client/account/activate/email/start",
+            body: IumrahAccountActivationEmailStartRequest(
+                bookingID: bookingID,
+                email: email,
+                locale: locale
+            ),
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
+    func confirmActivationEmail(
+        bookingID: String,
+        bookingToken: String,
+        challengeID: String,
+        code: String,
+        password: String,
+        locale: String
+    ) async throws -> IumrahAccountAuthResponse {
+        try await api.post(
+            "/api/package/client/account/activate/email/confirm",
+            body: IumrahAccountActivationEmailConfirmRequest(
+                bookingID: bookingID,
+                challengeID: challengeID,
+                code: code,
+                password: password,
+                device: IumrahAccountDeviceIdentity.current(locale: locale)
+            ),
             headers: ["x-booking-token": bookingToken]
         )
     }

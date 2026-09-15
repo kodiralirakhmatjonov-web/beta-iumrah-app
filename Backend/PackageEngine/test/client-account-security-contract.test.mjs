@@ -98,3 +98,17 @@ test("security overview reports Google and Apple as independent keys to the same
   assert.match(source, /apple: \{ linked: Boolean\(apple\), linkedAt: apple\?\.linked_at \?\? null \}/);
 });
 
+
+
+test("booking activation proves possession, repairs provisional accounts and supports verified email activation", () => {
+  assert.match(source, /\/api\/package\/client\/account\/activate/);
+  assert.match(source, /SELECT id FROM bookings WHERE id=\?1 AND access_token_hash=\?2 LIMIT 1/);
+  assert.match(source, /SELECT pilgrim_id FROM pilgrim_trips WHERE booking_id=\?1 LIMIT 1/);
+  assert.match(source, /ACCOUNT_ALREADY_ACTIVE/);
+  assert.match(source, /ON CONFLICT\(pilgrim_id\) DO UPDATE SET/);
+  assert.match(source, /\/api\/package\/client\/account\/activate\/email\/start/);
+  assert.match(source, /\/api\/package\/client\/account\/activate\/email\/confirm/);
+  assert.match(source, /createEmailChallenge\([\s\S]*"verify_email"/);
+  assert.match(source, /verifyEmailChallenge\([\s\S]*"verify_email"/);
+  assert.match(source, /linkVerifiedEmail\(db, context\.pilgrimID/);
+});

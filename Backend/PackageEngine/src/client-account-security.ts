@@ -776,6 +776,228 @@ async function accountRow(db: D1Like, pilgrimID: number) {
   ).bind(pilgrimID).first<PilgrimRow>();
 }
 
+type BookingActivationContext = {
+  bookingID: string;
+  pilgrimID: number;
+  pilgrim: PilgrimRow;
+};
+
+async function bookingActivationContext(
+  request: Request,
+  env: Env,
+  db: D1Like,
+  bookingIDValue: unknown,
+): Promise<BookingActivationContext> {
+  const bookingID = cleanText(bookingIDValue, 80);
+  const bookingToken = cleanText(request.headers.get("x-booking-token"), 180);
+  if (!bookingID || bookingToken.length < 24 || bookingToken.length > 128) {
+    throw new RouteError("BOOKING_PROOF_INVALID", 401);
+  }
+  if (!env.BOOKINGS_DB) throw new RouteError("BOOKINGS_DB_NOT_CONFIGURED", 503);
+
+  const tokenHash = await sha256Hex(bookingToken);
+  const booking = await env.BOOKINGS_DB.prepare(
+    "SELECT id FROM bookings WHERE id=?1 AND access_token_hash=?2 LIMIT 1",
+  ).bind(bookingID, tokenHash).first<{ id: string }>();
+  if (!booking) throw new RouteError("BOOKING_PROOF_INVALID", 403);
+
+  const trip = await db.prepare(
+    "SELECT pilgrim_id FROM pilgrim_trips WHERE booking_id=?1 LIMIT 1",
+  ).bind(bookingID).first<{ pilgrim_id: number }>();
+  const pilgrimID = Number(trip?.pilgrim_id ?? 0);
+  if (!pilgrimID) throw new RouteError("BOOKING_ACCOUNT_NOT_READY", 409);
+
+  const pilgrim = await db.prepare(
+    `SELECT id,first_name,last_name,display_name,phone,email,telegram,whatsapp
+     FROM pilgrims WHERE id=?1 LIMIT 1`,
+  ).bind(pilgrimID).first<PilgrimRow>();
+  if (!pilgrim) throw new RouteError("BOOKING_ACCOUNT_NOT_READY", 409);
+  return { bookingID, pilgrimID, pilgrim };
+}
+
+async function accountHasEstablishedCredentials(db: D1Like, pilgrimID: number) {
+  const account = await db.prepare(
+    "SELECT last_login_at FROM iumrah_accounts WHERE pilgrim_id=?1 LIMIT 1",
+  ).bind(pilgrimID).first<{ last_login_at: string | null }>();
+  if (cleanText(account?.last_login_at, 80)) return true;
+
+  const row = await db.prepare(
+    `SELECT
+       EXISTS(SELECT 1 FROM iumrah_client_account_emails WHERE pilgrim_id=?1 AND verified_at IS NOT NULL) AS has_email,
+       EXISTS(SELECT 1 FROM iumrah_client_apple_links WHERE pilgrim_id=?1) AS has_apple,
+       EXISTS(SELECT 1 FROM iumrah_client_google_links WHERE pilgrim_id=?1) AS has_google,
+       EXISTS(SELECT 1 FROM iumrah_client_devices WHERE pilgrim_id=?1 AND revoked_at IS NULL) AS has_device,
+       EXISTS(SELECT 1 FROM iumrah_account_sessions
+              WHERE pilgrim_id=?1 AND revoked_at IS NULL AND expires_at>?2) AS has_session`,
+  ).bind(pilgrimID, new Date().toISOString()).first<{
+    has_email: number;
+    has_apple: number;
+    has_google: number;
+    has_device: number;
+    has_session: number;
+  }>();
+  return Boolean(
+    Number(row?.has_email ?? 0)
+    || Number(row?.has_apple ?? 0)
+    || Number(row?.has_google ?? 0)
+    || Number(row?.has_device ?? 0)
+    || Number(row?.has_session ?? 0),
+  );
+}
+
+async function ensureActivationAvailable(db: D1Like, pilgrimID: number) {
+  if (await accountHasEstablishedCredentials(db, pilgrimID)) {
+    throw new RouteError("ACCOUNT_ALREADY_ACTIVE", 409);
+  }
+}
+
+async function establishPasswordAccount(
+  request: Request,
+  db: D1Like,
+  context: BookingActivationContext,
+  passwordValue: unknown,
+  deviceValue: unknown,
+) {
+  if (!validPassword(passwordValue)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
+  await ensureActivationAvailable(db, context.pilgrimID);
+
+  const password = String(passwordValue);
+  const salt = randomToken(18);
+  const passwordHash = await passwordDigest(password, salt, PASSWORD_ITERATIONS);
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO iumrah_accounts(
+       pilgrim_id,password_salt,password_hash,password_iterations,activated_at,password_updated_at,
+       failed_attempts,locked_until,last_login_at
+     ) VALUES(?1,?2,?3,?4,?5,?5,0,NULL,NULL)
+     ON CONFLICT(pilgrim_id) DO UPDATE SET
+       password_salt=excluded.password_salt,
+       password_hash=excluded.password_hash,
+       password_iterations=excluded.password_iterations,
+       activated_at=COALESCE(iumrah_accounts.activated_at, excluded.activated_at),
+       password_updated_at=excluded.password_updated_at,
+       failed_attempts=0,
+       locked_until=NULL`,
+  ).bind(context.pilgrimID, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+
+  const device = parseDevice(deviceValue);
+  const session = await createAccountSession(db, context.pilgrimID);
+  const auth: AccountAuth = {
+    pilgrimID: context.pilgrimID,
+    tokenHash: session.tokenHash,
+    pilgrim: context.pilgrim,
+  };
+  let sessionID: string;
+  try {
+    sessionID = await bindCurrentSession(db, auth, device, request);
+  } catch (error) {
+    await db.prepare("UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2")
+      .bind(new Date().toISOString(), session.tokenHash).run();
+    throw error;
+  }
+
+  await db.prepare(
+    `UPDATE iumrah_client_devices
+     SET is_primary=CASE WHEN installation_id=?1 THEN 1 ELSE 0 END
+     WHERE pilgrim_id=?2 AND revoked_at IS NULL`,
+  ).bind(device.installationID, context.pilgrimID).run();
+  await db.prepare("UPDATE iumrah_accounts SET last_login_at=?1 WHERE pilgrim_id=?2")
+    .bind(now, context.pilgrimID).run();
+  await audit(db, context.pilgrimID, "booking_account_activated", sessionID, sessionID);
+
+  return { session, sessionID };
+}
+
+async function activateWithBookingPassword(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    password?: unknown;
+    device?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  const established = await establishPasswordAccount(request, db, context, payload?.password, payload?.device);
+  return json({
+    ok: true,
+    account: accountProfile(context.pilgrim),
+    session: { token: established.session.token, expiresAt: established.session.expiresAt },
+  });
+}
+
+async function startBookingEmailActivation(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    email?: unknown;
+    locale?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  await ensureActivationAvailable(db, context.pilgrimID);
+  const emailDisplay = cleanText(payload?.email, 254);
+  const emailNormalized = normalizeEmail(emailDisplay);
+  if (!validEmail(emailNormalized)) throw new RouteError("EMAIL_INVALID", 400);
+  const collision = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_account_emails
+     WHERE email_normalized=?1 AND pilgrim_id<>?2 LIMIT 1`,
+  ).bind(emailNormalized, context.pilgrimID).first<{ pilgrim_id: number }>();
+  if (collision) throw new RouteError("EMAIL_ALREADY_CONNECTED", 409);
+
+  const challenge = await createEmailChallenge(
+    db,
+    env,
+    request,
+    "verify_email",
+    context.pilgrimID,
+    emailDisplay,
+    cleanText(payload?.locale, 24),
+  );
+  await audit(db, context.pilgrimID, "booking_email_activation_started", null, null);
+  return json({ ok: true, challengeID: challenge.id, expiresAt: challenge.expiresAt });
+}
+
+async function confirmBookingEmailActivation(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    challengeID?: unknown;
+    code?: unknown;
+    password?: unknown;
+    device?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  await ensureActivationAvailable(db, context.pilgrimID);
+  const challenge = await verifyEmailChallenge(
+    db,
+    cleanText(payload?.challengeID, 100),
+    "verify_email",
+    cleanText(payload?.code, 12),
+    context.pilgrimID,
+  );
+
+  const collision = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_account_emails
+     WHERE email_normalized=?1 AND pilgrim_id<>?2 LIMIT 1`,
+  ).bind(challenge.email_normalized, context.pilgrimID).first<{ pilgrim_id: number }>();
+  if (collision) throw new RouteError("EMAIL_ALREADY_CONNECTED", 409);
+
+  const established = await establishPasswordAccount(
+    request,
+    db,
+    context,
+    payload?.password,
+    payload?.device,
+  );
+  await linkVerifiedEmail(db, context.pilgrimID, challenge.email_display, challenge.email_normalized);
+  await audit(db, context.pilgrimID, "booking_email_activation_completed", established.sessionID, established.sessionID);
+
+  const updatedPilgrim = await db.prepare(
+    `SELECT id,first_name,last_name,display_name,phone,email,telegram,whatsapp
+     FROM pilgrims WHERE id=?1 LIMIT 1`,
+  ).bind(context.pilgrimID).first<PilgrimRow>() ?? context.pilgrim;
+  return json({
+    ok: true,
+    account: accountProfile(updatedPilgrim),
+    session: { token: established.session.token, expiresAt: established.session.expiresAt },
+  });
+}
+
 async function loginWithPassword(request: Request, db: D1Like) {
   const payload = await request.json().catch(() => null) as {
     identifier?: unknown;
@@ -1701,6 +1923,15 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
   if (!env.HOTELS_DB) return json({ ok: false, error: "HOTELS_DB_NOT_CONFIGURED" }, 503);
   const db = env.HOTELS_DB;
   try {
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/activate") {
+      return await activateWithBookingPassword(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/activate/email/start") {
+      return await startBookingEmailActivation(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/activate/email/confirm") {
+      return await confirmBookingEmailActivation(request, env, db);
+    }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/login") {
       return await loginWithPassword(request, db);
     }

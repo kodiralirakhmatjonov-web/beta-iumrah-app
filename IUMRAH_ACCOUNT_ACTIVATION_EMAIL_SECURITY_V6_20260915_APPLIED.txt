@@ -1,0 +1,24 @@
+Iumrah account activation + email security v6 — 2026-09-15
+
+Root cause fixed:
+- booking activation was still using the legacy catalog/hotels activation route;
+- modern login/email/Apple/Google security is handled by PackageEngine;
+- legacy checkout.accountActive can describe a provisional booking identity, not a user-established password.
+
+Implemented:
+- secure booking-token-proven activation in PackageEngine;
+- safe repair of provisional account rows without overwriting an established account;
+- activation via six-digit iumrah ID + password;
+- activation via verified email + password + Resend six-digit code;
+- native iumrah ID / Email segmented controls;
+- create/confirm password and eye visibility controls;
+- Account login by iumrah ID or verified email;
+- Forgot password with email verification;
+- existing-account checkout login can use a different iumrah ID or email and then links the booking to that canonical account;
+- localized account-security errors for already-active, invalid booking proof, and account-not-ready states.
+
+Deployment note:
+After this ZIP is applied, deploy both sides:
+1. Run the existing “Deploy iumrah Package Engine” GitHub Action so the new /api/package/client/account/activate routes are live.
+2. Build/TestFlight the iOS app.
+The existing RESEND_API_KEY Worker secret is reused. No secrets or protected workflows are changed by this patch.

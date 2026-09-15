@@ -943,6 +943,21 @@ enum IumrahAccountSecurityCopy {
             ru = "Неверная почта, iumrah ID или пароль."
             uz = "Email, iumrah ID yoki parol noto‘g‘ri."
             cyrl = "Email, iumrah ID ёки парол нотўғри."
+        case "ACCOUNT_ALREADY_ACTIVE":
+            en = "This iumrah ID is already activated. Sign in or use password recovery."
+            ru = "Этот iumrah ID уже активирован. Войдите в аккаунт или восстановите пароль."
+            uz = "Bu iumrah ID allaqachon faollashtirilgan. Akkauntga kiring yoki parolni tiklang."
+            cyrl = "Бу iumrah ID аллақачон фаоллаштирилган. Аккаунтга киринг ёки паролни тикланг."
+        case "BOOKING_PROOF_INVALID":
+            en = "This booking could not be securely verified. Reopen it from Bookings and try again."
+            ru = "Не удалось безопасно подтвердить эту бронь. Откройте её заново из раздела «Бронирование» и повторите."
+            uz = "Bu bronni xavfsiz tasdiqlab bo‘lmadi. Uni Bronlar bo‘limidan qayta ochib, yana urinib ko‘ring."
+            cyrl = "Бу бронни хавфсиз тасдиқлаб бўлмади. Уни Бронлар бўлимидан қайта очиб, яна уриниб кўринг."
+        case "BOOKING_ACCOUNT_NOT_READY":
+            en = "Your iumrah ID is still being prepared. Refresh the booking in a moment and try again."
+            ru = "Ваш iumrah ID ещё подготавливается. Обновите бронь через несколько секунд и повторите."
+            uz = "iumrah ID hali tayyorlanmoqda. Bir necha soniyadan keyin bronni yangilab, qayta urinib ko‘ring."
+            cyrl = "iumrah ID ҳали тайёрланмоқда. Бир неча сониядан кейин бронни янгилаб, қайта уриниб кўринг."
         case "ACCOUNT_TEMPORARILY_LOCKED":
             en = "Too many attempts. Try again in 15 minutes."
             ru = "Слишком много попыток. Повторите через 15 минут."
