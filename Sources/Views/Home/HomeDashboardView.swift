@@ -623,8 +623,9 @@ struct HomeDashboardView: View {
                     Color.black
                     Image("IumrahCareShowcaseCard")
                         .resizable()
-                        .scaledToFit()
-                        .padding(.horizontal, 4)
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 }
                 .frame(height: 240)
                 .clipped()
@@ -675,6 +676,7 @@ struct HomeDashboardView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .background(Color.white)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
             .overlay {
@@ -824,9 +826,9 @@ struct HomeDashboardView: View {
 
                     Image("IumrahConfiguratorHero")
                         .resizable()
-                        .scaledToFit()
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 240)
@@ -885,6 +887,7 @@ struct HomeDashboardView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .background(Color.black)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
             .overlay {

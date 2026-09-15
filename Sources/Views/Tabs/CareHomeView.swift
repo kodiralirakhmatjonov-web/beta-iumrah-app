@@ -1,14 +1,12 @@
 import SwiftUI
 
 struct CareHomeView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
 
     @State private var careProfile: IumrahPublicProfile?
     @State private var isLoadingCareProfile = false
-    @State private var showCareRequestBuilder = false
     @AppStorage("iumrah.care.cachedPhoneSA") private var cachedPhoneSA = ""
     @AppStorage("iumrah.care.cachedPhoneUZ") private var cachedPhoneUZ = "+998 50 889 88 45"
     @AppStorage("iumrah.care.cachedTelegram") private var cachedTelegram = "@saudiclub966"
@@ -36,9 +34,6 @@ struct CareHomeView: View {
                     careHero
                         .padding(.bottom, 28)
 
-                    bookingHelpCard
-                        .padding(.bottom, 30)
-
                     helpTopics
                         .padding(.bottom, 30)
 
@@ -60,9 +55,6 @@ struct CareHomeView: View {
         }
         .task {
             await refreshCare()
-        }
-        .navigationDestination(isPresented: $showCareRequestBuilder) {
-            IumrahCareRequestView()
         }
     }
 
@@ -204,13 +196,13 @@ struct CareHomeView: View {
         VStack(spacing: 9) {
             ZStack {
                 Circle()
-                    .fill(enabled ? Color.iumrahCareLight.opacity(0.17) : Color.primary.opacity(0.055))
+                    .fill(neutralIconBackground)
                     .frame(width: 48, height: 48)
 
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(enabled ? careAccent : Color.secondary.opacity(0.56))
+                    .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.56))
             }
 
             VStack(spacing: 2) {
@@ -230,7 +222,7 @@ struct CareHomeView: View {
         .frame(minHeight: 96)
         .padding(.horizontal, 7)
         .padding(.vertical, 12)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .background(neutralTileBackground, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
         .opacity(enabled ? 1 : 0.72)
     }
@@ -239,10 +231,10 @@ struct CareHomeView: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color(uiColor: .systemGreen).opacity(0.13))
+                    .fill(neutralIconBackground)
                     .frame(width: 38, height: 38)
                 Circle()
-                    .fill(Color(uiColor: .systemGreen))
+                    .fill(Color.primary)
                     .frame(width: 8, height: 8)
             }
 
@@ -271,7 +263,7 @@ struct CareHomeView: View {
             Spacer(minLength: 0)
         }
         .padding(13)
-        .background(Color(uiColor: .systemGreen).opacity(0.055), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(neutralTileBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var lockedChatNote: some View {
@@ -280,7 +272,7 @@ struct CareHomeView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 30, height: 30)
-                .background(Color.primary.opacity(0.055), in: Circle())
+                .background(neutralIconBackground, in: Circle())
 
             Text(tr(
                 "One-to-one Care chat opens automatically when you have an active booking. Until then, you can call us or write in Telegram.",
@@ -294,90 +286,6 @@ struct CareHomeView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 2)
-    }
-
-    // MARK: - Booking help
-
-    private var bookingHelpCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(Color.iumrahCareLight.opacity(0.14))
-                        .frame(width: 52, height: 52)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(careAccent)
-                }
-
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(tr(
-                        "Need help with your booking?",
-                        "Нужна помощь с бронированием?",
-                        "Bron qilishda yordam kerakmi?",
-                        "Брон қилишда ёрдам керакми?"
-                    ))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .tracking(-0.35)
-
-                    Text(tr(
-                        "Tell us your approximate dates, departure city and who is travelling. We will help you choose a suitable route, hotel and services without making you rebuild everything yourself.",
-                        "Расскажите примерные даты, город вылета и кто едет. Мы поможем подобрать подходящий маршрут, отель и услуги — вам не придётся заново разбираться во всём самостоятельно.",
-                        "Taxminiy sanalar, uchish shahri va kimlar safarga chiqishini ayting. Biz mos yo‘nalish, mehmonxona va xizmatlarni tanlashga yordam beramiz — hammasini boshidan o‘zingiz yig‘ishingiz shart emas.",
-                        "Тахминий саналар, учиш шаҳри ва кимлар сафарга чиқишини айтинг. Биз мос йўналиш, меҳмонхона ва хизматларни танлашга ёрдам берамиз — ҳаммасини бошидан ўзингиз тузишингиз шарт эмас."
-                    ))
-                    .font(.system(size: 14.5))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            Button {
-                showCareRequestBuilder = true
-                IumrahHaptics.soft()
-            } label: {
-                HStack(spacing: 9) {
-                    Image(systemName: "square.and.pencil")
-                    Text(tr(
-                        "Leave a care request",
-                        "Оставить запрос в iumrah Care",
-                        "iumrah Care so‘rovini qoldirish",
-                        "iumrah Care сўровини қолдириш"
-                    ))
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                }
-            }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-
-            NavigationLink {
-                TripBuilderView()
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "slider.horizontal.3")
-                    Text(tr(
-                        "Or open the Configurator",
-                        "Или открыть Конфигуратор",
-                        "Yoki Konfiguratorni ochish",
-                        "Ёки Конфигураторни очиш"
-                    ))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                }
-                .font(.system(size: 14.5, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 4)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(20)
-        .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
-        }
     }
 
     // MARK: - Topics
@@ -417,9 +325,9 @@ struct CareHomeView: View {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(careAccent)
+                .foregroundStyle(Color.primary)
                 .frame(width: 36, height: 36)
-                .background(Color.iumrahCareLight.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(neutralIconBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Text(title)
                 .font(.system(size: 15.5, weight: .semibold, design: .rounded))
@@ -498,9 +406,9 @@ struct CareHomeView: View {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(careAccent)
+                .foregroundStyle(Color.primary)
                 .frame(width: 34, height: 34)
-                .background(Color.iumrahCareLight.opacity(0.11), in: Circle())
+                .background(neutralIconBackground, in: Circle())
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
@@ -528,8 +436,12 @@ struct CareHomeView: View {
     }
 
 
-    private var careAccent: Color {
-        colorScheme == .dark ? Color.iumrahCareLight : Color.iumrahCareDark
+    private var neutralIconBackground: Color {
+        Color(uiColor: .systemGray6)
+    }
+
+    private var neutralTileBackground: Color {
+        Color(uiColor: .secondarySystemGroupedBackground)
     }
 
     // MARK: - Contact actions
@@ -574,14 +486,6 @@ struct CareHomeView: View {
     private func openTelegram() {
         guard let telegramURL else { return }
         openURL(telegramURL)
-    }
-
-    private func requestBookingHelp() {
-        if telegramURL != nil {
-            openTelegram()
-        } else {
-            openPhone()
-        }
     }
 
     @MainActor
