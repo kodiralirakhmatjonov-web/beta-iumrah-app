@@ -512,15 +512,41 @@ struct HomeStorefrontFlightOptionCard: View {
 
     private func flightTime(_ leg: StorefrontFlightLeg) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(day(leg.departureAt))
+            Text(homeDay(leg.departureAt))
                 .font(.caption.weight(.semibold))
-            Text("\(clock(leg.departureAt))  \(leg.origin) → \(leg.destination)")
+            Text("\(homeClock(leg.departureAt))  \(leg.origin) → \(leg.destination)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func parseFlightDate(_ value: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) { return date }
+
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        return standard.date(from: value)
+    }
+
+    private func homeClock(_ value: String) -> String {
+        guard let date = parseFlightDate(value) else { return "—" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func homeDay(_ value: String) -> String {
+        guard let date = parseFlightDate(value) else { return String(value.prefix(10)) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMM"
+        return formatter.string(from: date)
     }
 
     private func money(_ value: Decimal) -> String {

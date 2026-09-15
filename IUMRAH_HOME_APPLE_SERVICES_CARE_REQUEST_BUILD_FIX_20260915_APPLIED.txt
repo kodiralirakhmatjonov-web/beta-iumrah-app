@@ -1,0 +1,6 @@
+Iumrah Home — Apple Services / Care request build fix — 2026-09-15
+
+Build fix:
+- HomeStorefrontFlightOptionCard no longer calls file-private day()/clock() helpers declared in HotelsHomeView.swift.
+- Flight date/time formatting is now self-contained in HomeAppleStoreSections.swift via private homeDay/homeClock helpers.
+- This fixes the Xcode 26.6 compiler error: 'day' is inaccessible due to 'private' protection level, and prevents the equivalent clock() access failure.

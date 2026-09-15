@@ -1,0 +1,23 @@
+{
+  "name": "iumrah-beta-update-20260915-home-apple-services-care-request-v2",
+  "date": "2026-09-15",
+  "scope": "Iumrah Home redesign + Care request workflow + Xcode build fix for private flight date/time helpers",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Home/HomeVideoCarousel.swift",
+    "Sources/Views/Home/HomeAppleStoreSections.swift",
+    "Sources/Views/Home/IumrahCareRequestView.swift",
+    "Sources/Models/IumrahCareRequestModels.swift",
+    "Sources/Services/IumrahCareRequestService.swift",
+    "Sources/AppShell/AppChromeStore.swift",
+    "Sources/Views/Tabs/HotelsHomeView.swift",
+    "Backend/PackageEngine/src/care-requests.ts",
+    "Backend/PackageEngine/src/index.ts",
+    "IUMRAH_HOME_APPLE_SERVICES_CARE_REQUEST_20260915_APPLIED.txt",
+    "IUMRAH_HOME_APPLE_SERVICES_CARE_REQUEST_BUILD_FIX_20260915_APPLIED.txt"
+  ],
+  "protected_files_changed": false,
+  "workflow_files_changed": false,
+  "signing_files_changed": false,
+  "build_fix": "HomeStorefrontFlightOptionCard now owns homeDay/homeClock helpers instead of referencing private day/clock helpers in HotelsHomeView.swift"
+}
