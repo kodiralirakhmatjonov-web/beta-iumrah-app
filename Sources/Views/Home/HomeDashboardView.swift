@@ -92,7 +92,6 @@ struct HomeDashboardView: View {
                         productsCarousel(contentWidth: contentWidth)
                     }
 
-                    friendsHomeCard
                     confidenceStrip
                     philosophyCard
                     connectedTripCard
@@ -1256,59 +1255,99 @@ struct HomeDashboardView: View {
 
     private func productsCarousel(contentWidth: CGFloat) -> some View {
         let cardWidth = min(max(contentWidth * 0.88, 300), contentWidth)
+        let cardHeight: CGFloat = 472
+        let cardShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
 
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            LazyHStack(alignment: .top, spacing: 16) {
                 IumrahBackendSystemHomeCard()
-                    .frame(width: cardWidth, height: 472)
+                    .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                    .clipShape(cardShape)
+                    .contentShape(cardShape)
+                    .id("iumrah-system")
 
                 homeAdvisorProductCard
-                    .frame(width: cardWidth, height: 472)
+                    .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                    .clipShape(cardShape)
+                    .contentShape(cardShape)
+                    .id("iumrah-advisor")
             }
+            .scrollTargetLayout()
             .padding(.horizontal, 1)
         }
+        .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
         .contentMargins(.horizontal, 0, for: .scrollContent)
+        .frame(height: cardHeight)
     }
 
     private var homeAdvisorProductCard: some View {
         NavigationLink {
-            UmrahFlowRootView(initialStage: .start, guideLanguage: UmrahGuideLanguage.preferred(for: settings.language))
+            UmrahFlowRootView(
+                initialStage: .start,
+                guideLanguage: UmrahGuideLanguage.preferred(for: settings.language)
+            )
         } label: {
-            ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .fill(Color.black)
+            ZStack {
+                // The living Advisor aura now fills the ENTIRE product card.
+                // There is no static black lower half: the gradient keeps moving
+                // underneath the title, body and CTA as one continuous surface.
+                UmrahAdvisorHomeAura()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.04),
+                        Color.black.opacity(0.10),
+                        Color.black.opacity(0.42)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    ZStack(alignment: .topLeading) {
-                        UmrahAdvisorHomeAura()
-                            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-                            .frame(height: 228)
-
-                        LinearGradient(
-                            colors: [Color.black.opacity(0.18), Color.black.opacity(0.62)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 228)
-                        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-
-                        HStack(alignment: .top) {
-                            Text("iumrah Advisor")
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                .tracking(0.7)
-                                .foregroundStyle(.white.opacity(0.70))
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
+                    HStack(alignment: .center, spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "waveform.badge.mic")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.82))
-                                .frame(width: 34, height: 34)
-                                .iumrahGlass(in: Circle(), tint: .white.opacity(0.075))
+                            Text("iumrah Advisor")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .tracking(0.45)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 18)
+                        .foregroundStyle(.white.opacity(0.92))
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.92))
+                            .frame(width: 38, height: 38)
+                            .iumrahGlass(in: Circle(), tint: .white.opacity(0.09))
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
+                    Spacer(minLength: 24)
+
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.075))
+                            .frame(width: 106, height: 106)
+                            .blur(radius: 1)
+
+                        Circle()
+                            .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                            .frame(width: 106, height: 106)
+
+                        Image(systemName: "waveform")
+                            .font(.system(size: 42, weight: .medium))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.white.opacity(0.92))
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Spacer(minLength: 24)
+
+                    VStack(alignment: .leading, spacing: 9) {
                         Text(homeAdvisorProductTitle)
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .tracking(-0.65)
@@ -1317,27 +1356,32 @@ struct HomeDashboardView: View {
 
                         Text(homeAdvisorProductBody)
                             .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.64))
+                            .foregroundStyle(.white.opacity(0.70))
+                            .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        HStack(spacing: 7) {
+                        HStack(spacing: 8) {
                             Text(homeAdvisorProductCTA)
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.bold))
+                            Spacer(minLength: 8)
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 13, weight: .bold))
                         }
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.90))
-                        .padding(.top, 4)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 17)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.white.opacity(0.96), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .padding(.top, 5)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 22)
                 }
+                .padding(20)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .strokeBorder(.white.opacity(0.08), lineWidth: 0.8)
+                    .strokeBorder(Color.white.opacity(0.09), lineWidth: 0.8)
             }
-            .shadow(color: .black.opacity(0.18), radius: 26, y: 12)
             .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)

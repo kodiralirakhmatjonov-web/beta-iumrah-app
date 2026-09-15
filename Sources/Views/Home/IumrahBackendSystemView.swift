@@ -227,6 +227,7 @@ struct IumrahBackendSystemHomeCard: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 22)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
                     .fill(Color(red: 0.025, green: 0.025, blue: 0.032))
