@@ -595,20 +595,23 @@ struct HomeDashboardView: View {
 
             GeometryReader { proxy in
                 let cardWidth = max(298, min(proxy.size.width * 0.94, 352))
+                let cardHeight: CGFloat = 540
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 13) {
+                    LazyHStack(alignment: .top, spacing: 16) {
                         hero
-                            .frame(width: cardWidth, height: 566)
+                            .frame(width: cardWidth, height: cardHeight, alignment: .top)
                         careRequestBuilderCard
-                            .frame(width: cardWidth, height: 566)
+                            .frame(width: cardWidth, height: cardHeight, alignment: .top)
                     }
                     .scrollTargetLayout()
+                    .padding(.horizontal, 1)
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollClipDisabled()
             }
-            .frame(height: 578)
+            .frame(height: 554)
         }
         .padding(.bottom, 6)
     }
@@ -627,7 +630,7 @@ struct HomeDashboardView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                 }
-                .frame(height: 240)
+                .frame(height: 220)
                 .clipped()
 
                 VStack(alignment: .leading, spacing: 15) {
@@ -831,7 +834,7 @@ struct HomeDashboardView: View {
                         .clipped()
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 240)
+                .frame(height: 220)
                 .clipped()
 
                 VStack(alignment: .leading, spacing: 15) {
@@ -859,15 +862,8 @@ struct HomeDashboardView: View {
                         Text(configuratorHeroBody)
                             .font(.system(size: 15, weight: .regular, design: .rounded))
                             .foregroundStyle(Color.white.opacity(0.68))
+                            .lineLimit(4)
                             .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    HStack(spacing: 8) {
-                        configuratorChip("airplane")
-                        configuratorChip("building.2.fill")
-                        configuratorChip("car.fill")
-                        configuratorChip("heart.fill")
-                        Spacer(minLength: 0)
                     }
 
                     Spacer(minLength: 16)
@@ -899,14 +895,6 @@ struct HomeDashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(configuratorHeroTitle)
-    }
-
-    private func configuratorChip(_ systemName: String) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(0.86))
-            .frame(width: 35, height: 35)
-            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 
     private var configuratorTimeBadge: String {
