@@ -40,12 +40,11 @@ struct CareHomeView: View {
                     .padding(.bottom, 14)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 112)
+            .padding(.top, 12)
+            .padding(.bottom, 46)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .background(Color.iumrahPageBackground.ignoresSafeArea())
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(Color.iumrahPageBackground)
         .refreshable {
             await refreshCare()
         }
@@ -134,6 +133,7 @@ struct CareHomeView: View {
                 .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
         }
         .shadow(color: .black.opacity(0.07), radius: 24, y: 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -328,7 +328,9 @@ struct CareHomeView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
                 requestBookingHelp()
@@ -377,6 +379,7 @@ struct CareHomeView: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Topics
@@ -409,6 +412,7 @@ struct CareHomeView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func helpTopicRow(icon: String, title: String) -> some View {
@@ -490,6 +494,7 @@ struct CareHomeView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func answerRow(icon: String, title: String, body: String) -> some View {

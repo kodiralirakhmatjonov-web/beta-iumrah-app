@@ -1,0 +1,20 @@
+Iumrah Home/Care layout lock v5 — 2026-09-15
+
+Base: current repository + previously supplied v4 Home/Care patch.
+Changed files only:
+- Sources/Views/Home/HomeDashboardView.swift
+- Sources/Views/Tabs/CareHomeView.swift
+
+What changed:
+1. Home and Care now use the same root page discipline as Account:
+   ScrollView -> page VStack -> shared horizontal padding -> 12 pt top -> 46 pt bottom.
+2. The padded page container is hard-constrained to the viewport width AFTER padding.
+   This prevents Home carousels / wide child views from enlarging the entire vertical
+   stack and causing later cards to lose their left/right margins.
+3. Care no longer applies its own ignoresSafeArea/navigation-title modifiers; the
+   shared AppNavigationContainer owns page chrome just like Account.
+4. Large Care sections and the Home Care showcase card get explicit max-width
+   constraints so they stay inside the page column.
+
+No workflows, signing, backend, auth, booking logic, resources, project config,
+or Account/Hotels files are included or changed.

@@ -1,0 +1,20 @@
+{
+  "name": "iumrah-beta-update-20260915-home-care-account-layout-lock-v5",
+  "date": "2026-09-15",
+  "base": "kepler-ios-main 4.zip + v4 patch",
+  "changed_files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift"
+  ],
+  "notes": [
+    "Uses Account-style ScrollView/VStack/padding architecture.",
+    "Constrains the final padded page container to viewport width so wide Home children cannot expand the page.",
+    "Restores Account-matching top/bottom page padding (12/46).",
+    "Care relies on shared AppNavigationContainer for safe-area/background chrome.",
+    "No workflow, signing, backend, auth, booking, resource, project or Account/Hotels changes."
+  ],
+  "sha256": {
+    "Sources/Views/Home/HomeDashboardView.swift": "9dc516aa2cf7f9dda3b50657557f9aa5cd2bf18a74ef856569e551a8d96eaf63",
+    "Sources/Views/Tabs/CareHomeView.swift": "5df7a02fa44b76ad7f2ca02c0e0d1b11bd9fa1faa2584d74666cefcf4c84450b"
+  }
+}

@@ -57,8 +57,9 @@ struct HomeDashboardView: View {
                 homeAboutFooter
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 128)
+            .padding(.top, 12)
+            .padding(.bottom, 46)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground)
     }
@@ -826,8 +827,10 @@ struct HomeDashboardView: View {
                     .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
             }
             .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var homeAboutFooter: some View {
