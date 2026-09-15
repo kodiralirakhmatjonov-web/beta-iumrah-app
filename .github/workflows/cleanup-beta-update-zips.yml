@@ -1,0 +1,37 @@
+name: Cleanup iumrah Beta ZIP files
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove old iumrah Beta ZIP files
+        run: |
+          set -euo pipefail
+          find . -maxdepth 1 -type f -name 'iumrah-beta-update-*.zip' -print -delete
+
+      - name: Commit cleanup
+        run: |
+          set -euo pipefail
+          git config user.name "iumrah-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Repository is already clean"
+            exit 0
+          fi
+
+          git commit -m "Cleanup old iumrah Beta ZIP files [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
