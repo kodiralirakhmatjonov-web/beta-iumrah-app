@@ -178,7 +178,7 @@ struct UmrahAdvisorHomeCard: View {
     }
 }
 
-private struct UmrahAdvisorHomeAura: View {
+struct UmrahAdvisorHomeAura: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
