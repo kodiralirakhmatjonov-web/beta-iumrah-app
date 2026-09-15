@@ -1,0 +1,61 @@
+name: Cleanup iumrah Beta ZIP files
+
+on:
+  workflow_run:
+    workflows:
+      - Apply iumrah Beta ZIP update
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iumrah-beta-zip-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Remove processed iumrah Beta ZIP files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "ZIP files before cleanup:"
+          find . -maxdepth 1 -type f -name 'iumrah-beta-update-*.zip' -print || true
+
+          find . -maxdepth 1 -type f -name 'iumrah-beta-update-*.zip' -delete
+
+          echo "Cleanup finished."
+
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "iumrah-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Repository is already clean — no ZIP files to commit."
+            exit 0
+          fi
+
+          git commit -m "Cleanup processed iumrah Beta ZIP files [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
